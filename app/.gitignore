@@ -1,0 +1,31 @@
+# Gradle files
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android Studio files
+.idea/
+*.iml
+
+# Local configuration
+local.properties
+
+# Log files
+*.log
+
+# Generated files
+captures/
+outputs/
+
+# Misc
+.DS_Store
+.env
+*.keystore
+*.jks
+
+# Firebase / Google service keys (optional)
+app/google-services.json
+
+# Hide keys
+app/src/main/java/com/android/savingssquad/singleton/SquadStrings.kt

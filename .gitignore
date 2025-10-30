@@ -1,0 +1,17 @@
+cat > .gitignore <<EOF
+# Gradle
+.gradle/
+build/
+*.iml
+
+# Android Studio
+.idea/
+local.properties
+
+# Sensitive files
+app/src/main/java/com/android/savingssquad/singleton/SquadStrings.kt
+google-services.json
+
+# Misc
+.DS_Store
+EOF
