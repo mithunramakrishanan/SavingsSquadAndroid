@@ -57,20 +57,23 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import com.android.savingssquad.singleton.AppFont
 
 @Composable
 fun MemberTabView(
-    squadViewModel: SquadViewModel = SquadViewModel(),
+    navController: NavController,
+    squadViewModel: SquadViewModel,
     loaderManager: LoaderManager = LoaderManager.shared
 ) {
     var selectedTab by remember { mutableStateOf(0) } // 0 = Home, 1 = Pay
 
-    // 🧩 Collect states once at top (no duplicate collectors below)
+    // 🔹 Shared states
     val showPayment by squadViewModel.showPayment.collectAsState()
     val paymentOrderId by squadViewModel.paymentOrderId.collectAsState()
     val paymentOrderToken by squadViewModel.paymentOrderToken.collectAsState()
     val groupFundState by squadViewModel.groupFund.collectAsState()
+    val groupFund = groupFundState
 
     Box(
         modifier = Modifier
@@ -79,18 +82,18 @@ fun MemberTabView(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // ✅ TabView equivalent
+            // ✅ Switch tabs like SwiftUI
             when (selectedTab) {
                 0 -> MemberHomeView(
-                    memberSelectedTab = selectedTab,
+                    navController = navController,
                     squadViewModel = squadViewModel,
                     loaderManager = loaderManager
                 )
 
-                1 -> MemberPaymentView()
+                1 -> MemberPaymentView(navController, squadViewModel)
             }
 
-            // ✅ Custom Tab Bar
+            // ✅ Bottom Tab Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -118,31 +121,30 @@ fun MemberTabView(
             }
         }
 
-        // ✅ Global overlays
         SSAlert()
-        SSLoaderView(true)
-        val groupFund = groupFundState
+        SSLoaderView()
+
         // ✅ Payment overlay
         if (showPayment && groupFund != null) {
             CashfreePaymentView(
                 orderId = paymentOrderId,
                 paymentSessionId = paymentOrderToken,
                 groupFundId = groupFund.groupFundID,
-                onSuccess = { orderID ->
-                    println("✅ Payment Success for order: $orderID")
+                onSuccess = { orderId ->
+                    println("✅ Payment Success for order: $orderId")
                     squadViewModel.setShowPayment(false)
                 },
-                onFailure = { errorMsg ->
-                    println("❌ Payment Failed: $errorMsg")
+                onFailure = { error ->
+                    println("❌ Payment Failed: $error")
                     squadViewModel.setShowPayment(false)
                 }
             )
         }
     }
 
-    // ✅ Equivalent to SwiftUI `.task {}` (runs once)
+    // ✅ Fetch group data once
     LaunchedEffect(Unit) {
-        squadViewModel.fetchGroupFundByID(showLoader = true) { success, groupFund, _ ->
+        squadViewModel.fetchGroupFundByID(showLoader = true) { success, _, _ ->
             if (success) {
                 squadViewModel.fetchEMIConfigurations(showLoader = true) { _, _ -> }
             }
@@ -151,7 +153,8 @@ fun MemberTabView(
 }
 
 @Composable
-fun MemberPaymentView() {
+fun MemberPaymentView(navController: NavController,
+                      squadViewModel: SquadViewModel) {
     TODO("Not yet implemented")
 }
 

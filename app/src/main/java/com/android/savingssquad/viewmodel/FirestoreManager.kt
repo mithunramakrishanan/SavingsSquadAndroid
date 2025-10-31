@@ -45,7 +45,7 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Save User Login Details
     fun addUserLogin(login: Login, completion: (Boolean, String?) -> Unit) {
-        val userRef = db.collection("users").document(login.phoneNumber)
+        val userRef = db.collection("users").document(login.phoneNumber.toString())
         val loginRef = userRef.collection("logins").document() // Create new document
 
         val newLogin = login.copy(id = loginRef.id)
@@ -476,17 +476,27 @@ class FirestoreManager private constructor() {
             .addOnSuccessListener { document ->
                 if (document != null && document.exists()) {
                     try {
-                        val member = document.toObject(Member::class.java)
-                        member?.id = document.id
-                        completion(member, null)
+                        val member = document.toObject(Member::class.java)?.apply {
+                            id = document.id
+                        }
+
+                        if (member != null) {
+                            completion(member, null)
+                            Log.d("Firestore", "✅ Member fetched: ${member.name}")
+                        } else {
+                            completion(null, "❌ Failed to decode member object.")
+                        }
                     } catch (e: Exception) {
+                        Log.e("Firestore", "❌ Decoding error", e)
                         completion(null, "❌ Decoding error: ${e.localizedMessage}")
                     }
                 } else {
+                    Log.w("Firestore", "⚠️ Member not found in groupFund: $groupFundID")
                     completion(null, "❌ Member not found.")
                 }
             }
             .addOnFailureListener { e ->
+                Log.e("Firestore", "❌ Error fetching member", e)
                 completion(null, "❌ Error fetching member: ${e.localizedMessage}")
             }
     }

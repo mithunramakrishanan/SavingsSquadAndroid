@@ -1,5 +1,6 @@
 package com.android.savingssquad.viewmodel
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -10,26 +11,24 @@ import androidx.compose.runtime.setValue
  */
 class LoaderManager private constructor() {
 
-    // 🔹 Reactive states (Compose will observe these automatically)
     var isLoading by mutableStateOf(false)
         private set
 
     var loadingMessage by mutableStateOf("Loading...")
         private set
 
-    // 🔹 Singleton instance
     companion object {
         val shared: LoaderManager by lazy { LoaderManager() }
     }
 
-    // 🔹 Show loader with optional message
     fun showLoader(message: String = "Loading...") {
         loadingMessage = message
         isLoading = true
+        Log.d("LoaderManager", "🔄 Loader Started: $message")
     }
 
-    // 🔹 Hide loader
     fun hideLoader() {
         isLoading = false
+        Log.d("LoaderManager", "✅ Loader Hidden")
     }
 }

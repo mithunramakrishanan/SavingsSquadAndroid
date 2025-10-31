@@ -1,22 +1,55 @@
 package com.android.savingssquad.model
 
 
+import androidx.annotation.Keep
 import com.android.savingssquad.singleton.RemainderType
 import com.android.savingssquad.singleton.RecordStatus
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.PropertyName
 import java.util.UUID
 
+@Keep
 data class RemainderModel(
-    val id: String = UUID.randomUUID().toString(),
-    val remainderTitle: String,
-    val remainderSubTitle: String,
-    val remainderType: RemainderType,
-    val remainderAmount: Int,
-    val remainderID: String,
-    val remainderDueDate: Timestamp? = null,
-    val recordStatus: RecordStatus = RecordStatus.ACTIVE,
-    val recordDate: Timestamp = Timestamp.now()
-)
+
+    @get:PropertyName("id") @set:PropertyName("id")
+    var id: String = UUID.randomUUID().toString(),
+
+    @get:PropertyName("remainderTitle") @set:PropertyName("remainderTitle")
+    var remainderTitle: String = "",
+
+    @get:PropertyName("remainderSubTitle") @set:PropertyName("remainderSubTitle")
+    var remainderSubTitle: String = "",
+
+    @get:PropertyName("remainderType") @set:PropertyName("remainderType")
+    var remainderType: RemainderType = RemainderType.CONTRIBUTION,
+
+    @get:PropertyName("remainderAmount") @set:PropertyName("remainderAmount")
+    var remainderAmount: Int = 0,
+
+    @get:PropertyName("remainderID") @set:PropertyName("remainderID")
+    var remainderID: String = "",
+
+    @get:PropertyName("remainderDueDate") @set:PropertyName("remainderDueDate")
+    var remainderDueDate: Timestamp? = null,
+
+    @get:PropertyName("recordStatus") @set:PropertyName("recordStatus")
+    var recordStatus: RecordStatus = RecordStatus.ACTIVE,
+
+    @get:PropertyName("recordDate") @set:PropertyName("recordDate")
+    var recordDate: Timestamp = Timestamp.now()
+) {
+    constructor() : this(
+        id = UUID.randomUUID().toString(),
+        remainderTitle = "",
+        remainderSubTitle = "",
+        remainderType = RemainderType.CONTRIBUTION,
+        remainderAmount = 0,
+        remainderID = "",
+        remainderDueDate = null,
+        recordStatus = RecordStatus.ACTIVE,
+        recordDate = Timestamp.now()
+    )
+}
 
 fun List<RemainderModel>.sortedByDueDateRemainder(): List<RemainderModel> {
     return this.sortedBy {

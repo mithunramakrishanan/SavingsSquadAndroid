@@ -59,35 +59,42 @@ import java.util.concurrent.CountDownLatch
 class SquadViewModel : ViewModel() {
 
     // Published equivalent → MutableStateFlow / StateFlow
+    // 🔹 Firestore + Initialization
+    private val manager = FirestoreManager.shared
+    private var groupFundID: String = ""
+    var loginMember: Login? = null
+    private var groupFundListener: ListenerRegistration? = null
+
+    // ------------------------------------------------------------------------
+    // 🔹 GroupFund
+    // ------------------------------------------------------------------------
     private val _groupFund = MutableStateFlow<GroupFund?>(null)
     val groupFund: StateFlow<GroupFund?> = _groupFund
-
-    private val _selectedUser = MutableStateFlow<Login?>(null)
-    val selectedUser: StateFlow<Login?> = _selectedUser
 
     private val _groupFundMembers = MutableStateFlow<List<Member>>(emptyList())
     val groupFundMembers: StateFlow<List<Member>> = _groupFundMembers
 
-    private val _selectedContributions = MutableStateFlow<List<ContributionDetail>>(emptyList())
-    val selectedContributions: StateFlow<List<ContributionDetail>> = _selectedContributions
-
-    private val _groupFundMemberNames = MutableStateFlow<List<String>>(emptyList())
-    val groupFundMemberNames: StateFlow<List<String>> = _groupFundMemberNames
+    private val _groupFundMembersCount = MutableStateFlow(0)
+    val groupFundMembersCount: StateFlow<Int> = _groupFundMembersCount
 
     private val _groupFundActivities = MutableStateFlow<List<GroupFundActivity>>(emptyList())
     val groupFundActivities: StateFlow<List<GroupFundActivity>> = _groupFundActivities
 
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage: StateFlow<String?> = _errorMessage
+    private val _groupFundPayments = MutableStateFlow<List<PaymentsDetails>>(emptyList())
+    val groupFundPayments: StateFlow<List<PaymentsDetails>> = _groupFundPayments
 
-    private val _showPopup = MutableStateFlow(false)
-    val showPopup: StateFlow<Boolean> = _showPopup
+    private val _rules = MutableStateFlow<List<GroupFundRule>>(emptyList())
+    val rules: StateFlow<List<GroupFundRule>> = _rules
 
-    private val _showAddMemberPopup = MutableStateFlow(false)
-    val showAddMemberPopup: StateFlow<Boolean> = _showAddMemberPopup
+    // ------------------------------------------------------------------------
+    // 🔹 Member + Contribution
+    // ------------------------------------------------------------------------
+    private val _selectedUser = MutableStateFlow<Login?>(null)
+    val selectedUser: StateFlow<Login?> = _selectedUser
 
-    private val _showUpdateMemberPopup = MutableStateFlow(false)
-    val showUpdateMemberPopup: StateFlow<Boolean> = _showUpdateMemberPopup
+    fun setSelectedUser(user: Login?) {
+        _selectedUser.value = user
+    }
 
     private val _users = MutableStateFlow<List<Login>>(emptyList())
     val users: StateFlow<List<Login>> = _users
@@ -98,15 +105,21 @@ class SquadViewModel : ViewModel() {
     private val _currentMember = MutableStateFlow<Member?>(null)
     val currentMember: StateFlow<Member?> = _currentMember
 
+    private val _selectedContributions = MutableStateFlow<List<ContributionDetail>>(emptyList())
+    val selectedContributions: StateFlow<List<ContributionDetail>> = _selectedContributions
+
+    private val _groupFundMemberNames = MutableStateFlow<List<String>>(emptyList())
+    val groupFundMemberNames: StateFlow<List<String>> = _groupFundMemberNames
+
     private val _totalContributionMember = MutableStateFlow(0.0)
     val totalContributionMember: StateFlow<Double> = _totalContributionMember
-
-    private val _groupFundMembersCount = MutableStateFlow(0)
-    val groupFundMembersCount: StateFlow<Int> = _groupFundMembersCount
 
     private val _upcomingPayment = MutableStateFlow("")
     val upcomingPayment: StateFlow<String> = _upcomingPayment
 
+    // ------------------------------------------------------------------------
+    // 🔹 EMI Configurations
+    // ------------------------------------------------------------------------
     private val _emiConfigurations = MutableStateFlow<List<EMIConfiguration>>(emptyList())
     val emiConfigurations: StateFlow<List<EMIConfiguration>> = _emiConfigurations
 
@@ -116,6 +129,9 @@ class SquadViewModel : ViewModel() {
     private val _isFetchingTotalAmountCollected = MutableStateFlow(true)
     val isFetchingTotalAmountCollected: StateFlow<Boolean> = _isFetchingTotalAmountCollected
 
+    // ------------------------------------------------------------------------
+    // 🔹 Loans
+    // ------------------------------------------------------------------------
     private val _memberLoans = MutableStateFlow<List<MemberLoan>>(emptyList())
     val memberLoans: StateFlow<List<MemberLoan>> = _memberLoans
 
@@ -131,19 +147,36 @@ class SquadViewModel : ViewModel() {
     private val _remainingMonths = MutableStateFlow(0)
     val remainingMonths: StateFlow<Int> = _remainingMonths
 
-    private val _groupFundPayments = MutableStateFlow<List<PaymentsDetails>>(emptyList())
-    val groupFundPayments: StateFlow<List<PaymentsDetails>> = _groupFundPayments
+    // ------------------------------------------------------------------------
+    // 🔹 UI States
+    // ------------------------------------------------------------------------
+    // 🔹 Popup Visibility
+    private val _showPopup = MutableStateFlow(false)
+    val showPopup: StateFlow<Boolean> = _showPopup
 
-    private val _rules = MutableStateFlow<List<GroupFundRule>>(emptyList())
-    val rules: StateFlow<List<GroupFundRule>> = _rules
+    // ✅ Function to control popup visibility
+    fun setShowPopup(value: Boolean) {
+        _showPopup.value = value
+    }
 
+    private val _showAddMemberPopup = MutableStateFlow(false)
+    val showAddMemberPopup: StateFlow<Boolean> = _showAddMemberPopup
+
+    fun setShowAddMemberPopup(value: Boolean) {
+        _showAddMemberPopup.value = value
+    }
+
+    private val _showUpdateMemberPopup = MutableStateFlow(false)
+    val showUpdateMemberPopup: StateFlow<Boolean> = _showUpdateMemberPopup
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage
+
+    // ------------------------------------------------------------------------
+    // 🔹 Payment
+    // ------------------------------------------------------------------------
     private val _showPayment = MutableStateFlow(false)
     val showPayment: StateFlow<Boolean> = _showPayment
-
-    // ✅ Use this function to update it safely
-    fun setShowPayment(value: Boolean) {
-        _showPayment.value = value
-    }
 
     private val _paymentOrderId = MutableStateFlow("")
     val paymentOrderId: StateFlow<String> = _paymentOrderId
@@ -151,16 +184,46 @@ class SquadViewModel : ViewModel() {
     private val _paymentOrderToken = MutableStateFlow("")
     val paymentOrderToken: StateFlow<String> = _paymentOrderToken
 
-    private var groupFundListener: ListenerRegistration? = null
+    fun setShowPayment(value: Boolean) {
+        _showPayment.value = value
+    }
 
-    private val manager = FirestoreManager.shared
-    private var groupFundID: String = ""
-    var loginMember: Login? = null
+    // ------------------------------------------------------------------------
+    // 🔹 Update Helper Functions
+    // ------------------------------------------------------------------------
+    fun updateGroupFund(groupFund: GroupFund?) {
+        _groupFund.value = groupFund
+    }
+
+    fun updateUsers(list: List<Login>) {
+        _users.value = list
+    }
+
+    fun updateMembers(list: List<Member>) {
+        _groupFundMembers.value = list
+        _groupFundMembersCount.value = list.size
+    }
+
+    fun updateEMIConfigurations(list: List<EMIConfiguration>) {
+        _emiConfigurations.value = list
+    }
+
+    fun toggleAddMemberPopup(show: Boolean) {
+        _showAddMemberPopup.value = show
+    }
+
+    fun toggleLoginPopup(show: Boolean) {
+        _showPopup.value = show
+    }
+
+    fun updateRemainingMonths(value: Int) {
+        _remainingMonths.value = value
+    }
 
     init {
         val login = UserDefaultsManager.getLogin()
         if (login != null) {
-            groupFundID = login.groupFundID
+            groupFundID = login.groupFundID.toString()
             loginMember = login
             _selectedUser.value = login
         } else {
@@ -170,7 +233,7 @@ class SquadViewModel : ViewModel() {
                 groupFundUsername = "",
                 groupFundUserId = "",
                 phoneNumber = "",
-                role = GroupFundUserType.GROUP_FUND_MANAGER,
+                role = GroupFundUserType.GROUP_FUND_MANAGER.value,
                 groupFundCreatedDate = Date().asTimestamp,
                 userCreatedDate = Date().asTimestamp
             )
@@ -231,7 +294,7 @@ class SquadViewModel : ViewModel() {
             groupFundUsername = member.name,
             groupFundUserId = member.id ?: "",
             phoneNumber = member.phoneNumber,
-            role = GroupFundUserType.GROUP_FUND_MEMBER,
+            role = GroupFundUserType.GROUP_FUND_MEMBER.value,
             groupFundCreatedDate = Date().asTimestamp,
             userCreatedDate = Date().asTimestamp
         )
@@ -241,7 +304,7 @@ class SquadViewModel : ViewModel() {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (success) {
-                    if (login.role == GroupFundUserType.GROUP_FUND_MEMBER) {
+                    if (login.getRoleEnum() == GroupFundUserType.GROUP_FUND_MEMBER) {
                         createContributionWhenMemberCreate(member)
                     }
                 } else {
@@ -344,7 +407,7 @@ class SquadViewModel : ViewModel() {
         }
 
         UserDefaultsManager.getLogin()?.let { login ->
-            this.groupFundID = login.groupFundID
+            this.groupFundID = login.groupFundID.toString()
             this.loginMember = login
             _selectedUser.value = login
         }

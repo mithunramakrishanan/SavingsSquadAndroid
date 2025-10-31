@@ -204,7 +204,7 @@ object CommonFunctions {
         val loanNumber = generateLoanNumber()
 
         val interestSplits = splitAmountEvenly(emiConfig.interestAmount, emiConfig.emiMonths)
-        val principalSplits = splitAmountEvenly(emiConfig.loadAmount, emiConfig.emiMonths)
+        val principalSplits = splitAmountEvenly(emiConfig.loanAmount, emiConfig.emiMonths)
 
         val installments = mutableListOf<Installment>()
 
@@ -240,8 +240,8 @@ object CommonFunctions {
             orderId = "",
             memberID = memberID,
             memberName = memberName,
-            loadNumber = loanNumber,
-            loanAmount = emiConfig.loadAmount,
+            loanNumber = loanNumber, // ✅ fixed
+            loanAmount = emiConfig.loanAmount,
             loanMonth = emiConfig.emiMonths,
             interest = emiConfig.emiInterestRate,
             amountSentDate = today.asTimestamp,

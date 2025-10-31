@@ -1,10 +1,10 @@
 package com.android.savingssquad.view
 
 import android.app.Activity
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -44,7 +44,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.compose.material3.Surface
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.input.pointer.pointerInput
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.AppColors
@@ -64,7 +63,6 @@ import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.delay
-import com.android.savingssquad.singleton.RootType
 import com.android.savingssquad.viewmodel.LoaderManager
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
@@ -73,12 +71,18 @@ import com.google.firebase.auth.PhoneAuthProvider
 import java.util.Date
 import java.util.concurrent.TimeUnit
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.zIndex
+import androidx.navigation.compose.rememberNavController
 import com.android.savingssquad.R
-import com.android.savingssquad.singleton.AppNavigator
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.color
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
+import com.android.savingssquad.singleton.displayText
+import com.android.savingssquad.viewmodel.AppDestination
 
 
 // ---------- SSNavigationBar ----------
@@ -87,23 +91,23 @@ fun SSNavigationBar(
     title: String,
     navController: NavController?, // pass rememberNavController() from caller
     showBackButton: Boolean = true,
-    rightButtonIcon: ImageVector? = null,
+    rightButtonIcon: ImageVector? = null, // Material icon
+    @DrawableRes rightButtonDrawable: Int? = null, // ✅ now supports drawable resource
     rightButtonAction: (() -> Unit)? = null
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
+        // 🔹 Back Button
         if (showBackButton) {
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .clickable {
-                        navController?.popBackStack()
-                    },
+                    .clickable { navController?.popBackStack() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -115,6 +119,7 @@ fun SSNavigationBar(
             }
         }
 
+        // 🔹 Title
         Text(
             text = title,
             style = AppFont.ibmPlexSans(24, FontWeight.Bold),
@@ -126,19 +131,35 @@ fun SSNavigationBar(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        if (rightButtonIcon != null && rightButtonAction != null) {
+        // 🔹 Right Button
+        if (rightButtonAction != null && (rightButtonIcon != null || rightButtonDrawable != null)) {
             Box(
                 modifier = Modifier
                     .size(38.dp)
                     .clickable { rightButtonAction() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = rightButtonIcon,
-                    contentDescription = "Action",
-                    tint = AppColors.headerText,
-                    modifier = Modifier.size(25.dp)
-                )
+                when {
+                    // ✅ Use drawable resource
+                    rightButtonDrawable != null -> {
+                        Image(
+                            painter = painterResource(id = rightButtonDrawable),
+                            contentDescription = "Action",
+                            modifier = Modifier.size(25.dp),
+                            colorFilter = ColorFilter.tint(AppColors.headerText)
+                        )
+                    }
+
+                    // ✅ Use ImageVector
+                    rightButtonIcon != null -> {
+                        Icon(
+                            imageVector = rightButtonIcon,
+                            contentDescription = "Action",
+                            tint = AppColors.headerText,
+                            modifier = Modifier.size(25.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -439,15 +460,31 @@ fun SSCancelButton(
     ) {
         Box(
             modifier = Modifier
-                .heightIn(min = 48.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .then(Modifier)
-                .clickable(enabled = !isDisabled) { if (!isDisabled) action() }
-                .appShadow(if (isDisabled) ShadowStyle(Color.Transparent, 0.dp, 0.dp, 0.dp) else AppShadows.card, RoundedCornerShape(12.dp)),
+                .background(Color.Transparent)
+                .border(
+                    width = 1.dp,
+                    color = AppColors.headerText,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .clickable(enabled = !isDisabled) {
+                    if (!isDisabled) action()
+                }
+                .appShadow(
+                    if (isDisabled) ShadowStyle(Color.Transparent, 0.dp, 0.dp, 0.dp)
+                    else AppShadows.card,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .fillMaxWidth()
+                .heightIn(min = 48.dp),
             contentAlignment = Alignment.Center
         ) {
             if (isButtonLoading) {
-                CircularProgressIndicator(color = AppColors.headerText, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                CircularProgressIndicator(
+                    color = AppColors.headerText,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(20.dp)
+                )
             } else {
                 Text(
                     text = title,
@@ -471,11 +508,30 @@ fun AppBackgroundGradient() {
 
 // ---------- OverlayBackgroundView ----------
 @Composable
-fun OverlayBackgroundView() {
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .background(Color.Black.copy(alpha = 0.5f))
-    )
+fun OverlayBackgroundView(
+    showPopup: State<Boolean>,
+    onDismiss: (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    if (showPopup.value) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .pointerInput(Unit) {
+                    // Consume all touches to block interactions behind popup
+                }
+                .then(
+                    if (onDismiss != null) Modifier.clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onDismiss() } else Modifier
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            content()
+        }
+    }
 }
 
 // ---------- ProgressCircleView ----------
@@ -483,7 +539,8 @@ fun OverlayBackgroundView() {
 fun ProgressCircleView(
     completedMonths: Int,
     totalMonths: Int,
-    monthlyContribution: String
+    monthlyContribution: String,
+    onClick: (() -> Unit)? = null
 ) {
     val progress = remember(completedMonths, totalMonths) {
         if (totalMonths <= 0) 0f else (completedMonths.toFloat() / totalMonths.toFloat()).coerceIn(0f, 1f)
@@ -495,11 +552,18 @@ fun ProgressCircleView(
     )
 
     Box(
-        modifier = Modifier.size(180.dp),
+        modifier = Modifier
+            .size(180.dp)
+            .clip(CircleShape)
+            .then(
+                if (onClick != null)
+                    Modifier.clickable(onClick = onClick)
+                else Modifier
+            ),
         contentAlignment = Alignment.Center
     ) {
         // Background circle
-        androidx.compose.foundation.Canvas(modifier = Modifier.size(160.dp)) {
+        Canvas(modifier = Modifier.size(160.dp)) {
             drawCircle(
                 color = AppColors.primaryButton.copy(alpha = 0.2f),
                 style = Stroke(width = 14f, cap = StrokeCap.Round)
@@ -507,11 +571,13 @@ fun ProgressCircleView(
         }
 
         // Progress arc
-        androidx.compose.foundation.Canvas(modifier = Modifier.size(160.dp)) {
+        Canvas(modifier = Modifier.size(160.dp)) {
             val stroke = Stroke(width = 14f, cap = StrokeCap.Round)
             val sweep = animatedProgress * 360f
             drawArc(
-                brush = Brush.linearGradient(listOf(AppColors.primaryButton, AppColors.successAccent)),
+                brush = Brush.linearGradient(
+                    colors = listOf(AppColors.primaryButton, AppColors.successAccent)
+                ),
                 startAngle = -90f,
                 sweepAngle = sweep,
                 useCenter = false,
@@ -519,6 +585,7 @@ fun ProgressCircleView(
             )
         }
 
+        // Center text
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "$completedMonths / $totalMonths",
@@ -539,6 +606,7 @@ fun ProgressCircleView(
         }
     }
 }
+
 
 @Composable
 fun ActionButton(
@@ -595,11 +663,14 @@ fun ActionButton(
 
 @Composable
 fun SSLoaderView(
-    isLoading: Boolean,
-    modifier: Modifier = Modifier
+    loaderManager: LoaderManager = LoaderManager.shared
 ) {
+    val isLoading = loaderManager.isLoading
+    val loadingMessage = loaderManager.loadingMessage
+
     var rotationAngle by remember { mutableStateOf(0f) }
 
+    // 🔹 Animate rotation continuously
     LaunchedEffect(isLoading) {
         if (isLoading) {
             while (true) {
@@ -611,10 +682,10 @@ fun SSLoaderView(
 
     if (isLoading) {
         Box(
-            modifier = modifier
+            modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.3f))
-                .pointerInput(Unit) {} // block touch
+                .pointerInput(Unit) {} // disable user interaction
         ) {
             Column(
                 modifier = Modifier
@@ -623,10 +694,11 @@ fun SSLoaderView(
                     .clip(RoundedCornerShape(20.dp))
                     .background(AppColors.background)
                     .appShadow(AppShadows.elevated, RoundedCornerShape(20.dp))
-                    .padding(24.dp),
+                    .padding(vertical = 20.dp, horizontal = 30.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(contentAlignment = Alignment.Center) {
+                    // 🔹 Rotating circular stroke
                     Canvas(modifier = Modifier.size(50.dp)) {
                         drawArc(
                             brush = Brush.sweepGradient(
@@ -642,6 +714,7 @@ fun SSLoaderView(
                         )
                     }
 
+                    // 🔹 Currency symbol rotating in opposite direction
                     Text(
                         text = "₹",
                         style = AppFont.ibmPlexSans(20, FontWeight.Bold),
@@ -653,7 +726,7 @@ fun SSLoaderView(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
-                    text = "Processing...",
+                    text = loadingMessage,
                     style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
                     color = AppColors.headerText
                 )
@@ -662,115 +735,155 @@ fun SSLoaderView(
     }
 }
 
-@Composable
-fun RootView() {
-    val rootState = AppNavigator.currentRoot
-
-    when (rootState.value) {
-        RootType.MANAGER -> ManagerTabView()
-        RootType.MEMBER -> MemberTabView()
-        RootType.LOGIN -> TODO()
-    }
-}
 
 @Composable
 fun LoginListPopup(
-    showPopup: MutableState<Boolean>,
-    selectedUser: MutableState<Login?>,
-    users: List<Login>,
-    squadViewModel: SquadViewModel
+    navController: NavController,
+    isVisible: Boolean,
+    onDismiss: () -> Unit,
+    selectedUser: Login?,
+    onUserSelected: (Login) -> Unit,
+    users: List<Login>
 ) {
-    var selectedRole by remember { mutableStateOf(GroupFundUserType.GROUP_FUND_MANAGER.value) }
+    if (!isVisible) return
 
-    val managers = remember(users) { users.filter { it.role == GroupFundUserType.GROUP_FUND_MANAGER } }
-    val members = remember(users) { users.filter { it.role == GroupFundUserType.GROUP_FUND_MEMBER } }
-    val filteredUsers = if (selectedRole == GroupFundUserType.GROUP_FUND_MANAGER.value) managers else members
+    val context = LocalContext.current
+    val inPreview = LocalInspectionMode.current
+    var selectedRole by remember { mutableStateOf(GroupFundUserType.GROUP_FUND_MANAGER) }
 
-    if (showPopup.value) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.4f))
-                .clickable { showPopup.value = false },
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
+    val managers = remember(users) { users.filter { it.getRoleEnum() == GroupFundUserType.GROUP_FUND_MANAGER } }
+    val members = remember(users) { users.filter { it.getRoleEnum() == GroupFundUserType.GROUP_FUND_MEMBER } }
+    val filteredUsers = if (selectedRole == GroupFundUserType.GROUP_FUND_MANAGER) managers else members
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(330.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(AppColors.background)
+            .appShadow(AppShadows.elevated, RoundedCornerShape(20.dp))
+            .padding(20.dp)
+    ) {
+        // 🔹 Title
+        Text(
+            text = SquadStrings.selectGroupFund,
+            style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+            color = AppColors.headerText
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // 🔹 Segmented Picker
+        ModernSegmentedPickerView(
+            segments = listOf(
+                GroupFundUserType.GROUP_FUND_MANAGER.value,
+                GroupFundUserType.GROUP_FUND_MEMBER.value
+            ),
+            selectedSegment = selectedRole.value,
+            onSegmentSelected = {
+                selectedRole = if (it == GroupFundUserType.GROUP_FUND_MANAGER.value)
+                    GroupFundUserType.GROUP_FUND_MANAGER
+                else
+                    GroupFundUserType.GROUP_FUND_MEMBER
+            }
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // 🔹 User List
+        if (filteredUsers.isEmpty()) {
+            Text(
+                text = "No ${selectedRole.value}s available",
+                style = AppFont.ibmPlexSans(14, FontWeight.Medium),
+                color = AppColors.secondaryText,
+                modifier = Modifier.padding(vertical = 10.dp)
+            )
+        } else {
+            LazyColumn(
                 modifier = Modifier
-                    .width(330.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(AppColors.background)
-                    .appShadow(AppShadows.elevated, RoundedCornerShape(20.dp))
-                    .padding(20.dp)
+                    .heightIn(max = 220.dp)
+                    .padding(vertical = 5.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // 🔹 Title
-                Text(
-                    text = SquadStrings.selectGroupFund,
-                    style = AppFont.ibmPlexSans(20, FontWeight.Bold),
-                    color = AppColors.headerText
-                )
+                items(filteredUsers) { user ->
+                    UserSelectionCard(
+                        user = user,
+                        onSelect = {
+                            onUserSelected(user)
+                            if (!inPreview) {
+                                UserDefaultsManager.saveLogin(user)
+                                UserDefaultsManager.saveIsLoggedIn(true)
 
-                // 🔹 Segmented Picker
-                ModernSegmentedPickerView(
-                    segments = listOf(
-                        GroupFundUserType.GROUP_FUND_MANAGER.value,
-                        GroupFundUserType.GROUP_FUND_MEMBER.value
-                    ),
-                    selectedSegment = selectedRole,
-                    onSegmentSelected = { selectedRole = it }
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // 🔹 User List
-                if (filteredUsers.isEmpty()) {
-                    Text(
-                        text = "No $selectedRole available",
-                        style = AppFont.ibmPlexSans(14, FontWeight.Medium),
-                        color = AppColors.secondaryText,
-                        modifier = Modifier.padding(vertical = 10.dp)
-                    )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .heightIn(max = 220.dp)
-                            .padding(vertical = 5.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(filteredUsers) { user ->
-                            UserSelectionCard(
-                                user = user,
-                                onSelect = {
-                                    selectedUser.value = user
-                                    showPopup.value = false
-                                    UserDefaultsManager.saveLogin(user)
-                                    UserDefaultsManager.saveIsLoggedIn(true)
-
-                                    if (user.role == GroupFundUserType.GROUP_FUND_MANAGER) {
-                                        AppNavigator.setRoot(RootType.MANAGER)
-                                        UserDefaultsManager.saveGroupFundManagerLogged(true)
-                                    } else {
-                                        AppNavigator.setRoot(RootType.MEMBER)
-                                        UserDefaultsManager.saveGroupFundManagerLogged(false)
+                                if (user.getRoleEnum() == GroupFundUserType.GROUP_FUND_MANAGER) {
+                                    UserDefaultsManager.saveGroupFundManagerLogged(true)
+                                    navController.navigate(AppDestination.MANAGER_HOME.route) {
+                                        popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
+                                } else {
+                                    UserDefaultsManager.saveGroupFundManagerLogged(false)
+                                    navController.navigate(AppDestination.MEMBER_HOME.route) {
+                                        popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
+                                        launchSingleTop = true
                                     }
                                 }
-                            )
+                            }
+                            onDismiss()
                         }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 🔹 Close Button
-                SSCancelButton(
-                    title = "Cancel",
-                    isButtonLoading = false,
-                    isDisabled = false
-                ) {
-                    showPopup.value = false
+                    )
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 🔹 Cancel Button
+        SSCancelButton(
+            title = "Cancel",
+            isButtonLoading = false,
+            isDisabled = false
+        ) {
+            onDismiss()
+        }
+    }
+}
+
+
+@Preview(showBackground = true, backgroundColor = 0xFFF6F6F6)
+@Composable
+fun LoginListPopupPreview() {
+    // 🌿 Provide a Material theme for fonts, colors, etc.
+    MaterialTheme {
+        val showPopup = remember { mutableStateOf(true) }
+        val selectedUser = remember { mutableStateOf<Login?>(null) }
+
+        // 🧩 Mock user data for preview
+        val mockUsers = listOf(
+            Login(
+                id = "1",
+                groupFundID = "GF001",
+                groupFundName = "Daily Saver",
+                groupFundUsername = "Mithun",
+                phoneNumber = "9876543210",
+                role = "AS MANAGER"
+            ),
+            Login(
+                id = "2",
+                groupFundID = "GF002",
+                groupFundName = "Smart Investors",
+                groupFundUsername = "Ravi",
+                phoneNumber = "9876501234",
+                role = "AS MEMBER"
+            )
+        )
+
+        // ✅ Call composable with fake data
+//        LoginListPopup(
+//            navController = rememberNavController(),
+//            showPopup = showPopup,
+//            selectedUser = selectedUser,
+//            users = mockUsers
+//        )
     }
 }
 
@@ -791,13 +904,15 @@ fun UserSelectionCard(
         Column(
             modifier = Modifier.padding(14.dp)
         ) {
-            Text(
-                text = user.groupFundName,
-                style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
-                color = AppColors.headerText
-            )
+            user.groupFundName?.let {
+                Text(
+                    text = it,
+                    style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+                    color = AppColors.headerText
+                )
+            }
 
-            val dateText = if (user.role == GroupFundUserType.GROUP_FUND_MANAGER)
+            val dateText = if (user.getRoleEnum() == GroupFundUserType.GROUP_FUND_MANAGER)
                 "Manager since ${CommonFunctions.dateToString(user.userCreatedDate?.toDate() ?: Date())}"
             else
                 "Member since ${CommonFunctions.dateToString(user.userCreatedDate?.toDate() ?: Date())}"
@@ -1080,7 +1195,7 @@ fun UserPicker(
 @Composable
 fun AddMemberPopup(
     squadViewModel: SquadViewModel,
-    showPopup: MutableState<Boolean>
+    onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -1100,8 +1215,6 @@ fun AddMemberPopup(
     var sendOTPError by remember { mutableStateOf("") }
     var verifyOTPError by remember { mutableStateOf("") }
 
-    if (!showPopup.value) return
-
     // ✅ Validation
     fun validateFields(): Boolean {
         memberNameError = if (memberName.trim().isEmpty()) "Name is required" else ""
@@ -1112,16 +1225,15 @@ fun AddMemberPopup(
         return memberNameError.isEmpty() && phoneError.isEmpty()
     }
 
-    // ✅ Handle Add Member or Send OTP
     fun handleAddMember() {
         if (validateFields()) {
             if (otpVerified) {
                 val name = CommonFunctions.cleanUpName(memberName)
                 val phone = CommonFunctions.cleanUpPhoneNumber(phoneNumber)
                 LoaderManager.shared.showLoader()
-                squadViewModel.addMember(true,name, phone) { _, _ ->
+                squadViewModel.addMember(true, name, phone) { _, _ ->
                     LoaderManager.shared.hideLoader()
-                    showPopup.value = false
+                    onDismiss()
                 }
             } else {
                 val phoneWithCode = "+91$phoneNumber"
@@ -1158,20 +1270,6 @@ fun AddMemberPopup(
         }
     }
 
-    // ✅ Debounced Name Validation
-    @Composable
-    fun handleNameChange(newValue: String) {
-        memberNameError = ""
-        LaunchedEffect(newValue) {
-            delay(500)
-            val name = CommonFunctions.cleanUpName(newValue)
-            if (squadViewModel.groupFundMembers.value.any { it.name == name }) {
-                memberNameError = "Name already exists"
-            }
-        }
-    }
-
-    // ✅ OTP Input Handler
     fun handleOTPChange(newValue: String) {
         verifyOTPError = ""
         verifyOTPLoading = newValue.length == 6
@@ -1190,84 +1288,73 @@ fun AddMemberPopup(
         }
     }
 
-    // ✅ Popup UI
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.45f)),
-        contentAlignment = Alignment.Center
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn() + scaleIn(),
+        exit = fadeOut() + scaleOut()
     ) {
-        AnimatedVisibility(
-            visible = showPopup.value,
-            enter = fadeIn() + scaleIn(),
-            exit = fadeOut() + scaleOut()
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 20.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(AppColors.background)
+                .appShadow(AppShadows.elevated)
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(horizontal = 20.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(AppColors.background)
-                    .appShadow(AppShadows.elevated)
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                // 🔹 Title
-                Text(
-                    text = "Add Member",
-                    style = AppFont.ibmPlexSans(20, FontWeight.Bold),
-                    color = AppColors.headerText,
-                    modifier = Modifier.padding(top = 10.dp)
+            Text(
+                text = "Add Member",
+                style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                color = AppColors.headerText,
+                modifier = Modifier.padding(top = 10.dp)
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SSTextField(
+                    icon = Icons.Default.Person,
+                    placeholder = "Member Name",
+                    textState = remember { mutableStateOf(memberName) },
+                    error = memberNameError
                 )
 
-                // 🔹 Fields
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SSTextField(
-                        icon = Icons.Default.Person,
-                        placeholder = "Member Name",
-                        textState = remember { mutableStateOf(memberName) },
-                        error = memberNameError
-                    )
+                SSTextField(
+                    icon = Icons.Default.Phone,
+                    placeholder = "Member Mobile.No",
+                    textState = remember { mutableStateOf(phoneNumber) },
+                    keyboardType = KeyboardType.Number,
+                    showDropdown = sendOTPLoading,
+                    isLoading = sendOTPLoading,
+                    error = phoneError
+                )
 
+                AnimatedVisibility(visible = isOTPSent) {
                     SSTextField(
-                        icon = Icons.Default.Phone,
-                        placeholder = "Member Mobile.No",
-                        textState = remember { mutableStateOf(phoneNumber) },
+                        icon = Icons.Default.Numbers,
+                        placeholder = "Enter OTP",
+                        textState = remember { mutableStateOf(otpCode) },
                         keyboardType = KeyboardType.Number,
-                        showDropdown = sendOTPLoading,
-                        isLoading = sendOTPLoading,
-                        error = phoneError
+                        showDropdown = verifyOTPLoading || otpVerified,
+                        dropdownIcon = Icons.Default.CheckCircle,
+                        dropdownColor = AppColors.primaryButton,
+                        isLoading = verifyOTPLoading,
+                        error = verifyOTPError
                     )
-
-                    AnimatedVisibility(visible = isOTPSent) {
-                        SSTextField(
-                            icon = Icons.Default.Numbers,
-                            placeholder = "Enter OTP",
-                            textState = remember { mutableStateOf(otpCode) },
-                            keyboardType = KeyboardType.Number,
-                            showDropdown = verifyOTPLoading || otpVerified,
-                            dropdownIcon = Icons.Default.CheckCircle,
-                            dropdownColor = AppColors.primaryButton,
-                            isLoading = verifyOTPLoading,
-                            error = verifyOTPError
-                        )
-                    }
                 }
-
-                // 🔹 Action Buttons
-                SSButton(
-                    title = if (otpVerified) "Add Member" else "Send OTP",
-                    isDisabled = memberNameError.isNotEmpty() || otpProcessStarted,
-                    action = { handleAddMember() }
-                )
-
-                SSCancelButton(
-                    title = "Cancel",
-                    isButtonLoading = false,
-                    isDisabled = false,
-                    action = { showPopup.value = false }
-                )
             }
+
+            SSButton(
+                title = if (otpVerified) "Add Member" else "Send OTP",
+                isDisabled = memberNameError.isNotEmpty() || otpProcessStarted,
+                action = { handleAddMember() }
+            )
+
+            SSCancelButton(
+                title = "Cancel",
+                isButtonLoading = false,
+                isDisabled = false,
+                action = { onDismiss() }
+            )
         }
     }
 }

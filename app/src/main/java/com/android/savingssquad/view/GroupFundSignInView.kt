@@ -49,15 +49,16 @@ import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.LoaderManager
 import com.android.savingssquad.viewmodel.SquadViewModel
+import com.google.firebase.auth.PhoneAuthOptions
 
 
 @Composable
 fun GroupFundSignInView( navController: NavController, squadViewModel: SquadViewModel, loaderManager: LoaderManager) {
     val context = LocalContext.current
 
-    var phoneNumber by remember { mutableStateOf("") }
-    val otpCode by remember { mutableStateOf("") }
-    var verificationID by remember { mutableStateOf("") }
+    val phoneNumber  = remember { mutableStateOf("") }
+    val otpCode = remember { mutableStateOf("") }
+    val verificationID = remember { mutableStateOf("") }
     var isOTPSent by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isButtonLoading by remember { mutableStateOf(false) }
@@ -126,22 +127,19 @@ fun GroupFundSignInView( navController: NavController, squadViewModel: SquadView
                 // 🔸 Input Fields
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
 
-                    val phoneNumberState = remember { mutableStateOf(phoneNumber) }
-
                     SSTextField(
                         icon = Icons.Default.Phone,
                         placeholder = SquadStrings.enterPhoneNumber,
-                        textState = phoneNumberState,
+                        textState = phoneNumber,
                         keyboardType = KeyboardType.Number
                     )
 
                     if (isOTPSent) {
-                        val otpCodeState = remember { mutableStateOf(otpCode) }
 
                         SSTextField(
                             icon = Icons.Default.Numbers,
                             placeholder = SquadStrings.enterOTP,
-                            textState = otpCodeState,
+                            textState = otpCode,
                             keyboardType = KeyboardType.Number
                         )
                     }
@@ -153,21 +151,21 @@ fun GroupFundSignInView( navController: NavController, squadViewModel: SquadView
                     title = if (isOTPSent) SquadStrings.verifyOTP else SquadStrings.sendOTP
                 ) {
                     if (isOTPSent) {
-                        if (verificationID.isEmpty()) {
+                        if (verificationID.value.isEmpty()) {
                             AlertManager.shared.showAlert(
                                 title = SquadStrings.appName,
                                 message = SquadStrings.invalidOTP
                             )
                         } else {
                             verifyOTP(
-                                verificationID = verificationID,
-                                otpCode = otpCode,
+                                verificationID = verificationID.value,
+                                otpCode = otpCode.value,
                                 onStart = { isButtonLoading = true },
                                 onSuccess = {
                                     isButtonLoading = false
                                     squadViewModel.fetchUserLogins(
                                         showLoader = true,
-                                        phoneNumber = phoneNumber
+                                        phoneNumber = phoneNumber.value
                                     ) { success, message ->
                                         if (success) println("✅ User logins fetched successfully")
                                         else println("❌ $message")
@@ -180,7 +178,7 @@ fun GroupFundSignInView( navController: NavController, squadViewModel: SquadView
                             )
                         }
                     } else {
-                        if (phoneNumber.isEmpty()) {
+                        if (phoneNumber.value.isEmpty()) {
                             AlertManager.shared.showAlert(
                                 title = SquadStrings.appName,
                                 message = SquadStrings.enterPhoneNumber
@@ -188,10 +186,10 @@ fun GroupFundSignInView( navController: NavController, squadViewModel: SquadView
                         } else {
                             sendOTP(
                                 context = context,
-                                phoneNumber = phoneNumber,
+                                phoneNumber = phoneNumber.value,
                                 onStart = { isButtonLoading = true },
                                 onSuccess = { id ->
-                                    verificationID = id
+                                    verificationID.value = id
                                     isOTPSent = true
                                     isButtonLoading = false
                                 },
@@ -238,16 +236,23 @@ fun GroupFundSignInView( navController: NavController, squadViewModel: SquadView
 
         SSAlert()
 
-        // 🔹 Popup overlay for users (like SwiftUI `.sheet`)
-        val showPopup by squadViewModel.showPopup.collectAsState()
-        if (showPopup) {
-            OverlayBackgroundView()
-            LoginListPopup(
-                showPopup = remember { mutableStateOf(squadViewModel.showPopup.value) },
-                selectedUser = remember { mutableStateOf(squadViewModel.selectedUser.value) },
-                users = squadViewModel.users.collectAsState().value,
-                squadViewModel = squadViewModel
-            )
+        val showPopup = squadViewModel.showPopup.collectAsState()
+        val selectedUser = squadViewModel.selectedUser.collectAsState()
+
+        if (showPopup.value) {
+            OverlayBackgroundView(
+                showPopup = showPopup,
+                onDismiss = { squadViewModel.setShowPopup(false) } // optional background tap
+            ) {
+                LoginListPopup(
+                    navController = navController,
+                    isVisible = showPopup.value,
+                    onDismiss = { squadViewModel.setShowPopup(false) },
+                    selectedUser = selectedUser.value,
+                    onUserSelected = { user -> squadViewModel.setSelectedUser(user) },
+                    users = squadViewModel.users.collectAsState().value
+                )
+            }
         }
     }
 }
@@ -262,26 +267,40 @@ fun sendOTP(
     val fullNumber = "+91$phoneNumber"
     onStart()
 
-    PhoneAuthProvider.getInstance().verifyPhoneNumber(
-        fullNumber,
-        60,
-        TimeUnit.SECONDS,
-        context as Activity,
-        object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+    val options = PhoneAuthOptions.newBuilder(FirebaseAuth.getInstance())
+        .setPhoneNumber(fullNumber)
+        .setTimeout(60L, TimeUnit.SECONDS)
+        .setActivity(context as Activity)
+        .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+
             override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                onSuccess("")
+                // ✅ Auto verification - directly sign in
+                FirebaseAuth.getInstance().signInWithCredential(credential)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            onSuccess("AUTO_VERIFIED") // flag
+                        } else {
+                            onError(task.exception?.localizedMessage ?: "Auto verification failed")
+                        }
+                    }
             }
 
             override fun onVerificationFailed(e: FirebaseException) {
                 onError(e.localizedMessage ?: "OTP failed")
             }
 
-            override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
+            override fun onCodeSent(
+                verificationId: String,
+                token: PhoneAuthProvider.ForceResendingToken
+            ) {
+                // ✅ Save this verificationId
                 onSuccess(verificationId)
             }
-        }
-    )
+        }).build()
+
+    PhoneAuthProvider.verifyPhoneNumber(options)
 }
+
 
 fun verifyOTP(
     verificationID: String,
@@ -290,7 +309,13 @@ fun verifyOTP(
     onSuccess: () -> Unit,
     onError: (String) -> Unit
 ) {
+    if (verificationID.isEmpty() || verificationID == "AUTO_VERIFIED") {
+        onError("Invalid verification ID. Please request OTP again.")
+        return
+    }
+
     onStart()
+
     val credential = PhoneAuthProvider.getCredential(verificationID, otpCode)
     FirebaseAuth.getInstance().signInWithCredential(credential)
         .addOnCompleteListener { task ->

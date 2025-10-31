@@ -34,33 +34,77 @@ import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.composable
 import kotlinx.coroutines.flow.count
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.android.savingssquad.R
 
-@OptIn(ExperimentalAnimationApi::class)
+
+@Composable
+fun MembersListView(groupFundID: String) {
+
+}
+
+@Composable
+fun AccountSummaryView() {
+    TODO("Not yet implemented")
+}
+
+@Composable
+fun VerifyPaymentsView(screenType: GroupFundUserType) {
+
+}
+
+@Composable
+fun DuesScreenView(screenType: GroupFundUserType) {
+
+}
+
+@Composable
+fun LoanDetailsView(screenType: Any, memberID: String) {
+
+}
+
+@Composable
+fun ContributionDetailsView(member: Member, screenType: GroupFundUserType) {
+
+}
+
+@Composable
+fun MemberProfileView(member: Member, screenType: Any) {
+
+}
+
+@Composable
+fun GroupFundRulesView(screenType: Any) {
+
+}
+
+@Composable
+fun GroupFundActivityView(screenType: GroupFundUserType) {
+
+}
+
+@Composable
+fun PaymentHistoryView(screenType: Any) {
+
+}
+
 @Composable
 fun MemberHomeView(
-    memberSelectedTab: Int,
-    squadViewModel: SquadViewModel = SquadViewModel(),
-    loaderManager: LoaderManager = LoaderManager.shared,
-    navController: NavController = rememberNavController()
+    navController: NavController,
+    squadViewModel: SquadViewModel,
+    loaderManager: LoaderManager
 ) {
-    val context = LocalContext.current
     val groupFund by squadViewModel.groupFund.collectAsState()
-    val showPopup by squadViewModel.showPopup.collectAsState()
-    val currentMember by squadViewModel.currentMember.collectAsState(null)
-
-    // Navigation-like flags
-    var openPaymentHistoryView by remember { mutableStateOf(false) }
-    var openNotificationView by remember { mutableStateOf(false) }
-    var openContributionDetails by remember { mutableStateOf(false) }
-    var openLoanDetailsView by remember { mutableStateOf(false) }
-    var openGroupFundRulesView by remember { mutableStateOf(false) }
-    var openProfile by remember { mutableStateOf(false) }
-    var openDuesScreen by remember { mutableStateOf(false) }
-    var openVerifyPayment by remember { mutableStateOf(false) }
-    var openAccountSummary by remember { mutableStateOf(false) }
-    var openMembersList by remember { mutableStateOf(false) }
+    val currentMember by squadViewModel.currentMember.collectAsState()
+    val groupFundPayments by squadViewModel.groupFundPayments.collectAsState()
+    val users by squadViewModel.users.collectAsState()
 
     var remainders by remember { mutableStateOf(listOf<RemainderModel>()) }
     var currentOrOverDueContribution by remember { mutableStateOf(listOf<ContributionDetail>()) }
@@ -71,150 +115,145 @@ fun MemberHomeView(
             .background(AppColors.background)
     ) {
         if (groupFund != null) {
-            Column(
+            AppBackgroundGradient()
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
-                modifier = Modifier.fillMaxSize()
+                contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 // 🔹 Navigation Bar
-                SSNavigationBar(
-                    title = "Vault Captain",
-                    navController = navController,
-                    showBackButton = false,
-                    rightButtonIcon = Icons.Default.SwipeRight
-                ) {
-                    squadViewModel.fetchUserLogins(
-                        showLoader = true,
-                        phoneNumber = squadViewModel.loginMember?.phoneNumber ?: ""
-                    ) { success, error ->
-                        Log.d("MemberHomeView", if (success) "✅ User logins fetched" else "❌ $error")
+                item {
+                    SSNavigationBar(
+                        title = "Vault Captain",
+                        navController = navController,
+                        showBackButton = false,
+                        rightButtonDrawable = R.drawable.switch_account
+                    ) {
+                        squadViewModel.fetchUserLogins(
+                            showLoader = true,
+                            phoneNumber = squadViewModel.loginMember?.phoneNumber ?: ""
+                        ) { success, error ->
+                            Log.d("MemberHomeView", if (success) "✅ User logins fetched" else "❌ $error")
+                        }
                     }
                 }
 
-                // 🔹 Scrollable Content
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    // --- Progress & Dashboard Cards
-                    item {
-                        val remainingMonths = CommonFunctions.getRemainingMonths(
-                            startDate = Date(),
-                            endDate = groupFund!!.groupFundEndDate?.toDate() ?: Date()
+                // 🔹 Progress Circle + Cards
+                item {
+                    val remainingMonths = CommonFunctions.getRemainingMonths(
+                        startDate = Date(),
+                        endDate = groupFund!!.groupFundEndDate?.toDate() ?: Date()
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        ProgressCircleView(
+                            completedMonths = groupFund!!.totalDuration - remainingMonths,
+                            totalMonths = groupFund!!.totalDuration,
+                            monthlyContribution = groupFund!!.monthlyContribution.currencyFormattedWithCommas(),
+                            onClick = { navController.navigate("account_summary") }
                         )
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            ProgressCircleView(
-                                completedMonths = groupFund!!.totalDuration - remainingMonths,
-                                totalMonths = groupFund!!.totalDuration,
-                                monthlyContribution = groupFund!!.monthlyContribution.currencyFormattedWithCommas()
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            MemberDashBoardCard(
+                                title = "Total Members",
+                                value = squadViewModel.groupFundMembersCount.collectAsState().value.toString(),
+                                subDetails = emptyList(),
+                                onClick = { navController.navigate("members_list") }
                             )
 
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                MemberDashBoardCard(
-                                    title = SquadStrings.totalMembers,
-                                    value = squadViewModel.groupFundMembersCount.toString(),
-                                    subDetails = emptyList()
-                                )
-
-                                MemberDashBoardCard(
-                                    title = "Current Available Fund",
-                                    value = groupFund!!.currentAvailableAmount.currencyFormattedWithCommas(),
-                                    subDetails = listOf("banknote" to "As of Sep 2025")
-                                )
-                            }
+                            MemberDashBoardCard(
+                                title = "Current Available Fund",
+                                value = groupFund!!.currentAvailableAmount.currencyFormattedWithCommas(),
+                                subDetails = listOf("banknote" to "As of ${CommonFunctions.dateToString(Date(), "MMM yyyy")}"),
+                                onClick = { navController.navigate("account_summary") }
+                            )
                         }
                     }
+                }
 
-                    // --- Header
+                // 🔹 Member Header
+                item {
+                    MemberHeaderView(
+                        groupFund = groupFund!!,
+                        squadViewModel = squadViewModel,
+                        nameClicked = { navController.navigate("profile") },
+                        amountClicked = { navController.navigate("contributions") }
+                    )
+                }
+
+                // 🔹 Reminders Section
+                if (remainders.isNotEmpty()) {
                     item {
-                        MemberHeaderView(
-                            groupFund = groupFund!!,
-                            squadViewModel = squadViewModel,
-                            nameClicked = { openProfile = true },
-                            amountClicked = { openContributionDetails = true }
-                        )
-                    }
-
-                    // --- Reminders / Dues
-                    if (remainders.isNotEmpty()) {
-                        item {
-                            SectionView(title = "Reminders") {
-                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    items(remainders) { item ->
-                                        RemainderCardView(
-                                            title = item.remainderTitle,
-                                            subtitle = item.remainderSubTitle,
-                                            amount = item.remainderAmount.toString(),
-                                            dueDate = item.remainderDueDate.orNow
-                                        ) {
-                                            UserDefaultsManager.saveRemainder(item)
-                                            //memberSelectedTab = 1
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                DuesCardView(
-                                    title = "All Due's Paid",
-                                    subtitle = "Group Fund all caught up!",
-                                    icon = Icons.Default.CheckCircle,
-                                    iconColor = Color.Green,
-                                    gradientColors = listOf(
-                                        Color.Green.copy(alpha = 0.05f),
-                                        Color.Green.copy(alpha = 0.15f)
-                                    ),
-                                    showChevron = false
-                                )
-                            }
-                        }
-                    }
-
-                    // --- Buttons
-                    item {
-                        MemberTwoButtons(
-                            requestCashAction = { /* TODO */ },
-                            approveCashAction = { openVerifyPayment = true }
-                        )
-                    }
-
-                    // --- Recent Transactions
-                    item {
-                        SectionView(title = "Recent Transactions") {
-                            val groupFundPayments by squadViewModel.groupFundPayments.collectAsState(emptyList())
-
-                            val lastFivePayments = groupFundPayments
-                                .filter { it.memberName == currentMember?.name }
-                                .sortedByDescending { it.paymentUpdatedDate?.toDate() ?: Date(0) }
-                                .take(5)
-
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                lastFivePayments.forEach { payment ->
-                                    PaymentRow(
-                                        payment = payment,
-                                        showPaymentStatusRow = true,
-                                        showPayoutStatusRow = false
-                                    )
-                                }
-
-                                if (groupFundPayments.count { it.memberName == currentMember?.name } > 5) {
-                                    ViewAllButton(
-                                        title = "View All",
-                                        icon = "arrow.right"
+                        SectionView(title = "Reminders") {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(remainders) { item ->
+                                    RemainderCardView(
+                                        title = item.remainderTitle,
+                                        subtitle = item.remainderSubTitle,
+                                        amount = item.remainderAmount.toString(),
+                                        dueDate = item.remainderDueDate.orNow
                                     ) {
-                                        openPaymentHistoryView = true
+                                        UserDefaultsManager.saveRemainder(item)
+                                        navController.navigate("dues")
                                     }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            DuesCardView(
+                                title = "All Due's Paid",
+                                subtitle = "Group Fund all caught up!",
+                                icon = Icons.Default.CheckCircle,
+                                iconColor = Color.Green,
+                                gradientColors = listOf(
+                                    Color.Green.copy(alpha = 0.05f),
+                                    Color.Green.copy(alpha = 0.15f)
+                                ),
+                                showChevron = false
+                            )
+                        }
+                    }
+                }
+
+                // 🔹 Buttons
+                item {
+                    MemberTwoButtons(
+                        requestCashAction = { /* TODO */ },
+                        approveCashAction = { navController.navigate("verify_payment") }
+                    )
+                }
+
+                // 🔹 Transactions Section
+                item {
+                    SectionView(title = "Recent Transactions") {
+                        val lastFivePayments = groupFundPayments
+                            .filter { it.memberName == currentMember?.name }
+                            .sortedByDescending { it.paymentUpdatedDate?.toDate() ?: Date(0) }
+                            .take(5)
+
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            lastFivePayments.forEach { payment ->
+                                PaymentRow(payment, showPaymentStatusRow = true, showPayoutStatusRow = false)
+                            }
+
+                            if (groupFundPayments.count { it.memberName == currentMember?.name } > 5) {
+                                ViewAllButton(
+                                    title = "View All",
+                                    icon = "arrow.right"
+                                ) {
+                                    navController.navigate("payment_history")
                                 }
                             }
                         }
@@ -222,82 +261,108 @@ fun MemberHomeView(
                 }
             }
 
-            // 🔹 Floating Menu
+            // 🔹 Floating FAB Menu
             FloatingGroupFundButton(
-                onGroupFundActivity = { openNotificationView = true },
-                onPaymentHistory = { openPaymentHistoryView = true },
-                onGroupFundRules = { openGroupFundRulesView = true }
+                onGroupFundActivity = { navController.navigate("notifications") },
+                onPaymentHistory = { navController.navigate("payment_history") },
+                onGroupFundRules = { navController.navigate("rules") }
             )
         }
 
-        // 🔹 Popup
 
-        if (squadViewModel.showPopup.collectAsState().value) {
-            OverlayBackgroundView()
-            LoginListPopup(
-                showPopup = remember { mutableStateOf(squadViewModel.showPopup.value) },
-                selectedUser = remember { mutableStateOf(squadViewModel.selectedUser.value) },
-                users = squadViewModel.users.collectAsState().value,
-                squadViewModel = squadViewModel
-            )
+        val showPopup = squadViewModel.showPopup.collectAsState()
+        val selectedUser = squadViewModel.selectedUser.collectAsState()
+
+        if (showPopup.value) {
+            OverlayBackgroundView(
+                showPopup = showPopup,
+                onDismiss = { squadViewModel.setShowPopup(false) } // optional background tap
+            ) {
+                LoginListPopup(
+                    navController = navController,
+                    isVisible = showPopup.value,
+                    onDismiss = { squadViewModel.setShowPopup(false) },
+                    selectedUser = selectedUser.value,
+                    onUserSelected = { user -> squadViewModel.setSelectedUser(user) },
+                    users = squadViewModel.users.collectAsState().value
+                )
+            }
         }
 
-        // 🔹 Loader
-        if (loaderManager.isLoading) {
-            SSLoaderView(true)
-        }
-
-        SSAlert()
     }
 
-    // 🔹 On Load
+    // 🔹 Initial Load
     LaunchedEffect(Unit) {
         val member = UserDefaultsManager.getLogin() ?: return@LaunchedEffect
         loaderManager.showLoader()
 
-        squadViewModel.fetchMember(true, member.groupFundID, member.groupFundUserId) { success, fetchedMember, error ->
+        squadViewModel.fetchMember(
+            showLoader = true,
+            groupFundID = member.groupFundID,
+            memberID = member.groupFundUserId
+        ) { success, fetchedMember, error ->
             if (success && fetchedMember != null) {
+                // ✅ Clear old remainders
                 remainders = emptyList()
 
-                squadViewModel.fetchContributionsForMember(true, fetchedMember.groupFundID, fetchedMember.id ?: "") { contributions, _ ->
-                    contributions?.let {
-                        val currentContributions = it.currentAndOverdueUnpaid()
-                        currentOrOverDueContribution = currentContributions
+                // 🔹 Fetch Contributions
+                squadViewModel.fetchContributionsForMember(
+                    showLoader = true,
+                    groupFundID = fetchedMember.groupFundID,
+                    memberID = fetchedMember.id ?: ""
+                ) { contributions, _ ->
+                    contributions?.let { list ->
+                        val currentUnpaid = list.currentAndOverdueUnpaid()
+                        currentOrOverDueContribution = currentUnpaid
 
-                        val mapped = currentContributions.map { contrib ->
+                        val contributionRemainders = currentUnpaid.map { contri ->
                             RemainderModel(
                                 remainderTitle = "CONTRIBUTION",
-                                remainderSubTitle = contrib.monthYear,
+                                remainderSubTitle = contri.monthYear,
                                 remainderType = RemainderType.CONTRIBUTION,
-                                remainderAmount = contrib.amount,
-                                remainderID = contrib.id ?: "",
-                                remainderDueDate = contrib.dueDate ?: Timestamp.now()
+                                remainderAmount = contri.amount,
+                                remainderID = contri.id ?: "",
+                                remainderDueDate = contri.dueDate ?: Timestamp.now()
                             )
                         }
-                        remainders = mapped
-                    }
+                        remainders = remainders + contributionRemainders
+                    } ?: Log.e("MemberHomeView", "❌ Failed to fetch contributions: $error")
                 }
 
-                squadViewModel.fetchMemberLoans(true, fetchedMember.id ?: "") { _, _ ->
-                    val loanRemainders = squadViewModel.memberPendingLoans.value
-                        ?.firstOrNull()
-                        ?.installments
-                        ?.currentAndOverdueUnpaid()
-                        ?.map {
-                            RemainderModel(
-                                remainderTitle = "EMI",
-                                remainderSubTitle = it.installmentNumber,
-                                remainderType = RemainderType.EMI,
-                                remainderAmount = it.installmentAmount + it.interestAmount,
-                                remainderID = it.id ?: "",
-                                remainderDueDate = it.dueDate ?: Timestamp.now()
-                            )
-                        } ?: emptyList()
+                // 🔹 Fetch Loans
+                squadViewModel.fetchMemberLoans(
+                    showLoader = true,
+                    memberID = fetchedMember.id ?: ""
+                ) { _, _ ->
+                    val pendingUnpaidInstallments =
+                        (squadViewModel.memberPendingLoans.value?.firstOrNull()?.installments?.currentAndOverdueUnpaid()
+                            ?: emptyList()) +
+                                (squadViewModel.memberPendingLoans.value?.firstOrNull()?.installments?.upcomingUnpaid()
+                                    ?: emptyList())
 
-                    remainders = (remainders + loanRemainders).sortedBy { it.remainderDueDate.orNow }
+                    val loanRemainders = pendingUnpaidInstallments.map { emi ->
+                        RemainderModel(
+                            remainderTitle = "EMI",
+                            remainderSubTitle = emi.installmentNumber,
+                            remainderType = RemainderType.EMI,
+                            remainderAmount = emi.installmentAmount + emi.interestAmount,
+                            remainderID = emi.id ?: "",
+                            remainderDueDate = emi.dueDate ?: Timestamp.now()
+                        )
+                    }
+
+                    // ✅ Merge and sort all remainders
+                    remainders = (remainders + loanRemainders)
+                        .sortedBy { it.remainderDueDate?.toDate() ?: Date() }
+
                     loaderManager.hideLoader()
                 }
-            } else loaderManager.hideLoader()
+
+                Log.d("MemberHomeView", "✅ Member fetched: ${fetchedMember.name}")
+            } else {
+                Log.e("MemberHomeView", "❌ Error: $error")
+                loaderManager.hideLoader()
+            }
         }
     }
 }
@@ -440,59 +505,15 @@ fun MemberTwoButtons(
             icon = Icons.Default.SwipeRight,
             title = "Request Cash",
             gradientColors = listOf(AppColors.primaryButton, AppColors.successAccent),
-            action = requestCashAction
+            onClick = requestCashAction
         )
 
         TwoButtonGradient(
             icon = Icons.Default.SwipeRight,
             title = "Approve Payment",
             gradientColors = listOf(AppColors.secondaryAccent, AppColors.warningAccent),
-            action = approveCashAction
+            onClick = approveCashAction
         )
-    }
-}
-
-@Composable
-fun TwoButtonGradient(
-    icon: ImageVector,
-    title: String,
-    gradientColors: List<Color>,
-    action: () -> Unit
-) {
-    Button(
-        onClick = action,
-        modifier = Modifier
-            .height(56.dp)
-            .appShadow(AppShadows.card),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-        contentPadding = PaddingValues()
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.horizontalGradient(colors = gradientColors),
-                    shape = RoundedCornerShape(18.dp)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = title,
-                    style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
-                    color = Color.White
-                )
-            }
-        }
     }
 }
 
@@ -500,8 +521,11 @@ fun TwoButtonGradient(
 fun MemberDashBoardCard(
     title: String,
     value: String,
-    subDetails: List<Pair<String, String>>
+    subDetails: List<Pair<String, String>>,
+    onClick: (() -> Unit)? = null // 🔹 Optional click handler
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         horizontalAlignment = Alignment.Start,
@@ -509,14 +533,26 @@ fun MemberDashBoardCard(
             .fillMaxWidth()
             .background(AppColors.surface, RoundedCornerShape(16.dp))
             .appShadow(AppShadows.card)
+            // ✅ Safe modern clickable with ripple
+            .then(
+                if (onClick != null)
+                    Modifier
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = androidx.compose.material3.ripple()
+                        ) { onClick() }
+                else Modifier
+            )
             .padding(16.dp)
     ) {
+        // 🔹 Title
         Text(
             text = title,
             style = AppFont.ibmPlexSans(14, FontWeight.Normal),
             color = AppColors.secondaryText
         )
 
+        // 🔹 Value
         Text(
             text = value,
             style = AppFont.ibmPlexSans(22, FontWeight.SemiBold),
@@ -525,6 +561,7 @@ fun MemberDashBoardCard(
             overflow = TextOverflow.Ellipsis
         )
 
+        // 🔹 Sub Details
         if (subDetails.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 subDetails.forEach { (icon, text) ->
