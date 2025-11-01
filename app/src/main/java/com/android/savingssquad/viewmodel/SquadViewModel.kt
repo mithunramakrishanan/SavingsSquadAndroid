@@ -17,9 +17,11 @@ import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.GroupFundRule
 import com.android.savingssquad.model.Installment
+import com.android.savingssquad.model.PayoutStatus
 import com.android.savingssquad.model.pendingInstallments
 import com.android.savingssquad.model.pendingLoans
 import com.android.savingssquad.singleton.AlertType
+import com.android.savingssquad.singleton.CashfreePaymentAction
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.GroupFundActivityType
 import com.android.savingssquad.singleton.GroupFundUserType
@@ -58,8 +60,9 @@ import java.util.concurrent.CountDownLatch
 
 class SquadViewModel : ViewModel() {
 
-    // Published equivalent → MutableStateFlow / StateFlow
+    // ------------------------------------------------------------------------
     // 🔹 Firestore + Initialization
+    // ------------------------------------------------------------------------
     private val manager = FirestoreManager.shared
     private var groupFundID: String = ""
     var loginMember: Login? = null
@@ -70,155 +73,137 @@ class SquadViewModel : ViewModel() {
     // ------------------------------------------------------------------------
     private val _groupFund = MutableStateFlow<GroupFund?>(null)
     val groupFund: StateFlow<GroupFund?> = _groupFund
-
-    private val _groupFundMembers = MutableStateFlow<List<Member>>(emptyList())
-    val groupFundMembers: StateFlow<List<Member>> = _groupFundMembers
-
-    private val _groupFundMembersCount = MutableStateFlow(0)
-    val groupFundMembersCount: StateFlow<Int> = _groupFundMembersCount
-
-    private val _groupFundActivities = MutableStateFlow<List<GroupFundActivity>>(emptyList())
-    val groupFundActivities: StateFlow<List<GroupFundActivity>> = _groupFundActivities
-
-    private val _groupFundPayments = MutableStateFlow<List<PaymentsDetails>>(emptyList())
-    val groupFundPayments: StateFlow<List<PaymentsDetails>> = _groupFundPayments
+    fun setGroupFund(value: GroupFund?) { _groupFund.value = value }
 
     private val _rules = MutableStateFlow<List<GroupFundRule>>(emptyList())
     val rules: StateFlow<List<GroupFundRule>> = _rules
+    fun setRules(list: List<GroupFundRule>) { _rules.value = list }
+
+    private val _groupFundActivities = MutableStateFlow<List<GroupFundActivity>>(emptyList())
+    val groupFundActivities: StateFlow<List<GroupFundActivity>> = _groupFundActivities
+    fun setGroupFundActivities(list: List<GroupFundActivity>) { _groupFundActivities.value = list }
+
+    private val _groupFundPayments = MutableStateFlow<List<PaymentsDetails>>(emptyList())
+    val groupFundPayments: StateFlow<List<PaymentsDetails>> = _groupFundPayments
+    fun setGroupFundPayments(list: List<PaymentsDetails>) { _groupFundPayments.value = list }
+
+    private val _remainingMonths = MutableStateFlow(0)
+    val remainingMonths: StateFlow<Int> = _remainingMonths
+    fun setRemainingMonths(value: Int) { _remainingMonths.value = value }
 
     // ------------------------------------------------------------------------
-    // 🔹 Member + Contribution
+    // 🔹 Members & Contributions
     // ------------------------------------------------------------------------
-    private val _selectedUser = MutableStateFlow<Login?>(null)
-    val selectedUser: StateFlow<Login?> = _selectedUser
-
-    fun setSelectedUser(user: Login?) {
-        _selectedUser.value = user
-    }
-
     private val _users = MutableStateFlow<List<Login>>(emptyList())
     val users: StateFlow<List<Login>> = _users
+    fun setUsers(list: List<Login>) { _users.value = list }
+
+    private val _selectedUser = MutableStateFlow<Login?>(null)
+    val selectedUser: StateFlow<Login?> = _selectedUser
+    fun setSelectedUser(value: Login?) { _selectedUser.value = value }
+
+    private val _groupFundMembers = MutableStateFlow<List<Member>>(emptyList())
+    val groupFundMembers: StateFlow<List<Member>> = _groupFundMembers
+    fun setGroupFundMembers(list: List<Member>) {
+        _groupFundMembers.value = list
+        _groupFundMembersCount.value = list.size
+    }
+
+    private val _groupFundMembersCount = MutableStateFlow(0)
+    val groupFundMembersCount: StateFlow<Int> = _groupFundMembersCount
+    fun setGroupFundMembersCount(value: Int) { _groupFundMembersCount.value = value }
 
     private val _memberDetail = MutableStateFlow<Member?>(null)
     val memberDetail: StateFlow<Member?> = _memberDetail
+    fun setMemberDetail(value: Member?) { _memberDetail.value = value }
 
     private val _currentMember = MutableStateFlow<Member?>(null)
     val currentMember: StateFlow<Member?> = _currentMember
+    fun setCurrentMember(value: Member?) { _currentMember.value = value }
 
     private val _selectedContributions = MutableStateFlow<List<ContributionDetail>>(emptyList())
     val selectedContributions: StateFlow<List<ContributionDetail>> = _selectedContributions
+    fun setSelectedContributions(list: List<ContributionDetail>) { _selectedContributions.value = list }
 
     private val _groupFundMemberNames = MutableStateFlow<List<String>>(emptyList())
     val groupFundMemberNames: StateFlow<List<String>> = _groupFundMemberNames
+    fun setGroupFundMemberNames(list: List<String>) { _groupFundMemberNames.value = list }
 
     private val _totalContributionMember = MutableStateFlow(0.0)
     val totalContributionMember: StateFlow<Double> = _totalContributionMember
+    fun setTotalContributionMember(value: Double) { _totalContributionMember.value = value }
 
     private val _upcomingPayment = MutableStateFlow("")
     val upcomingPayment: StateFlow<String> = _upcomingPayment
+    fun setUpcomingPayment(value: String) { _upcomingPayment.value = value }
+
+    private val _isFetchingMembers = MutableStateFlow(true)
+    val isFetchingMembers: StateFlow<Boolean> = _isFetchingMembers
+    fun setIsFetchingMembers(value: Boolean) { _isFetchingMembers.value = value }
+
+    private val _isFetchingTotalAmountCollected = MutableStateFlow(true)
+    val isFetchingTotalAmountCollected: StateFlow<Boolean> = _isFetchingTotalAmountCollected
+    fun setIsFetchingTotalAmountCollected(value: Boolean) { _isFetchingTotalAmountCollected.value = value }
 
     // ------------------------------------------------------------------------
     // 🔹 EMI Configurations
     // ------------------------------------------------------------------------
     private val _emiConfigurations = MutableStateFlow<List<EMIConfiguration>>(emptyList())
     val emiConfigurations: StateFlow<List<EMIConfiguration>> = _emiConfigurations
-
-    private val _isFetchingMembers = MutableStateFlow(true)
-    val isFetchingMembers: StateFlow<Boolean> = _isFetchingMembers
-
-    private val _isFetchingTotalAmountCollected = MutableStateFlow(true)
-    val isFetchingTotalAmountCollected: StateFlow<Boolean> = _isFetchingTotalAmountCollected
+    fun setEMIConfigurations(list: List<EMIConfiguration>) { _emiConfigurations.value = list }
 
     // ------------------------------------------------------------------------
     // 🔹 Loans
     // ------------------------------------------------------------------------
     private val _memberLoans = MutableStateFlow<List<MemberLoan>>(emptyList())
     val memberLoans: StateFlow<List<MemberLoan>> = _memberLoans
+    fun setMemberLoans(list: List<MemberLoan>) { _memberLoans.value = list }
 
     private val _memberPendingLoans = MutableStateFlow<List<MemberLoan>?>(null)
     val memberPendingLoans: StateFlow<List<MemberLoan>?> = _memberPendingLoans
+    fun setMemberPendingLoans(list: List<MemberLoan>?) { _memberPendingLoans.value = list }
 
     private val _selectedLoan = MutableStateFlow<MemberLoan?>(null)
     val selectedLoan: StateFlow<MemberLoan?> = _selectedLoan
+    fun setSelectedLoan(value: MemberLoan?) { _selectedLoan.value = value }
 
     private val _isPendingLoanAvailable = MutableStateFlow(false)
     val isPendingLoanAvailable: StateFlow<Boolean> = _isPendingLoanAvailable
-
-    private val _remainingMonths = MutableStateFlow(0)
-    val remainingMonths: StateFlow<Int> = _remainingMonths
+    fun setIsPendingLoanAvailable(value: Boolean) { _isPendingLoanAvailable.value = value }
 
     // ------------------------------------------------------------------------
-    // 🔹 UI States
+    // 🔹 UI States / Popups
     // ------------------------------------------------------------------------
-    // 🔹 Popup Visibility
     private val _showPopup = MutableStateFlow(false)
     val showPopup: StateFlow<Boolean> = _showPopup
-
-    // ✅ Function to control popup visibility
-    fun setShowPopup(value: Boolean) {
-        _showPopup.value = value
-    }
+    fun setShowPopup(value: Boolean) { _showPopup.value = value }
 
     private val _showAddMemberPopup = MutableStateFlow(false)
     val showAddMemberPopup: StateFlow<Boolean> = _showAddMemberPopup
-
-    fun setShowAddMemberPopup(value: Boolean) {
-        _showAddMemberPopup.value = value
-    }
+    fun setShowAddMemberPopup(value: Boolean) { _showAddMemberPopup.value = value }
 
     private val _showUpdateMemberPopup = MutableStateFlow(false)
     val showUpdateMemberPopup: StateFlow<Boolean> = _showUpdateMemberPopup
+    fun setShowUpdateMemberPopup(value: Boolean) { _showUpdateMemberPopup.value = value }
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
+    fun setErrorMessage(value: String?) { _errorMessage.value = value }
 
     // ------------------------------------------------------------------------
     // 🔹 Payment
     // ------------------------------------------------------------------------
     private val _showPayment = MutableStateFlow(false)
     val showPayment: StateFlow<Boolean> = _showPayment
+    fun setShowPayment(value: Boolean) { _showPayment.value = value }
 
     private val _paymentOrderId = MutableStateFlow("")
     val paymentOrderId: StateFlow<String> = _paymentOrderId
+    fun setPaymentOrderId(value: String) { _paymentOrderId.value = value }
 
     private val _paymentOrderToken = MutableStateFlow("")
     val paymentOrderToken: StateFlow<String> = _paymentOrderToken
-
-    fun setShowPayment(value: Boolean) {
-        _showPayment.value = value
-    }
-
-    // ------------------------------------------------------------------------
-    // 🔹 Update Helper Functions
-    // ------------------------------------------------------------------------
-    fun updateGroupFund(groupFund: GroupFund?) {
-        _groupFund.value = groupFund
-    }
-
-    fun updateUsers(list: List<Login>) {
-        _users.value = list
-    }
-
-    fun updateMembers(list: List<Member>) {
-        _groupFundMembers.value = list
-        _groupFundMembersCount.value = list.size
-    }
-
-    fun updateEMIConfigurations(list: List<EMIConfiguration>) {
-        _emiConfigurations.value = list
-    }
-
-    fun toggleAddMemberPopup(show: Boolean) {
-        _showAddMemberPopup.value = show
-    }
-
-    fun toggleLoginPopup(show: Boolean) {
-        _showPopup.value = show
-    }
-
-    fun updateRemainingMonths(value: Int) {
-        _remainingMonths.value = value
-    }
+    fun setPaymentOrderToken(value: String) { _paymentOrderToken.value = value }
 
     init {
         val login = UserDefaultsManager.getLogin()
@@ -427,7 +412,7 @@ class SquadViewModel : ViewModel() {
                     _groupFund.value = fetchedGroupFund
                     _remainingMonths.value = CommonFunctions.getRemainingMonths(
                         startDate = Date(),
-                        endDate = fetchedGroupFund.groupFundEndDate?.orNow ?: Date()
+                        endDate = fetchedGroupFund.groupFundEndDate?.toDate() ?: Date()
                     )
 
                     _isFetchingTotalAmountCollected.value = true
@@ -2144,5 +2129,158 @@ class SquadViewModel : ViewModel() {
         _showPayment.value = true
         _paymentOrderToken.value = sessionId
         _paymentOrderId.value = orderId
+    }
+
+    //Payment Changes
+    fun retryPayoutAction(payment: PaymentsDetails) {
+        viewModelScope.launch {
+            if (payment.payoutStatus == PayoutStatus.PENDING || payment.payoutStatus == PayoutStatus.FAILED) {
+
+                LoaderManager.shared.showLoader()
+                val isManager = UserDefaultsManager.getGroupFundManagerLogged()
+
+                val beneId = if (isManager)
+                    groupFund.value?.upiBeneId ?: ""
+                else
+                    currentMember.value?.upiBeneId ?: ""
+
+                FirebaseFunctionsManager.shared.makeCashFreePayout(
+                    groupFundId = groupFund.value?.groupFundID ?: "",
+                    paymentId = payment.id ?: "",
+                    beneId = beneId,
+                    amount = payment.amount.toDouble(),
+                    transferType = "UPI",
+                    description = payment.description,
+                    memberId = payment.memberId,
+                    memberName = payment.memberName,
+                    userType = payment.userType.value,
+                    paymentEntryType = payment.paymentEntryType.value,
+                    paymentType = payment.paymentType.value,
+                    paymentSubType = payment.paymentSubType.value,
+                    contributionId = payment.contributionId,
+                    loanId = payment.loanId,
+                    installmentId = payment.installmentId,
+                    transferMode = "IMPS"
+                ) { result ->
+                    LoaderManager.shared.hideLoader()
+
+                    result.onSuccess { data ->
+                        val status = data.status?.uppercase()
+                        val updatedOnStr = data.updatedOn
+                        val transferId = data.transferId
+
+                        val updatedTimestamp = CommonFunctions.parseISODateToTimestamp(updatedOnStr)
+
+                        // Update payment model in local list
+                        val index = _groupFundPayments.value.indexOfFirst { it.id == payment.id }
+                        if (index != -1) {
+                            val updatedPayment = _groupFundPayments.value[index].copy(
+                                payoutStatus = when (status) {
+                                    "SUCCESS" -> PayoutStatus.SUCCESS
+                                    "FAILED" -> PayoutStatus.FAILED
+                                    "RECEIVED", "PENDING", "IN_PROGRESS" -> PayoutStatus.IN_PROGRESS
+                                    else -> PayoutStatus.PENDING
+                                },
+                                payoutSuccess = status == "SUCCESS",
+                                transferReferenceId = transferId ?: "",
+                                paymentUpdatedDate = updatedTimestamp,
+                                payoutResponseMessage = data.statusDescription ?: ""
+                            )
+
+                            val updatedList = _groupFundPayments.value.toMutableList()
+                            updatedList[index] = updatedPayment
+                            _groupFundPayments.value = updatedList
+
+                            AlertManager.shared.showAlert(
+                                title = SquadStrings.appName,
+                                message = updatedPayment.payoutResponseMessage,
+                                type = if (updatedPayment.payoutStatus == PayoutStatus.FAILED)
+                                    AlertType.ERROR else AlertType.SUCCESS,
+                                primaryButtonTitle = "OK"
+                            )
+                        }
+                    }
+
+                    result.onFailure { error ->
+                        val message = error.message ?: "Failed to process payout. Please try again."
+                        AlertManager.shared.showAlert(
+                            title = SquadStrings.appName,
+                            message = message,
+                            type = AlertType.ERROR,
+                            primaryButtonTitle = "OK"
+                        )
+                    }
+                }
+
+            } else {
+                // ✅ Verify existing payout instead of retrying
+                LoaderManager.shared.showLoader()
+                FirebaseFunctionsManager.shared.verifyCashFreePayoutStatus(
+                    groupFundId = groupFund.value?.groupFundID ?: "",
+                    paymentId = payment.id ?: "",
+                    transferId = payment.transferReferenceId
+                ) { result ->
+                    LoaderManager.shared.hideLoader()
+
+                    result.onSuccess { data ->
+                        val status = data.status?.uppercase()
+
+                        val updatedPayment = payment.copy(
+                            payoutStatus = when (status) {
+                                "SUCCESS" -> PayoutStatus.SUCCESS
+                                "FAILED" -> PayoutStatus.FAILED
+                                "PENDING", "IN_PROGRESS" -> PayoutStatus.IN_PROGRESS
+                                else -> PayoutStatus.PENDING
+                            },
+                            payoutSuccess = status == "SUCCESS",
+                            payoutResponseMessage = data.statusDescription ?: "",
+                            paymentUpdatedDate = CommonFunctions.parseISODateToTimestamp(data.updatedOn)
+                        )
+
+                        val updatedList = _groupFundPayments.value.toMutableList()
+                        val index = updatedList.indexOfFirst { it.id == payment.id }
+                        if (index != -1) {
+                            updatedList[index] = updatedPayment
+                            _groupFundPayments.value = updatedList
+                        }
+
+                        if (updatedPayment.payoutStatus == PayoutStatus.SUCCESS) {
+                            AlertManager.shared.showAlert(
+                                title = SquadStrings.appName,
+                                message = updatedPayment.payoutResponseMessage,
+                                type = AlertType.SUCCESS,
+                                primaryButtonTitle = "OK"
+                            )
+                        }
+                    }
+
+                    result.onFailure { error ->
+                        val message = error.message ?: "Failed to verify payout status. Please try again."
+                        AlertManager.shared.showAlert(
+                            title = SquadStrings.appName,
+                            message = message,
+                            type = AlertType.ERROR,
+                            primaryButtonTitle = "OK"
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun retryPaymentAction(payment: PaymentsDetails) {
+        viewModelScope.launch {
+            if (payment.paymentStatus == PaymentStatus.PENDING || payment.paymentStatus == PaymentStatus.FAILED) {
+                LoaderManager.shared.showLoader()
+
+                FirebaseFunctionsManager.shared.processCashFreePayment(
+                    groupFundId = payment.groupFundId,
+                    action = CashfreePaymentAction.Retry(failedOrderId = payment.orderId)
+                ) { sessionId, orderId, error ->
+                    LoaderManager.shared.hideLoader()
+                    handleCashFreeResponse(sessionId, orderId, error)
+                }
+            }
+        }
     }
 }

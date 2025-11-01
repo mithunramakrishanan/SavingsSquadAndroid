@@ -143,7 +143,7 @@ data class PaymentsDetails(
     var paymentStatus: PaymentStatus = PaymentStatus.IN_PROGRESS,
 
     @get:PropertyName("payoutStatus") @set:PropertyName("payoutStatus")
-    var payoutStatus: PayoutStatus = PayoutStatus.InProgress,
+    var payoutStatus: PayoutStatus = PayoutStatus.IN_PROGRESS,
 
     @get:PropertyName("description") @set:PropertyName("description")
     var description: String = "",
@@ -208,7 +208,7 @@ data class PaymentsDetails(
         paymentType = PaymentType.PAYMENT_CREDIT,
         paymentSubType = PaymentSubType.CONTRIBUTION_AMOUNT,
         paymentStatus = PaymentStatus.IN_PROGRESS,
-        payoutStatus = PayoutStatus.InProgress,
+        payoutStatus = PayoutStatus.IN_PROGRESS,
         description = "",
         groupFundId = "",
         paymentSessionId = "",

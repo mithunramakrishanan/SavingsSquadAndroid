@@ -5,6 +5,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -55,6 +56,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.rotate
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Login
 import com.android.savingssquad.singleton.GroupFundUserType
@@ -534,7 +536,6 @@ fun OverlayBackgroundView(
     }
 }
 
-// ---------- ProgressCircleView ----------
 @Composable
 fun ProgressCircleView(
     completedMonths: Int,
@@ -542,51 +543,58 @@ fun ProgressCircleView(
     monthlyContribution: String,
     onClick: (() -> Unit)? = null
 ) {
-    val progress = remember(completedMonths, totalMonths) {
+    // 🔹 Calculate target progress
+    val targetProgress = remember(completedMonths, totalMonths) {
         if (totalMonths <= 0) 0f else (completedMonths.toFloat() / totalMonths.toFloat()).coerceIn(0f, 1f)
     }
 
+    // 🔹 Animate like SwiftUI's `.easeOut(duration: 1.0)`
     val animatedProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(durationMillis = 1000, easing = LinearEasing)
+        targetValue = targetProgress,
+        animationSpec = tween(durationMillis = 1000, easing = LinearOutSlowInEasing)
     )
 
+    // 🔹 Outer Box (with shadow & optional click)
     Box(
         modifier = Modifier
             .size(180.dp)
             .clip(CircleShape)
-            .then(
-                if (onClick != null)
-                    Modifier.clickable(onClick = onClick)
-                else Modifier
-            ),
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .appShadow(AppShadows.card), // Matches .appShadow(AppShadows.card)
         contentAlignment = Alignment.Center
     ) {
-        // Background circle
+        // 🔸 Background Circle (14dp stroke)
         Canvas(modifier = Modifier.size(160.dp)) {
             drawCircle(
                 color = AppColors.primaryButton.copy(alpha = 0.2f),
-                style = Stroke(width = 14f, cap = StrokeCap.Round)
+                style = Stroke(width = 14.dp.toPx(), cap = StrokeCap.Round)
             )
         }
 
-        // Progress arc
+        // 🔸 Foreground Gradient Arc (rounded, thick, rotated like SwiftUI)
         Canvas(modifier = Modifier.size(160.dp)) {
-            val stroke = Stroke(width = 14f, cap = StrokeCap.Round)
-            val sweep = animatedProgress * 360f
-            drawArc(
-                brush = Brush.linearGradient(
-                    colors = listOf(AppColors.primaryButton, AppColors.successAccent)
-                ),
-                startAngle = -90f,
-                sweepAngle = sweep,
-                useCenter = false,
-                style = stroke
-            )
+            val stroke = Stroke(width = 14.dp.toPx(), cap = StrokeCap.Round)
+            val sweepAngle = animatedProgress * 360f
+            rotate(-90f) { // matches SwiftUI's .rotationEffect(.degrees(-90))
+                drawArc(
+                    brush = Brush.linearGradient(
+                        colors = listOf(AppColors.primaryButton, AppColors.successAccent),
+                        start = Offset(0f, 0f),
+                        end = Offset(size.width, size.height)
+                    ),
+                    startAngle = 0f,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    style = stroke
+                )
+            }
         }
 
-        // Center text
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // 🔸 Center Labels
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             Text(
                 text = "$completedMonths / $totalMonths",
                 style = AppFont.ibmPlexSans(20, FontWeight.SemiBold),
@@ -601,7 +609,7 @@ fun ProgressCircleView(
                 text = monthlyContribution,
                 style = AppFont.ibmPlexSans(18, FontWeight.Medium),
                 color = AppColors.primaryButton,
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = 2.dp)
             )
         }
     }
@@ -1018,74 +1026,85 @@ fun ModernSegmentedPickerView(
 fun DuesCardView(
     title: String,
     subtitle: String,
-    icon: ImageVector = Icons.Default.CreditCard, // Material Icon
+    icon: ImageVector = Icons.Default.CreditCard,
     iconColor: Color = AppColors.primaryButton,
     gradientColors: List<Color> = listOf(AppColors.surface, AppColors.background),
     showChevron: Boolean = true,
     onTap: (() -> Unit)? = null
 ) {
-    val modifier = Modifier
-        .fillMaxWidth()
-        .appShadow(AppShadows.card)
-        .clip(RoundedCornerShape(16.dp))
-        .background(
-            brush = Brush.linearGradient(
-                colors = gradientColors,
-                start = Offset(0f, 0f),
-                end = Offset(1000f, 1000f)
-            )
-        )
-        .clickable(enabled = onTap != null) { onTap?.invoke() }
-        .padding(16.dp)
-
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    // 🔹 Outer padding for horizontal spacing between multiple cards
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 6.dp) // ✅ Added here
     ) {
-        // Icon Circle
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(iconColor.copy(alpha = 0.12f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconColor,
-                modifier = Modifier.size(22.dp)
+        val modifier = Modifier
+            .fillMaxWidth()
+            .appShadow(AppShadows.card)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                brush = Brush.linearGradient(
+                    colors = gradientColors,
+                    start = Offset(0f, 0f),
+                    end = Offset(1000f, 1000f)
+                )
             )
-        }
+            .clickable(enabled = onTap != null) { onTap?.invoke() }
+            .padding(16.dp)
 
-        // Texts
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+        Row(
+            modifier = modifier,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = title,
-                style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
-                color = AppColors.headerText
-            )
-            Text(
-                text = subtitle,
-                style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                color = AppColors.secondaryText
-            )
-        }
-
-        // Chevron
-        if (showChevron) {
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = AppColors.secondaryText.copy(alpha = 0.7f),
+            // 🔸 Icon Circle
+            Box(
                 modifier = Modifier
-                    .size(16.dp)
-                    .padding(end = 4.dp)
-            )
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(iconColor.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            // 🔸 Title & Subtitle
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+                    color = AppColors.headerText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = subtitle,
+                    style = AppFont.ibmPlexSans(13, FontWeight.Normal),
+                    color = AppColors.secondaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // 🔸 Chevron
+            if (showChevron) {
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = AppColors.secondaryText.copy(alpha = 0.7f),
+                    modifier = Modifier
+                        .size(16.dp)
+                        .padding(end = 4.dp)
+                )
+            }
         }
     }
 }

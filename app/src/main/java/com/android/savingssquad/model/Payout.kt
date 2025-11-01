@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 
 import androidx.annotation.Keep
 import com.google.firebase.firestore.PropertyName
+import com.google.gson.annotations.SerializedName
 
 // --------------------------
 // MARK: - Payout Status Result
@@ -14,13 +15,13 @@ data class PayoutStatusResult(
     @get:PropertyName("status") @set:PropertyName("status")
     var status: String? = null,
 
-    @get:PropertyName("updatedOn") @set:PropertyName("updatedOn")
+    @get:PropertyName("updated_on") @set:PropertyName("updated_on")
     var updatedOn: String? = null,
 
-    @get:PropertyName("transferId") @set:PropertyName("transferId")
+    @get:PropertyName("transfer_id") @set:PropertyName("transfer_id")
     var transferId: String? = null,
 
-    @get:PropertyName("statusDescription") @set:PropertyName("statusDescription")
+    @get:PropertyName("status_description") @set:PropertyName("status_description")
     var statusDescription: String? = null
 ) {
     constructor() : this(null, null, null, null)
@@ -116,25 +117,47 @@ data class BeneficiaryContactDetails(
 // --------------------------
 // MARK: - Payout Status Enum
 // --------------------------
-enum class PayoutStatus {
-    Pending,
-    Initiated,
-    InProgress,
-    Success,
-    Failed,
-    Cancelled,
-    Reversed;
+
+@Keep
+enum class PayoutStatus(@get:PropertyName("value") val value: String) {
+
+    @PropertyName("PENDING")
+    PENDING("PENDING"),
+
+    @PropertyName("RECEIVED")
+    INITIATED("RECEIVED"),
+
+    @PropertyName("PAYOUT_INPROGRESS")
+    IN_PROGRESS("PAYOUT_INPROGRESS"),
+
+    @PropertyName("PAYOUT_SUCCESS")
+    SUCCESS("PAYOUT_SUCCESS"),
+
+    @PropertyName("PAYOUT_FAILED")
+    FAILED("PAYOUT_FAILED"),
+
+    @PropertyName("PAYOUT_CANCELLED")
+    CANCELLED("PAYOUT_CANCELLED"),
+
+    @PropertyName("PAYOUT_REVERSED")
+    REVERSED("PAYOUT_REVERSED");
 
     val displayText: String
         get() = when (this) {
-            Pending -> "Waiting for Payout"
-            Initiated -> "Payout Initiated"
-            InProgress -> "Payout In Progress"
-            Success -> "Payout Successful"
-            Failed -> "Payout Failed"
-            Cancelled -> "Payout Cancelled"
-            Reversed -> "Payout Reversed"
+            PENDING -> "Waiting for Payout"
+            INITIATED -> "Payout Initiated"
+            IN_PROGRESS -> "Payout In Progress"
+            SUCCESS -> "Payout Successful"
+            FAILED -> "Payout Failed"
+            CANCELLED -> "Payout Cancelled"
+            REVERSED -> "Payout Reversed"
         }
+
+    companion object {
+        fun fromValue(value: String?): PayoutStatus {
+            return entries.find { it.value.equals(value, ignoreCase = true) } ?: PENDING
+        }
+    }
 }
 
 // --------------------------
@@ -153,19 +176,19 @@ fun PayoutStatus.toStatusUI(): StatusUI {
     return object : StatusUI {
         override val iconName: String
             get() = when (this@toStatusUI) {
-                PayoutStatus.Success -> "check_circle"
-                PayoutStatus.Failed -> "cancel"
-                PayoutStatus.Cancelled -> "block"
-                PayoutStatus.Initiated, PayoutStatus.InProgress, PayoutStatus.Pending -> "schedule"
-                PayoutStatus.Reversed -> "autorenew"
+                PayoutStatus.SUCCESS -> "check_circle"
+                PayoutStatus.FAILED -> "cancel"
+                PayoutStatus.CANCELLED -> "block"
+                PayoutStatus.INITIATED, PayoutStatus.IN_PROGRESS, PayoutStatus.PENDING -> "schedule"
+                PayoutStatus.REVERSED -> "autorenew"
             }
 
         override val color: Color
             get() = when (this@toStatusUI) {
-                PayoutStatus.Success -> Color(0xFF4CAF50) // Green
-                PayoutStatus.Failed, PayoutStatus.Cancelled -> Color(0xFFF44336) // Red
-                PayoutStatus.Initiated, PayoutStatus.InProgress, PayoutStatus.Pending -> Color(0xFFFF9800) // Orange
-                PayoutStatus.Reversed -> Color(0xFF9C27B0) // Purple
+                PayoutStatus.SUCCESS -> Color(0xFF4CAF50) // Green
+                PayoutStatus.FAILED, PayoutStatus.CANCELLED -> Color(0xFFF44336) // Red
+                PayoutStatus.INITIATED, PayoutStatus.IN_PROGRESS, PayoutStatus.PENDING -> Color(0xFFFF9800) // Orange
+                PayoutStatus.REVERSED -> Color(0xFF9C27B0) // Purple
             }
 
         override val backgroundColor: Color

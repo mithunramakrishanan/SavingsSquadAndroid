@@ -30,6 +30,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -150,17 +152,25 @@ fun ManagerHomeView(
                 ) {
                     val gf = groupFund!!
 
+                    // 🔹 Progress Circle (Centered)
                     item {
                         val remainingMonths = CommonFunctions.getRemainingMonths(
                             startDate = Date(),
                             endDate = gf.groupFundEndDate?.toDate() ?: Date()
                         )
-                        ProgressCircleView(
-                            completedMonths = gf.totalDuration - remainingMonths,
-                            totalMonths = gf.totalDuration,
-                            monthlyContribution = gf.monthlyContribution.currencyFormattedWithCommas(),
-                            onClick = { openManagerGroupFund = true }
-                        )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(), // ensures full width
+                            contentAlignment = Alignment.Center // centers horizontally
+                        ) {
+                            ProgressCircleView(
+                                completedMonths = gf.totalDuration - remainingMonths,
+                                totalMonths = gf.totalDuration,
+                                monthlyContribution = gf.monthlyContribution.currencyFormattedWithCommas(),
+                                onClick = { openManagerGroupFund = true }
+                            )
+                        }
                     }
 
                     item {
@@ -195,19 +205,6 @@ fun ManagerHomeView(
                         )
                     }
                 }
-            }
-        } else {
-            // 🔹 Empty State
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "No GroupFund Data Available",
-                    style = AppFont.ibmPlexSans(18, FontWeight.Normal),
-                    color = AppColors.infoAccent
-                )
             }
         }
 
@@ -302,7 +299,7 @@ fun ManagerHeaderView(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(6.dp)
             .background(
                 color = AppColors.surface,
                 shape = RoundedCornerShape(20.dp)
@@ -352,66 +349,26 @@ fun ManagerTwoButtons(
     acceptAmountAction: () -> Unit
 ) {
     Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 6.dp) // 🔹 Left–right margin
     ) {
-        // 🔹 Add Member Button
         TwoButtonGradient(
-            icon = Icons.Default.PersonAdd, // ✅ Built-in Material icon
+            icon = Icons.Filled.PersonAdd,
             title = "Add Member",
             gradientColors = listOf(AppColors.primaryButton, AppColors.successAccent),
-            onClick = addMemberAction
+            onClick = addMemberAction,
+            modifier = Modifier.weight(1f)
         )
 
-        // 🔹 Approve Payment Button
         TwoButtonGradient(
-            icon = Icons.Default.ThumbUp, // ✅ Built-in Material icon
+            icon = Icons.Filled.ThumbUp,
             title = "Approve Payment",
             gradientColors = listOf(AppColors.secondaryAccent, AppColors.warningAccent),
-            onClick = acceptAmountAction
+            onClick = acceptAmountAction,
+            modifier = Modifier.weight(1f)
         )
-    }
-}
-
-@Composable
-fun TwoButtonGradient(
-    icon: ImageVector,
-    title: String,
-    gradientColors: List<Color>,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(
-                brush = Brush.horizontalGradient(gradientColors)
-            )
-            .clickable(onClick = onClick)
-            .appShadow(AppShadows.card, RoundedCornerShape(14.dp))
-            .padding(vertical = 14.dp, horizontal = 20.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon, // ✅ using ImageVector directly
-                contentDescription = null,
-                tint = AppColors.primaryButtonText,
-                modifier = Modifier
-                    .size(20.dp)
-                    .padding(end = 6.dp)
-            )
-
-            Text(
-                text = title,
-                style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
-                color = AppColors.primaryButtonText
-            )
-        }
     }
 }
 
@@ -518,45 +475,59 @@ fun LoanSummaryCard(
             .clip(RoundedCornerShape(16.dp))
             .background(AppColors.surface)
             .appShadow(AppShadows.card, RoundedCornerShape(16.dp))
-            .clickable { onClick() } // ✅ simple & ripple-safe
+            .clickable { onClick() }
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
         horizontalAlignment = Alignment.Start
     ) {
+        // 🔹 Header
         Text(
             text = "Loan Summary",
             style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
             color = AppColors.headerText
         )
 
+        // 🔹 2x2 Grid (Left–Right aligned)
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 LoanStatView(
                     title = "Total Sent",
                     value = totalSent,
-                    icon = Icons.Default.ArrowUpward,
-                    color = AppColors.errorAccent
+                    icon = Icons.Filled.ArrowUpward,
+                    color = AppColors.errorAccent,
+                    modifier = Modifier.weight(1f)
                 )
+
                 LoanStatView(
                     title = "Total Received",
                     value = totalReceived,
-                    icon = Icons.Default.ArrowDownward,
-                    color = AppColors.successAccent
+                    icon = Icons.Filled.ArrowDownward,
+                    color = AppColors.successAccent,
+                    modifier = Modifier.weight(1f)
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 LoanStatView(
                     title = "Pending",
                     value = pending,
-                    icon = Icons.Default.HourglassEmpty,
-                    color = AppColors.warningAccent
+                    icon = Icons.Filled.HourglassEmpty,
+                    color = AppColors.warningAccent,
+                    modifier = Modifier.weight(1f)
                 )
+
                 LoanStatView(
                     title = "Interest Earned",
                     value = interestEarned,
-                    icon = Icons.Default.AccountBalance,
-                    color = AppColors.infoAccent
+                    icon = Icons.Filled.AccountBalance,
+                    color = AppColors.infoAccent,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -568,12 +539,15 @@ fun LoanStatView(
     title: String,
     value: String,
     icon: ImageVector,
-    color: Color
+    color: Color,
+    modifier: Modifier = Modifier
 ) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        horizontalAlignment = Alignment.Start,
+        modifier = modifier, // ✅ allows use of Modifier.weight(1f)
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalAlignment = Alignment.Start
     ) {
+        // 🔹 Title + Icon Row
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -582,20 +556,23 @@ fun LoanStatView(
                 imageVector = icon,
                 contentDescription = null,
                 tint = color,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(16.dp) // ⬆️ slightly bigger for balance
             )
 
             Text(
                 text = title,
-                style = AppFont.ibmPlexSans(13, FontWeight.Normal),
+                style = AppFont.ibmPlexSans(13, FontWeight.Medium),
                 color = AppColors.secondaryText
             )
         }
 
+        // 🔹 Value text
         Text(
             text = value,
             style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
-            color = AppColors.headerText
+            color = AppColors.headerText,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis // ✅ avoids text overflow in narrow layouts
         )
     }
 }

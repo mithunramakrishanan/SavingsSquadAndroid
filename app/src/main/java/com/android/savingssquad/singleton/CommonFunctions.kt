@@ -106,12 +106,18 @@ object CommonFunctions {
     }
 
     fun getRemainingMonths(startDate: Date, endDate: Date): Int {
-        val cal = Calendar.getInstance()
-        val start = cal.apply { time = startDate }
-        val end = cal.apply { time = endDate }
-        val yearDiff = end.get(Calendar.YEAR) - start.get(Calendar.YEAR)
-        val monthDiff = end.get(Calendar.MONTH) - start.get(Calendar.MONTH)
-        return yearDiff * 12 + monthDiff
+        val startCal = Calendar.getInstance().apply { time = startDate }
+        val endCal = Calendar.getInstance().apply { time = endDate }
+
+        var yearDiff = endCal.get(Calendar.YEAR) - startCal.get(Calendar.YEAR)
+        var monthDiff = endCal.get(Calendar.MONTH) - startCal.get(Calendar.MONTH)
+
+        var totalMonths = yearDiff * 12 + monthDiff
+
+        // ✅ If end date is before start date, clamp to 0
+        if (totalMonths < 0) totalMonths = 0
+
+        return totalMonths
     }
 
     fun convertMonthsToYearsAndMonths(months: Int): String {
@@ -300,5 +306,16 @@ object CommonFunctions {
         val intent = Intent(context, target)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         context.startActivity(intent)
+    }
+
+    fun parseISODateToTimestamp(isoString: String?): Timestamp? {
+        return try {
+            if (isoString == null) return null
+            val formatter = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
+            val date = formatter.parse(isoString)
+            if (date != null) Timestamp(date) else null
+        } catch (e: Exception) {
+            null
+        }
     }
 }

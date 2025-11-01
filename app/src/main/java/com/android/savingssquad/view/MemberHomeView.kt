@@ -40,7 +40,12 @@ import androidx.navigation.compose.composable
 import kotlinx.coroutines.flow.count
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.outlined.AddCircle
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.savingssquad.R
 
@@ -101,10 +106,13 @@ fun MemberHomeView(
     squadViewModel: SquadViewModel,
     loaderManager: LoaderManager
 ) {
-    val groupFund by squadViewModel.groupFund.collectAsState()
-    val currentMember by squadViewModel.currentMember.collectAsState()
-    val groupFundPayments by squadViewModel.groupFundPayments.collectAsState()
-    val users by squadViewModel.users.collectAsState()
+    // Observe state from ViewModel
+    val groupFund by squadViewModel.groupFund.collectAsStateWithLifecycle()
+    val currentMember by squadViewModel.currentMember.collectAsStateWithLifecycle()
+    val groupFundPayments by squadViewModel.groupFundPayments.collectAsStateWithLifecycle()
+    val users by squadViewModel.users.collectAsStateWithLifecycle()
+    val showPopup by squadViewModel.showPopup.collectAsStateWithLifecycle()
+    val selectedUser by squadViewModel.selectedUser.collectAsStateWithLifecycle()
 
     var remainders by remember { mutableStateOf(listOf<RemainderModel>()) }
     var currentOrOverDueContribution by remember { mutableStateOf(listOf<ContributionDetail>()) }
@@ -114,18 +122,21 @@ fun MemberHomeView(
             .fillMaxSize()
             .background(AppColors.background)
     ) {
+        // --------------------------
+        // ✅ Main Content
+        // --------------------------
         if (groupFund != null) {
             AppBackgroundGradient()
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
-                contentPadding = PaddingValues(bottom = 80.dp)
+                contentPadding = PaddingValues(bottom = 90.dp)
             ) {
-                // 🔹 Navigation Bar
+                // 🔹 Top Navigation Bar
                 item {
                     SSNavigationBar(
-                        title = "Vault Captain",
+                        title = "Savings Squad",
                         navController = navController,
                         showBackButton = false,
                         rightButtonDrawable = R.drawable.switch_account
@@ -134,35 +145,46 @@ fun MemberHomeView(
                             showLoader = true,
                             phoneNumber = squadViewModel.loginMember?.phoneNumber ?: ""
                         ) { success, error ->
-                            Log.d("MemberHomeView", if (success) "✅ User logins fetched" else "❌ $error")
+                            Log.d(
+                                "MemberHomeView",
+                                if (success) "✅ User logins fetched" else "❌ $error"
+                            )
                         }
                     }
                 }
 
-                // 🔹 Progress Circle + Cards
+                // 🔹 Progress Circle + Summary Cards
                 item {
-                    val remainingMonths = CommonFunctions.getRemainingMonths(
-                        startDate = Date(),
-                        endDate = groupFund!!.groupFundEndDate?.toDate() ?: Date()
-                    )
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        ProgressCircleView(
-                            completedMonths = groupFund!!.totalDuration - remainingMonths,
-                            totalMonths = groupFund!!.totalDuration,
-                            monthlyContribution = groupFund!!.monthlyContribution.currencyFormattedWithCommas(),
-                            onClick = { navController.navigate("account_summary") }
-                        )
+                        val remainingMonths = squadViewModel.remainingMonths.collectAsState().value
 
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        groupFund?.let { fund ->
+                            val completed = fund.totalDuration - remainingMonths
+                            val total = fund.totalDuration
+                            val monthlyContribution = fund.monthlyContribution.currencyFormattedWithCommas()
+
+                            ProgressCircleView(
+                                completedMonths = completed,
+                                totalMonths = total,
+                                monthlyContribution = monthlyContribution,
+                                onClick = { navController.navigate("account_summary") }
+                            )
+                        } ?: CircularProgressIndicator()
+
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
                             MemberDashBoardCard(
                                 title = "Total Members",
-                                value = squadViewModel.groupFundMembersCount.collectAsState().value.toString(),
+                                value = squadViewModel.groupFundMembersCount.collectAsStateWithLifecycle().value.toString(),
                                 subDetails = emptyList(),
                                 onClick = { navController.navigate("members_list") }
                             )
@@ -170,7 +192,9 @@ fun MemberHomeView(
                             MemberDashBoardCard(
                                 title = "Current Available Fund",
                                 value = groupFund!!.currentAvailableAmount.currencyFormattedWithCommas(),
-                                subDetails = listOf("banknote" to "As of ${CommonFunctions.dateToString(Date(), "MMM yyyy")}"),
+                                subDetails = listOf(
+                                    "banknote" to "As of ${CommonFunctions.dateToString(Date(), "MMM yyyy")}"
+                                ),
                                 onClick = { navController.navigate("account_summary") }
                             )
                         }
@@ -180,26 +204,29 @@ fun MemberHomeView(
                 // 🔹 Member Header
                 item {
                     MemberHeaderView(
-                        groupFund = groupFund!!,
-                        squadViewModel = squadViewModel,
+                        selectedUser = squadViewModel.selectedUser.collectAsState().value,
+                        currentMember = squadViewModel.currentMember.collectAsState().value,
                         nameClicked = { navController.navigate("profile") },
                         amountClicked = { navController.navigate("contributions") }
                     )
                 }
 
-                // 🔹 Reminders Section
+                // 🔹 Reminder Section
                 if (remainders.isNotEmpty()) {
                     item {
                         SectionView(title = "Reminders") {
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                items(remainders) { item ->
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(remainders) { reminder ->
                                     RemainderCardView(
-                                        title = item.remainderTitle,
-                                        subtitle = item.remainderSubTitle,
-                                        amount = item.remainderAmount.toString(),
-                                        dueDate = item.remainderDueDate.orNow
+                                        title = reminder.remainderTitle,
+                                        subtitle = reminder.remainderSubTitle,
+                                        amount = reminder.remainderAmount.toString(),
+                                        dueDate = reminder.remainderDueDate.orNow
                                     ) {
-                                        UserDefaultsManager.saveRemainder(item)
+                                        UserDefaultsManager.saveRemainder(reminder)
                                         navController.navigate("dues")
                                     }
                                 }
@@ -209,17 +236,19 @@ fun MemberHomeView(
                 } else {
                     item {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.Center
                         ) {
                             DuesCardView(
-                                title = "All Due's Paid",
+                                title = "All Due’s Paid",
                                 subtitle = "Group Fund all caught up!",
                                 icon = Icons.Default.CheckCircle,
-                                iconColor = Color.Green,
+                                iconColor = Color(0xFF4CAF50),
                                 gradientColors = listOf(
-                                    Color.Green.copy(alpha = 0.05f),
-                                    Color.Green.copy(alpha = 0.15f)
+                                    Color(0xFF4CAF50).copy(alpha = 0.08f),
+                                    Color(0xFF4CAF50).copy(alpha = 0.15f)
                                 ),
                                 showChevron = false
                             )
@@ -227,15 +256,15 @@ fun MemberHomeView(
                     }
                 }
 
-                // 🔹 Buttons
+                // 🔹 Action Buttons (Request / Approve)
                 item {
                     MemberTwoButtons(
-                        requestCashAction = { /* TODO */ },
+                        requestCashAction = { /* TODO: handle request cash */ },
                         approveCashAction = { navController.navigate("verify_payment") }
                     )
                 }
 
-                // 🔹 Transactions Section
+                // 🔹 Transaction Section
                 item {
                     SectionView(title = "Recent Transactions") {
                         val lastFivePayments = groupFundPayments
@@ -243,16 +272,16 @@ fun MemberHomeView(
                             .sortedByDescending { it.paymentUpdatedDate?.toDate() ?: Date(0) }
                             .take(5)
 
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        ) {
                             lastFivePayments.forEach { payment ->
-                                PaymentRow(payment, showPaymentStatusRow = true, showPayoutStatusRow = false)
+                                PaymentRow(payment, showPaymentStatusRow = true, showPayoutStatusRow = false, squadViewModel)
                             }
 
                             if (groupFundPayments.count { it.memberName == currentMember?.name } > 5) {
-                                ViewAllButton(
-                                    title = "View All",
-                                    icon = "arrow.right"
-                                ) {
+                                ViewAllButton(title = "View All", icon = "arrow.right") {
                                     navController.navigate("payment_history")
                                 }
                             }
@@ -261,7 +290,7 @@ fun MemberHomeView(
                 }
             }
 
-            // 🔹 Floating FAB Menu
+            // 🔹 Floating Buttons
             FloatingGroupFundButton(
                 onGroupFundActivity = { navController.navigate("notifications") },
                 onPaymentHistory = { navController.navigate("payment_history") },
@@ -269,29 +298,29 @@ fun MemberHomeView(
             )
         }
 
-
-        val showPopup = squadViewModel.showPopup.collectAsState()
-        val selectedUser = squadViewModel.selectedUser.collectAsState()
-
-        if (showPopup.value) {
+        // ------------------------------
+        // 🔹 Overlay Popup
+        // ------------------------------
+        if (showPopup) {
             OverlayBackgroundView(
-                showPopup = showPopup,
-                onDismiss = { squadViewModel.setShowPopup(false) } // optional background tap
+                showPopup = remember { mutableStateOf(showPopup) },
+                onDismiss = { squadViewModel.setShowPopup(false) }
             ) {
                 LoginListPopup(
                     navController = navController,
-                    isVisible = showPopup.value,
+                    isVisible = showPopup,
                     onDismiss = { squadViewModel.setShowPopup(false) },
-                    selectedUser = selectedUser.value,
+                    selectedUser = selectedUser,
                     onUserSelected = { user -> squadViewModel.setSelectedUser(user) },
-                    users = squadViewModel.users.collectAsState().value
+                    users = users
                 )
             }
         }
-
     }
 
-    // 🔹 Initial Load
+    // ------------------------------
+    // 🔹 Initial Data Fetch
+    // ------------------------------
     LaunchedEffect(Unit) {
         val member = UserDefaultsManager.getLogin() ?: return@LaunchedEffect
         loaderManager.showLoader()
@@ -302,10 +331,9 @@ fun MemberHomeView(
             memberID = member.groupFundUserId
         ) { success, fetchedMember, error ->
             if (success && fetchedMember != null) {
-                // ✅ Clear old remainders
                 remainders = emptyList()
 
-                // 🔹 Fetch Contributions
+                // Fetch Contributions
                 squadViewModel.fetchContributionsForMember(
                     showLoader = true,
                     groupFundID = fetchedMember.groupFundID,
@@ -329,7 +357,7 @@ fun MemberHomeView(
                     } ?: Log.e("MemberHomeView", "❌ Failed to fetch contributions: $error")
                 }
 
-                // 🔹 Fetch Loans
+                // Fetch Loans
                 squadViewModel.fetchMemberLoans(
                     showLoader = true,
                     memberID = fetchedMember.id ?: ""
@@ -351,7 +379,6 @@ fun MemberHomeView(
                         )
                     }
 
-                    // ✅ Merge and sort all remainders
                     remainders = (remainders + loanRemainders)
                         .sortedBy { it.remainderDueDate?.toDate() ?: Date() }
 
@@ -366,12 +393,6 @@ fun MemberHomeView(
         }
     }
 }
-
-@Composable
-fun PaymentRow(payment: PaymentsDetails, showPaymentStatusRow: Boolean, showPayoutStatusRow: Boolean) {
-
-}
-
 
 @Composable
 fun RemainderCardView(
@@ -449,25 +470,24 @@ fun RemainderCardView(
 
 @Composable
 fun MemberHeaderView(
-    groupFund: GroupFund,
-    squadViewModel: SquadViewModel,
+    selectedUser: Login?,
+    currentMember: Member?,
     nameClicked: () -> Unit,
     amountClicked: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 14.dp), // ⬅️ Added left & right padding
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 👤 Greeting + Subtitle
         Column(
             verticalArrangement = Arrangement.spacedBy(6.dp),
             horizontalAlignment = Alignment.Start,
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = "Hi, ${squadViewModel.selectedUser.value?.groupFundUsername ?: ""}",
+                text = "Hi, ${selectedUser?.groupFundUsername ?: ""}",
                 style = AppFont.ibmPlexSans(22, FontWeight.SemiBold),
                 color = AppColors.headerText,
                 textDecoration = TextDecoration.Underline,
@@ -481,9 +501,8 @@ fun MemberHeaderView(
             )
         }
 
-        // 💰 Amount
         Text(
-            text = squadViewModel.currentMember.value?.totalContributionPaid
+            text = currentMember?.totalContributionPaid
                 ?.currencyFormattedWithCommas() ?: "₹ 0",
             style = AppFont.ibmPlexSans(26, FontWeight.Bold),
             color = AppColors.headerText,
@@ -499,21 +518,73 @@ fun MemberTwoButtons(
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp) // 🔹 Left–right margin
     ) {
         TwoButtonGradient(
-            icon = Icons.Default.SwipeRight,
+            icon = Icons.Filled.AddCircle,
             title = "Request Cash",
             gradientColors = listOf(AppColors.primaryButton, AppColors.successAccent),
-            onClick = requestCashAction
+            onClick = requestCashAction,
+            modifier = Modifier.weight(1f)
         )
 
         TwoButtonGradient(
-            icon = Icons.Default.SwipeRight,
+            icon = Icons.Filled.CreditCard,
             title = "Approve Payment",
             gradientColors = listOf(AppColors.secondaryAccent, AppColors.warningAccent),
-            onClick = approveCashAction
+            onClick = approveCashAction,
+            modifier = Modifier.weight(1f)
         )
+    }
+}
+
+@Composable
+fun TwoButtonGradient(
+    icon: ImageVector,
+    title: String,
+    gradientColors: List<Color>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+        contentPadding = PaddingValues(0.dp),
+        modifier = modifier
+            .height(56.dp)
+            .appShadow(AppShadows.card, RoundedCornerShape(18.dp))
+            .background(
+                brush = Brush.horizontalGradient(gradientColors),
+                shape = RoundedCornerShape(18.dp)
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = AppColors.primaryButtonText,
+                modifier = Modifier
+                    .size(25.dp)
+                    .padding(end = 6.dp)
+            )
+
+            Text(
+                text = title,
+                style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
+                color = AppColors.primaryButtonText,
+                maxLines = 1, // ✅ Single line
+                overflow = TextOverflow.Ellipsis // ✅ Truncate if text too long
+            )
+        }
     }
 }
 
@@ -532,7 +603,6 @@ fun MemberDashBoardCard(
         modifier = Modifier
             .fillMaxWidth()
             .background(AppColors.surface, RoundedCornerShape(16.dp))
-            .appShadow(AppShadows.card)
             // ✅ Safe modern clickable with ripple
             .then(
                 if (onClick != null)

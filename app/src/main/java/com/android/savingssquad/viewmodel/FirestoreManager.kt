@@ -17,6 +17,7 @@ import com.google.firebase.firestore.SetOptions
 import com.yourapp.utils.CommonFunctions
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
+import com.android.savingssquad.model.PayoutStatus
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.asTimestamp
@@ -375,7 +376,10 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - 🔹 Fetch Payments
-    fun fetchPayments(groupFundID: String, completion: (List<PaymentsDetails>?, String?) -> Unit) {
+    fun fetchPayments(
+        groupFundID: String,
+        completion: (List<PaymentsDetails>?, String?) -> Unit
+    ) {
         val paymentsRef = db.collection("groupFunds")
             .document(groupFundID)
             .collection("payments")
@@ -390,19 +394,36 @@ class FirestoreManager private constructor() {
 
                 val payments = snapshot.documents.mapNotNull { doc ->
                     try {
-                        doc.toObject(PaymentsDetails::class.java)
+                        // Try normal Firestore decoding
+                        val payment = doc.toObject(PaymentsDetails::class.java)
+
+                        // Extra safety: ensure payoutStatus is valid (handles cases like PAYOUT_SUCCESS)
+                        payment?.payoutStatus = PayoutStatus.fromValue(payment?.payoutStatus?.value)
+
+                        payment
                     } catch (e: Exception) {
                         println("❌ Decoding error for ${doc.id}: ${e.localizedMessage}")
-                        null
+
+                        // Try fallback manual mapping if enum decoding fails
+                        try {
+                            val rawMap = doc.data ?: return@mapNotNull null
+                            val payoutStatusStr = rawMap["payoutStatus"] as? String
+                            val payment = doc.toObject(PaymentsDetails::class.java)
+                            payment?.payoutStatus = PayoutStatus.fromValue(payoutStatusStr)
+                            payment
+                        } catch (inner: Exception) {
+                            println("⚠️ Fallback mapping failed for ${doc.id}: ${inner.localizedMessage}")
+                            null
+                        }
                     }
                 }
+
                 completion(payments, null)
             }
             .addOnFailureListener { e ->
                 completion(null, "❌ Error fetching payments: ${e.localizedMessage}")
             }
     }
-
     // MARK: - 🔹 Observe Payments (Realtime)
     fun observePayments(groupFundID: String, completion: (List<PaymentsDetails>?, String?) -> Unit) {
         val paymentsRef = db.collection("groupFunds")
