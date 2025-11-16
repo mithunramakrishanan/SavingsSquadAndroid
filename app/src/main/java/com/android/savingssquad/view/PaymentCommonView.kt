@@ -39,10 +39,10 @@ fun PaymentRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(AppColors.surface)
-            .appShadow(AppShadows.card, RoundedCornerShape(14.dp))
-            .padding(12.dp)
+            .appShadow(AppShadows.card, RoundedCornerShape(14.dp)) // shadow outside
+            .clip(RoundedCornerShape(14.dp))                       // round corners
+            .background(AppColors.surface)                        // card background
+            .padding(12.dp)                                       // inner content padding
     ) {
         // 🔹 Name
         Text(
@@ -68,7 +68,7 @@ fun PaymentRow(
                 status = payment.paymentStatus,
                 paymentDate = payment.paymentUpdatedDate,
                 reason = payment.paymentResponseMessage,
-                retryAction = {   squadViewModel.retryPaymentAction(payment) },
+                retryAction = { squadViewModel.retryPaymentAction(payment) },
                 paymentType = payment.paymentType,
                 memberId = payment.memberId,
                 squadViewModel = squadViewModel
@@ -104,35 +104,46 @@ fun PaymentStatusRowView(
 ) {
     var reasonData by remember { mutableStateOf<ReasonSheetData?>(null) }
 
-    Column {
+    CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(color = AppColors.headerText)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    // ✅ Enables subpixel antialiasing for icons and text
+                    renderEffect = null
+                    clip = false
+                }
+                .padding(vertical = 2.dp)
         ) {
+            // ✅ Larger icon (better vector clarity on HDPI)
             Icon(
                 imageVector = when (status) {
-                    PaymentStatus.SUCCESS -> Icons.Default.CheckCircle
-                    PaymentStatus.FAILED -> Icons.Default.Error
-                    else -> Icons.Default.Info
+                    PaymentStatus.SUCCESS -> Icons.Filled.CheckCircle
+                    PaymentStatus.FAILED -> Icons.Filled.Error
+                    else -> Icons.Filled.Info
                 },
                 contentDescription = null,
                 tint = when (status) {
-                    PaymentStatus.SUCCESS -> Color.Green
-                    PaymentStatus.FAILED -> Color.Red
+                    PaymentStatus.SUCCESS -> Color(0xFF2ECC71) // vibrant green
+                    PaymentStatus.FAILED -> Color(0xFFE74C3C)  // bright red
                     else -> AppColors.infoAccent
                 },
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier
+                    .size(22.dp)
+                    .align(Alignment.CenterVertically)
             )
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
             Column(modifier = Modifier.weight(1f)) {
+                // ✅ Use Material3 typography for better anti-alias
                 Text(
                     text = status.displayText,
-                    style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
+                    style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
                     color = when (status) {
-                        PaymentStatus.SUCCESS -> Color.Green
-                        PaymentStatus.FAILED -> Color.Red
+                        PaymentStatus.SUCCESS -> Color(0xFF2ECC71)
+                        PaymentStatus.FAILED -> Color(0xFFE74C3C)
                         else -> AppColors.infoAccent
                     }
                 )
@@ -140,7 +151,7 @@ fun PaymentStatusRowView(
                 paymentDate?.let {
                     Text(
                         text = CommonFunctions.dateToString(it.toDate()),
-                        style = AppFont.ibmPlexSans(11, FontWeight.Normal),
+                        style = AppFont.ibmPlexSans(12, FontWeight.Normal),
                         color = AppColors.secondaryText
                     )
                 }
@@ -148,8 +159,8 @@ fun PaymentStatusRowView(
                 if (reason.isNotEmpty()) {
                     Text(
                         text = "More Details",
-                        style = AppFont.ibmPlexSans(10, FontWeight.Medium),
-                        color = Color.Blue,
+                        style = AppFont.ibmPlexSans(11, FontWeight.Medium),
+                        color = Color(0xFF007AFF),
                         modifier = Modifier.clickable {
                             reasonData = ReasonSheetData(
                                 title = if (status == PaymentStatus.SUCCESS)
@@ -164,14 +175,14 @@ fun PaymentStatusRowView(
             if (canShowPaymentAction(status, paymentType, memberId, squadViewModel)) {
                 Button(
                     onClick = retryAction,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Green.copy(alpha = 0.15f)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2ECC71).copy(alpha = 0.15f)),
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
                 ) {
                     Text(
                         "Retry",
                         style = AppFont.ibmPlexSans(11, FontWeight.Medium),
-                        color = Color.Green
+                        color = Color(0xFF2ECC71)
                     )
                 }
             }
@@ -211,55 +222,73 @@ fun PayoutStatusRowView(
 ) {
     var reasonData by remember { mutableStateOf<ReasonSheetData?>(null) }
 
-    Column {
+    CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(color = AppColors.headerText)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    // ✅ Ensure sharp edges & text clarity
+                    renderEffect = null
+                    clip = false
+                }
+                .padding(vertical = 2.dp)
         ) {
+            // 🔹 Crisp Vector Icon (slightly larger)
             Icon(
                 imageVector = when (status) {
-                    PayoutStatus.SUCCESS -> Icons.Default.CheckCircle
-                    PayoutStatus.FAILED -> Icons.Default.Error
-                    PayoutStatus.PENDING -> Icons.Default.HourglassEmpty
-                    else -> Icons.Default.Info
+                    PayoutStatus.SUCCESS -> Icons.Filled.CheckCircle
+                    PayoutStatus.FAILED -> Icons.Filled.Error
+                    PayoutStatus.PENDING -> Icons.Filled.HourglassEmpty
+                    PayoutStatus.IN_PROGRESS -> Icons.Filled.Autorenew
+                    else -> Icons.Filled.Info
                 },
                 contentDescription = null,
                 tint = when (status) {
-                    PayoutStatus.SUCCESS -> Color.Green
-                    PayoutStatus.FAILED -> Color.Red
-                    PayoutStatus.PENDING -> Color(0xFFFFA500)
+                    PayoutStatus.SUCCESS -> Color(0xFF2ECC71)  // bright green
+                    PayoutStatus.FAILED -> Color(0xFFE74C3C)   // red
+                    PayoutStatus.PENDING,
+                    PayoutStatus.INITIATED,
+                    PayoutStatus.IN_PROGRESS -> Color(0xFFFFA500) // orange
                     else -> AppColors.infoAccent
                 },
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier
+                    .size(22.dp)
+                    .align(Alignment.CenterVertically)
             )
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
             Column(modifier = Modifier.weight(1f)) {
+                // 🔹 Status Text
                 Text(
-                    text = status.value,
-                    style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
+                    text = status.displayText,
+                    style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
                     color = when (status) {
-                        PayoutStatus.SUCCESS -> Color.Green
-                        PayoutStatus.FAILED -> Color.Red
-                        PayoutStatus.PENDING -> Color(0xFFFFA500)
+                        PayoutStatus.SUCCESS -> Color(0xFF2ECC71)
+                        PayoutStatus.FAILED -> Color(0xFFE74C3C)
+                        PayoutStatus.PENDING,
+                        PayoutStatus.INITIATED,
+                        PayoutStatus.IN_PROGRESS -> Color(0xFFFFA500)
                         else -> AppColors.secondaryText
                     }
                 )
 
+                // 🔹 Date Text
                 payoutDate?.let {
                     Text(
                         text = CommonFunctions.dateToString(it.toDate()),
-                        style = AppFont.ibmPlexSans(11, FontWeight.Normal),
+                        style = AppFont.ibmPlexSans(12, FontWeight.Normal),
                         color = AppColors.secondaryText
                     )
                 }
 
+                // 🔹 Reason (More Details)
                 if (reason.isNotEmpty()) {
                     Text(
                         text = "More Details",
-                        style = AppFont.ibmPlexSans(10, FontWeight.Medium),
-                        color = Color.Blue,
+                        style = AppFont.ibmPlexSans(11, FontWeight.Medium),
+                        color = Color(0xFF007AFF),
                         modifier = Modifier.clickable {
                             reasonData = ReasonSheetData(
                                 title = if (status == PayoutStatus.SUCCESS)
@@ -271,26 +300,30 @@ fun PayoutStatusRowView(
                 }
             }
 
+            // 🔹 Retry / Verify / Refresh Button
             if (canShowPayoutAction(status, paymentType, memberId, squadViewModel)) {
                 Button(
                     onClick = retryAction,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Green.copy(alpha = 0.15f)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2ECC71).copy(alpha = 0.15f)),
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
                 ) {
                     Text(
-                        when (status) {
+                        text = when (status) {
                             PayoutStatus.FAILED -> "Retry"
-                            PayoutStatus.PENDING -> "Verify"
+                            PayoutStatus.PENDING,
+                            PayoutStatus.INITIATED,
+                            PayoutStatus.IN_PROGRESS -> "Verify"
                             else -> "Refresh"
                         },
                         style = AppFont.ibmPlexSans(11, FontWeight.Medium),
-                        color = Color.Green
+                        color = Color(0xFF2ECC71)
                     )
                 }
             }
         }
 
+        // 🔹 Crisp Reason Sheet Popup
         reasonData?.let {
             ReasonSheet(it) { reasonData = null }
         }

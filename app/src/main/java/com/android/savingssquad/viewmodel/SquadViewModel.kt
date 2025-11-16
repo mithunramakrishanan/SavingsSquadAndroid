@@ -121,6 +121,10 @@ class SquadViewModel : ViewModel() {
     val currentMember: StateFlow<Member?> = _currentMember
     fun setCurrentMember(value: Member?) { _currentMember.value = value }
 
+    private val _selectedMember = MutableStateFlow<Member?>(null)
+    val selectedMember: StateFlow<Member?> = _selectedMember
+    fun setSelectedMember(value: Member?) { _selectedMember.value = value }
+
     private val _selectedContributions = MutableStateFlow<List<ContributionDetail>>(emptyList())
     val selectedContributions: StateFlow<List<ContributionDetail>> = _selectedContributions
     fun setSelectedContributions(list: List<ContributionDetail>) { _selectedContributions.value = list }
@@ -285,7 +289,7 @@ class SquadViewModel : ViewModel() {
         )
 
         manager.addUserLogin(login) { success, error ->
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (success) {
@@ -326,7 +330,7 @@ class SquadViewModel : ViewModel() {
         manager.fetchUserLogins(phoneNumber) { loginList, error ->
 
             // DispatchQueue.main.async → main-safe via viewModelScope
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
 
                 // Guard self check not needed in Kotlin, directly use `this@SquadViewModel`
                 try {
@@ -398,7 +402,7 @@ class SquadViewModel : ViewModel() {
         }
 
         manager.fetchGroupFundByID(groupFundID) { fetchedGroupFund, error ->
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 try {
                     if (fetchedGroupFund == null) {
                         if (showLoader) LoaderManager.shared.hideLoader()
@@ -422,7 +426,7 @@ class SquadViewModel : ViewModel() {
                     val fetchMembers = async { fetchMembers(false) { _, _, _ -> } }
                     val fetchPayments = async {
                         manager.fetchPayments(groupFundID) { fetchedPayments, err ->
-                            viewModelScope.launch {
+                            viewModelScope.launch(Dispatchers.IO) {
                                 if (fetchedPayments != null) {
                                     _groupFundPayments.value = fetchedPayments
                                     _isFetchingTotalAmountCollected.value = false
@@ -477,7 +481,7 @@ class SquadViewModel : ViewModel() {
         }
 
         manager.updateGroupFund(groupFund) { success, updatedGroupFund, errorMessage ->
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (success && updatedGroupFund != null) {
@@ -545,7 +549,7 @@ class SquadViewModel : ViewModel() {
         val addAndSave: () -> Unit = {
             _showAddMemberPopup.value = false
             manager.addMember(groupFundID, newMember) { success, message ->
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     if (showLoader) LoaderManager.shared.hideLoader()
 
                     if (success) {
@@ -563,7 +567,7 @@ class SquadViewModel : ViewModel() {
 
         if (_groupFundMembersCount.value > 0) {
             manager.fetchMembers(groupFund.groupFundID) { memberNames, error ->
-                viewModelScope.launch {
+                viewModelScope.launch(Dispatchers.IO) {
                     if (error != null) {
                         if (showLoader) LoaderManager.shared.hideLoader()
                         handleFetchError(error) {
@@ -1709,7 +1713,7 @@ class SquadViewModel : ViewModel() {
 
     private fun updateLoanPaidAfterInstallmentSettled(loans: List<MemberLoan>, memberID: String) {
         if (loans.isNotEmpty()) {
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 memberPendingLoans.collect { loans ->
                     loans?.forEach { loan ->
                         // If all installments are paid
@@ -2133,7 +2137,7 @@ class SquadViewModel : ViewModel() {
 
     //Payment Changes
     fun retryPayoutAction(payment: PaymentsDetails) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             if (payment.payoutStatus == PayoutStatus.PENDING || payment.payoutStatus == PayoutStatus.FAILED) {
 
                 LoaderManager.shared.showLoader()
@@ -2269,7 +2273,7 @@ class SquadViewModel : ViewModel() {
     }
 
     fun retryPaymentAction(payment: PaymentsDetails) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             if (payment.paymentStatus == PaymentStatus.PENDING || payment.paymentStatus == PaymentStatus.FAILED) {
                 LoaderManager.shared.showLoader()
 

@@ -87,6 +87,8 @@ import com.android.savingssquad.R
 import com.android.savingssquad.model.GroupFund
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
+import com.android.savingssquad.viewmodel.AppDestination
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ManagerHomeView(
@@ -105,11 +107,69 @@ fun ManagerHomeView(
     var openManagerGroupFund by remember { mutableStateOf(false) }
     var openMembersList by remember { mutableStateOf(false) }
     var openLoanDetails by remember { mutableStateOf(false) }
+    var openAccountSummary by remember { mutableStateOf(false) }
+
 
     // 🔹 Observing ViewModel state via StateFlow
     val groupFund by squadViewModel.groupFund.collectAsStateWithLifecycle()
     val groupFundMembersCount by squadViewModel.groupFundMembersCount.collectAsStateWithLifecycle()
     val users by squadViewModel.users.collectAsStateWithLifecycle()
+
+    LaunchedEffect(openAccountSummary) {
+        if (openAccountSummary) {
+            navController.navigate(AppDestination.ACCOUNT_SUMMARY.route)
+            openAccountSummary = false
+        }
+    }
+
+    LaunchedEffect(openManagerGroupFund) {
+        if (openManagerGroupFund) {
+            navController.navigate(AppDestination.MANAGE_GROUP_FUND.route)
+            openManagerGroupFund = false
+        }
+    }
+
+    LaunchedEffect(openMembersList) {
+        if (openMembersList) {
+            navController.navigate(AppDestination.OPEN_MEMBERS_LIST.route)
+            openMembersList = false
+        }
+    }
+
+    LaunchedEffect(openLoanDetails) {
+        if (openLoanDetails) {
+            navController.navigate(AppDestination.OPEN_LOAD_DETAILS.route)
+            openLoanDetails = false
+        }
+    }
+
+    LaunchedEffect(openVerifyPayment) {
+        if (openVerifyPayment) {
+            navController.navigate(AppDestination.OPEN_VERIFY_PAYMENTS.route)
+            openVerifyPayment = false
+        }
+    }
+
+    LaunchedEffect(openNotificationView) {
+        if (openNotificationView) {
+            navController.navigate(AppDestination.OPEN_ACTIITY.route)
+            openNotificationView = false
+        }
+    }
+
+    LaunchedEffect(openPaymentHistoryView) {
+        if (openPaymentHistoryView) {
+            navController.navigate(AppDestination.OPEN_PAYMENT_HISTORY.route)
+            openPaymentHistoryView = false
+        }
+    }
+
+    LaunchedEffect(openGroupFundRulesView) {
+        if (openGroupFundRulesView) {
+            navController.navigate(AppDestination.OPEN_GROUP_RULES.route)
+            openGroupFundRulesView = false
+        }
+    }
 
     // 🔹 Main Layout
     Box(
@@ -174,7 +234,9 @@ fun ManagerHomeView(
                     }
 
                     item {
-                        ManagerHeaderView(groupFund = groupFund!!, squadViewModel = squadViewModel)
+                        ManagerHeaderView(groupFund = groupFund!!, squadViewModel = squadViewModel, onAccountSummaryClick = {
+                            openAccountSummary = true
+                        })
                     }
 
                     item {
@@ -261,33 +323,6 @@ fun ManagerHomeView(
             }
         }
     }
-
-    // 🔹 Handle navigation
-    if (openNotificationView) {
-        navController.navigate("groupFund_activity")
-        openNotificationView = false
-    }
-    if (openPaymentHistoryView) {
-        navController.navigate("payment_history")
-        openPaymentHistoryView = false
-    }
-    if (openGroupFundRulesView) {
-        navController.navigate("groupFund_rules")
-        openGroupFundRulesView = false
-    }
-    if (openManagerGroupFund) {
-        navController.navigate("manage_groupFund")
-        openManagerGroupFund = false
-    }
-    if (openMembersList) {
-        val id = groupFund?.groupFundID ?: ""
-        navController.navigate("members_list/$id")
-        openMembersList = false
-    }
-    if (openLoanDetails) {
-        navController.navigate("loan_details")
-        openLoanDetails = false
-    }
 }
 
 @Composable
@@ -300,11 +335,11 @@ fun ManagerHeaderView(
         modifier = Modifier
             .fillMaxWidth()
             .padding(6.dp)
+            .appShadow(AppShadows.card, RoundedCornerShape(20.dp))
             .background(
                 color = AppColors.surface,
                 shape = RoundedCornerShape(20.dp)
             )
-            .appShadow(AppShadows.card, RoundedCornerShape(20.dp))
             .border(
                 width = 0.5.dp,
                 color = AppColors.border,
@@ -390,14 +425,16 @@ fun TotalMemberContributionCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(AppColors.surface)
+            .appShadow(AppShadows.card, RoundedCornerShape(16.dp))
+            .background(
+                color = AppColors.surface,
+                shape = RoundedCornerShape(16.dp)
+            )
             .then(
                 if (onClick != null)
                     Modifier.clickable(onClick = onClick)
                 else Modifier
             )
-            .appShadow(AppShadows.card, RoundedCornerShape(16.dp))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.Start
@@ -472,9 +509,11 @@ fun LoanSummaryCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(AppColors.surface)
             .appShadow(AppShadows.card, RoundedCornerShape(16.dp))
+            .background(
+                color = AppColors.surface,
+                shape = RoundedCornerShape(16.dp)
+            )
             .clickable { onClick() }
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),

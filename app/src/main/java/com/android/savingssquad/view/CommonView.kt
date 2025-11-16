@@ -29,7 +29,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.List
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.CreditCard
+import androidx.compose.material.icons.rounded.List
+import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,7 +129,7 @@ fun SSNavigationBar(
         // 🔹 Title
         Text(
             text = title,
-            style = AppFont.ibmPlexSans(24, FontWeight.Bold),
+            style = AppFont.ibmPlexSans(21, FontWeight.Bold),
             color = AppColors.headerText,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -215,17 +220,16 @@ fun SSTextField(
     textState: MutableState<String>,
     keyboardType: KeyboardType = KeyboardType.Text,
     isSecure: Boolean = false,
-    disabled: Boolean = false,
+    disabled: Boolean = false, // Text editing disabled
     showDropdown: Boolean = false,
+    isLoading: Boolean = false,
     dropdownIcon: ImageVector = Icons.Default.ArrowDropDown,
     dropdownColor: Color = AppColors.secondaryText,
-    isLoading: Boolean = false,
-    error: String = "",
-    onDropdownTap: (() -> Unit)? = null
+    onDropdownTap: (() -> Unit)? = null,
+    error: String = ""
 ) {
     val focusRequester = remember { FocusRequester() }
     var isFocused by remember { mutableStateOf(false) }
-    var isPasswordVisible by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -237,7 +241,7 @@ fun SSTextField(
                 .padding(horizontal = 20.dp)
                 .height(52.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color.White) // ✅ white iOS-style background
+                .background(Color.White)
                 .border(
                     width = 1.5.dp,
                     color = when {
@@ -247,20 +251,6 @@ fun SSTextField(
                     },
                     shape = RoundedCornerShape(12.dp)
                 )
-                .shadow(
-                    elevation = if (isFocused) 6.dp else 2.dp,
-                    shape = RoundedCornerShape(12.dp),
-                    ambientColor = Color.Black.copy(alpha = if (isFocused) 0.1f else 0.05f),
-                    spotColor = Color.Black.copy(alpha = if (isFocused) 0.1f else 0.05f)
-                )
-                .clickable(
-                    enabled = !disabled && !showDropdown,
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    // ✅ Tap anywhere to request focus
-                    focusRequester.requestFocus()
-                }
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -268,107 +258,61 @@ fun SSTextField(
             ) {
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // 🔹 Leading icon
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (disabled)
-                        AppColors.secondaryText.copy(alpha = 0.6f)
-                    else
-                        AppColors.headerText,
+                    tint = if (disabled) AppColors.secondaryText.copy(alpha = 0.6f) else AppColors.headerText,
                     modifier = Modifier.size(20.dp)
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // 🔹 TextField and placeholder area
+                // Text field area
                 Box(modifier = Modifier.weight(1f)) {
                     BasicTextField(
                         value = textState.value,
-                        onValueChange = {
-                            if (!disabled && !showDropdown) textState.value = it
+                        onValueChange = { newText ->
+                            if (!disabled) textState.value = newText
                         },
                         singleLine = true,
                         textStyle = AppFont.ibmPlexSans(15, FontWeight.Normal).copy(
-                            color = if (disabled)
-                                AppColors.secondaryText
-                            else
-                                AppColors.headerText
+                            color = if (disabled) AppColors.secondaryText else AppColors.headerText
                         ),
                         cursorBrush = SolidColor(AppColors.primaryButton),
                         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                        enabled = !disabled, // Prevent typing
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 14.dp)
                             .focusRequester(focusRequester)
-                            .onFocusChanged { isFocused = it.isFocused }
+                            .onFocusChanged { isFocused = it.isFocused && !disabled }
                     )
 
-                    // 🔹 Centered placeholder (clickable to focus)
                     if (textState.value.isEmpty()) {
                         Text(
                             text = placeholder,
                             style = AppFont.ibmPlexSans(15, FontWeight.Normal),
                             color = AppColors.placeholderText,
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .padding(start = 4.dp)
+                            modifier = Modifier.align(Alignment.CenterStart).padding(start = 4.dp)
                         )
                     }
                 }
 
-                // 🔹 Password toggle
-                if (isSecure && !disabled && !showDropdown) {
+                // Dropdown icon clickable **always works**
+                if (showDropdown) {
                     Icon(
-                        imageVector = if (isPasswordVisible)
-                            Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = "toggle_password",
-                        tint = AppColors.secondaryText,
+                        imageVector = dropdownIcon,
+                        contentDescription = "dropdown",
+                        tint = dropdownColor,
                         modifier = Modifier
                             .size(22.dp)
                             .padding(end = 12.dp)
-                            .clickable { isPasswordVisible = !isPasswordVisible }
-                    )
-                }
-
-                // 🔹 Dropdown icon / loader
-                if (showDropdown) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            color = dropdownColor,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .padding(end = 12.dp)
-                        )
-                    } else {
-                        Icon(
-                            imageVector = dropdownIcon,
-                            contentDescription = "dropdown",
-                            tint = dropdownColor,
-                            modifier = Modifier
-                                .size(22.dp)
-                                .padding(end = 12.dp)
-                                .clickable { onDropdownTap?.invoke() }
-                        )
-                    }
-                }
-
-                // 🔹 Error icon
-                if (error.isNotEmpty()) {
-                    Icon(
-                        imageVector = Icons.Default.Error,
-                        contentDescription = "error",
-                        tint = AppColors.errorAccent,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .padding(end = 12.dp)
+                            .clickable { onDropdownTap?.invoke() } // ✅ Works even if text is disabled
                     )
                 }
             }
         }
 
-        // 🔹 Error message below
         if (error.isNotEmpty()) {
             Text(
                 text = error,
@@ -380,67 +324,249 @@ fun SSTextField(
     }
 }
 
+@Composable
+fun SingleSelectionPopupView(
+    showPopup: MutableState<Boolean>,
+    listValues: List<String>,
+    title: String,
+    onItemSelected: (String) -> Unit
+) {
+    var searchText by remember { mutableStateOf("") }
+
+    val filteredValues = remember(searchText, listValues) {
+        listValues.filter { searchText.isEmpty() || it.contains(searchText, ignoreCase = true) }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.3f))
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { showPopup.value = false }, // tap outside to dismiss
+        contentAlignment = Alignment.Center
+    ) {
+        // ❌ Removed the previous .clickable(enabled = false) here
+
+        Column(
+            modifier = Modifier
+                .width(340.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(AppColors.surface)
+                .shadow(
+                    elevation = 8.dp,
+                    spotColor = Color.Black.copy(alpha = 0.15f),
+                    ambientColor = Color.Black.copy(alpha = 0.15f)
+                )
+                .padding(vertical = 16.dp), // optional padding inside
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // ▣ TITLE
+            Text(
+                text = title,
+                style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                color = AppColors.headerText
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ▣ SEARCH BAR
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .background(AppColors.textFieldBackground, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 10.dp, vertical = 10.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = null,
+                    tint = AppColors.secondaryText
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+
+                BasicTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    modifier = Modifier.weight(1f),
+                    textStyle = AppFont.ibmPlexSans(14, FontWeight.Normal)
+                        .copy(color = AppColors.headerText),
+                    decorationBox = { inner ->
+                        if (searchText.isEmpty()) {
+                            Text(
+                                text = "Search",
+                                style = AppFont.ibmPlexSans(14, FontWeight.Normal),
+                                color = AppColors.secondaryText
+                            )
+                        }
+                        inner()
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ▣ LIST VALUES
+            Box(
+                modifier = Modifier
+                    .heightIn(max = 260.dp)
+                    .padding(horizontal = 8.dp)
+            ) {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (filteredValues.isEmpty()) {
+                        item {
+                            Text(
+                                text = "No results found",
+                                color = AppColors.secondaryText,
+                                style = AppFont.ibmPlexSans(14, FontWeight.Normal),
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        items(filteredValues) { value ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(AppColors.primaryBackground)
+                                        .shadow(
+                                            elevation = 3.dp,
+                                            spotColor = Color.Black.copy(alpha = 0.03f),
+                                            ambientColor = Color.Black.copy(alpha = 0.03f)
+                                        )
+                                        .clickable {
+                                            onItemSelected(value)
+                                            showPopup.value = false
+                                        }
+                                        .padding(vertical = 12.dp, horizontal = 16.dp)
+                                ) {
+                                    Text(
+                                        text = value,
+                                        style = AppFont.ibmPlexSans(14, FontWeight.Medium),
+                                        color = AppColors.headerText
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // ▣ CANCEL BUTTON
+            SSCancelButton(
+                title = "Cancel",
+                action = { showPopup.value = false }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
 
 // ---------- SSTextView ----------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SSTextView(
     placeholder: String,
-    textState: MutableState<String>,
+    text: String,
+    onTextChange: (String) -> Unit,
     error: String = "",
     maxCharacters: Int? = null
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Box(modifier = Modifier
-            .padding(horizontal = 20.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(AppColors.surface)
-            .then(Modifier)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 20.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .appShadow(AppShadows.card)
+                .background(AppColors.surface)
         ) {
-            TextField(
-                value = textState.value,
+
+            // ========= MULTILINE TEXT FIELD =========
+            BasicTextField(
+                value = text,
                 onValueChange = {
-                    if (maxCharacters != null && it.length > maxCharacters) {
-                        textState.value = it.take(maxCharacters)
-                    } else {
-                        textState.value = it
-                    }
+                    if (maxCharacters != null && it.length > maxCharacters)
+                        onTextChange(it.take(maxCharacters))
+                    else
+                        onTextChange(it)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 120.dp)
-                    .padding(0.dp),
-                textStyle = AppFont.ibmPlexSans(15, FontWeight.Normal),
-                placeholder = { Text(text = placeholder, color = AppColors.placeholderText) },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent
+                    .padding(16.dp)
+                    .onFocusChanged { isFocused = it.isFocused },
+                textStyle = AppFont.ibmPlexSans(15, FontWeight.Normal)
+                    .copy(color = AppColors.headerText),
+                cursorBrush = SolidColor(AppColors.primaryButton)
+            )
+
+            // ========= PLACEHOLDER =========
+            if (text.isEmpty()) {
+                Text(
+                    text = placeholder,
+                    color = AppColors.placeholderText,
+                    style = AppFont.ibmPlexSans(15, FontWeight.Normal),
+                    modifier = Modifier
+                        .padding(start = 20.dp, top = 20.dp)
                 )
+            }
+
+            // ========= BORDER STROKE =========
+            val borderColor =
+                if (error.isNotEmpty()) AppColors.errorAccent
+                else if (isFocused) AppColors.primaryButton
+                else AppColors.border
+
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .border(
+                        width = 1.5.dp,
+                        color = borderColor,
+                        shape = RoundedCornerShape(14.dp)
+                    )
             )
         }
 
+        // ========= ERROR LABEL =========
         if (error.isNotEmpty()) {
             Text(
                 text = error,
-                style = AppFont.ibmPlexSans(12, FontWeight.Normal),
                 color = AppColors.errorAccent,
-                modifier = Modifier.padding(start = 25.dp, top = 8.dp)
+                style = AppFont.ibmPlexSans(12, FontWeight.Normal),
+                modifier = Modifier.padding(start = 25.dp)
             )
         }
 
+        // ========= CHAR COUNTER =========
         if (maxCharacters != null) {
             Row(modifier = Modifier.fillMaxWidth()) {
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(Modifier.weight(1f))
                 Text(
-                    text = "${textState.value.length}/$maxCharacters",
+                    "${text.length}/$maxCharacters",
                     style = AppFont.ibmPlexSans(12, FontWeight.Normal),
                     color = AppColors.secondaryText,
-                    modifier = Modifier.padding(end = 25.dp, top = 6.dp)
+                    modifier = Modifier.padding(end = 25.dp)
                 )
             }
         }
@@ -699,9 +825,9 @@ fun SSLoaderView(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .padding(24.dp)
+                    .appShadow(AppShadows.elevated, RoundedCornerShape(20.dp))
                     .clip(RoundedCornerShape(20.dp))
                     .background(AppColors.background)
-                    .appShadow(AppShadows.elevated, RoundedCornerShape(20.dp))
                     .padding(vertical = 20.dp, horizontal = 30.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -986,11 +1112,11 @@ fun ModernSegmentedPickerView(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
+            .appShadow(AppShadows.card)
             .background(
                 color = AppColors.surface,
                 shape = RoundedCornerShape(15.dp)
             )
-            .appShadow(AppShadows.card)
             .padding(4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
@@ -1738,9 +1864,9 @@ fun FloatingGroupFundButton(
     var showMenu by remember { mutableStateOf(false) }
 
     val menuItems = listOf(
-        MenuItem("list_bullet", "Group Fund Activity", onGroupFundActivity),
-        MenuItem("creditcard_fill", "Payment History", onPaymentHistory),
-        MenuItem("book_fill", "Group Fund Rules", onGroupFundRules)
+        MenuItem(Icons.AutoMirrored.Rounded.List, "Group Fund Activity", onGroupFundActivity),
+        MenuItem(Icons.Rounded.CreditCard, "Payment History", onPaymentHistory),
+        MenuItem(Icons.AutoMirrored.Rounded.MenuBook, "Group Fund Rules", onGroupFundRules)
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -1818,7 +1944,7 @@ fun FloatingGroupFundButton(
 
 @Composable
 private fun FloatingMenuButton(
-    icon: String,
+    icon: ImageVector,
     title: String,
     onClick: () -> Unit,
     animationDelay: Long = 0L
@@ -1833,12 +1959,12 @@ private fun FloatingMenuButton(
         // Text chip
         Box(
             modifier = Modifier
-                .background(AppColors.primaryBrand, RoundedCornerShape(12.dp))
                 .shadow(
                     elevation = 4.dp,
                     shape = RoundedCornerShape(12.dp),
                     ambientColor = Color.Black.copy(alpha = 0.15f)
                 )
+                .background(AppColors.primaryBrand, RoundedCornerShape(12.dp))
                 .padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
             Text(
@@ -1853,16 +1979,16 @@ private fun FloatingMenuButton(
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(AppColors.primaryBrand)
                 .shadow(
                     elevation = 4.dp,
                     shape = CircleShape,
                     ambientColor = Color.Black.copy(alpha = 0.15f)
-                ),
+                )
+                .background(AppColors.primaryBrand),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                painter = painterResource(id = AppIcons.resolve(icon)), // your helper for mapping systemName → resource
+                imageVector = icon, // your helper for mapping systemName → resource
                 contentDescription = null,
                 tint = AppColors.primaryButtonText,
                 modifier = Modifier.size(28.dp)
@@ -1872,7 +1998,7 @@ private fun FloatingMenuButton(
 }
 
 private data class MenuItem(
-    val icon: String,
+    val icon: ImageVector,
     val title: String,
     val action: () -> Unit
 )

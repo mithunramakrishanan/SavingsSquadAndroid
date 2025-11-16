@@ -48,6 +48,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -173,18 +174,33 @@ fun TabBarItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = Modifier
-            .clickable { onClick() }
-            .padding(vertical = if (isCenter) 6.dp else 0.dp)
+            .padding(horizontal = 8.dp)
+            .clickable(
+                indication = null,       // 🔥 No ripple – matches SwiftUI
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() }
+            .padding(
+                top = if (isCenter) 0.dp else 2.dp,
+                bottom = if (isCenter) 0.dp else 4.dp
+            )
     ) {
+
+        // ICON
         AppIconView(
             name = iconName,
             tint = if (selected) AppColors.primaryButton else AppColors.secondaryText,
-            size = if (isCenter) 28.dp else 22.dp
+            size = if (isCenter) 40.dp else 22.dp   // 🔥 Matches SwiftUI center pulse
         )
 
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // TEXT
         Text(
             text = title,
-            style = AppFont.ibmPlexSans(12, FontWeight.Medium),
+            style = AppFont.ibmPlexSans(
+                size = 12,
+                weight = FontWeight.Medium
+            ),
             color = if (selected) AppColors.primaryButton else AppColors.secondaryText
         )
     }

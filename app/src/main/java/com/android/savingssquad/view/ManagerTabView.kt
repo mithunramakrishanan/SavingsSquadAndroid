@@ -41,28 +41,35 @@ fun ManagerTabView(
 
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // ✅ Tab content
-            when (selectedTab) {
-                0 -> ManagerHomeView(
-                    navController = navController,
-                    squadViewModel = squadViewModel,
-                    loaderManager = loaderManager
-                )
-                1 -> ManagerPaymentView(navController, squadViewModel)
-                2 -> ManagerSettingsView(navController, squadViewModel)
+            // ✔ Tab content must take remaining space (NOT full screen)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                when (selectedTab) {
+                    0 -> ManagerHomeView(
+                        navController,
+                        squadViewModel,
+                        loaderManager
+                    )
+                    1 -> ManagerPaymentView(navController, squadViewModel)
+                    2 -> ManagerSettingsView(navController, squadViewModel)
+                }
             }
 
-            // ✅ Bottom Tab Baar
+            // ✔ Bottom Tab Bar stays fixed
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(70.dp)
                     .background(AppColors.surface)
                     .shadow(
                         elevation = 4.dp,
                         spotColor = AppColors.primaryButton,
                         ambientColor = AppColors.primaryButton
                     )
-                    .padding(vertical = 12.dp),
+                    .padding(top = 6.dp),   // 🔥 Added top padding
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -141,7 +148,7 @@ fun AppIconView(
         Icon(
             painter = painterResource(id = resourceId),
             contentDescription = name,
-            tint = tint,
+            tint = Color.Unspecified,
             modifier = Modifier.size(size)
         )
     } else {
@@ -149,7 +156,7 @@ fun AppIconView(
         Icon(
             imageVector = Icons.Default.Info,
             contentDescription = name,
-            tint = tint,
+            tint = Color.Unspecified,
             modifier = Modifier.size(size)
         )
     }

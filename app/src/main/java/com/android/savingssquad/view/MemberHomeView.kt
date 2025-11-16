@@ -56,11 +56,6 @@ fun MembersListView(groupFundID: String) {
 }
 
 @Composable
-fun AccountSummaryView() {
-    TODO("Not yet implemented")
-}
-
-@Composable
 fun VerifyPaymentsView(screenType: GroupFundUserType) {
 
 }
@@ -71,17 +66,7 @@ fun DuesScreenView(screenType: GroupFundUserType) {
 }
 
 @Composable
-fun LoanDetailsView(screenType: Any, memberID: String) {
-
-}
-
-@Composable
 fun ContributionDetailsView(member: Member, screenType: GroupFundUserType) {
-
-}
-
-@Composable
-fun MemberProfileView(member: Member, screenType: Any) {
 
 }
 
@@ -277,12 +262,25 @@ fun MemberHomeView(
                             modifier = Modifier.padding(horizontal = 16.dp)
                         ) {
                             lastFivePayments.forEach { payment ->
-                                PaymentRow(payment, showPaymentStatusRow = true, showPayoutStatusRow = false, squadViewModel)
+                                PaymentRow(
+                                    payment = payment,
+                                    showPaymentStatusRow = true,
+                                    showPayoutStatusRow = false,
+                                    squadViewModel = squadViewModel
+                                )
                             }
 
                             if (groupFundPayments.count { it.memberName == currentMember?.name } > 5) {
-                                ViewAllButton(title = "View All", icon = "arrow.right") {
-                                    navController.navigate("payment_history")
+                                Row(
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    ViewAllButton(
+                                        title = "View All",
+                                        icon = "arrow.right"
+                                    ) {
+                                        navController.navigate("payment_history")
+                                    }
                                 }
                             }
                         }
@@ -662,22 +660,18 @@ fun ViewAllButton(
     icon: String = "arrow.right",
     onClick: () -> Unit
 ) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = AppColors.primaryBackground),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(12.dp),
+    Box(
         modifier = Modifier
-            .shadow(
-                elevation = 3.dp,
-                shape = RoundedCornerShape(12.dp),
-                ambientColor = Color.Black.copy(alpha = 0.05f)
-            )
+            .clip(RoundedCornerShape(12.dp))
+            .background(AppColors.primaryBackground)
             .border(
                 width = 1.dp,
                 color = AppColors.primaryButton,
                 shape = RoundedCornerShape(12.dp)
             )
+            .appShadow(AppShadows.card, RoundedCornerShape(12.dp)) // same soft shadow
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
