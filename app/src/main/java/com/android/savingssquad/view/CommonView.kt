@@ -305,7 +305,7 @@ fun SSTextField(
                         contentDescription = "dropdown",
                         tint = dropdownColor,
                         modifier = Modifier
-                            .size(22.dp)
+                            .size(40.dp)
                             .padding(end = 12.dp)
                             .clickable { onDropdownTap?.invoke() } // ✅ Works even if text is disabled
                     )
@@ -326,10 +326,10 @@ fun SSTextField(
 
 @Composable
 fun SingleSelectionPopupView(
-    showPopup: MutableState<Boolean>,
     listValues: List<String>,
     title: String,
-    onItemSelected: (String) -> Unit
+    onItemSelected: (String) -> Unit,
+    onCancelClick:() -> Unit
 ) {
     var searchText by remember { mutableStateOf("") }
 
@@ -344,7 +344,7 @@ fun SingleSelectionPopupView(
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
-            ) { showPopup.value = false }, // tap outside to dismiss
+            ) { }, // tap outside to dismiss
         contentAlignment = Alignment.Center
     ) {
         // ❌ Removed the previous .clickable(enabled = false) here
@@ -353,12 +353,12 @@ fun SingleSelectionPopupView(
             modifier = Modifier
                 .width(340.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(AppColors.surface)
                 .shadow(
                     elevation = 8.dp,
                     spotColor = Color.Black.copy(alpha = 0.15f),
                     ambientColor = Color.Black.copy(alpha = 0.15f)
                 )
+                .background(AppColors.surface)
                 .padding(vertical = 16.dp), // optional padding inside
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -446,7 +446,6 @@ fun SingleSelectionPopupView(
                                         )
                                         .clickable {
                                             onItemSelected(value)
-                                            showPopup.value = false
                                         }
                                         .padding(vertical = 12.dp, horizontal = 16.dp)
                                 ) {
@@ -467,7 +466,7 @@ fun SingleSelectionPopupView(
             // ▣ CANCEL BUTTON
             SSCancelButton(
                 title = "Cancel",
-                action = { showPopup.value = false }
+                action = onCancelClick
             )
 
             Spacer(modifier = Modifier.height(12.dp))

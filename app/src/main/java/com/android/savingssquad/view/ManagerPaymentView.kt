@@ -93,7 +93,6 @@ fun ManagerPaymentView(
     var selectedSegment by remember { mutableStateOf(SquadStrings.loanPayments) }
     var loanSelectedMember by remember { mutableStateOf<Member?>(null) }
     var emiSelectedType by remember { mutableStateOf<EMIConfiguration?>(null) }
-    var isShowLoanMemberList by remember { mutableStateOf(false) }
     var loanSelectedMemberNameError by remember { mutableStateOf("") }
     var showAllEMIs by remember { mutableStateOf(false) }
 
@@ -137,7 +136,7 @@ fun ManagerPaymentView(
                             keyboardType = KeyboardType.Text,
                             showDropdown = true,
                             error = loanSelectedMemberNameError,
-                            onDropdownTap = { isShowLoanMemberList = true },
+                            onDropdownTap = { squadViewModel.setShowLoanMembersPopupPopup(true) },
                             disabled = true
                         )
                     }
@@ -177,7 +176,18 @@ fun ManagerPaymentView(
                             "Pay ₹${emiSelectedType!!.loanAmount} to ${loanSelectedMember!!.name}'s UPI"
                         else "Pay",
                         isDisabled = !buttonEnabled,
-                        action = { /* handle payment */ }
+                        action = {
+                            val member = loanSelectedMember
+                            val emi = emiSelectedType
+
+                            if (member != null && emi != null) {
+                                makeLoanPayment(
+                                    squadViewModel = squadViewModel,
+                                    selectedMember = member,
+                                    selectedLoan = emi
+                                )
+                            }
+                        }
                     )
                 }
 
@@ -213,19 +223,19 @@ fun ManagerPaymentView(
             }
         }
 
+        val isShowLoanMemberList = squadViewModel.showLoanMembersPopup.collectAsStateWithLifecycle()
 
-        // Member Selection Popup
-        if (isShowLoanMemberList) {
+        if (isShowLoanMemberList.value) {
             OverlayBackgroundView(
-                showPopup = remember { mutableStateOf(true) },
-                onDismiss = { isShowLoanMemberList = false }
+                showPopup = isShowLoanMemberList,
+                onDismiss = { squadViewModel.setShowLoanMembersPopupPopup(false) }
             ) {
+
                 SingleSelectionPopupView(
-                    showPopup = remember { mutableStateOf(true) },
                     listValues = squadViewModel.groupFundMemberNames.collectAsState().value,
                     title = "Members",
                     onItemSelected = { selectedValue ->
-                        isShowLoanMemberList = false
+                        squadViewModel.setShowLoanMembersPopupPopup(false)
                         val member = CommonFunctions.getMember(
                             by = selectedValue,
                             from = squadViewModel.groupFundMembers.value
@@ -236,18 +246,22 @@ fun ManagerPaymentView(
                             showLoader = true,
                             memberID = member?.id ?: ""
                         ) { _, _ -> }
+                    },
+                    onCancelClick = {
+                        squadViewModel.setShowLoanMembersPopupPopup(false)
+
                     }
                 )
             }
         }
+
     }
 }
 
-private suspend fun makeLoanPayment(
+private fun makeLoanPayment(
     squadViewModel: SquadViewModel,
     selectedMember: Member,
     selectedLoan: EMIConfiguration,
-    loaderManager: LoaderManager
 ) {
     val newLoan = CommonFunctions.generateMemberLoan(
         emiConfig = selectedLoan,
@@ -334,9 +348,9 @@ fun PaymentEMIListRow(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(14.dp))
+            .appShadow(AppShadows.card)
             .background(AppColors.surface)
             .border(1.dp, AppColors.border, RoundedCornerShape(14.dp))
-            .appShadow(AppShadows.card)
             .padding(14.dp)
             .clickable { onClick() },
         verticalAlignment = Alignment.CenterVertically

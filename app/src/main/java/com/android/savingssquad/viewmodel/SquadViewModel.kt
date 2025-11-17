@@ -190,6 +190,11 @@ class SquadViewModel : ViewModel() {
     val showUpdateMemberPopup: StateFlow<Boolean> = _showUpdateMemberPopup
     fun setShowUpdateMemberPopup(value: Boolean) { _showUpdateMemberPopup.value = value }
 
+
+    private val _showLoanMembersPopup = MutableStateFlow(false)
+    val showLoanMembersPopup: StateFlow<Boolean> = _showLoanMembersPopup
+    fun setShowLoanMembersPopupPopup(value: Boolean) { _showLoanMembersPopup.value = value }
+
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage
     fun setErrorMessage(value: String?) { _errorMessage.value = value }

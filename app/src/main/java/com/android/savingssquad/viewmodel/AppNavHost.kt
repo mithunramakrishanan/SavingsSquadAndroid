@@ -75,6 +75,14 @@ fun AppNavHost(
             GroupFundRulesView(navController, squadViewModel)
         }
 
+        composable(AppDestination.OPEN_MANUAL_ENTRY.route) {
+            ManualEntryView(navController, squadViewModel)
+        }
+
+        composable(AppDestination.OPEN_BANK_DETAILS.route) {
+            BankDetailsView(navController, squadViewModel)
+        }
+
     }
 }
 
@@ -94,6 +102,6 @@ sealed class AppDestination(val route: String) {
     object OPEN_PAYMENT_HISTORY : AppDestination("open_payment_history")
     object OPEN_GROUP_RULES : AppDestination("open_group_rules")
 
-
-
+    object OPEN_MANUAL_ENTRY : AppDestination("open_manual_entry")
+    object OPEN_BANK_DETAILS : AppDestination("open_bank_details")
 }
