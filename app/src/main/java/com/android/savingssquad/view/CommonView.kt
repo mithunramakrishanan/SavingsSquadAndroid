@@ -114,7 +114,12 @@ fun SSNavigationBar(
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .clickable { navController?.popBackStack() },
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = LocalIndication.current
+                    ) {
+                        navController?.popBackStack()
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -176,12 +181,13 @@ fun SSNavigationBar(
 @Composable
 fun SSButton(
     title: String,
+    modifier: Modifier = Modifier,
     isButtonLoading: Boolean = false,
     isDisabled: Boolean = false,
     action: () -> Unit
 ) {
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         color = if (isDisabled) AppColors.disabledButton else AppColors.primaryButton,
@@ -191,7 +197,11 @@ fun SSButton(
         Box(
             modifier = Modifier
                 .heightIn(min = 48.dp)
-                .appShadow(if (isDisabled) ShadowStyle(Color.Transparent, 0.dp, 0.dp, 0.dp) else AppShadows.elevated, RoundedCornerShape(12.dp))
+                .appShadow(
+                    if (isDisabled) ShadowStyle(Color.Transparent, 0.dp, 0.dp, 0.dp)
+                    else AppShadows.elevated,
+                    RoundedCornerShape(12.dp)
+                )
                 .clickable(enabled = !isDisabled) { if (!isDisabled) action() },
             contentAlignment = Alignment.Center
         ) {
@@ -576,18 +586,24 @@ fun SSTextView(
 @Composable
 fun SSCancelButton(
     title: String,
+    modifier: Modifier = Modifier,
     isButtonLoading: Boolean = false,
     isDisabled: Boolean = false,
     action: () -> Unit
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
     ) {
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
+                .appShadow(
+                    if (isDisabled) ShadowStyle(Color.Transparent, 0.dp, 0.dp, 0.dp)
+                    else AppShadows.card,
+                    shape = RoundedCornerShape(12.dp)
+                )
                 .background(Color.Transparent)
                 .border(
                     width = 1.dp,
@@ -597,11 +613,6 @@ fun SSCancelButton(
                 .clickable(enabled = !isDisabled) {
                     if (!isDisabled) action()
                 }
-                .appShadow(
-                    if (isDisabled) ShadowStyle(Color.Transparent, 0.dp, 0.dp, 0.dp)
-                    else AppShadows.card,
-                    shape = RoundedCornerShape(12.dp)
-                )
                 .fillMaxWidth()
                 .heightIn(min = 48.dp),
             contentAlignment = Alignment.Center

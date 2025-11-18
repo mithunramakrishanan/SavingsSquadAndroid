@@ -1,5 +1,8 @@
 package com.android.savingssquad.viewmodel
 
+import android.os.Build
+import androidx.activity.compose.ManagedActivityResultLauncher
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -83,6 +86,14 @@ fun AppNavHost(
             BankDetailsView(navController, squadViewModel)
         }
 
+        composable(AppDestination.OPEN_MANAGE_LOAN.route) {
+            ManageLoanView(navController, squadViewModel)
+        }
+
+        composable(AppDestination.OPEN_DUES_SCREEN.route) {
+            DuesScreenView(navController, squadViewModel)
+        }
+
     }
 }
 
@@ -104,4 +115,9 @@ sealed class AppDestination(val route: String) {
 
     object OPEN_MANUAL_ENTRY : AppDestination("open_manual_entry")
     object OPEN_BANK_DETAILS : AppDestination("open_bank_details")
+    object OPEN_MANAGE_LOAN: AppDestination("open_manage_loan")
+
+    object OPEN_DUES_SCREEN: AppDestination("open_dues_screen")
+
+
 }

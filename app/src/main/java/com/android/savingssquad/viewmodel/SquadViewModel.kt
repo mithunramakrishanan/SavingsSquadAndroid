@@ -191,9 +191,32 @@ class SquadViewModel : ViewModel() {
     fun setShowUpdateMemberPopup(value: Boolean) { _showUpdateMemberPopup.value = value }
 
 
+    private val _showContributionMemberPopup = MutableStateFlow(false)
+    val showContributionMemberPopup: StateFlow<Boolean> = _showContributionMemberPopup
+    fun setShowContributionMemberPopup(value: Boolean) { _showContributionMemberPopup.value = value }
+
+
+    private val _showEMIMemberPopup = MutableStateFlow(false)
+    val showEMIMemberPopup: StateFlow<Boolean> = _showEMIMemberPopup
+    fun setShowEMIMemberPopup(value: Boolean) { _showEMIMemberPopup.value = value }
+
+    private val _showContributionMonthPopup = MutableStateFlow(false)
+    val showContributionMonthPopup: StateFlow<Boolean> = _showContributionMonthPopup
+    fun setShowContributionMonthPopup(value: Boolean) { _showContributionMonthPopup.value = value }
+
+
+    private val _showEMIMonthPopup = MutableStateFlow(false)
+    val showEMIMonthPopup: StateFlow<Boolean> = _showEMIMonthPopup
+    fun setShowEMIMonthPopup(value: Boolean) { _showEMIMonthPopup.value = value }
+
+
     private val _showLoanMembersPopup = MutableStateFlow(false)
     val showLoanMembersPopup: StateFlow<Boolean> = _showLoanMembersPopup
     fun setShowLoanMembersPopupPopup(value: Boolean) { _showLoanMembersPopup.value = value }
+
+    private val _showEMIConfigPopup = MutableStateFlow(false)
+    val showEMIConfigPopup: StateFlow<Boolean> = _showEMIConfigPopup
+    fun setShowEMIConfigPopup(value: Boolean) { _showEMIConfigPopup.value = value }
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage

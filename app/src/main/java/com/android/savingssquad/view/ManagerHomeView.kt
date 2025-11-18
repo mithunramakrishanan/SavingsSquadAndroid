@@ -80,7 +80,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.savingssquad.R
@@ -171,6 +173,13 @@ fun ManagerHomeView(
         }
     }
 
+    LaunchedEffect(openDuesScreen) {
+        if (openDuesScreen) {
+            navController.navigate(AppDestination.OPEN_DUES_SCREEN.route)
+            openDuesScreen = false
+        }
+    }
+
     // 🔹 Main Layout
     Box(
         modifier = Modifier
@@ -207,7 +216,7 @@ fun ManagerHomeView(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
                     contentPadding = PaddingValues(bottom = 40.dp)
                 ) {
                     val gf = groupFund!!
@@ -221,7 +230,8 @@ fun ManagerHomeView(
 
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(), // ensures full width
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp), // ensures full width
                             contentAlignment = Alignment.Center // centers horizontally
                         ) {
                             ProgressCircleView(
@@ -234,37 +244,88 @@ fun ManagerHomeView(
                     }
 
                     item {
-                        ManagerHeaderView(groupFund = groupFund!!, squadViewModel = squadViewModel, onAccountSummaryClick = {
-                            openAccountSummary = true
-                        })
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            ManagerHeaderView(groupFund = groupFund!!, squadViewModel = squadViewModel, onAccountSummaryClick = {
+                                openAccountSummary = true
+                            })
+                        }
                     }
 
                     item {
-                        ManagerTwoButtons(
-                            addMemberAction = { squadViewModel.setShowAddMemberPopup(true) },
-                            acceptAmountAction = { openVerifyPayment = true }
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 0.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CheckDuesButton {
+                                openDuesScreen = true
+                            }
+                        }
                     }
 
                     item {
-                        TotalMemberContributionCard(
-                            totalMembers = groupFundMembersCount,
-                            totalContribution = gf.totalContributionAmountReceived.currencyFormattedWithCommas(),
-                            subDetails = listOf(
-                                "creditcard" to "As of ${CommonFunctions.dateToString(Date(), "MMM yyyy")}"
-                            ),
-                            onClick = { openMembersList = true }
-                        )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            ManagerTwoButtons(
+                                addMemberAction = { squadViewModel.setShowAddMemberPopup(true) },
+                                acceptAmountAction = { openVerifyPayment = true }
+                            )
+                        }
                     }
 
                     item {
-                        LoanSummaryCard(
-                            totalSent = gf.totalLoanAmountSent.currencyFormattedWithCommas(),
-                            totalReceived = gf.totalLoanAmountReceived.currencyFormattedWithCommas(),
-                            pending = (gf.totalLoanAmountSent - gf.totalLoanAmountReceived).currencyFormattedWithCommas(),
-                            interestEarned = gf.totalInterestAmountReceived.currencyFormattedWithCommas(),
-                            onClick = { openLoanDetails = true }
-                        )
+
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            TotalMemberContributionCard(
+                                totalMembers = groupFundMembersCount,
+                                totalContribution = gf.totalContributionAmountReceived.currencyFormattedWithCommas(),
+                                subDetails = listOf(
+                                    "creditcard" to "As of ${CommonFunctions.dateToString(Date(), "MMM yyyy")}"
+                                ),
+                                onClick = { openMembersList = true }
+                            )
+                        }
+
+
+                    }
+
+                    item {
+
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            LoanSummaryCard(
+                                totalSent = gf.totalLoanAmountSent.currencyFormattedWithCommas(),
+                                totalReceived = gf.totalLoanAmountReceived.currencyFormattedWithCommas(),
+                                pending = (gf.totalLoanAmountSent - gf.totalLoanAmountReceived).currencyFormattedWithCommas(),
+                                interestEarned = gf.totalInterestAmountReceived.currencyFormattedWithCommas(),
+                                onClick = { openLoanDetails = true }
+                            )
+                        }
+
+
                     }
                 }
             }
@@ -612,6 +673,26 @@ fun LoanStatView(
             color = AppColors.headerText,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis // ✅ avoids text overflow in narrow layouts
+        )
+    }
+}
+
+@Composable
+fun CheckDuesButton(onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.Transparent
+        ),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+        contentPadding = PaddingValues(0.dp) // No extra padding for one-line look
+    ) {
+        Text(
+            text = "Check Dues",
+            color = AppColors.primaryBrand,
+            style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+            textDecoration = TextDecoration.Underline,
+            textAlign = TextAlign.Center
         )
     }
 }

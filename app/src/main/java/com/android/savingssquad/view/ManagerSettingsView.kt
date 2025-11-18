@@ -77,7 +77,7 @@ fun ManagerSettingsView(
     var navigateToManageMember by remember { mutableStateOf(false) }
     var navigateToManualEntry by remember { mutableStateOf(false) }
     var navigateToBankDetails by remember { mutableStateOf(false) }
-    var navigateToLoanDetails by remember { mutableStateOf(false) }
+    var navigateToManageLoan by remember { mutableStateOf(false) }
 
 
 
@@ -102,10 +102,10 @@ fun ManagerSettingsView(
         }
     }
 
-    LaunchedEffect(navigateToLoanDetails) {
-        if (navigateToLoanDetails) {
-            navController.navigate(AppDestination.OPEN_LOAD_DETAILS.route)
-            navigateToLoanDetails = false
+    LaunchedEffect(navigateToManageLoan) {
+        if (navigateToManageLoan) {
+            navController.navigate(AppDestination.OPEN_MANAGE_LOAN.route)
+            navigateToManageLoan = false
         }
     }
 
@@ -150,7 +150,7 @@ fun ManagerSettingsView(
                     title = SquadStrings.manageLoanDetails,
                     caption = "Edit loan details and update settings"
                 ) {
-                    navigateToLoanDetails = true
+                    navigateToManageLoan = true
                 }
 
                 ActionButton(
@@ -194,8 +194,8 @@ fun LogoutButton(action: () -> Unit) {
         modifier = Modifier
             .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(AppColors.surface)
             .appShadow(AppShadows.elevated)
+            .background(AppColors.surface)
             .clickable { action() }
             .padding(vertical = 8.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically

@@ -48,48 +48,15 @@ import androidx.compose.material.icons.outlined.CreditCard
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.savingssquad.R
-
-
-@Composable
-fun MembersListView(groupFundID: String) {
-
-}
-
-@Composable
-fun VerifyPaymentsView(screenType: GroupFundUserType) {
-
-}
-
-@Composable
-fun DuesScreenView(screenType: GroupFundUserType) {
-
-}
-
-@Composable
-fun ContributionDetailsView(member: Member, screenType: GroupFundUserType) {
-
-}
-
-@Composable
-fun GroupFundRulesView(screenType: Any) {
-
-}
-
-@Composable
-fun GroupFundActivityView(screenType: GroupFundUserType) {
-
-}
-
-@Composable
-fun PaymentHistoryView(screenType: Any) {
-
-}
+import com.android.savingssquad.viewmodel.AppDestination
 
 @Composable
 fun MemberHomeView(
+    selectedTab: Int,
+    onChangeTab: (Int) -> Unit,
     navController: NavController,
     squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager
+    loaderManager: LoaderManager = LoaderManager.shared
 ) {
     // Observe state from ViewModel
     val groupFund by squadViewModel.groupFund.collectAsStateWithLifecycle()
@@ -101,6 +68,7 @@ fun MemberHomeView(
 
     var remainders by remember { mutableStateOf(listOf<RemainderModel>()) }
     var currentOrOverDueContribution by remember { mutableStateOf(listOf<ContributionDetail>()) }
+
 
     Box(
         modifier = Modifier
@@ -212,7 +180,7 @@ fun MemberHomeView(
                                         dueDate = reminder.remainderDueDate.orNow
                                     ) {
                                         UserDefaultsManager.saveRemainder(reminder)
-                                        navController.navigate("dues")
+                                        onChangeTab(1)
                                     }
                                 }
                             }

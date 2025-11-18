@@ -10,6 +10,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
@@ -27,7 +28,7 @@ fun ManagerTabView(
     squadViewModel: SquadViewModel,
     loaderManager: LoaderManager
 ) {
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
 
     // 🔹 Shared State
     val showPayment by squadViewModel.showPayment.collectAsState()
@@ -63,12 +64,12 @@ fun ManagerTabView(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(70.dp)
-                    .background(AppColors.surface)
                     .shadow(
                         elevation = 4.dp,
                         spotColor = AppColors.primaryButton,
                         ambientColor = AppColors.primaryButton
                     )
+                    .background(AppColors.surface)
                     .padding(top = 6.dp),   // 🔥 Added top padding
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically

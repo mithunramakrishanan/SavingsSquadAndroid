@@ -92,8 +92,6 @@ fun ManualEntryView(
     var contributionSelectedMemberName by remember { mutableStateOf("") }
     var contributionSelectedMonthYear by remember { mutableStateOf("") }
 
-    var isShowContributionMemberList by remember { mutableStateOf(false) }
-    var isShowContributionMonthList by remember { mutableStateOf(false) }
     var availableContributionMonths by remember { mutableStateOf(listOf<String>()) }
 
     var contributionAmountError by remember { mutableStateOf("") }
@@ -105,8 +103,6 @@ fun ManualEntryView(
     var emiSelectedMemberName by remember { mutableStateOf("") }
     var emiSelectedMonthYear by remember { mutableStateOf("") }
 
-    var isShowEMIMemberList by remember { mutableStateOf(false) }
-    var isShowEMIMonthList by remember { mutableStateOf(false) }
     var availableEMIMonths by remember { mutableStateOf(listOf<String>()) }
 
     var emiAmountError by remember { mutableStateOf("") }
@@ -172,7 +168,7 @@ fun ManualEntryView(
                             showDropdown = true,
                             error = contributionSelectedMemberNameError,
                             onDropdownTap = {
-                                isShowContributionMemberList = true
+                                squadViewModel.setShowContributionMemberPopup(true)
                             },
                             disabled = true
 
@@ -203,7 +199,7 @@ fun ManualEntryView(
                                             primaryAction = {}
                                         )
                                     } else {
-                                        isShowContributionMonthList = true
+                                        squadViewModel.setShowContributionMonthPopup(true)
                                     }
                                 }
                             },
@@ -335,7 +331,7 @@ fun ManualEntryView(
                             keyboardType = KeyboardType.Text,
                             showDropdown = true,
                             error = emiSelectedMemberNameError,
-                            onDropdownTap = { isShowEMIMemberList = true },
+                            onDropdownTap = { squadViewModel.setShowEMIMemberPopup(true) },
                             disabled = true)
 
                         if (isPendingLoanAvailable.collectAsState().value) {
@@ -346,7 +342,7 @@ fun ManualEntryView(
                                 keyboardType = KeyboardType.Text,
                                 showDropdown = true,
                                 error = emiSelectedMonthYearError,
-                                onDropdownTap = { isShowEMIMonthList = true },
+                                onDropdownTap = { squadViewModel.setShowEMIMonthPopup(true) },
                                 disabled = true)
 
                             SSTextField(
@@ -468,17 +464,18 @@ fun ManualEntryView(
             Spacer(modifier = Modifier.height(30.dp))
         }
 
-        // ===== Overlays / Popups =====
-        if (isShowContributionMemberList) {
+        val isShowContributionMemberList = squadViewModel.showContributionMemberPopup.collectAsStateWithLifecycle()
+
+        if (isShowContributionMemberList.value) {
             OverlayBackgroundView(
                 showPopup = remember { mutableStateOf(true) },
-                onDismiss = { isShowContributionMemberList = false }
+                onDismiss = { squadViewModel.setShowContributionMemberPopup(false) }
             ) {
                 SingleSelectionPopupView(
                     listValues = groupFundMemberNames,
                     title = "Members",
                     onItemSelected = { selectedValue ->
-                        isShowContributionMemberList = false
+                        squadViewModel.setShowContributionMemberPopup(false)
                         contributionSelectedMemberName = selectedValue
                         contributionSelectedMember = CommonFunctions.getMember(by = selectedValue, from = groupFundMembers)
                         // fetch unpaid months for member
@@ -496,38 +493,43 @@ fun ManualEntryView(
                             }
                         }
                     },
-                    onCancelClick = {}
+                    onCancelClick = {squadViewModel.setShowContributionMemberPopup(false)}
                 )
             }
         }
 
-        if (isShowContributionMonthList) {
+        val isShowContributionMonthList = squadViewModel.showContributionMonthPopup.collectAsStateWithLifecycle()
+
+
+        if (isShowContributionMonthList.value) {
             OverlayBackgroundView(
                 showPopup = remember { mutableStateOf(true) },
-                onDismiss = { isShowContributionMonthList = false }
+                onDismiss = { squadViewModel.setShowContributionMonthPopup(false) }
             ) {
                 SingleSelectionPopupView(
                     listValues = availableContributionMonths,
                     title = "Pending Contribution Months",
                     onItemSelected = { selectedValue ->
                         contributionSelectedMonthYear = selectedValue
-                        isShowContributionMonthList = false
+                        squadViewModel.setShowContributionMonthPopup(false)
                     },
-                    onCancelClick = {}
+                    onCancelClick = {squadViewModel.setShowContributionMonthPopup(false)}
                 )
             }
         }
 
-        if (isShowEMIMemberList) {
+        val isShowEMIMemberList = squadViewModel.showEMIMemberPopup.collectAsStateWithLifecycle()
+
+        if (isShowEMIMemberList.value) {
             OverlayBackgroundView(
                 showPopup = remember { mutableStateOf(true) },
-                onDismiss = { isShowEMIMemberList = false }
+                onDismiss = {  squadViewModel.setShowEMIMemberPopup(false) }
             ) {
                 SingleSelectionPopupView(
                     listValues = groupFundMemberNames,
                     title = "Members",
                     onItemSelected = { selectedValue ->
-                        isShowEMIMemberList = false
+                        squadViewModel.setShowEMIMemberPopup(false)
                         emiSelectedMemberName = selectedValue
                         emiSelectedMember = CommonFunctions.getMember(by = selectedValue, from = groupFundMembers)
                         if (emiSelectedMember != null) {
@@ -538,15 +540,18 @@ fun ManualEntryView(
                             }
                         }
                     },
-                    onCancelClick = {}
+                    onCancelClick = {squadViewModel.setShowEMIMemberPopup(false)}
                 )
             }
         }
 
-        if (isShowEMIMonthList) {
+
+        val isShowEMIMonthList = squadViewModel.showEMIMonthPopup.collectAsStateWithLifecycle()
+
+        if (isShowEMIMonthList.value) {
             OverlayBackgroundView(
                 showPopup = remember { mutableStateOf(true) },
-                onDismiss = { isShowEMIMonthList = false }
+                onDismiss = {  squadViewModel.setShowEMIMemberPopup(false)}
             ) {
                 InstallmentPopupView(
                     title = memberPendingLoans?.firstOrNull()?.loanNumber ?: "",
@@ -554,7 +559,7 @@ fun ManualEntryView(
                     onSelect = { installment ->
                         selectedInstallment = installment
                         emiSelectedMonthYear = CommonFunctions.dateToString(date = installment.dueDate?.toDate() ?: Date(), format = "MMM yyyy")
-                        isShowEMIMonthList = false
+                        squadViewModel.setShowEMIMemberPopup(false)
                     },
                     isShowing = remember { mutableStateOf(true) }
                 )

@@ -1,5 +1,6 @@
 package com.android.savingssquad.view
 
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.activity.compose.BackHandler
@@ -89,10 +90,10 @@ fun BankDetailsView(
     loaderManager: LoaderManager = LoaderManager.shared
 ) {
     // ---------- State Mapping ----------
-    var accountHoldername by remember { mutableStateOf("") }
+    var accountHoldernameState = remember { mutableStateOf("") }
     var accountHoldernameError by remember { mutableStateOf("") }
 
-    var upiID by remember { mutableStateOf("") }
+    val upiState = remember { mutableStateOf("") }
     var upiIDError by remember { mutableStateOf("") }
 
     val groupFund by squadViewModel.groupFund.collectAsState()
@@ -105,11 +106,20 @@ fun BankDetailsView(
             GroupFundUserType.GROUP_FUND_MEMBER
 
     // ---------- Load initial values (SwiftUI .onAppear) ----------
-    LaunchedEffect(Unit) {
-        upiID = if (screenType == GroupFundUserType.GROUP_FUND_MEMBER)
+    LaunchedEffect(groupFund, currentMember, screenType) {
+        upiState.value = if (screenType == GroupFundUserType.GROUP_FUND_MEMBER) {
             currentMember?.upiID ?: ""
-        else
+        }
+        else {
             groupFund?.upiID ?: ""
+        }
+
+        accountHoldernameState.value = if (screenType == GroupFundUserType.GROUP_FUND_MEMBER) {
+            currentMember?.name ?: ""
+        }
+        else {
+            groupFund?.groupFundAccountName ?: ""
+        }
     }
 
     Box(
@@ -137,22 +147,20 @@ fun BankDetailsView(
 
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
 
-                // ------------ Holder Name Field ------------
                 SSTextField(
                     icon = Icons.Default.Person,              // SYSTEM ICON
                     placeholder = "UPI Holder Name",
-                    textState = remember { mutableStateOf(accountHoldername) },
+                    textState = accountHoldernameState,
                     keyboardType = KeyboardType.Text,
                     error = accountHoldernameError,
                 )
 
                 Spacer(Modifier.height(12.dp))
 
-                // ------------ UPI ID Field ------------
                 SSTextField(
-                    icon = Icons.Default.QrCode2,             // SYSTEM QR ICON
+                    icon = Icons.Default.QrCode2,
                     placeholder = "UPI",
-                    textState = remember { mutableStateOf(upiID) },
+                    textState = upiState,
                     keyboardType = KeyboardType.Text,
                     error = upiIDError,
                 )
@@ -163,6 +171,9 @@ fun BankDetailsView(
                 SSButton(
                     title = "Update UPI",
                     action = {
+                        val upiID = upiState.value.trim()
+                        val accountHoldername = accountHoldernameState.value.trim()
+
                         if (validateFields(
                                 accountHoldername = accountHoldername,
                                 upiID = upiID,
@@ -194,20 +205,39 @@ private fun validateFields(
     onErrorUPI: (String) -> Unit
 ): Boolean {
 
-    val nameTrimmed = accountHoldername.trim()
-    onErrorName(if (nameTrimmed.isEmpty()) "Account Holder Name is required" else "")
+    Log.d("BankDetails", "🔍 Starting validation...")
+    Log.d("BankDetails", "Input Name: '$accountHoldername'")
+    Log.d("BankDetails", "Input UPI: '$upiID'")
 
+    var isValid = true
+
+    // Validate Name
+    val nameTrimmed = accountHoldername.trim()
+    if (nameTrimmed.isEmpty()) {
+        Log.d("BankDetails", "❌ Name validation failed: empty")
+        onErrorName("Account Holder Name is required")
+        isValid = false
+    } else {
+        Log.d("BankDetails", "✅ Name validation passed")
+        onErrorName("")
+    }
+
+    // Validate UPI
     val upiTrimmed = upiID.trim()
     val upiRegex = Regex("^[\\w.-]+@[\\w.-]+$")
 
     if (upiTrimmed.isNotEmpty() && !upiRegex.matches(upiTrimmed)) {
+        Log.d("BankDetails", "❌ UPI validation failed: wrong format → '$upiTrimmed'")
         onErrorUPI("Invalid UPI ID")
+        isValid = false
     } else {
+        Log.d("BankDetails", "✅ UPI validation passed")
         onErrorUPI("")
     }
 
-    return onErrorName == {} && onErrorUPI == {} ||
-            (nameTrimmed.isNotEmpty() && (upiTrimmed.isEmpty() || upiRegex.matches(upiTrimmed)))
+    Log.d("BankDetails", "🔚 Validation Completed → isValid = $isValid")
+
+    return isValid
 }
 
 private fun saveAccountToFirestore(

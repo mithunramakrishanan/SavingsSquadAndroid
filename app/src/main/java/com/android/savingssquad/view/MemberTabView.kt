@@ -53,6 +53,7 @@ import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
@@ -67,41 +68,53 @@ fun MemberTabView(
     squadViewModel: SquadViewModel,
     loaderManager: LoaderManager = LoaderManager.shared
 ) {
-    var selectedTab by remember { mutableStateOf(0) } // 0 = Home, 1 = Pay
+    var selectedTab by rememberSaveable { mutableStateOf(0) }  // 0 = Home, 1 = Pay
 
-    // 🔹 Shared states
+    // Shared State from ViewModel
     val showPayment by squadViewModel.showPayment.collectAsState()
     val paymentOrderId by squadViewModel.paymentOrderId.collectAsState()
     val paymentOrderToken by squadViewModel.paymentOrderToken.collectAsState()
     val groupFundState by squadViewModel.groupFund.collectAsState()
     val groupFund = groupFundState
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(AppColors.primaryBackground)
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        // Background Gradient
+        AppBackgroundGradient()
+
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // ✅ Switch tabs like SwiftUI
-            when (selectedTab) {
-                0 -> MemberHomeView(
-                    navController = navController,
-                    squadViewModel = squadViewModel,
-                    loaderManager = loaderManager
-                )
-
-                1 -> MemberPaymentView(navController, squadViewModel)
+            // --------- TAB CONTENT AREA (TAKES REMAINING HEIGHT) ----------
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                when (selectedTab) {
+                    0 -> MemberHomeView(
+                        selectedTab = selectedTab,
+                        onChangeTab = { selectedTab = it },
+                        navController = navController,
+                        squadViewModel = squadViewModel
+                    )
+                    1 -> MemberPaymentView(navController, squadViewModel = squadViewModel)
+                }
             }
 
-            // ✅ Bottom Tab Bar
+            // --------- CUSTOM TAB BAR ----------
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(70.dp)
+                    .shadow(
+                        elevation = 4.dp,
+                        spotColor = AppColors.primaryButton,
+                        ambientColor = AppColors.primaryButton
+                    )
                     .background(AppColors.surface)
-                    .appShadow(AppShadows.card)
-                    .padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                    .padding(top = 6.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 TabBarItem(
                     iconName = "home_icon",
@@ -115,24 +128,25 @@ fun MemberTabView(
                     iconName = "pay_icon",
                     title = "Pay",
                     index = 1,
-                    isCenter = true,
                     selectedTab = selectedTab,
+                    isCenter = true,
                     onClick = { selectedTab = 1 }
                 )
             }
         }
 
+        // Global Components
         SSAlert()
         SSLoaderView()
 
-        // ✅ Payment overlay
+        // -------- PAYMENT OVERLAY ----------
         if (showPayment && groupFund != null) {
             CashfreePaymentView(
                 orderId = paymentOrderId,
                 paymentSessionId = paymentOrderToken,
                 groupFundId = groupFund.groupFundID,
                 onSuccess = { orderId ->
-                    println("✅ Payment Success for order: $orderId")
+                    println("✅ Payment Success: $orderId")
                     squadViewModel.setShowPayment(false)
                 },
                 onFailure = { error ->
@@ -143,7 +157,7 @@ fun MemberTabView(
         }
     }
 
-    // ✅ Fetch group data once
+    // -------- INITIAL DATA FETCH (ONCE) --------
     LaunchedEffect(Unit) {
         squadViewModel.fetchGroupFundByID(showLoader = true) { success, _, _ ->
             if (success) {
@@ -151,12 +165,6 @@ fun MemberTabView(
             }
         }
     }
-}
-
-@Composable
-fun MemberPaymentView(navController: NavController,
-                      squadViewModel: SquadViewModel) {
-    TODO("Not yet implemented")
 }
 
 @Composable
