@@ -52,13 +52,13 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.EMIStatus
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
@@ -85,22 +85,22 @@ fun VerifyPaymentsView(
     var showPayoutOptions by remember { mutableStateOf(false) }
 
     val userList = remember {
-        listOf("All") + squadViewModel.groupFundMembers.value
+        listOf("All") + squadViewModel.squadMembers.value
             .map { it.name }
             .distinct()
     }
 
     val screenType =
-        if (UserDefaultsManager.getGroupFundManagerLogged())
-            GroupFundUserType.GROUP_FUND_MANAGER
+        if (UserDefaultsManager.getSquadManagerLogged())
+            SquadUserType.SQUAD_MANAGER
         else
-            GroupFundUserType.GROUP_FUND_MEMBER
+            SquadUserType.SQUAD_MEMBER
 
     // 🔹 Pending Transfers Logic
-    val pendingAccountTransfers = remember(selectedUser, squadViewModel.groupFundPayments) {
-        if (screenType != GroupFundUserType.GROUP_FUND_MEMBER) {
+    val pendingAccountTransfers = remember(selectedUser, squadViewModel.squadPayments) {
+        if (screenType != SquadUserType.SQUAD_MEMBER) {
 
-            val base = squadViewModel.groupFundPayments.value.filter {
+            val base = squadViewModel.squadPayments.value.filter {
                 it.paymentSuccess &&
                         !it.payoutSuccess &&
                         it.paymentType == PaymentType.PAYMENT_CREDIT
@@ -111,7 +111,7 @@ fun VerifyPaymentsView(
 
         } else {
 
-            squadViewModel.groupFundPayments.value.filter {
+            squadViewModel.squadPayments.value.filter {
                 it.paymentSuccess &&
                         !it.payoutSuccess &&
                         it.paymentType == PaymentType.PAYMENT_DEBIT &&
@@ -141,9 +141,9 @@ fun VerifyPaymentsView(
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (screenType != GroupFundUserType.GROUP_FUND_MEMBER) {
+            if (screenType != SquadUserType.SQUAD_MEMBER) {
                 DropdownMenuPicker(
-                    label = "Member",
+                    label = "",
                     selected = selectedUser,
                     items = userList,
                     modifier = Modifier.weight(1f)

@@ -45,12 +45,12 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.EMIStatus
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
@@ -67,22 +67,28 @@ fun LoanDetailsView(
     squadViewModel: SquadViewModel,
     loaderManager: LoaderManager = LoaderManager.shared
 ) {
-    val groupFund = squadViewModel.groupFund
-    val screenType =
-        if (UserDefaultsManager.getGroupFundManagerLogged())
-            GroupFundUserType.GROUP_FUND_MANAGER
-        else
-            GroupFundUserType.GROUP_FUND_MEMBER
+    val squad = squadViewModel.squad
 
-    val currentMember = squadViewModel.currentMember.collectAsState().value
+    val screenType = if (UserDefaultsManager.getSquadManagerLogged()) {
+        SquadUserType.SQUAD_MANAGER
+    } else {
+        SquadUserType.SQUAD_MEMBER
+    }
 
-    var groupFundLoans by remember { mutableStateOf<List<MemberLoan>?>(null) }
+// Get the member depending on the screen type
+    val currentMember by if (screenType == SquadUserType.SQUAD_MANAGER) {
+        squadViewModel.selectedMember.collectAsStateWithLifecycle()
+    } else {
+        squadViewModel.currentMember.collectAsStateWithLifecycle()
+    }
+
+    var squadLoans by remember { mutableStateOf<List<MemberLoan>?>(null) }
     var selectedStatus by remember { mutableStateOf<EMIStatus?>(null) }
     var selectedMember by remember { mutableStateOf("All") }
 
     // ===== FILTERED LOANS =====
-    val filteredLoans = remember(groupFundLoans, selectedStatus, selectedMember) {
-        (groupFundLoans ?: emptyList())
+    val filteredLoans = remember(squadLoans, selectedStatus, selectedMember) {
+        (squadLoans ?: emptyList())
             .filter { loan ->
                 (selectedStatus == null || loan.loanStatus == selectedStatus) &&
                         (selectedMember == "All" || loan.memberName == selectedMember)
@@ -90,22 +96,22 @@ fun LoanDetailsView(
     }
 
     // ===== MEMBER LIST =====
-    val memberList = remember(groupFundLoans) {
-        val names = groupFundLoans?.map { it.memberName }?.toSet() ?: emptySet()
+    val memberList = remember(squadLoans) {
+        val names = squadLoans?.map { it.memberName }?.toSet() ?: emptySet()
         listOf("All") + names.sorted()
     }
 
     // ===== LOAD LOANS =====
-    LaunchedEffect(screenType, currentMember?.id, groupFundLoans) {
-        val groupFundID = groupFund.value?.groupFundID ?: return@LaunchedEffect
+    LaunchedEffect(screenType, currentMember?.id, squadLoans) {
+        val squadID = squad.value?.squadID ?: return@LaunchedEffect
 
-        if (screenType == GroupFundUserType.GROUP_FUND_MEMBER && currentMember?.id != null) {
-            squadViewModel.fetchMemberLoans(true, currentMember.id!!) { success, _ ->
-                groupFundLoans = squadViewModel.memberLoans.value
+        if (screenType == SquadUserType.SQUAD_MEMBER && currentMember?.id != null) {
+            squadViewModel.fetchMemberLoans(true, currentMember!!.id!!) { success, _ ->
+                squadLoans = squadViewModel.memberLoans.value
             }
         } else {
-            squadViewModel.fetchAllLoansInGroupFund(true, groupFundID) { success, loans, _ ->
-                if (success) groupFundLoans = loans
+            squadViewModel.fetchAllLoansInSquad(true, squadID) { success, loans, _ ->
+                if (success) squadLoans = loans
             }
         }
     }
@@ -127,7 +133,7 @@ fun LoanDetailsView(
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (screenType != GroupFundUserType.GROUP_FUND_MEMBER) {
+            if (screenType != SquadUserType.SQUAD_MEMBER) {
                 DropdownMenuPicker(
                     label = "Member",
                     selected = selectedMember,
@@ -162,24 +168,16 @@ fun LoanDetailsView(
 
             when {
                 // 🔵 Loading State
-                groupFundLoans == null -> {
+                squadLoans == null -> {
                     item {
-                        Column(
+                        Text(
+                            text = "No loans yet",
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            CircularProgressIndicator()
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text(
-                                text = "Loading...",
-                                style = AppFont.ibmPlexSans(14),
-                                color = AppColors.secondaryText
-                            )
-                        }
+                                .padding(top = 16.dp),
+                            style = AppFont.ibmPlexSans(15),
+                            color = AppColors.secondaryText
+                        )
                     }
                 }
 
@@ -187,7 +185,7 @@ fun LoanDetailsView(
                 filteredLoans.isEmpty() -> {
                     item {
                         Text(
-                            text = "No loans found",
+                            text = "No loans yet",
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 16.dp),

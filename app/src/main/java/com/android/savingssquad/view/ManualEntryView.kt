@@ -52,7 +52,7 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
@@ -60,8 +60,8 @@ import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.unpaidMonths
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.EMIStatus
-import com.android.savingssquad.singleton.GroupFundActivityType
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadActivityType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentSubType
@@ -116,9 +116,9 @@ fun ManualEntryView(
     var selectedSegment by remember { mutableStateOf(SquadStrings.manualEntryContribution) }
 
     // ===== viewmodel state (collected safely) =====
-    val groupFund by squadViewModel.groupFund.collectAsState() // nullable
-    val groupFundMembers by squadViewModel.groupFundMembers.collectAsState(initial = emptyList())
-    val groupFundMemberNames by squadViewModel.groupFundMemberNames.collectAsState(initial = emptyList())
+    val squad by squadViewModel.squad.collectAsState() // nullable
+    val squadMembers by squadViewModel.squadMembers.collectAsState(initial = emptyList())
+    val squadMemberNames by squadViewModel.squadMemberNames.collectAsState(initial = emptyList())
     val memberPendingLoans by squadViewModel.memberPendingLoans.collectAsState(initial = null)
     val selectedContributions by squadViewModel.selectedContributions.collectAsState(initial = emptyList())
     val isPendingLoanAvailable by remember { derivedStateOf { squadViewModel.isPendingLoanAvailable } }
@@ -162,7 +162,7 @@ fun ManualEntryView(
                         // Member selection field (readonly but dropdown active)
                         SSTextField(
                             icon = Icons.Default.Person,
-                            placeholder = if (contributionSelectedMemberName.isEmpty()) "Select GroupFund Member" else contributionSelectedMemberName,
+                            placeholder = if (contributionSelectedMemberName.isEmpty()) "Select Squad Member" else contributionSelectedMemberName,
                             textState = remember { mutableStateOf(contributionSelectedMemberName) }, // keep display, but won't edit directly
                             keyboardType = KeyboardType.Text,
                             showDropdown = true,
@@ -210,8 +210,8 @@ fun ManualEntryView(
                         // Contribution Amount readonly
                         SSTextField(
                             icon = Icons.Default.CheckCircle,
-                            placeholder = (groupFund?.monthlyContribution ?: 0).toString(),
-                            textState = remember { mutableStateOf((groupFund?.monthlyContribution ?: 0).toString()) },
+                            placeholder = (squad?.monthlyContribution ?: 0).toString(),
+                            textState = remember { mutableStateOf((squad?.monthlyContribution ?: 0).toString()) },
                             keyboardType = KeyboardType.Number,
                             disabled = true)
                     }
@@ -231,8 +231,8 @@ fun ManualEntryView(
                     ) {
                         // performing the same async flow as SwiftUI
                         val selectedMember = contributionSelectedMember
-                        val groupFundLocal = groupFund
-                        if (selectedMember == null || groupFundLocal == null) {
+                        val squadLocal = squad
+                        if (selectedMember == null || squadLocal == null) {
                             // show error
                             return@SSButton
                         }
@@ -252,7 +252,7 @@ fun ManualEntryView(
                                 memberID = selectedMember.id ?: "",
                                 memberName = selectedMember.name,
                                 monthYear = contributionSelectedMonthYear,
-                                amount = groupFundLocal.monthlyContribution,
+                                amount = squadLocal.monthlyContribution,
                                 paidOn = Date().asTimestamp,
                                 paidStatus = PaidStatus.PAID, // adjust enum mapping to your model
                                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
@@ -261,7 +261,7 @@ fun ManualEntryView(
 
                             squadViewModel.editContribution(
                                 showLoader = true,
-                                groupFundID = groupFundLocal.groupFundID,
+                                squadID = squadLocal.squadID,
                                 memberID = selectedMember.id ?: "",
                                 contributionID = contributionID,
                                 updatedContribution = updatedContribution
@@ -270,20 +270,20 @@ fun ManualEntryView(
                                     if (success) {
                                         // async: create payments and activity like SwiftUI
                                         val newPayment = PaymentsDetails(
-                                            id = CommonFunctions.generatePaymentID(groupFundId = groupFundLocal.groupFundID),
+                                            id = CommonFunctions.generatePaymentID(squadId = squadLocal.squadID),
                                             paymentUpdatedDate = Date().asTimestamp,
                                             memberId = selectedMember.id ?: "",
                                             memberName = contributionSelectedMemberName,
                                             paymentPhone = selectedMember.phoneNumber,
                                             paymentEmail = selectedMember.mailID ?: "",
-                                            userType = GroupFundUserType.GROUP_FUND_MEMBER,
-                                            amount = groupFundLocal.monthlyContribution,
+                                            userType = SquadUserType.SQUAD_MEMBER,
+                                            amount = squadLocal.monthlyContribution,
                                             intrestAmount = 0,
                                             paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                                             paymentType = PaymentType.PAYMENT_CREDIT,
                                             paymentSubType = PaymentSubType.CONTRIBUTION_AMOUNT,
                                             description = "Updated $contributionSelectedMemberName contribution for $contributionSelectedMonthYear",
-                                            groupFundId = groupFundLocal.groupFundID,
+                                            squadId = squadLocal.squadID,
                                             contributionId = contributionID,
                                             loanId = "",
                                             installmentId = "",
@@ -291,16 +291,16 @@ fun ManualEntryView(
                                         )
 
                                         squadViewModel.savePayments(
-                                            groupFundID = groupFundLocal.groupFundID,
+                                            squadID = squadLocal.squadID,
                                             payment = listOf(newPayment)
                                         ) { pSuccess, pError ->
                                             // no-op logging
                                         }
 
-                                        squadViewModel.createGroupFundActivity(
-                                            activityType = GroupFundActivityType.AMOUNT_CREDIT,
+                                        squadViewModel.createSquadActivity(
+                                            activityType = SquadActivityType.AMOUNT_CREDIT,
                                             userName = "CHIT MEMBER",
-                                            amount = groupFundLocal.monthlyContribution,
+                                            amount = squadLocal.monthlyContribution,
                                             description = "Updated $contributionSelectedMemberName contribution for $contributionSelectedMonthYear"
                                         ) {
                                             coroutineScope.launch(Dispatchers.Main) {
@@ -326,7 +326,7 @@ fun ManualEntryView(
                         // Member selection
                         SSTextField(
                             icon = Icons.Default.Person,
-                            placeholder = if (emiSelectedMemberName.isEmpty()) "Select GroupFund Member" else emiSelectedMemberName,
+                            placeholder = if (emiSelectedMemberName.isEmpty()) "Select Squad Member" else emiSelectedMemberName,
                             textState = remember { mutableStateOf(emiSelectedMemberName) },
                             keyboardType = KeyboardType.Text,
                             showDropdown = true,
@@ -401,45 +401,45 @@ fun ManualEntryView(
                                             // create payments and activity similar to SwiftUI
                                             val loanNumber = memberPendingLoans?.firstOrNull()?.loanNumber ?: "N/A"
                                             val loanPayment = PaymentsDetails(
-                                                id = CommonFunctions.generatePaymentID(groupFundId = groupFund?.groupFundID ?: ""),
+                                                id = CommonFunctions.generatePaymentID(squadId = squad?.squadID ?: ""),
                                                 paymentUpdatedDate = Date().asTimestamp,
                                                 memberId = emiSelectedMember?.id ?: "",
                                                 memberName = emiSelectedMemberName,
                                                 paymentPhone = emiSelectedMember?.phoneNumber ?: "",
                                                 paymentEmail = emiSelectedMember?.mailID ?: "",
-                                                userType = GroupFundUserType.GROUP_FUND_MANAGER,
+                                                userType = SquadUserType.SQUAD_MANAGER,
                                                 amount = selectedInstallment?.installmentAmount ?: 0,
                                                 intrestAmount = 0,
                                                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                                                 paymentType = PaymentType.PAYMENT_CREDIT,
                                                 paymentSubType = PaymentSubType.EMI_AMOUNT,
                                                 description = "Updated EMI to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber",
-                                                groupFundId = groupFund?.groupFundID ?: ""
+                                                squadId = squad?.squadID ?: ""
                                             )
                                             val interestPayment = PaymentsDetails(
-                                                id = CommonFunctions.generatePaymentID(groupFundId = groupFund?.groupFundID ?: ""),
+                                                id = CommonFunctions.generatePaymentID(squadId = squad?.squadID ?: ""),
                                                 paymentUpdatedDate = Date().asTimestamp,
                                                 memberId = emiSelectedMember?.id ?: "",
                                                 memberName = emiSelectedMemberName,
                                                 paymentPhone = emiSelectedMember?.phoneNumber ?: "",
                                                 paymentEmail = emiSelectedMember?.mailID ?: "",
-                                                userType = GroupFundUserType.GROUP_FUND_MEMBER,
+                                                userType = SquadUserType.SQUAD_MEMBER,
                                                 amount = selectedInstallment?.interestAmount ?: 0,
                                                 intrestAmount = 0,
                                                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                                                 paymentType = PaymentType.PAYMENT_CREDIT,
                                                 paymentSubType = PaymentSubType.INTEREST_AMOUNT,
                                                 description = "Updated Interest to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber",
-                                                groupFundId = groupFund?.groupFundID ?: ""
+                                                squadId = squad?.squadID ?: ""
                                             )
 
-                                            squadViewModel.savePayments(groupFundID = groupFund?.groupFundID ?: "", payment = listOf(loanPayment, interestPayment)) { psuccess, perror ->
+                                            squadViewModel.savePayments(squadID = squad?.squadID ?: "", payment = listOf(loanPayment, interestPayment)) { psuccess, perror ->
                                                 // no-op
                                             }
 
                                             val total = (selectedInstallment?.installmentAmount ?: 0) + (selectedInstallment?.interestAmount ?: 0)
-                                            squadViewModel.createGroupFundActivity(
-                                                activityType = GroupFundActivityType.AMOUNT_CREDIT,
+                                            squadViewModel.createSquadActivity(
+                                                activityType = SquadActivityType.AMOUNT_CREDIT,
                                                 userName = "SQUAD MANAGER",
                                                 amount = total,
                                                 description = "Updated EMI and Interest to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber ${total.currencyFormattedWithCommas()}"
@@ -464,6 +464,9 @@ fun ManualEntryView(
             Spacer(modifier = Modifier.height(30.dp))
         }
 
+        SSAlert()
+        SSLoaderView()
+
         val isShowContributionMemberList = squadViewModel.showContributionMemberPopup.collectAsStateWithLifecycle()
 
         if (isShowContributionMemberList.value) {
@@ -472,18 +475,18 @@ fun ManualEntryView(
                 onDismiss = { squadViewModel.setShowContributionMemberPopup(false) }
             ) {
                 SingleSelectionPopupView(
-                    listValues = groupFundMemberNames,
+                    listValues = squadMemberNames,
                     title = "Members",
                     onItemSelected = { selectedValue ->
                         squadViewModel.setShowContributionMemberPopup(false)
                         contributionSelectedMemberName = selectedValue
-                        contributionSelectedMember = CommonFunctions.getMember(by = selectedValue, from = groupFundMembers)
+                        contributionSelectedMember = CommonFunctions.getMember(by = selectedValue, from = squadMembers)
                         // fetch unpaid months for member
                         val member = contributionSelectedMember
-                        val groupId = groupFund?.groupFundID
+                        val groupId = squad?.squadID
                         if (member != null && groupId != null) {
                             loaderManager.showLoader()
-                            squadViewModel.fetchContributionsForMember(showLoader = true, groupFundID = groupId, memberID = member.id ?: "") { contributions, error ->
+                            squadViewModel.fetchContributionsForMember(showLoader = true, squadID = groupId, memberID = member.id ?: "") { contributions, error ->
                                 loaderManager.hideLoader()
                                 if (contributions != null) {
                                     availableContributionMonths = contributions.unpaidMonths()
@@ -526,12 +529,12 @@ fun ManualEntryView(
                 onDismiss = {  squadViewModel.setShowEMIMemberPopup(false) }
             ) {
                 SingleSelectionPopupView(
-                    listValues = groupFundMemberNames,
+                    listValues = squadMemberNames,
                     title = "Members",
                     onItemSelected = { selectedValue ->
                         squadViewModel.setShowEMIMemberPopup(false)
                         emiSelectedMemberName = selectedValue
-                        emiSelectedMember = CommonFunctions.getMember(by = selectedValue, from = groupFundMembers)
+                        emiSelectedMember = CommonFunctions.getMember(by = selectedValue, from = squadMembers)
                         if (emiSelectedMember != null) {
                             loaderManager.showLoader()
                             squadViewModel.fetchMemberLoans(showLoader = true, memberID = emiSelectedMember?.id ?: "") { success, error ->

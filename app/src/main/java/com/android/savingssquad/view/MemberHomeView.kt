@@ -59,9 +59,9 @@ fun MemberHomeView(
     loaderManager: LoaderManager = LoaderManager.shared
 ) {
     // Observe state from ViewModel
-    val groupFund by squadViewModel.groupFund.collectAsStateWithLifecycle()
+    val squad by squadViewModel.squad.collectAsStateWithLifecycle()
     val currentMember by squadViewModel.currentMember.collectAsStateWithLifecycle()
-    val groupFundPayments by squadViewModel.groupFundPayments.collectAsStateWithLifecycle()
+    val squadPayments by squadViewModel.squadPayments.collectAsStateWithLifecycle()
     val users by squadViewModel.users.collectAsStateWithLifecycle()
     val showPopup by squadViewModel.showPopup.collectAsStateWithLifecycle()
     val selectedUser by squadViewModel.selectedUser.collectAsStateWithLifecycle()
@@ -78,7 +78,7 @@ fun MemberHomeView(
         // --------------------------
         // ✅ Main Content
         // --------------------------
-        if (groupFund != null) {
+        if (squad != null) {
             AppBackgroundGradient()
 
             LazyColumn(
@@ -92,12 +92,14 @@ fun MemberHomeView(
                         title = "Savings Squad",
                         navController = navController,
                         showBackButton = false,
-                        rightButtonDrawable = R.drawable.switch_account
+                        rightButtonDrawable = if (UserDefaultsManager.getIsMultipleAccount())
+                            R.drawable.switch_account
+                        else null
                     ) {
                         squadViewModel.fetchUserLogins(
                             showLoader = true,
                             phoneNumber = squadViewModel.loginMember?.phoneNumber ?: ""
-                        ) { success, error ->
+                        ) { success,loginList, error ->
                             Log.d(
                                 "MemberHomeView",
                                 if (success) "✅ User logins fetched" else "❌ $error"
@@ -118,7 +120,7 @@ fun MemberHomeView(
                     ) {
                         val remainingMonths = squadViewModel.remainingMonths.collectAsState().value
 
-                        groupFund?.let { fund ->
+                        squad?.let { fund ->
                             val completed = fund.totalDuration - remainingMonths
                             val total = fund.totalDuration
                             val monthlyContribution = fund.monthlyContribution.currencyFormattedWithCommas()
@@ -127,7 +129,7 @@ fun MemberHomeView(
                                 completedMonths = completed,
                                 totalMonths = total,
                                 monthlyContribution = monthlyContribution,
-                                onClick = { navController.navigate("account_summary") }
+                                onClick = {  }
                             )
                         } ?: CircularProgressIndicator()
 
@@ -137,18 +139,18 @@ fun MemberHomeView(
                         ) {
                             MemberDashBoardCard(
                                 title = "Total Members",
-                                value = squadViewModel.groupFundMembersCount.collectAsStateWithLifecycle().value.toString(),
+                                value = squadViewModel.squadMembersCount.collectAsStateWithLifecycle().value.toString(),
                                 subDetails = emptyList(),
-                                onClick = { navController.navigate("members_list") }
+                                onClick = { navController.navigate(AppDestination.OPEN_MEMBERS_LIST.route) }
                             )
 
                             MemberDashBoardCard(
                                 title = "Current Available Fund",
-                                value = groupFund!!.currentAvailableAmount.currencyFormattedWithCommas(),
+                                value = squad!!.currentAvailableAmount.currencyFormattedWithCommas(),
                                 subDetails = listOf(
                                     "banknote" to "As of ${CommonFunctions.dateToString(Date(), "MMM yyyy")}"
                                 ),
-                                onClick = { navController.navigate("account_summary") }
+                                onClick = { navController.navigate(AppDestination.ACCOUNT_SUMMARY.route) }
                             )
                         }
                     }
@@ -159,8 +161,8 @@ fun MemberHomeView(
                     MemberHeaderView(
                         selectedUser = squadViewModel.selectedUser.collectAsState().value,
                         currentMember = squadViewModel.currentMember.collectAsState().value,
-                        nameClicked = { navController.navigate("profile") },
-                        amountClicked = { navController.navigate("contributions") }
+                        nameClicked = { navController.navigate(AppDestination.OPEN_MEMBER_PROFILE.route) },
+                        amountClicked = { navController.navigate(AppDestination.OPEN_CONTRUBUTION_DETAILS.route) }
                     )
                 }
 
@@ -196,7 +198,7 @@ fun MemberHomeView(
                         ) {
                             DuesCardView(
                                 title = "All Due’s Paid",
-                                subtitle = "Group Fund all caught up!",
+                                subtitle = "Squad all caught up!",
                                 icon = Icons.Default.CheckCircle,
                                 iconColor = Color(0xFF4CAF50),
                                 gradientColors = listOf(
@@ -213,14 +215,14 @@ fun MemberHomeView(
                 item {
                     MemberTwoButtons(
                         requestCashAction = { /* TODO: handle request cash */ },
-                        approveCashAction = { navController.navigate("verify_payment") }
+                        approveCashAction = { navController.navigate(AppDestination.OPEN_VERIFY_PAYMENTS.route) }
                     )
                 }
 
                 // 🔹 Transaction Section
                 item {
                     SectionView(title = "Recent Transactions") {
-                        val lastFivePayments = groupFundPayments
+                        val lastFivePayments = squadPayments
                             .filter { it.memberName == currentMember?.name }
                             .sortedByDescending { it.paymentUpdatedDate?.toDate() ?: Date(0) }
                             .take(5)
@@ -238,7 +240,7 @@ fun MemberHomeView(
                                 )
                             }
 
-                            if (groupFundPayments.count { it.memberName == currentMember?.name } > 5) {
+                            if (squadPayments.count { it.memberName == currentMember?.name } > 5) {
                                 Row(
                                     horizontalArrangement = Arrangement.Center,
                                     modifier = Modifier.fillMaxWidth()
@@ -247,7 +249,7 @@ fun MemberHomeView(
                                         title = "View All",
                                         icon = "arrow.right"
                                     ) {
-                                        navController.navigate("payment_history")
+                                        navController.navigate(AppDestination.OPEN_PAYMENT_HISTORY.route)
                                     }
                                 }
                             }
@@ -257,10 +259,10 @@ fun MemberHomeView(
             }
 
             // 🔹 Floating Buttons
-            FloatingGroupFundButton(
-                onGroupFundActivity = { navController.navigate("notifications") },
-                onPaymentHistory = { navController.navigate("payment_history") },
-                onGroupFundRules = { navController.navigate("rules") }
+            FloatingSquadButton(
+                onSquadActivity = { navController.navigate(AppDestination.OPEN_ACTIITY.route) },
+                onPaymentHistory = { navController.navigate(AppDestination.OPEN_PAYMENT_HISTORY.route) },
+                onSquadRules = { navController.navigate(AppDestination.OPEN_GROUP_RULES.route) }
             )
         }
 
@@ -293,8 +295,8 @@ fun MemberHomeView(
 
         squadViewModel.fetchMember(
             showLoader = true,
-            groupFundID = member.groupFundID,
-            memberID = member.groupFundUserId
+            squadID = member.squadID,
+            memberID = member.squadUserId
         ) { success, fetchedMember, error ->
             if (success && fetchedMember != null) {
                 remainders = emptyList()
@@ -302,7 +304,7 @@ fun MemberHomeView(
                 // Fetch Contributions
                 squadViewModel.fetchContributionsForMember(
                     showLoader = true,
-                    groupFundID = fetchedMember.groupFundID,
+                    squadID = fetchedMember.squadID,
                     memberID = fetchedMember.id ?: ""
                 ) { contributions, _ ->
                     contributions?.let { list ->
@@ -376,8 +378,8 @@ fun RemainderCardView(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(AppColors.surface)
             .appShadow(AppShadows.card)
+            .background(AppColors.surface)
             .border(1.dp, AppColors.border, RoundedCornerShape(16.dp))
             .clickable { onTap() }
             .padding(16.dp),
@@ -453,7 +455,7 @@ fun MemberHeaderView(
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = "Hi, ${selectedUser?.groupFundUsername ?: ""}",
+                text = "Hi, ${selectedUser?.squadUsername ?: ""}",
                 style = AppFont.ibmPlexSans(22, FontWeight.SemiBold),
                 color = AppColors.headerText,
                 textDecoration = TextDecoration.Underline,

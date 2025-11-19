@@ -43,7 +43,7 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.SquadStrings
@@ -68,7 +68,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.viewmodel.AppDestination
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
@@ -92,13 +92,19 @@ fun MemberProfileView(
     var openContributionDetails by remember { mutableStateOf(false) }
     var openLoanDetailsView by remember { mutableStateOf(false) }
 
-    val member by squadViewModel.selectedMember.collectAsStateWithLifecycle()
 
-    val screenType =
-        if (UserDefaultsManager.getGroupFundManagerLogged())
-            GroupFundUserType.GROUP_FUND_MANAGER
-        else
-            GroupFundUserType.GROUP_FUND_MEMBER
+    val screenType = if (UserDefaultsManager.getSquadManagerLogged()) {
+        SquadUserType.SQUAD_MANAGER
+    } else {
+        SquadUserType.SQUAD_MEMBER
+    }
+
+// Get the member depending on the screen type
+    val member by if (screenType == SquadUserType.SQUAD_MANAGER) {
+        squadViewModel.selectedMember.collectAsStateWithLifecycle()
+    } else {
+        squadViewModel.currentMember.collectAsStateWithLifecycle()
+    }
 
 
     LaunchedEffect(openContributionDetails) {
@@ -108,11 +114,18 @@ fun MemberProfileView(
         }
     }
 
+    LaunchedEffect(openLoanDetailsView) {
+        if (openLoanDetailsView) {
+            navController.navigate(AppDestination.OPEN_LOAD_DETAILS.route)
+            openLoanDetailsView = false
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         AppBackgroundGradient()
 
         Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            SSNavigationBar(title = if (screenType == GroupFundUserType.GROUP_FUND_MANAGER) "Member Profile" else "Your Profile",navController)
+            SSNavigationBar(title = if (screenType == SquadUserType.SQUAD_MANAGER) "Member Profile" else "Your Profile",navController)
 
             member?.let { safeMember ->
                 MemberProfileHeaderView(
@@ -122,12 +135,12 @@ fun MemberProfileView(
                     navController = navController
                 )
 
-                if (screenType == GroupFundUserType.GROUP_FUND_MEMBER) {
+                if (screenType == SquadUserType.SQUAD_MEMBER) {
                     ActionButton(
                         title = SquadStrings.manageBankDetails,
                         caption = "Update UPI for seamless transactions"
                     ) {
-                        navController.navigate("bank_details_screen")
+                        navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
                     }
                 }
 
@@ -139,7 +152,7 @@ fun MemberProfileView(
                     // -------------------------
                     // 1️⃣ Stats List (SwiftUI Equivalent)
                     // -------------------------
-                    val stats: List<MemberStatItem> = if (screenType == GroupFundUserType.GROUP_FUND_MANAGER) {
+                    val stats: List<MemberStatItem> = if (screenType == SquadUserType.SQUAD_MANAGER) {
                         listOf(
                             MemberStatItem(
                                 title = "Contribution Received",
@@ -252,7 +265,7 @@ fun MemberProfileView(
 @Composable
 fun MemberProfileHeaderView(
     member: Member,
-    screenType: GroupFundUserType,
+    screenType: SquadUserType,
     squadViewModel: SquadViewModel,
     navController: NavController
 ) {
@@ -307,7 +320,7 @@ fun MemberProfileHeaderView(
                 Icon(imageVector = Icons.Default.Phone, contentDescription = null, tint = AppColors.secondaryText.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(text = member.phoneNumber, style = AppFont.ibmPlexSans(14, FontWeight.Normal), color = AppColors.secondaryText, modifier = Modifier.widthIn(max = 140.dp))
-                if (screenType == GroupFundUserType.GROUP_FUND_MEMBER) {
+                if (screenType == SquadUserType.SQUAD_MEMBER) {
                     Spacer(modifier = Modifier.width(6.dp))
                     IconButton(onClick = { squadViewModel.setShowUpdateMemberPopup(true) }) {
                         Icon(imageVector = Icons.Default.Edit, contentDescription = "edit", tint = AppColors.primaryButton)
@@ -457,15 +470,15 @@ fun UpdateMemberPopup(
 
         if (otpVerified) {
             val phone = CommonFunctions.cleanUpPhoneNumber(phoneNumber)
-            val groupFund = squadViewModel.groupFund.value
+            val squad = squadViewModel.squad.value
             val memberId = squadViewModel.currentMember.value?.id
 
-            if (groupFund != null && memberId != null) {
+            if (squad != null && memberId != null) {
                 LoaderManager.shared.showLoader()
 
                 squadViewModel.updateMemberMobileNumber(
                     showLoader = true,
-                    groupFundID = groupFund.groupFundID,
+                    squadID = squad.squadID,
                     memberID = memberId,
                     mobileNumber = phone
                 ) { success, error ->

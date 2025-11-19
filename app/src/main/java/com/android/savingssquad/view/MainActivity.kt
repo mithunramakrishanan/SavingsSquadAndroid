@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.android.savingssquad.singleton.AppColors
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.AppNavHost
 import com.android.savingssquad.viewmodel.LoaderManager
@@ -41,9 +41,9 @@ fun SavingsSquadRoot() {
         val isLoggedIn = UserDefaultsManager.getIsLoggedIn()
 
         if (isLoggedIn && user != null) {
-            when (user.getRoleEnum()) {
-                GroupFundUserType.GROUP_FUND_MANAGER -> "manager_home"
-                GroupFundUserType.GROUP_FUND_MEMBER -> "member_home"
+            when (user.role) {
+                SquadUserType.SQUAD_MANAGER -> "manager_home"
+                SquadUserType.SQUAD_MEMBER -> "member_home"
                 else -> "sign_in"
             }
         } else {

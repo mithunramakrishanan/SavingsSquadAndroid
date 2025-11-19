@@ -1,7 +1,6 @@
 package com.android.savingssquad.view
 
 // ✅ Jetpack Compose
-import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,6 +32,7 @@ import com.google.firebase.auth.PhoneAuthProvider
 import android.app.Activity
 import android.content.Context
 import androidx.compose.foundation.border
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -46,16 +46,22 @@ import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.singleton.appShadow
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.singleton.SquadUserType
+import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.AlertManager
+import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.LoaderManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.google.firebase.auth.PhoneAuthOptions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 @Composable
-fun GroupFundSignInView( navController: NavController, squadViewModel: SquadViewModel, loaderManager: LoaderManager) {
+fun SquadSignInView( navController: NavController, squadViewModel: SquadViewModel, loaderManager: LoaderManager) {
     val context = LocalContext.current
-
+    val coroutineScope = rememberCoroutineScope() // ✅ define this
     val phoneNumber  = remember { mutableStateOf("") }
     val otpCode = remember { mutableStateOf("") }
     val verificationID = remember { mutableStateOf("") }
@@ -150,25 +156,66 @@ fun GroupFundSignInView( navController: NavController, squadViewModel: SquadView
                     isButtonLoading = isButtonLoading,
                     title = if (isOTPSent) SquadStrings.verifyOTP else SquadStrings.sendOTP
                 ) {
-                    if (isOTPSent) {
-                        if (verificationID.value.isEmpty()) {
-                            AlertManager.shared.showAlert(
-                                title = SquadStrings.appName,
-                                message = SquadStrings.invalidOTP
-                            )
-                        } else {
+                    coroutineScope.launch {
+                        if (isOTPSent) {
+
+                            if (verificationID.value.isEmpty()) {
+                                AlertManager.shared.showAlert(
+                                    title = SquadStrings.appName,
+                                    message = SquadStrings.invalidOTP
+                                )
+                                return@launch
+                            }
+
                             verifyOTP(
                                 verificationID = verificationID.value,
                                 otpCode = otpCode.value,
                                 onStart = { isButtonLoading = true },
                                 onSuccess = {
                                     isButtonLoading = false
+
+                                    // 🔥 Call ViewModel function
                                     squadViewModel.fetchUserLogins(
                                         showLoader = true,
                                         phoneNumber = phoneNumber.value
-                                    ) { success, message ->
-                                        if (success) println("✅ User logins fetched successfully")
-                                        else println("❌ $message")
+                                    ) { success, loginList, message ->
+
+                                        if (success) {
+                                            // 🔥 ALWAYS switch to MAIN THREAD for state updates
+                                            coroutineScope.launch(Dispatchers.Main) {
+
+                                                println("✅ User logins fetched successfully $loginList")
+
+                                                loginList?.let {
+                                                    squadViewModel.setUsers(it)
+                                                    squadViewModel.setShowPopup(it.size > 1)
+                                                }
+
+                                                if (loginList?.size == 1) {
+                                                    val selectedUser = loginList.first()
+
+                                                    squadViewModel.setSelectedUser(selectedUser)
+                                                    UserDefaultsManager.saveLogin(selectedUser)
+                                                    UserDefaultsManager.saveIsLoggedIn(true)
+
+                                                    if (selectedUser.role == SquadUserType.SQUAD_MANAGER) {
+                                                        UserDefaultsManager.saveSquadManagerLogged(true)
+                                                        navController.navigate(AppDestination.MANAGER_HOME.route) {
+                                                            popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
+                                                            launchSingleTop = true
+                                                        }
+                                                    } else {
+                                                        UserDefaultsManager.saveSquadManagerLogged(false)
+                                                        navController.navigate(AppDestination.MEMBER_HOME.route) {
+                                                            popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
+                                                            launchSingleTop = true
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            println("❌ $message")
+                                        }
                                     }
                                 },
                                 onError = {
@@ -176,14 +223,17 @@ fun GroupFundSignInView( navController: NavController, squadViewModel: SquadView
                                     errorMessage = it
                                 }
                             )
-                        }
-                    } else {
-                        if (phoneNumber.value.isEmpty()) {
-                            AlertManager.shared.showAlert(
-                                title = SquadStrings.appName,
-                                message = SquadStrings.enterPhoneNumber
-                            )
+
                         } else {
+                            // ---- SEND OTP FLOW ----
+                            if (phoneNumber.value.isEmpty()) {
+                                AlertManager.shared.showAlert(
+                                    title = SquadStrings.appName,
+                                    message = SquadStrings.enterPhoneNumber
+                                )
+                                return@launch
+                            }
+
                             sendOTP(
                                 context = context,
                                 phoneNumber = phoneNumber.value,
@@ -203,16 +253,19 @@ fun GroupFundSignInView( navController: NavController, squadViewModel: SquadView
                 }
 
                 // 🔹 Secondary action (Sign up link)
-                Text(
-                    text = SquadStrings.addGroupFund,
-                    style = AppFont.ibmPlexSans(14, FontWeight.Medium),
-                    color = Color(0xFF007AFF), // iOS system blue
-                    textDecoration = TextDecoration.Underline,
-                    modifier = Modifier.clickable {
-                        // 🔜 Navigate to Sign-Up screen
-                        navController.navigate("sign_up")
-                    }
-                )
+                TextButton(
+                    onClick = {
+                        navController.navigate(AppDestination.SIGN_UP.route)
+                    },
+                    contentPadding = PaddingValues(0.dp) // keeps it looking like text, not a big button
+                ) {
+                    Text(
+                        text = SquadStrings.addSquad,
+                        style = AppFont.ibmPlexSans(14, FontWeight.Medium),
+                        color = Color(0xFF007AFF),
+                        textDecoration = TextDecoration.Underline
+                    )
+                }
 
                 // 🔹 Error message
                 errorMessage?.let {
@@ -235,6 +288,7 @@ fun GroupFundSignInView( navController: NavController, squadViewModel: SquadView
         }
 
         SSAlert()
+        SSLoaderView()
 
         val showPopup = squadViewModel.showPopup.collectAsState()
         val selectedUser = squadViewModel.selectedUser.collectAsState()

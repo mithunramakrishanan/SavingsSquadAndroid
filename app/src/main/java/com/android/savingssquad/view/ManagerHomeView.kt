@@ -63,7 +63,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Login
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SquadViewModel
@@ -86,7 +86,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.savingssquad.R
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.viewmodel.AppDestination
@@ -103,18 +103,18 @@ fun ManagerHomeView(
     // 🔹 Navigation states
     var openNotificationView by remember { mutableStateOf(false) }
     var openPaymentHistoryView by remember { mutableStateOf(false) }
-    var openGroupFundRulesView by remember { mutableStateOf(false) }
+    var openSquadRulesView by remember { mutableStateOf(false) }
     var openDuesScreen by remember { mutableStateOf(false) }
     var openVerifyPayment by remember { mutableStateOf(false) }
-    var openManagerGroupFund by remember { mutableStateOf(false) }
+    var openManagerSquad by remember { mutableStateOf(false) }
     var openMembersList by remember { mutableStateOf(false) }
     var openLoanDetails by remember { mutableStateOf(false) }
     var openAccountSummary by remember { mutableStateOf(false) }
 
 
     // 🔹 Observing ViewModel state via StateFlow
-    val groupFund by squadViewModel.groupFund.collectAsStateWithLifecycle()
-    val groupFundMembersCount by squadViewModel.groupFundMembersCount.collectAsStateWithLifecycle()
+    val squad by squadViewModel.squad.collectAsStateWithLifecycle()
+    val squadMembersCount by squadViewModel.squadMembersCount.collectAsStateWithLifecycle()
     val users by squadViewModel.users.collectAsStateWithLifecycle()
 
     LaunchedEffect(openAccountSummary) {
@@ -124,10 +124,10 @@ fun ManagerHomeView(
         }
     }
 
-    LaunchedEffect(openManagerGroupFund) {
-        if (openManagerGroupFund) {
-            navController.navigate(AppDestination.MANAGE_GROUP_FUND.route)
-            openManagerGroupFund = false
+    LaunchedEffect(openManagerSquad) {
+        if (openManagerSquad) {
+            navController.navigate(AppDestination.MANAGE_SQUAD.route)
+            openManagerSquad = false
         }
     }
 
@@ -166,10 +166,10 @@ fun ManagerHomeView(
         }
     }
 
-    LaunchedEffect(openGroupFundRulesView) {
-        if (openGroupFundRulesView) {
+    LaunchedEffect(openSquadRulesView) {
+        if (openSquadRulesView) {
             navController.navigate(AppDestination.OPEN_GROUP_RULES.route)
-            openGroupFundRulesView = false
+            openSquadRulesView = false
         }
     }
 
@@ -188,7 +188,7 @@ fun ManagerHomeView(
     ) {
         AppBackgroundGradient()
 
-        if (groupFund != null) {
+        if (squad != null) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -199,12 +199,14 @@ fun ManagerHomeView(
                     title = "Savings Squad",
                     navController = navController,
                     showBackButton = false,
-                    rightButtonDrawable = R.drawable.switch_account
+                    rightButtonDrawable = if (UserDefaultsManager.getIsMultipleAccount())
+                        R.drawable.switch_account
+                    else null
                 ) {
                     squadViewModel.fetchUserLogins(
                         showLoader = true,
                         phoneNumber = squadViewModel.loginMember?.phoneNumber.orEmpty()
-                    ) { success, error ->
+                    ) { success, loginList,error ->
                         Log.d("ManagerHomeView", if (success) "✅ Logins fetched" else "❌ $error")
                     }
                 }
@@ -219,13 +221,13 @@ fun ManagerHomeView(
                     verticalArrangement = Arrangement.spacedBy(0.dp),
                     contentPadding = PaddingValues(bottom = 40.dp)
                 ) {
-                    val gf = groupFund!!
+                    val gf = squad!!
 
                     // 🔹 Progress Circle (Centered)
                     item {
                         val remainingMonths = CommonFunctions.getRemainingMonths(
                             startDate = Date(),
-                            endDate = gf.groupFundEndDate?.toDate() ?: Date()
+                            endDate = gf.squadEndDate?.toDate() ?: Date()
                         )
 
                         Box(
@@ -238,7 +240,7 @@ fun ManagerHomeView(
                                 completedMonths = gf.totalDuration - remainingMonths,
                                 totalMonths = gf.totalDuration,
                                 monthlyContribution = gf.monthlyContribution.currencyFormattedWithCommas(),
-                                onClick = { openManagerGroupFund = true }
+                                onClick = { openManagerSquad = true }
                             )
                         }
                     }
@@ -251,7 +253,7 @@ fun ManagerHomeView(
                                 .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            ManagerHeaderView(groupFund = groupFund!!, squadViewModel = squadViewModel, onAccountSummaryClick = {
+                            ManagerHeaderView(squad = squad!!, squadViewModel = squadViewModel, onAccountSummaryClick = {
                                 openAccountSummary = true
                             })
                         }
@@ -295,7 +297,7 @@ fun ManagerHomeView(
                             contentAlignment = Alignment.Center
                         ) {
                             TotalMemberContributionCard(
-                                totalMembers = groupFundMembersCount,
+                                totalMembers = squadMembersCount,
                                 totalContribution = gf.totalContributionAmountReceived.currencyFormattedWithCommas(),
                                 subDetails = listOf(
                                     "creditcard" to "As of ${CommonFunctions.dateToString(Date(), "MMM yyyy")}"
@@ -332,10 +334,10 @@ fun ManagerHomeView(
         }
 
         // 🔹 Floating Button
-        FloatingGroupFundButton(
-            onGroupFundActivity = { openNotificationView = true },
+        FloatingSquadButton(
+            onSquadActivity = { openNotificationView = true },
             onPaymentHistory = { openPaymentHistoryView = true },
-            onGroupFundRules = { openGroupFundRulesView = true }
+            onSquadRules = { openSquadRulesView = true }
         )
 
         // 🔹 Popups
@@ -375,7 +377,7 @@ fun ManagerHomeView(
 
     // 🔹 Fetch initial data
     LaunchedEffect(Unit) {
-        squadViewModel.fetchGroupFundByID(showLoader = true) { success, _, _ ->
+        squadViewModel.fetchSquadByID(showLoader = true) { success, _, _ ->
             if (success) {
                 squadViewModel.fetchEMIConfigurations(showLoader = true) { _, _ ->
                     loaderManager.hideLoader()
@@ -388,7 +390,7 @@ fun ManagerHomeView(
 
 @Composable
 fun ManagerHeaderView(
-    groupFund: GroupFund,
+    squad: Squad,
     squadViewModel: SquadViewModel,
     onAccountSummaryClick: () -> Unit = {}
 ) {
@@ -415,7 +417,7 @@ fun ManagerHeaderView(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
-                text = "Hi, ${groupFund.groupFundName}",
+                text = "Hi, ${squad.squadName}",
                 style = AppFont.ibmPlexSans(22, FontWeight.SemiBold),
                 color = AppColors.headerText
             )
@@ -429,7 +431,7 @@ fun ManagerHeaderView(
 
         // 🔹 Balance Amount (clickable)
         Text(
-            text = groupFund.currentAvailableAmount.currencyFormattedWithCommas(),
+            text = squad.currentAvailableAmount.currencyFormattedWithCommas(),
             style = AppFont.ibmPlexSans(26, FontWeight.Bold),
             color = AppColors.headerText,
             modifier = Modifier

@@ -20,12 +20,17 @@ import java.text.SimpleDateFormat
 import java.util.*
 import android.net.Network
 import android.net.NetworkRequest
+import android.os.Build
+import android.util.Log
 import android.util.Patterns
-import com.android.savingssquad.model.GroupFundActivity
+import androidx.annotation.RequiresApi
+import com.android.savingssquad.model.SquadActivity
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.singleton.CashfreeBeneficiaryType
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.asTimestamp
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import kotlin.random.Random
 
 object CommonFunctions {
@@ -44,20 +49,20 @@ object CommonFunctions {
         return isConnected
     }
 
-    // MARK: - GroupFund Activity
-    fun createGroupFundActivity(
+    // MARK: - Squad Activity
+    fun createSquadActivity(
         squadViewModel: SquadViewModel,
-        groupFundActivity: GroupFundActivity,
+        squadActivity: SquadActivity,
         completion: (Boolean, String?) -> Unit
     ) {
         val login = UserDefaultsManager.getLogin()
-        if (login?.groupFundID == null) {
-            println("❌ No groupFund found!")
-            completion(false, "GroupFund not found")
+        if (login?.squadID == null) {
+            println("❌ No squad found!")
+            completion(false, "Squad not found")
             return
         }
 
-        squadViewModel.addGroupFundActivity(true, groupFundActivity) { success, error ->
+        squadViewModel.addSquadActivity(true, squadActivity) { success, error ->
             if (success) {
                 println("✅ Activity added successfully!")
                 completion(true, null)
@@ -106,18 +111,22 @@ object CommonFunctions {
     }
 
     fun getRemainingMonths(startDate: Date, endDate: Date): Int {
-        val startCal = Calendar.getInstance().apply { time = startDate }
-        val endCal = Calendar.getInstance().apply { time = endDate }
+        val utc = TimeZone.getTimeZone("UTC")
+        val startCal = Calendar.getInstance(utc).apply { time = startDate }
+        val endCal = Calendar.getInstance(utc).apply { time = endDate }
 
-        var yearDiff = endCal.get(Calendar.YEAR) - startCal.get(Calendar.YEAR)
-        var monthDiff = endCal.get(Calendar.MONTH) - startCal.get(Calendar.MONTH)
+        var months = (endCal.get(Calendar.YEAR) - startCal.get(Calendar.YEAR)) * 12
+        months += (endCal.get(Calendar.MONTH) - startCal.get(Calendar.MONTH))
 
-        var totalMonths = yearDiff * 12 + monthDiff
+        if (endCal.get(Calendar.DAY_OF_MONTH) < startCal.get(Calendar.DAY_OF_MONTH)) {
+            months -= 1
+        }
 
-        // ✅ If end date is before start date, clamp to 0
-        if (totalMonths < 0) totalMonths = 0
+        val remainingMonths = months.coerceAtLeast(0)
 
-        return totalMonths
+        Log.d("CommonFunctions", "getRemainingMonths | startDate: $startDate, endDate: $endDate, remainingMonths: $remainingMonths")
+
+        return remainingMonths
     }
 
     fun convertMonthsToYearsAndMonths(months: Int): String {
@@ -153,8 +162,8 @@ object CommonFunctions {
         }
     }
 
-    fun generateAccountPrefix(groupFundID: String): String {
-        var prefix = groupFundID.takeLast(4)
+    fun generateAccountPrefix(squadID: String): String {
+        var prefix = squadID.takeLast(4)
         val randomLetter = ('A'..'Z').random()
         prefix += randomLetter
         if (prefix.length > 6) prefix = prefix.take(6)
@@ -193,9 +202,9 @@ object CommonFunctions {
         return "$memberId-$monthYear"
     }
 
-    fun generatePaymentID(groupFundId: String): String {
+    fun generatePaymentID(squadId: String): String {
         val timestamp = System.currentTimeMillis()
-        return "pg_${groupFundId}_$timestamp"
+        return "pg_${squadId}_$timestamp"
     }
 
     // MARK: - Member Loan

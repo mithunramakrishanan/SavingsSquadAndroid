@@ -47,7 +47,7 @@ fun PaymentRow(
         // 🔹 Name
         Text(
             text = if (payment.paymentType == PaymentType.PAYMENT_DEBIT)
-                "Group Fund Manager" else payment.memberName,
+                "Squad Manager" else payment.memberName,
             style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
             color = AppColors.headerText
         )
@@ -204,7 +204,7 @@ private fun canShowPaymentAction(
             ((paymentType == PaymentType.PAYMENT_CREDIT &&
                     memberId == squadViewModel.currentMember.value?.id) ||
                     (paymentType == PaymentType.PAYMENT_DEBIT &&
-                            UserDefaultsManager.getGroupFundManagerLogged()))
+                            UserDefaultsManager.getSquadManagerLogged()))
 }
 
 // --------------------------------------------------------------
@@ -338,7 +338,7 @@ private fun canShowPayoutAction(
 ): Boolean {
     return status != PayoutStatus.SUCCESS &&
             ((paymentType == PaymentType.PAYMENT_CREDIT &&
-                    UserDefaultsManager.getGroupFundManagerLogged()) ||
+                    UserDefaultsManager.getSquadManagerLogged()) ||
                     (paymentType == PaymentType.PAYMENT_DEBIT &&
                             memberId == squadViewModel.currentMember.value?.id))
 }

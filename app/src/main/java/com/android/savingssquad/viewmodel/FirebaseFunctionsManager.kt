@@ -36,7 +36,7 @@ class FirebaseFunctionsManager private constructor() {
     private val functions = FirebaseFunctions.getInstance()
 
     fun processCashFreePayment(
-        groupFundId: String,
+        squadId: String,
         action: CashfreePaymentAction,
         completion: (String?, String?, Exception?) -> Unit
     ) {
@@ -52,7 +52,7 @@ class FirebaseFunctionsManager private constructor() {
             return
         }
 
-        val data = mutableMapOf<String, Any>("groupFundId" to groupFundId)
+        val data = mutableMapOf<String, Any>("squadId" to squadId)
         var functionName = ""
 
         when (action) {
@@ -134,7 +134,7 @@ class FirebaseFunctionsManager private constructor() {
         }
 
         val ordersData = savedOrders.map {
-            mapOf("orderId" to it.orderId, "groupFundId" to it.groupFundId)
+            mapOf("orderId" to it.orderId, "squadId" to it.squadId)
         }
 
         functions
@@ -253,7 +253,7 @@ class FirebaseFunctionsManager private constructor() {
 
     // MARK: - Manager → Member Payout (Cashfree Payouts)
     fun makeCashFreePayout(
-        groupFundId: String,
+        squadId: String,
         paymentId: String?,
         beneId: String,
         amount: Double,
@@ -286,7 +286,7 @@ class FirebaseFunctionsManager private constructor() {
 
         // 2️⃣ Prepare data dictionary
         val payoutData = mutableMapOf<String, Any>(
-            "groupFundId" to groupFundId,
+            "squadId" to squadId,
             "beneId" to beneId,
             "amount" to amount,
             "transferType" to transferType
@@ -355,7 +355,7 @@ class FirebaseFunctionsManager private constructor() {
 
     // MARK: - Check payout status
     fun verifyCashFreePayoutStatus(
-        groupFundId: String,
+        squadId: String,
         paymentId: String,
         transferId: String,
         completion: (Result<PayoutStatusResult>) -> Unit
@@ -374,7 +374,7 @@ class FirebaseFunctionsManager private constructor() {
         }
 
         val payoutData = mapOf(
-            "groupFundId" to groupFundId,
+            "squadId" to squadId,
             "paymentId" to paymentId,
             "transferId" to transferId
         )
@@ -414,7 +414,7 @@ class FirebaseFunctionsManager private constructor() {
     }
 
     fun verifyAndSaveUPIBeneficiary(
-        groupFundId: String,
+        squadId: String,
         memberId: String? = null,
         name: String,
         vpa: String,
@@ -439,7 +439,7 @@ class FirebaseFunctionsManager private constructor() {
         }
 
         val payload = mapOf(
-            "groupFundId" to groupFundId,
+            "squadId" to squadId,
             "memberId" to memberId,
             "name" to name,
             "vpa" to vpa,

@@ -49,12 +49,12 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.EMIStatus
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
@@ -73,7 +73,7 @@ fun ManagerSettingsView(
     loaderManager: LoaderManager = LoaderManager.shared
 ) {
 
-    var navigateToManageGroupFund by remember { mutableStateOf(false) }
+    var navigateToManageSquad by remember { mutableStateOf(false) }
     var navigateToManageMember by remember { mutableStateOf(false) }
     var navigateToManualEntry by remember { mutableStateOf(false) }
     var navigateToBankDetails by remember { mutableStateOf(false) }
@@ -81,10 +81,10 @@ fun ManagerSettingsView(
 
 
 
-    LaunchedEffect(navigateToManageGroupFund) {
-        if (navigateToManageGroupFund) {
-            navController.navigate(AppDestination.MANAGE_GROUP_FUND.route)
-            navigateToManageGroupFund = false
+    LaunchedEffect(navigateToManageSquad) {
+        if (navigateToManageSquad) {
+            navController.navigate(AppDestination.MANAGE_SQUAD.route)
+            navigateToManageSquad = false
         }
     }
 
@@ -140,10 +140,10 @@ fun ManagerSettingsView(
             ) {
 
                 ActionButton(
-                    title = SquadStrings.manageGroupFund,
-                    caption = "Edit groupFund details and update settings"
+                    title = SquadStrings.manageSquad,
+                    caption = "Edit squad details and update settings"
                 ) {
-                    navigateToManageGroupFund = true
+                    navigateToManageSquad = true
                 }
 
                 ActionButton(

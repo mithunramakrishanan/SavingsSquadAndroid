@@ -67,7 +67,7 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
@@ -75,8 +75,8 @@ import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.unpaidMonths
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.EMIStatus
-import com.android.savingssquad.singleton.GroupFundActivityType
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadActivityType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentSubType
@@ -150,6 +150,9 @@ fun ManageLoanView(
                                squadViewModel.setShowEMIConfigPopup(true)
                             },
                             onDelete = {
+
+                                selectedEMI = emi
+                                oldEMIConfig = emi
                                 AlertManager.shared.showAlert(
                                     title = SquadStrings.appName,
                                     message = "Are you sure you want to delete this EMI configuration?",
@@ -160,11 +163,11 @@ fun ManageLoanView(
                                             emiID = emi.id!!
                                         ) { success, error ->
                                             if (success) {
-                                                val amount = oldEMIConfig?.loanAmount ?: 0
-                                                val rate = oldEMIConfig?.emiInterestRate ?: 0.0
+                                                val amount = selectedEMI?.loanAmount ?: 0
+                                                val rate = selectedEMI?.emiInterestRate ?: 0.0
 
-                                                squadViewModel.createGroupFundActivity(
-                                                    activityType = GroupFundActivityType.OTHER_ACTIVITY,
+                                                squadViewModel.createSquadActivity(
+                                                    activityType = SquadActivityType.OTHER_ACTIVITY,
                                                     userName = "SQUAD MANAGER",
                                                     amount = 0,
                                                     description = "Deleted EMI Config - Loan Amount $amount with interest $rate"
@@ -183,6 +186,9 @@ fun ManageLoanView(
                 }
             }
         }
+
+        SSAlert()
+        SSLoaderView()
 
         val showEMIPopup = squadViewModel.showEMIConfigPopup.collectAsStateWithLifecycle()
 
@@ -233,7 +239,7 @@ private fun handleAddEditEMI(
 ) {
     loaderManager.showLoader()
 
-    val groupFundId = squadViewModel.groupFund.value?.groupFundID ?: ""
+    val squadId = squadViewModel.squad.value?.squadID ?: ""
 
     // Create new EMI object
     val endOfMonth = CommonFunctions.getEndOfMonthFromDate(Date())
@@ -257,7 +263,7 @@ private fun handleAddEditEMI(
     // Save to Firestore
     squadViewModel.addOrUpdateEMIConfiguration(
         showLoader = false,
-        groupFundID = groupFundId,
+        squadID = squadId,
         emi = newEmi
     ) { success, error ->
         loaderManager.hideLoader()
@@ -272,8 +278,8 @@ private fun handleAddEditEMI(
             }
 
             // Create Activity Log
-            squadViewModel.createGroupFundActivity(
-                activityType = GroupFundActivityType.OTHER_ACTIVITY,
+            squadViewModel.createSquadActivity(
+                activityType = SquadActivityType.OTHER_ACTIVITY,
                 userName = "SQUAD MANAGER",
                 amount = 0,
                 description = desc

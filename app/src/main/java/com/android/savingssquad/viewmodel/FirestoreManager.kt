@@ -3,9 +3,9 @@ package com.android.savingssquad.viewmodel
 import android.util.Log
 import com.android.savingssquad.model.ContributionDetail
 import com.android.savingssquad.model.EMIConfiguration
-import com.android.savingssquad.model.GroupFund
-import com.android.savingssquad.model.GroupFundActivity
-import com.android.savingssquad.model.GroupFundRule
+import com.android.savingssquad.model.Squad
+import com.android.savingssquad.model.SquadActivity
+import com.android.savingssquad.model.SquadRule
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Login
 import com.android.savingssquad.model.PaymentsDetails
@@ -91,101 +91,101 @@ class FirestoreManager private constructor() {
             }
     }
 
-    // MARK: - 🔹 Add GroupFund
-    fun addGroupFund(groupFund: GroupFund, completion: (Boolean, String?) -> Unit) {
+    // MARK: - 🔹 Add Squad
+    fun addSquad(squad: Squad, completion: (Boolean, String?) -> Unit) {
         try {
-            val groupFundRef = db.collection("groupFunds").document(groupFund.groupFundID)
-            groupFundRef.set(groupFund)
+            val squadRef = db.collection("squads").document(squad.squadID)
+            squadRef.set(squad)
                 .addOnSuccessListener { completion(true, null) }
-                .addOnFailureListener { e -> completion(false, "Error adding groupFund: ${e.localizedMessage}") }
+                .addOnFailureListener { e -> completion(false, "Error adding squad: ${e.localizedMessage}") }
         } catch (e: Exception) {
-            completion(false, "Error adding groupFund: ${e.localizedMessage}")
+            completion(false, "Error adding squad: ${e.localizedMessage}")
         }
     }
 
-    // MARK: - 🔹 Fetch All GroupFunds
-    fun fetchGroupFunds(completion: (List<GroupFund>?, String?) -> Unit) {
-        db.collection("groupFunds")
+    // MARK: - 🔹 Fetch All Squads
+    fun fetchSquads(completion: (List<Squad>?, String?) -> Unit) {
+        db.collection("squads")
             .get()
             .addOnSuccessListener { snapshot ->
                 if (snapshot == null || snapshot.isEmpty) {
-                    completion(null, "No groupFunds found.")
+                    completion(null, "No squads found.")
                     return@addOnSuccessListener
                 }
                 try {
-                    val groupFunds = snapshot.documents.mapNotNull { doc ->
-                        val gf = doc.toObject(GroupFund::class.java)
+                    val squads = snapshot.documents.mapNotNull { doc ->
+                        val gf = doc.toObject(Squad::class.java)
                         gf?.copy(id = doc.id)
                     }
-                    completion(groupFunds, null)
+                    completion(squads, null)
                 } catch (e: Exception) {
                     completion(null, "Decoding error: ${e.localizedMessage}")
                 }
             }
             .addOnFailureListener { e ->
-                completion(null, "Error fetching groupFunds: ${e.localizedMessage}")
+                completion(null, "Error fetching squads: ${e.localizedMessage}")
             }
     }
 
-    // MARK: - 🔹 Fetch GroupFund by ID
-    fun fetchGroupFundByID(groupFundID: String, completion: (GroupFund?, String?) -> Unit) {
-        val ref = db.collection("groupFunds").document(groupFundID)
+    // MARK: - 🔹 Fetch Squad by ID
+    fun fetchSquadByID(squadID: String, completion: (Squad?, String?) -> Unit) {
+        val ref = db.collection("squads").document(squadID)
 
         ref.get()
             .addOnSuccessListener { document ->
                 if (document != null && document.exists()) {
                     try {
-                        val gf = document.toObject(GroupFund::class.java)
+                        val gf = document.toObject(Squad::class.java)
                         completion(gf?.copy(id = document.id), null)
                     } catch (e: Exception) {
                         completion(null, "Decoding error: ${e.localizedMessage}")
                     }
                 } else {
-                    completion(null, "Group Fund not found.")
+                    completion(null, "Squad not found.")
                 }
             }
             .addOnFailureListener { e ->
-                completion(null, "Error fetching groupFund: ${e.localizedMessage}")
+                completion(null, "Error fetching squad: ${e.localizedMessage}")
             }
     }
 
-    // MARK: - 🔹 Update GroupFund
-    fun updateGroupFund(groupFund: GroupFund, completion: (Boolean, GroupFund?, String?) -> Unit) {
-        val ref = db.collection("groupFunds").document(groupFund.groupFundID)
+    // MARK: - 🔹 Update Squad
+    fun updateSquad(squad: Squad, completion: (Boolean, Squad?, String?) -> Unit) {
+        val ref = db.collection("squads").document(squad.squadID)
 
-        ref.set(groupFund)
+        ref.set(squad)
             .addOnSuccessListener {
                 ref.get()
                     .addOnSuccessListener { doc ->
-                        val updated = doc.toObject(GroupFund::class.java)?.copy(id = doc.id)
+                        val updated = doc.toObject(Squad::class.java)?.copy(id = doc.id)
                         completion(true, updated, null)
                     }
                     .addOnFailureListener { e ->
-                        completion(false, null, "Error fetching updated groupFund: ${e.localizedMessage}")
+                        completion(false, null, "Error fetching updated squad: ${e.localizedMessage}")
                     }
             }
             .addOnFailureListener { e ->
-                completion(false, null, "Error updating groupFund: ${e.localizedMessage}")
+                completion(false, null, "Error updating squad: ${e.localizedMessage}")
             }
     }
 
-    // MARK: - 🔹 Delete GroupFund
-    fun deleteGroupFund(groupFundID: String, completion: (Boolean, String?) -> Unit) {
-        db.collection("groupFunds").document(groupFundID)
+    // MARK: - 🔹 Delete Squad
+    fun deleteSquad(squadID: String, completion: (Boolean, String?) -> Unit) {
+        db.collection("squads").document(squadID)
             .delete()
             .addOnSuccessListener { completion(true, null) }
-            .addOnFailureListener { e -> completion(false, "Error deleting groupFund: ${e.localizedMessage}") }
+            .addOnFailureListener { e -> completion(false, "Error deleting squad: ${e.localizedMessage}") }
     }
 
     // MARK: - 🔹 Save Payment
-    fun savePayment(groupFundID: String, payment: PaymentsDetails, completion: (Boolean, String?) -> Unit) {
+    fun savePayment(squadID: String, payment: PaymentsDetails, completion: (Boolean, String?) -> Unit) {
         val paymentID = payment.id
         if (paymentID == null) {
             completion(false, "❌ Payment ID is missing.")
             return
         }
 
-        val ref = db.collection("groupFunds").document(groupFundID)
+        val ref = db.collection("squads").document(squadID)
             .collection("payments").document(paymentID)
 
         try {
@@ -198,8 +198,8 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - 🔹 Update Payment Status
-    fun updatePaymentStatus(groupFundID: String, paymentID: String, status: String, reason: String, completion: (Boolean, String?) -> Unit) {
-        val ref = db.collection("groupFunds").document(groupFundID)
+    fun updatePaymentStatus(squadID: String, paymentID: String, status: String, reason: String, completion: (Boolean, String?) -> Unit) {
+        val ref = db.collection("squads").document(squadID)
             .collection("payments").document(paymentID)
 
         val updateData = mapOf(
@@ -213,8 +213,8 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - 🔹 Update Member UPI BeneId
-    fun updateMemberUPIBeneId(groupFundID: String, memberID: String, upiID: String, completion: (Boolean, String?) -> Unit) {
-        val ref = db.collection("groupFunds").document(groupFundID)
+    fun updateMemberUPIBeneId(squadID: String, memberID: String, upiID: String, completion: (Boolean, String?) -> Unit) {
+        val ref = db.collection("squads").document(squadID)
             .collection("members").document(memberID)
 
         val updateData = mapOf("upiBeneId" to upiID)
@@ -225,8 +225,8 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - 🔹 Update Member Bank BeneID
-    fun updateMemberBankBeneID(groupFundID: String, memberID: String, bankID: String, completion: (Boolean, String?) -> Unit) {
-        val ref = db.collection("groupFunds").document(groupFundID)
+    fun updateMemberBankBeneID(squadID: String, memberID: String, bankID: String, completion: (Boolean, String?) -> Unit) {
+        val ref = db.collection("squads").document(squadID)
             .collection("members").document(memberID)
 
         val updateData = mapOf("bankBeneId" to bankID)
@@ -237,8 +237,8 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - 🔹 Update Member Mobile Number
-    fun updateMemberMobileNumber(groupFundID: String, memberID: String, mobileNumber: String, completion: (Boolean, String?) -> Unit) {
-        val ref = db.collection("groupFunds").document(groupFundID)
+    fun updateMemberMobileNumber(squadID: String, memberID: String, mobileNumber: String, completion: (Boolean, String?) -> Unit) {
+        val ref = db.collection("squads").document(squadID)
             .collection("members").document(memberID)
 
         val updateData = mapOf("phoneNumber" to mobileNumber)
@@ -250,14 +250,14 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Update Contribution Status
     fun updateContributionStatus(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         contributionID: String,
         newStatus: String,
         completion: (Boolean, String?) -> Unit
     ) {
-        val contributionRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val contributionRef = db.collection("squads")
+            .document(squadID)
             .collection("members")
             .document(memberID)
             .collection("contributions")
@@ -279,14 +279,14 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Update Loan Status
     fun updateLoanStatus(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         loanID: String,
         status: String,
         completion: (Boolean, String?) -> Unit
     ) {
-        val loanRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val loanRef = db.collection("squads")
+            .document(squadID)
             .collection("members")
             .document(memberID)
             .collection("loans")
@@ -308,15 +308,15 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Update Installment Status
     fun updateInstallmentStatus(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         loanID: String,
         installmentID: String,
         status: String,
         completion: (Boolean, String?) -> Unit
     ) {
-        val installmentRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val installmentRef = db.collection("squads")
+            .document(squadID)
             .collection("members")
             .document(memberID)
             .collection("loans")
@@ -340,7 +340,7 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Save Multiple Payments (Batch)
     fun savePayments(
-        groupFundID: String,
+        squadID: String,
         payments: List<PaymentsDetails>,
         completion: (Boolean, String?) -> Unit
     ) {
@@ -353,8 +353,8 @@ class FirestoreManager private constructor() {
                 return
             }
 
-            val docRef = db.collection("groupFunds")
-                .document(groupFundID)
+            val docRef = db.collection("squads")
+                .document(squadID)
                 .collection("payments")
                 .document(paymentID)
 
@@ -377,18 +377,18 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Fetch Payments
     fun fetchPayments(
-        groupFundID: String,
+        squadID: String,
         completion: (List<PaymentsDetails>?, String?) -> Unit
     ) {
-        val paymentsRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val paymentsRef = db.collection("squads")
+            .document(squadID)
             .collection("payments")
             .orderBy("recordDate", Query.Direction.DESCENDING)
 
         paymentsRef.get()
             .addOnSuccessListener { snapshot ->
                 if (snapshot == null || snapshot.isEmpty) {
-                    completion(null, "❌ No payment records found.")
+                    completion(null, "❌  records found.")
                     return@addOnSuccessListener
                 }
 
@@ -425,9 +425,9 @@ class FirestoreManager private constructor() {
             }
     }
     // MARK: - 🔹 Observe Payments (Realtime)
-    fun observePayments(groupFundID: String, completion: (List<PaymentsDetails>?, String?) -> Unit) {
-        val paymentsRef = db.collection("groupFunds")
-            .document(groupFundID)
+    fun observePayments(squadID: String, completion: (List<PaymentsDetails>?, String?) -> Unit) {
+        val paymentsRef = db.collection("squads")
+            .document(squadID)
             .collection("payments")
 
         paymentsRef.addSnapshotListener { snapshot, error ->
@@ -455,12 +455,12 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Add Member
     fun addMember(
-        groupFundID: String,
+        squadID: String,
         member: Member,
         completion: (Boolean, String?) -> Unit
     ) {
-        val membersRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val membersRef = db.collection("squads")
+            .document(squadID)
             .collection("members")
 
         val memberID = member.id
@@ -484,12 +484,12 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Fetch Single Member
     fun fetchMember(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         completion: (Member?, String?) -> Unit
     ) {
-        val memberRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val memberRef = db.collection("squads")
+            .document(squadID)
             .collection("members")
             .document(memberID)
 
@@ -512,7 +512,7 @@ class FirestoreManager private constructor() {
                         completion(null, "❌ Decoding error: ${e.localizedMessage}")
                     }
                 } else {
-                    Log.w("Firestore", "⚠️ Member not found in groupFund: $groupFundID")
+                    Log.w("Firestore", "⚠️ Member not found in squad: $squadID")
                     completion(null, "❌ Member not found.")
                 }
             }
@@ -524,11 +524,11 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Fetch All Members
     fun fetchMembers(
-        groupFundID: String,
+        squadID: String,
         completion: (List<Member>?, String?) -> Unit
     ) {
-        val membersRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val membersRef = db.collection("squads")
+            .document(squadID)
             .collection("members")
 
         membersRef.get()
@@ -566,7 +566,7 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Update Members (Batch-like using async group)
     fun updateMembers(
-        groupFundID: String,
+        squadID: String,
         members: List<Member>,
         completion: (Boolean, String?) -> Unit
     ) {
@@ -581,8 +581,8 @@ class FirestoreManager private constructor() {
                 continue
             }
 
-            val memberRef = db.collection("groupFunds")
-                .document(groupFundID)
+            val memberRef = db.collection("squads")
+                .document(squadID)
                 .collection("members")
                 .document(memberID)
 
@@ -613,12 +613,12 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Delete Member
     fun deleteMember(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         completion: (Boolean, String?) -> Unit
     ) {
-        val memberRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val memberRef = db.collection("squads")
+            .document(squadID)
             .collection("members")
             .document(memberID)
 
@@ -633,23 +633,23 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Create contributions when member is created
     fun createContributionWhenMemberCreate(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         memberName: String,
-        groupFundStart: Date,
-        groupFundEnd: Date,
+        squadStart: Date,
+        squadEnd: Date,
         amount: Int,
         completion: (Boolean, String?) -> Unit
     ) {
-        val memberRef = db.collection("groupFunds").document(groupFundID)
+        val memberRef = db.collection("squads").document(squadID)
             .collection("members").document(memberID)
         val contributionsRef = memberRef.collection("contributions")
 
         val dateFormatter = SimpleDateFormat("MMM yyyy", Locale.US)
-        var currentDate = groupFundStart
+        var currentDate = squadStart
         val contributionData = mutableMapOf<String, ContributionDetail>()
 
-        while (!currentDate.after(groupFundEnd)) {
+        while (!currentDate.after(squadEnd)) {
             val monthYear = dateFormatter.format(currentDate)
             val contributionID =
                 CommonFunctions.generateContributionID(memberID, monthYear)
@@ -695,20 +695,20 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Edit contributions when months changed
     fun contibutionEditWhenMonthsChanged(
-        groupFundID: String,
-        groupFundStartDate: Date,
-        groupFundEndDate: Date,
+        squadID: String,
+        squadStartDate: Date,
+        squadEndDate: Date,
         amount: String,
         completion: (Boolean, String?) -> Unit
     ) {
-        val membersRef = db.collection("groupFunds").document(groupFundID).collection("members")
+        val membersRef = db.collection("squads").document(squadID).collection("members")
         val dateFormatter = SimpleDateFormat("MMM yyyy", Locale.US)
         val validMonths = mutableSetOf<String>()
 
-        var currentDate = groupFundStartDate
+        var currentDate = squadStartDate
         val calendar = Calendar.getInstance()
 
-        while (!currentDate.after(groupFundEndDate)) {
+        while (!currentDate.after(squadEndDate)) {
             validMonths.add(dateFormatter.format(currentDate))
             calendar.time = currentDate
             calendar.add(Calendar.MONTH, 1)
@@ -813,13 +813,13 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Add Single Contribution
     fun addContribution(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         contribution: ContributionDetail,
         completion: (Boolean, String?) -> Unit
     ) {
-        val contributionRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val contributionRef = db.collection("squads")
+            .document(squadID)
             .collection("members")
             .document(memberID)
             .collection("contributions")
@@ -836,12 +836,12 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Fetch Contributions for a Member
     fun fetchContributionsForMember(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         completion: (List<ContributionDetail>?, String?) -> Unit
     ) {
-        val contributionsRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val contributionsRef = db.collection("squads")
+            .document(squadID)
             .collection("members")
             .document(memberID)
             .collection("contributions")
@@ -872,10 +872,10 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Fetch Total Contribution
     fun fetchTotalContribution(
-        groupFundID: String,
+        squadID: String,
         completion: (Int?, String?) -> Unit
     ) {
-        val membersRef = db.collection("groupFunds").document(groupFundID).collection("members")
+        val membersRef = db.collection("squads").document(squadID).collection("members")
 
         membersRef.get()
             .addOnSuccessListener { snapshot ->
@@ -923,14 +923,14 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Edit Contribution
     fun editContribution(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         contributionID: String,
         updatedContribution: ContributionDetail,
         completion: (Boolean, String?) -> Unit
     ) {
-        val contributionRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val contributionRef = db.collection("squads")
+            .document(squadID)
             .collection("members")
             .document(memberID)
             .collection("contributions")
@@ -947,11 +947,11 @@ class FirestoreManager private constructor() {
 
     // MARK: - Add EMI Configuration
     fun addEMIConfiguration(
-        groupFundID: String,
+        squadID: String,
         emiConfig: EMIConfiguration,
         completion: (Boolean, String?) -> Unit
     ) {
-        val emiRef = db.collection("groupFunds").document(groupFundID)
+        val emiRef = db.collection("squads").document(squadID)
             .collection("emiConfiguration").document()
 
         val newEmiConfig = emiConfig.copy(id = emiRef.id)
@@ -967,15 +967,15 @@ class FirestoreManager private constructor() {
 
     // MARK: - Add or Update EMI Configuration
     fun addOrUpdateEMIConfiguration(
-        groupFundID: String,
+        squadID: String,
         emiConfig: EMIConfiguration,
         completion: (Boolean, String?) -> Unit
     ) {
         val emiRef = if (!emiConfig.id.isNullOrEmpty()) {
-            db.collection("groupFunds").document(groupFundID)
+            db.collection("squads").document(squadID)
                 .collection("emiConfiguration").document(emiConfig.id!!)
         } else {
-            db.collection("groupFunds").document(groupFundID)
+            db.collection("squads").document(squadID)
                 .collection("emiConfiguration").document()
         }
 
@@ -992,10 +992,10 @@ class FirestoreManager private constructor() {
 
     // MARK: - Fetch EMI Configurations
     fun fetchEMIConfigurations(
-        groupFundID: String,
+        squadID: String,
         completion: (List<EMIConfiguration>?, String?) -> Unit
     ) {
-        val emiRef = db.collection("groupFunds").document(groupFundID)
+        val emiRef = db.collection("squads").document(squadID)
             .collection("emiConfiguration")
 
         emiRef.get()
@@ -1023,11 +1023,11 @@ class FirestoreManager private constructor() {
 
     // MARK: - Fetch EMI Configuration by ID
     fun fetchEMIConfigurationByID(
-        groupFundID: String,
+        squadID: String,
         emiID: String,
         completion: (EMIConfiguration?, String?) -> Unit
     ) {
-        val emiRef = db.collection("groupFunds").document(groupFundID)
+        val emiRef = db.collection("squads").document(squadID)
             .collection("emiConfiguration").document(emiID)
 
         emiRef.get()
@@ -1052,7 +1052,7 @@ class FirestoreManager private constructor() {
 
     // MARK: - Update EMI Configuration
     fun updateEMIConfiguration(
-        groupFundID: String,
+        squadID: String,
         emiConfig: EMIConfiguration,
         completion: (Boolean, String?) -> Unit
     ) {
@@ -1062,7 +1062,7 @@ class FirestoreManager private constructor() {
             return
         }
 
-        val emiRef = db.collection("groupFunds").document(groupFundID)
+        val emiRef = db.collection("squads").document(squadID)
             .collection("emiConfiguration").document(emiID)
 
         emiRef.set(emiConfig, SetOptions.merge())
@@ -1076,11 +1076,11 @@ class FirestoreManager private constructor() {
 
     // MARK: - Delete EMI Configuration
     fun deleteEMIConfiguration(
-        groupFundID: String,
+        squadID: String,
         emiID: String,
         completion: (Boolean, String?) -> Unit
     ) {
-        val emiRef = db.collection("groupFunds").document(groupFundID)
+        val emiRef = db.collection("squads").document(squadID)
             .collection("emiConfiguration").document(emiID)
 
         emiRef.delete()
@@ -1092,14 +1092,14 @@ class FirestoreManager private constructor() {
             }
     }
 
-    // MARK: - Add GroupFund Activity
-    fun addGroupFundActivity(
-        groupFundID: String,
-        activity: GroupFundActivity,
+    // MARK: - Add Squad Activity
+    fun addSquadActivity(
+        squadID: String,
+        activity: SquadActivity,
         completion: (Boolean, String?) -> Unit
     ) {
-        val activityRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val activityRef = db.collection("squads")
+            .document(squadID)
             .collection("activities")
             .document()
 
@@ -1110,17 +1110,17 @@ class FirestoreManager private constructor() {
                 completion(true, null)
             }
             .addOnFailureListener { e ->
-                completion(false, "Error adding GroupFund Activity: ${e.localizedMessage}")
+                completion(false, "Error adding Squad Activity: ${e.localizedMessage}")
             }
     }
 
-    // MARK: - Fetch All GroupFund Activities
-    fun fetchGroupFundActivities(
-        groupFundID: String,
-        completion: (List<GroupFundActivity>?, String?) -> Unit
+    // MARK: - Fetch All Squad Activities
+    fun fetchSquadActivities(
+        squadID: String,
+        completion: (List<SquadActivity>?, String?) -> Unit
     ) {
-        val activitiesRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val activitiesRef = db.collection("squads")
+            .document(squadID)
             .collection("activities")
             .orderBy("recordDate", Query.Direction.DESCENDING)
 
@@ -1134,7 +1134,7 @@ class FirestoreManager private constructor() {
 
                 try {
                     val activities = documents.mapNotNull { doc ->
-                        val activity = doc.toObject(GroupFundActivity::class.java)
+                        val activity = doc.toObject(SquadActivity::class.java)
                         activity?.copy(id = doc.id)
                     }
                     completion(activities, null)
@@ -1148,13 +1148,13 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - Fetch Activity by ID
-    fun fetchGroupFundActivityByID(
-        groupFundID: String,
+    fun fetchSquadActivityByID(
+        squadID: String,
         activityID: String,
-        completion: (GroupFundActivity?, String?) -> Unit
+        completion: (SquadActivity?, String?) -> Unit
     ) {
-        val activityRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val activityRef = db.collection("squads")
+            .document(squadID)
             .collection("activities")
             .document(activityID)
 
@@ -1166,7 +1166,7 @@ class FirestoreManager private constructor() {
                 }
 
                 try {
-                    val activity = document.toObject(GroupFundActivity::class.java)
+                    val activity = document.toObject(SquadActivity::class.java)
                         ?.copy(id = document.id)
                     completion(activity, null)
                 } catch (e: Exception) {
@@ -1179,19 +1179,19 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - Update Activity
-    fun updateGroupFundActivity(
-        groupFundID: String,
-        activity: GroupFundActivity,
+    fun updateSquadActivity(
+        squadID: String,
+        activity: SquadActivity,
         completion: (Boolean, String?) -> Unit
     ) {
         val activityRef = if (!activity.id.isNullOrEmpty()) {
-            db.collection("groupFunds")
-                .document(groupFundID)
+            db.collection("squads")
+                .document(squadID)
                 .collection("activities")
                 .document(activity.id!!)
         } else {
-            db.collection("groupFunds")
-                .document(groupFundID)
+            db.collection("squads")
+                .document(squadID)
                 .collection("activities")
                 .document()
         }
@@ -1208,13 +1208,13 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - Delete Activity
-    fun deleteGroupFundActivity(
-        groupFundID: String,
+    fun deleteSquadActivity(
+        squadID: String,
         activityID: String,
         completion: (Boolean, String?) -> Unit
     ) {
-        val activityRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val activityRef = db.collection("squads")
+            .document(squadID)
             .collection("activities")
             .document(activityID)
 
@@ -1227,14 +1227,14 @@ class FirestoreManager private constructor() {
             }
     }
 
-    // MARK: - Add GroupFund Rule
-    fun addGroupFundRule(
-        groupFundID: String,
-        rule: GroupFundRule,
+    // MARK: - Add Squad Rule
+    fun addSquadRule(
+        squadID: String,
+        rule: SquadRule,
         completion: (Boolean, String?) -> Unit
     ) {
-        val ruleRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val ruleRef = db.collection("squads")
+            .document(squadID)
             .collection("rules")
             .document()
 
@@ -1245,17 +1245,17 @@ class FirestoreManager private constructor() {
                 completion(true, null)
             }
             .addOnFailureListener { e ->
-                completion(false, "Error adding GroupFund Rule: ${e.localizedMessage}")
+                completion(false, "Error adding Squad Rule: ${e.localizedMessage}")
             }
     }
 
-    // MARK: - Fetch GroupFund Rules
-    fun fetchGroupFundRules(
-        groupFundID: String,
-        completion: (List<GroupFundRule>?, String?) -> Unit
+    // MARK: - Fetch Squad Rules
+    fun fetchSquadRules(
+        squadID: String,
+        completion: (List<SquadRule>?, String?) -> Unit
     ) {
-        val rulesRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val rulesRef = db.collection("squads")
+            .document(squadID)
             .collection("rules")
             .orderBy("recordDate", Query.Direction.DESCENDING)
 
@@ -1269,7 +1269,7 @@ class FirestoreManager private constructor() {
 
                 try {
                     val rules = documents.mapNotNull { doc ->
-                        val rule = doc.toObject(GroupFundRule::class.java)
+                        val rule = doc.toObject(SquadRule::class.java)
                         rule?.copy(id = doc.id)
                     }
                     completion(rules, null)
@@ -1282,14 +1282,14 @@ class FirestoreManager private constructor() {
             }
     }
 
-    // MARK: - Delete GroupFund Rule
-    fun deleteGroupFundRule(
-        groupFundID: String,
+    // MARK: - Delete Squad Rule
+    fun deleteSquadRule(
+        squadID: String,
         ruleID: String,
         completion: (Boolean, String?) -> Unit
     ) {
-        val ruleRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val ruleRef = db.collection("squads")
+            .document(squadID)
             .collection("rules")
             .document(ruleID)
 
@@ -1302,14 +1302,14 @@ class FirestoreManager private constructor() {
             }
     }
 
-    // MARK: - Update GroupFund Rule
-    fun updateGroupFundRule(
-        groupFundID: String,
-        rule: GroupFundRule,
+    // MARK: - Update Squad Rule
+    fun updateSquadRule(
+        squadID: String,
+        rule: SquadRule,
         completion: (Boolean, String?) -> Unit
     ) {
-        val ruleRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val ruleRef = db.collection("squads")
+            .document(squadID)
             .collection("rules")
             .document(rule.id ?: "")
 
@@ -1324,11 +1324,11 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Read MemberEMI by Member
     fun fetchMemberLoans(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         completion: (List<MemberLoan>?, String?) -> Unit
     ) {
-        db.collection("groupFunds").document(groupFundID)
+        db.collection("squads").document(squadID)
             .collection("members").document(memberID)
             .collection("loans")
             .get()
@@ -1346,13 +1346,13 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Add or Update Member Loan
     fun addOrUpdateMemberLoan(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         loan: MemberLoan,
         completion: (Boolean, String?) -> Unit
     ) {
-        val loansCollection = db.collection("groupFunds")
-            .document(groupFundID)
+        val loansCollection = db.collection("squads")
+            .document(squadID)
             .collection("members")
             .document(memberID)
             .collection("loans")
@@ -1381,13 +1381,13 @@ class FirestoreManager private constructor() {
         }
     }
 
-    // MARK: - 🔹 Fetch All Loans in GroupFund
-    fun fetchAllLoansInGroupFund(
-        groupFundID: String,
+    // MARK: - 🔹 Fetch All Loans in Squad
+    fun fetchAllLoansInSquad(
+        squadID: String,
         completion: (List<MemberLoan>?, String?) -> Unit
     ) {
-        val membersRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val membersRef = db.collection("squads")
+            .document(squadID)
             .collection("members")
 
         val allLoans = mutableListOf<MemberLoan>()
@@ -1438,13 +1438,13 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Delete Member Loan
     fun deleteMemberLoan(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         loanID: String,
         completion: (Boolean, String?) -> Unit
     ) {
-        val loanRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val loanRef = db.collection("squads")
+            .document(squadID)
             .collection("members")
             .document(memberID)
             .collection("loans")
@@ -1459,13 +1459,13 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Add or Update Installment in EMI
     fun addOrUpdateInstallment(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         loanID: String,
         installment: Installment,
         completion: (Boolean, String?) -> Unit
     ) {
-        fetchMemberLoans(groupFundID, memberID) { loans, error ->
+        fetchMemberLoans(squadID, memberID) { loans, error ->
             if (error != null) {
                 completion(false, error)
                 return@fetchMemberLoans
@@ -1502,20 +1502,20 @@ class FirestoreManager private constructor() {
             }
 
             // 🔹 Save updated EMI to Firestore
-            addOrUpdateMemberLoan(groupFundID, memberID, updatedLoan, completion)
+            addOrUpdateMemberLoan(squadID, memberID, updatedLoan, completion)
         }
     }
 
     // MARK: - 🔹 Remove Installment from EMI
     fun removeInstallment(
-        groupFundID: String,
+        squadID: String,
         memberID: String,
         loanID: String,
         installment: Installment,
         completion: (Boolean, String?) -> Unit
     ) {
-        val loanRef = db.collection("groupFunds")
-            .document(groupFundID)
+        val loanRef = db.collection("squads")
+            .document(squadID)
             .collection("members")
             .document(memberID)
             .collection("loans")

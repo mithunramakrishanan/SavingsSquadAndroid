@@ -2,7 +2,7 @@ package com.android.savingssquad.singleton
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Login
 import com.android.savingssquad.model.RemainderModel
 import com.google.gson.Gson

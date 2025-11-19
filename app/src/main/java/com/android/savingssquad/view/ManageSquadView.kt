@@ -15,12 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -30,7 +27,6 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.GroupFund
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.asTimestamp
 import com.android.savingssquad.viewmodel.AlertManager
@@ -39,7 +35,7 @@ import java.util.Calendar
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun ManageGroupFundView(
+fun ManageSquadView(
     navController: NavController,
     squadViewModel: SquadViewModel,
     loaderManager: LoaderManager = LoaderManager.shared,
@@ -49,46 +45,46 @@ fun ManageGroupFundView(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // collect groupFund from viewmodel (if present)
-    val groupFundState by squadViewModel.groupFund.collectAsStateWithLifecycle()
+    // collect squad from viewmodel (if present)
+    val squadState by squadViewModel.squad.collectAsStateWithLifecycle()
 
     // Local editable state
-    val groupFundName = remember { mutableStateOf("") }
-    val groupFundPhoneNumber = remember { mutableStateOf("") }
+    val squadName = remember { mutableStateOf("") }
+    val squadPhoneNumber = remember { mutableStateOf("") }
 
     // errors
     var phoneError by remember { mutableStateOf("") }
-    var groupFundMonthError by remember { mutableStateOf("") }
-    var groupFundAmountError by remember { mutableStateOf("") }
-    var groupFundDurationErrorMessage by remember { mutableStateOf("") }
+    var squadMonthError by remember { mutableStateOf("") }
+    var squadAmountError by remember { mutableStateOf("") }
+    var squadDurationErrorMessage by remember { mutableStateOf("") }
 
-    val groupFundDuration = remember { mutableStateOf(0) }
-    val groupFundAmount = remember { mutableStateOf(0) }
-    val originalGroupFundDuration = remember { mutableStateOf(0) }
-    val originalGroupFundAmount = remember { mutableStateOf(0) }
+    val squadDuration = remember { mutableStateOf(0) }
+    val squadAmount = remember { mutableStateOf(0) }
+    val originalSquadDuration = remember { mutableStateOf(0) }
+    val originalSquadAmount = remember { mutableStateOf(0) }
 
     // focus requesters for keyboard navigation
     val durationFocusRequester = remember { FocusRequester() }
     val amountFocusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(groupFundState) {
-        groupFundState?.let { gf ->
-            groupFundName.value = gf.groupFundName
-            groupFundPhoneNumber.value = gf.phoneNumber
+    LaunchedEffect(squadState) {
+        squadState?.let { gf ->
+            squadName.value = gf.squadName
+            squadPhoneNumber.value = gf.phoneNumber
 
-            groupFundDuration.value = gf.totalDuration
-            groupFundAmount.value = gf.monthlyContribution
+            squadDuration.value = gf.totalDuration
+            squadAmount.value = gf.monthlyContribution
 
-            originalGroupFundDuration.value = gf.totalDuration
-            originalGroupFundAmount.value = gf.monthlyContribution
+            originalSquadDuration.value = gf.totalDuration
+            originalSquadAmount.value = gf.monthlyContribution
         }
     }
 
     // hasChanges equivalent
     val hasChanges by remember {
         derivedStateOf {
-            groupFundDuration.value != originalGroupFundDuration.value ||
-                    groupFundAmount.value != originalGroupFundAmount.value
+            squadDuration.value != originalSquadDuration.value ||
+                    squadAmount.value != originalSquadAmount.value
         }
     }
 
@@ -106,20 +102,20 @@ fun ManageGroupFundView(
                 .padding(vertical = 16.dp)
         ) {
             // Navigation Bar (use your SSNavigationBar)
-            SSNavigationBar(title = "Manage Group Fund",navController)
+            SSNavigationBar(title = "Manage Squad",navController)
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Section: Group Fund Details
-            SectionView(title = "Group Fund Details") {
+            // Section: Squad Details
+            SectionView(title = "Squad Details") {
 
                 Column(verticalArrangement = Arrangement.spacedBy(15.dp)) {
 
-                    // Group Fund Name
+                    // Squad Name
                     SSTextField(
                         icon = Icons.Default.Business,
-                        placeholder = "Group Fund Name",
-                        textState = groupFundName,
+                        placeholder = "Squad Name",
+                        textState = squadName,
                         disabled = true
                     )
 
@@ -127,7 +123,7 @@ fun ManageGroupFundView(
                     SSTextField(
                         icon = Icons.Default.Phone,
                         placeholder = "Phone Number",
-                        textState = groupFundPhoneNumber,
+                        textState = squadPhoneNumber,
                         disabled = true,
                         error = phoneError
                     )
@@ -136,28 +132,28 @@ fun ManageGroupFundView(
                     val durationText = remember { mutableStateOf("") }
 
                     LaunchedEffect(durationText.value) {
-                        groupFundDuration.value = durationText.value.toIntOrNull() ?: 0
+                        squadDuration.value = durationText.value.toIntOrNull() ?: 0
                     }
 
-                    LaunchedEffect(groupFundState) {
-                        groupFundState?.let { gf ->
-                            groupFundDuration.value = gf.totalDuration
+                    LaunchedEffect(squadState) {
+                        squadState?.let { gf ->
+                            squadDuration.value = gf.totalDuration
                             durationText.value = gf.totalDuration.toString()
                         }
                     }
 
                     SSTextField(
                         icon = Icons.Default.CalendarToday,
-                        placeholder = "Group Fund Duration",
+                        placeholder = "Squad Duration",
                         textState = durationText,
                         keyboardType = KeyboardType.Number,
-                        error = groupFundMonthError
+                        error = squadMonthError
                     )
 
 
                     // Converted duration display
                     Text(
-                        text = CommonFunctions.convertMonthsToYearsAndMonths(groupFundDuration.value),
+                        text = CommonFunctions.convertMonthsToYearsAndMonths(squadDuration.value),
                         style = AppFont.ibmPlexSans(12, FontWeight.Bold),
                         color = AppColors.headerText,
                         modifier = Modifier.padding(start = 30.dp)
@@ -166,22 +162,22 @@ fun ManageGroupFundView(
                     val amountState = remember { mutableStateOf("") }
 
                     LaunchedEffect(amountState.value) {
-                        groupFundAmount.value = amountState.value.toIntOrNull() ?: 0
+                        squadAmount.value = amountState.value.toIntOrNull() ?: 0
                     }
 
-                    LaunchedEffect(groupFundState) {
-                        groupFundState?.let { gf ->
-                            groupFundAmount.value = gf.monthlyContribution
+                    LaunchedEffect(squadState) {
+                        squadState?.let { gf ->
+                            squadAmount.value = gf.monthlyContribution
                             amountState.value = gf.monthlyContribution.toString()
                         }
                     }
 
                     SSTextField(
                         icon = Icons.Default.CreditCard,
-                        placeholder = "Group Fund Amount",
+                        placeholder = "Squad Amount",
                         textState = amountState,
                         keyboardType = KeyboardType.Number,
-                        error = groupFundAmountError
+                        error = squadAmountError
                     )
                 }
             }
@@ -190,7 +186,7 @@ fun ManageGroupFundView(
 
             // Update Button
             SSButton(
-                title = "Update Group Fund Details",
+                title = "Update Squad Details",
                 isButtonLoading = false,
                 isDisabled = !hasChanges,
                 action = {
@@ -199,41 +195,41 @@ fun ManageGroupFundView(
 
                     coroutineScope.launch {
 
-                        validateGroupFundDuration(
+                        validateSquadDuration(
                             squadViewModel = squadViewModel,
-                            currentDuration = groupFundDuration.value,
+                            currentDuration = squadDuration.value,
                             onInvalid = { requiredMonths, resetValue ->
 
-                                val message = "Group Fund duration is too short! Needs to be at least $requiredMonths months."
+                                val message = "Squad duration is too short! Needs to be at least $requiredMonths months."
 
                                 AlertManager.shared.showAlert(
                                     title = SquadStrings.appName,
                                     message = message,
                                     primaryButtonTitle = "OK"
                                 ) {
-                                    groupFundDuration.value = resetValue
+                                    squadDuration.value = resetValue
                                 }
                             },
                             onValid = {
-                                groupFundMonthError = ""
+                                squadMonthError = ""
 
                                 saveChanges(
                                     squadViewModel = squadViewModel,
                                     loaderManager = loaderManager,
-                                    currentDuration = groupFundDuration.value,
-                                    currentAmount = groupFundAmount.value,
-                                    phone = groupFundPhoneNumber.value,
-                                    originalDuration = originalGroupFundDuration.value,
-                                    originalAmount = originalGroupFundAmount.value,
+                                    currentDuration = squadDuration.value,
+                                    currentAmount = squadAmount.value,
+                                    phone = squadPhoneNumber.value,
+                                    originalDuration = originalSquadDuration.value,
+                                    originalAmount = originalSquadAmount.value,
                                     onSuccess = {
-                                        originalGroupFundDuration.value = groupFundDuration.value
-                                        originalGroupFundAmount.value = groupFundAmount.value
+                                        originalSquadDuration.value = squadDuration.value
+                                        originalSquadAmount.value = squadAmount.value
                                         onDismiss?.invoke() ?: navController.popBackStack()
                                     },
                                     setErrors = { phoneErr, monthErr, amountErr ->
                                         phoneError = phoneErr
-                                        groupFundMonthError = monthErr
-                                        groupFundAmountError = amountErr
+                                        squadMonthError = monthErr
+                                        squadAmountError = amountErr
                                     }
                                 )
                             }
@@ -253,7 +249,7 @@ fun ManageGroupFundView(
 /**
  * Save logic copied & adapted from Swift code.
  * - Validates fields
- * - Prepares updated GroupFund and calls viewmodel.updateGroupFund(...)
+ * - Prepares updated Squad and calls viewmodel.updateSquad(...)
  * - Calls contibutionEditWhenMonthsChanged(...) if update succeeded and duration changed
  */
 private fun saveChanges(
@@ -268,38 +264,38 @@ private fun saveChanges(
     setErrors: (phoneError: String, monthError: String, amountError: String) -> Unit
 ) {
     val phoneErr = if (Regex("^[0-9]{10}$").matches(phone)) "" else "Enter a valid 10-digit phone number"
-    val monthErr = if (currentDuration == 0) "Group Fund Month is required" else ""
-    val amountErr = if (currentAmount <= 0) "Group Fund Amount is required" else ""
+    val monthErr = if (currentDuration == 0) "Squad Month is required" else ""
+    val amountErr = if (currentAmount <= 0) "Squad Amount is required" else ""
 
     setErrors(phoneErr, monthErr, amountErr)
     if (phoneErr.isNotEmpty() || monthErr.isNotEmpty() || amountErr.isNotEmpty()) return
 
-    val gf = squadViewModel.groupFund.value ?: return
+    val gf = squadViewModel.squad.value ?: return
 
-    val groupFundDurationEdited = gf.totalDuration != currentDuration
-    val groupFundAmountEdited = gf.monthlyContribution != currentAmount
-    if (!groupFundDurationEdited && !groupFundAmountEdited) return
+    val squadDurationEdited = gf.totalDuration != currentDuration
+    val squadAmountEdited = gf.monthlyContribution != currentAmount
+    if (!squadDurationEdited && !squadAmountEdited) return
 
     loaderManager.showLoader()
 
     val endDate: Date? = CommonFunctions.getFutureMonthYearDate(
-        from = gf.groupFundStartDate?.toDate() ?: Date(),
+        from = gf.squadStartDate?.toDate() ?: Date(),
         monthsToAdd = currentDuration
     )
 
-    val updatedGroupFund = gf.copy().apply {
+    val updatedSquad = gf.copy().apply {
         phoneNumber = phone
         totalDuration = currentDuration
-        groupFundEndDate = endDate?.asTimestamp
+        squadEndDate = endDate?.asTimestamp
         monthlyContribution = currentAmount
     }
 
-    squadViewModel.updateGroupFund(true, updatedGroupFund) { success, updatedGF, error ->
+    squadViewModel.updateSquad(true, updatedSquad) { success, updatedGF, error ->
         if (success && updatedGF != null) {
             squadViewModel.contibutionEditWhenMonthsChanged(
                 showLoader = true,
-                groupFund = updatedGF,
-                groupFundEndDate = endDate ?: Date(),
+                squad = updatedGF,
+                squadEndDate = endDate ?: Date(),
                 amount = updatedGF.monthlyContribution.toString()
             ) { contSuccess, message ->
                 loaderManager.hideLoader()
@@ -307,13 +303,13 @@ private fun saveChanges(
                     val description = createActivityDescription(
                         oldDuration = originalDuration,
                         newDuration = currentDuration,
-                        oldGroupFundAmount = originalAmount,
-                        newGroupFundAmount = currentAmount,
-                        groupFundAmountEdited = groupFundAmountEdited,
-                        groupFundDurationEdited = groupFundDurationEdited
+                        oldSquadAmount = originalAmount,
+                        newSquadAmount = currentAmount,
+                        squadAmountEdited = squadAmountEdited,
+                        squadDurationEdited = squadDurationEdited
                     )
-                    squadViewModel.createGroupFundActivity(
-                        activityType = com.android.savingssquad.singleton.GroupFundActivityType.OTHER_ACTIVITY,
+                    squadViewModel.createSquadActivity(
+                        activityType = com.android.savingssquad.singleton.SquadActivityType.OTHER_ACTIVITY,
                         userName = "SQUAD MANAGER",
                         amount = 0,
                         description = description
@@ -334,17 +330,17 @@ private fun saveChanges(
 private fun createActivityDescription(
     oldDuration: Int,
     newDuration: Int,
-    oldGroupFundAmount: Int,
-    newGroupFundAmount: Int,
-    groupFundAmountEdited: Boolean,
-    groupFundDurationEdited: Boolean
+    oldSquadAmount: Int,
+    newSquadAmount: Int,
+    squadAmountEdited: Boolean,
+    squadDurationEdited: Boolean
 ): String {
     return when {
-        groupFundAmountEdited && groupFundDurationEdited -> {
-            "Changed groupFund duration from ${CommonFunctions.convertMonthsToYearsAndMonths(oldDuration)} to ${CommonFunctions.convertMonthsToYearsAndMonths(newDuration)} and groupFund amount from $oldGroupFundAmount to $newGroupFundAmount"
+        squadAmountEdited && squadDurationEdited -> {
+            "Changed squad duration from ${CommonFunctions.convertMonthsToYearsAndMonths(oldDuration)} to ${CommonFunctions.convertMonthsToYearsAndMonths(newDuration)} and squad amount from $oldSquadAmount to $newSquadAmount"
         }
-        groupFundAmountEdited -> "Changed groupFund amount from $oldGroupFundAmount to $newGroupFundAmount"
-        groupFundDurationEdited -> "Changed groupFund duration from ${CommonFunctions.convertMonthsToYearsAndMonths(oldDuration)} to ${CommonFunctions.convertMonthsToYearsAndMonths(newDuration)}"
+        squadAmountEdited -> "Changed squad amount from $oldSquadAmount to $newSquadAmount"
+        squadDurationEdited -> "Changed squad duration from ${CommonFunctions.convertMonthsToYearsAndMonths(oldDuration)} to ${CommonFunctions.convertMonthsToYearsAndMonths(newDuration)}"
         else -> ""
     }
 }
@@ -364,15 +360,15 @@ fun SimpleCaption(text: String) {
     )
 }
 
-private fun validateGroupFundDuration(
+private fun validateSquadDuration(
     squadViewModel: SquadViewModel,
     currentDuration: Int,
     onInvalid: (requiredMonths: Int, resetValue: Int) -> Unit,
     onValid: () -> Unit
 ) {
-    val gf = squadViewModel.groupFund.value ?: return
+    val gf = squadViewModel.squad.value ?: return
 
-    val startDate = gf.groupFundStartDate?.toDate() ?: Date()
+    val startDate = gf.squadStartDate?.toDate() ?: Date()
     val currentDate = Date()
 
     val calendar = Calendar.getInstance()
@@ -385,9 +381,9 @@ private fun validateGroupFundDuration(
     }
 
     val totalMonthsDifference = (components.first * 12) + components.second
-    val adjustedGroupFundDuration = currentDuration - 1
+    val adjustedSquadDuration = currentDuration - 1
 
-    if (adjustedGroupFundDuration < totalMonthsDifference) {
+    if (adjustedSquadDuration < totalMonthsDifference) {
         val required = totalMonthsDifference + 1
 
         onInvalid(required, gf.totalDuration)   // Pass info to reset UI or show popup

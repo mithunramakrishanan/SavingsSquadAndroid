@@ -2,7 +2,7 @@ package com.android.savingssquad.model
 import com.google.firebase.firestore.PropertyName
 import androidx.annotation.Keep
 
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.RecordStatus
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
@@ -50,11 +50,11 @@ data class Member(
     @get:PropertyName("password") @set:PropertyName("password")
     var password: String = "",
 
-    @get:PropertyName("groupFundID") @set:PropertyName("groupFundID")
-    var groupFundID: String = "",
+    @get:PropertyName("squadID") @set:PropertyName("squadID")
+    var squadID: String = "",
 
     @get:PropertyName("role") @set:PropertyName("role")
-    var role: GroupFundUserType = GroupFundUserType.GROUP_FUND_MEMBER,
+    var role: SquadUserType = SquadUserType.SQUAD_MEMBER,
 
     @get:PropertyName("memberCreatedDate") @set:PropertyName("memberCreatedDate")
     var memberCreatedDate: Timestamp? = null,
@@ -94,8 +94,8 @@ data class Member(
         mailID = null,
         phoneNumber = "",
         password = "",
-        groupFundID = "",
-        role = GroupFundUserType.GROUP_FUND_MEMBER,
+        squadID = "",
+        role = SquadUserType.SQUAD_MEMBER,
         memberCreatedDate = null,
         totalContributionPaid = 0,
         totalLoanBorrowed = 0,

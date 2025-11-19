@@ -47,13 +47,13 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.GroupFund
-import com.android.savingssquad.model.GroupFundActivity
+import com.android.savingssquad.model.Squad
+import com.android.savingssquad.model.SquadActivity
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.EMIStatus
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
@@ -64,7 +64,7 @@ import com.android.savingssquad.viewmodel.AlertManager
 import com.yourapp.utils.CommonFunctions
 import java.util.Calendar
 import androidx.compose.foundation.lazy.items
-import com.android.savingssquad.singleton.GroupFundActivityType
+import com.android.savingssquad.singleton.SquadActivityType
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -74,20 +74,20 @@ fun PaymentHistoryView(
     loaderManager: LoaderManager = LoaderManager.shared
 ) {
     val screenType =
-        if (UserDefaultsManager.getGroupFundManagerLogged())
-            GroupFundUserType.GROUP_FUND_MANAGER
+        if (UserDefaultsManager.getSquadManagerLogged())
+            SquadUserType.SQUAD_MANAGER
         else
-            GroupFundUserType.GROUP_FUND_MEMBER
+            SquadUserType.SQUAD_MEMBER
 
     var selectedUser by remember { mutableStateOf("All") }
 
-    val payments = squadViewModel.groupFundPayments.collectAsStateWithLifecycle()
+    val payments = squadViewModel.squadPayments.collectAsStateWithLifecycle()
 
-    val groupFundMembers = squadViewModel.groupFundMembers.collectAsStateWithLifecycle()
+    val squadMembers = squadViewModel.squadMembers.collectAsStateWithLifecycle()
 
     // User Dropdown List
-    val userList = remember(groupFundMembers.value) {
-        listOf("All") + groupFundMembers.value.map { it.name }.distinct()
+    val userList = remember(squadMembers.value) {
+        listOf("All") + squadMembers.value.map { it.name }.distinct()
     }
 
     // Filter Logic
@@ -100,7 +100,7 @@ fun PaymentHistoryView(
     LaunchedEffect(Unit) {
 
         // First update the user selection
-        selectedUser = if (screenType == GroupFundUserType.GROUP_FUND_MEMBER) {
+        selectedUser = if (screenType == SquadUserType.SQUAD_MEMBER) {
             squadViewModel.currentMember.value?.name ?: "All"
         } else {
             "All"
@@ -124,9 +124,9 @@ fun PaymentHistoryView(
         Spacer(modifier = Modifier.height(16.dp))
 
         // USER PICKER (only for Managers)
-        if (screenType != GroupFundUserType.GROUP_FUND_MEMBER) {
+        if (screenType != SquadUserType.SQUAD_MEMBER) {
             DropdownMenuPicker(
-                label = "Select User",
+                label = "",
                 selected = selectedUser,
                 items = userList,
                 modifier = Modifier
@@ -159,7 +159,7 @@ fun PaymentHistoryView(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = if (screenType == GroupFundUserType.GROUP_FUND_MEMBER)
+                    text = if (screenType == SquadUserType.SQUAD_MEMBER)
                         "No payments yet"
                     else
                         "No transactions yet",

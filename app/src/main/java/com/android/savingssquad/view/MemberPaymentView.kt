@@ -59,7 +59,7 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
@@ -69,7 +69,7 @@ import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.CashfreeBeneficiaryType
 import com.android.savingssquad.singleton.CashfreePaymentAction
 import com.android.savingssquad.singleton.EMIStatus
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PaymentSubType
@@ -114,10 +114,10 @@ fun MemberPaymentView(
 
     // Collect flows safely
     val currentMember by squadViewModel.currentMember.collectAsStateWithLifecycle()
-    val groupFund by squadViewModel.groupFund.collectAsStateWithLifecycle()
+    val squad by squadViewModel.squad.collectAsStateWithLifecycle()
     val memberPendingLoans by squadViewModel.memberPendingLoans.collectAsStateWithLifecycle()
     val selectedContributions by squadViewModel.selectedContributions.collectAsStateWithLifecycle()
-    val groupFundPayments by squadViewModel.groupFundPayments.collectAsStateWithLifecycle()
+    val squadPayments by squadViewModel.squadPayments.collectAsStateWithLifecycle()
 
     // Payments list for "Recent Payments" similar to SwiftUI logic (current month)
     var payments by remember { mutableStateOf(listOf<PaymentsDetails>()) }
@@ -126,7 +126,7 @@ fun MemberPaymentView(
     LaunchedEffect(Unit) {
         // 1️⃣ Fetch payments
         squadViewModel.fetchPayments(showLoader = true) { success, _ ->
-            payments = getCurrentMonthPayments(squadViewModel.groupFundPayments.value)
+            payments = getCurrentMonthPayments(squadViewModel.squadPayments.value)
                 .filter { it.paymentStatus == PaymentStatus.SUCCESS }
                 .let { list ->
                     val memberId = squadViewModel.currentMember.value?.id
@@ -196,9 +196,9 @@ fun MemberPaymentView(
                         onOpenMonthList = {
                             // fetch contributions for member and show list
                             loaderManager.showLoader()
-                            val gfId = currentMember?.groupFundID ?: ""
+                            val gfId = currentMember?.squadID ?: ""
                             val memberId = currentMember?.id ?: ""
-                            squadViewModel.fetchContributionsForMember(showLoader = true, groupFundID = gfId, memberID = memberId) { contributions, error ->
+                            squadViewModel.fetchContributionsForMember(showLoader = true, squadID = gfId, memberID = memberId) { contributions, error ->
                                 loaderManager.hideLoader()
                                 if (contributions != null) {
                                     availableContributionMonths = contributions.unpaidMonths()
@@ -210,18 +210,18 @@ fun MemberPaymentView(
                                 }
                             }
                         },
-                        contributionAmount = groupFund?.monthlyContribution ?: 0,
+                        contributionAmount = squad?.monthlyContribution ?: 0,
                         contributionSelectedMonthYearError = contributionSelectedMonthYearError
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     ContributionButton(
-                        isDisabled = groupFund?.upiBeneId.isNullOrEmpty(),
+                        isDisabled = squad?.upiBeneId.isNullOrEmpty(),
                         onClick = {
                             if (validateContributionFields(contributionSelectedMonthYear) { contributionSelectedMonthYearError = it }) {
                                 // Payment flow
-                                val gf = groupFund ?: return@ContributionButton
+                                val gf = squad ?: return@ContributionButton
                                 val selectedMember = currentMember ?: return@ContributionButton
                                 val contribution = selectedContributions.firstOrNull { it.monthYear == contributionSelectedMonthYear }
                                 val contributionID = contribution?.id
@@ -234,20 +234,20 @@ fun MemberPaymentView(
                                 loaderManager.showLoader()
 
                                 val newPayment = PaymentsDetails(
-                                    id = CommonFunctions.generatePaymentID(groupFundId = gf.groupFundID),
+                                    id = CommonFunctions.generatePaymentID(squadId = gf.squadID),
                                     paymentUpdatedDate = Timestamp(date = Date()),
                                     memberId = selectedMember.id ?: "",
                                     memberName = selectedMember.name,
                                     paymentPhone = selectedMember.phoneNumber,
                                     paymentEmail = selectedMember.mailID ?: "",
-                                    userType = GroupFundUserType.GROUP_FUND_MEMBER, // adapt enum mapping
+                                    userType = SquadUserType.SQUAD_MEMBER, // adapt enum mapping
                                     amount = gf.monthlyContribution,
                                     intrestAmount = 0,
                                     paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
                                     paymentType = PaymentType.PAYMENT_CREDIT,
                                     paymentSubType = PaymentSubType.CONTRIBUTION_AMOUNT,
                                     description = "Contribution for $contributionSelectedMonthYear.",
-                                    groupFundId = gf.groupFundID,
+                                    squadId = gf.squadID,
                                     contributionId = contributionID,
                                     loanId = "",
                                     installmentId = "",
@@ -257,14 +257,14 @@ fun MemberPaymentView(
                                 // create or retry payment
                                 if (contribution.orderId.isEmpty()) {
                                     FirebaseFunctionsManager.shared.processCashFreePayment(
-                                        groupFundId = gf.groupFundID,
+                                        squadId = gf.squadID,
                                         action = CashfreePaymentAction.New(payment = newPayment)
                                     ) { sessionId, orderId, error ->
                                         squadViewModel.handleCashFreeResponse(sessionId, orderId, error)
                                     }
                                 } else {
                                     FirebaseFunctionsManager.shared.processCashFreePayment(
-                                        groupFundId = gf.groupFundID,
+                                        squadId = gf.squadID,
                                         action = CashfreePaymentAction.Retry(contribution.orderId)
                                     ) { sessionId, orderId, error ->
                                         squadViewModel.handleCashFreeResponse(sessionId, orderId, error)
@@ -277,7 +277,7 @@ fun MemberPaymentView(
                     // EMI flow
                     EMISection(
                         currentMember = currentMember,
-                        groupFund = groupFund,
+                        squad = squad,
                         isPendingLoanAvailable = squadViewModel.isPendingLoanAvailable.collectAsState().value,
                         emiSelectedMonthYear = emiSelectedMonthYear,
                         emiSelectedMonthYearError = emiSelectedMonthYearError,
@@ -298,7 +298,7 @@ fun MemberPaymentView(
                                 selectedInstallment?.status = EMIStatus.PAID
                                 selectedInstallment?.duePaidDate = Date().asTimestamp
 
-                                val gf = groupFund ?: return@EMIButton
+                                val gf = squad ?: return@EMIButton
                                 val member = currentMember ?: return@EMIButton
                                 val loan = memberPendingLoans?.firstOrNull()
                                 val loanId = loan?.id ?: ""
@@ -306,20 +306,20 @@ fun MemberPaymentView(
                                 val total = (selectedInstallment?.installmentAmount ?: 0) + (selectedInstallment?.interestAmount ?: 0)
 
                                 val loanPayment = PaymentsDetails(
-                                    id = CommonFunctions.generatePaymentID(groupFundId = gf.groupFundID),
+                                    id = CommonFunctions.generatePaymentID(squadId = gf.squadID),
                                     paymentUpdatedDate = Timestamp(date = Date()),
                                     memberId = member.id ?: "",
                                     memberName = member.name,
                                     paymentPhone = member.phoneNumber,
                                     paymentEmail = member.mailID ?: "",
-                                    userType = GroupFundUserType.GROUP_FUND_MEMBER,
+                                    userType = SquadUserType.SQUAD_MEMBER,
                                     amount = total,
                                     intrestAmount = selectedInstallment?.interestAmount ?: 0,
                                     paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
                                     paymentType = PaymentType.PAYMENT_CREDIT,
                                     paymentSubType = PaymentSubType.EMI_AMOUNT,
                                     description = "EMI and Interest - ${selectedInstallment?.installmentNumber ?: ""} for #${loan?.loanNumber ?: "N/A"} ${total.currencyFormattedWithCommas()}",
-                                    groupFundId = gf.groupFundID,
+                                    squadId = gf.squadID,
                                     contributionId = "",
                                     loanId = loanId,
                                     installmentId = installId,
@@ -328,14 +328,14 @@ fun MemberPaymentView(
 
                                 if (!selectedInstallment?.orderId.isNullOrEmpty()) {
                                     FirebaseFunctionsManager.shared.processCashFreePayment(
-                                        groupFundId = gf.groupFundID,
+                                        squadId = gf.squadID,
                                         action = CashfreePaymentAction.Retry(selectedInstallment!!.orderId!!)
                                     ) { sessionId, orderId, error ->
                                         squadViewModel.handleCashFreeResponse(sessionId, orderId, error)
                                     }
                                 } else {
                                     FirebaseFunctionsManager.shared.processCashFreePayment(
-                                        groupFundId = gf.groupFundID,
+                                        squadId = gf.squadID,
                                         action = CashfreePaymentAction.New(loanPayment)
                                     ) { sessionId, orderId, error ->
                                         squadViewModel.handleCashFreeResponse(sessionId, orderId, error)
@@ -445,7 +445,7 @@ private fun ContributionButton(isDisabled: Boolean, onClick: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
         if (isDisabled) {
             Text(
-                text = "⚠️ Manager UPI ID is not added for this Group Fund.",
+                text = "⚠️ Manager UPI ID is not added for this Squad.",
                 style = AppFont.ibmPlexSans(12, FontWeight.Normal),
                 color = Color.Red,
                 modifier = Modifier.padding(top = 8.dp)
@@ -457,7 +457,7 @@ private fun ContributionButton(isDisabled: Boolean, onClick: () -> Unit) {
 @Composable
 private fun EMISection(
     currentMember: Member?,
-    groupFund: GroupFund?,
+    squad: Squad?,
     isPendingLoanAvailable: Boolean,
     emiSelectedMonthYear: String,
     emiSelectedMonthYearError: String,
@@ -474,10 +474,10 @@ private fun EMISection(
                 disabled = true
             )
 
-            if (groupFund?.upiBeneId.isNullOrEmpty()) {
+            if (squad?.upiBeneId.isNullOrEmpty()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "⚠️ Manager UPI ID is not added for this Group Fund.",
+                        text = "⚠️ Manager UPI ID is not added for this Squad.",
                         style = AppFont.ibmPlexSans(14, FontWeight.Normal),
                         color = Color.Red,
                         modifier = Modifier.padding(vertical = 8.dp),

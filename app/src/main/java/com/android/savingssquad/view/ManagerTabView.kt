@@ -34,8 +34,8 @@ fun ManagerTabView(
     val showPayment by squadViewModel.showPayment.collectAsState()
     val paymentOrderId by squadViewModel.paymentOrderId.collectAsState()
     val paymentOrderToken by squadViewModel.paymentOrderToken.collectAsState()
-    val groupFundState by squadViewModel.groupFund.collectAsState()
-    val groupFund = groupFundState
+    val squadState by squadViewModel.squad.collectAsState()
+    val squad = squadState
 
     Box(modifier = Modifier.fillMaxSize()) {
         AppBackgroundGradient()
@@ -106,11 +106,11 @@ fun ManagerTabView(
         SSLoaderView()
 
         // ✅ Payment overlay
-        if (showPayment && groupFund != null) {
+        if (showPayment && squad != null) {
             CashfreePaymentView(
                 orderId = paymentOrderId,
                 paymentSessionId = paymentOrderToken,
-                groupFundId = groupFund.groupFundID,
+                squadId = squad.squadID,
                 onSuccess = { orderId ->
                     println("✅ Payment Success for order: $orderId")
                     squadViewModel.setShowPayment(false)
@@ -125,7 +125,7 @@ fun ManagerTabView(
 
     // ✅ Load data once
     LaunchedEffect(Unit) {
-        squadViewModel.fetchGroupFundByID(showLoader = true) { success, _, _ ->
+        squadViewModel.fetchSquadByID(showLoader = true) { success, _, _ ->
             if (success) {
                 squadViewModel.fetchEMIConfigurations(showLoader = true) { _, _ -> }
             }

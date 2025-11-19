@@ -57,7 +57,7 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
@@ -66,7 +66,7 @@ import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.CashfreeBeneficiaryType
 import com.android.savingssquad.singleton.CashfreePaymentAction
 import com.android.savingssquad.singleton.EMIStatus
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
@@ -131,7 +131,7 @@ fun ManagerPaymentView(
                     SectionView(title = "Select Member") {
                         SSTextField(
                             icon = Icons.Default.Person,
-                            placeholder = loanSelectedMember?.name ?: "Select Group Fund Member",
+                            placeholder = loanSelectedMember?.name ?: "Select Squad Member",
                             textState = remember { mutableStateOf(loanSelectedMember?.name ?: "") },
                             keyboardType = KeyboardType.Text,
                             showDropdown = true,
@@ -232,13 +232,13 @@ fun ManagerPaymentView(
             ) {
 
                 SingleSelectionPopupView(
-                    listValues = squadViewModel.groupFundMemberNames.collectAsState().value,
+                    listValues = squadViewModel.squadMemberNames.collectAsState().value,
                     title = "Members",
                     onItemSelected = { selectedValue ->
                         squadViewModel.setShowLoanMembersPopupPopup(false)
                         val member = CommonFunctions.getMember(
                             by = selectedValue,
-                            from = squadViewModel.groupFundMembers.value
+                            from = squadViewModel.squadMembers.value
                         )
                         loanSelectedMember = member
                         loanSelectedMemberNameError = ""
@@ -276,20 +276,20 @@ private fun makeLoanPayment(
     ) { success, error ->
         if (success) {
             val newPayment = PaymentsDetails(
-                id = CommonFunctions.generatePaymentID(groupFundId = squadViewModel.groupFund.value?.groupFundID ?: ""),
+                id = CommonFunctions.generatePaymentID(squadId = squadViewModel.squad.value?.squadID ?: ""),
                 paymentUpdatedDate = Timestamp.now(),
                 memberId = selectedMember.id ?: "",
                 memberName = selectedMember.name,
                 paymentPhone = selectedMember.phoneNumber,
                 paymentEmail = selectedMember.mailID ?: "",
-                userType = GroupFundUserType.GROUP_FUND_MANAGER,
+                userType = SquadUserType.SQUAD_MANAGER,
                 amount = selectedLoan.loanAmount,
                 intrestAmount = 0,
                 paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
                 paymentType = PaymentType.PAYMENT_DEBIT,
                 paymentSubType = PaymentSubType.LOAN_AMOUNT,
                 description = "Loan disbursement",
-                groupFundId = squadViewModel.groupFund.value?.groupFundID ?: "",
+                squadId = squadViewModel.squad.value?.squadID ?: "",
                 contributionId = "",
                 loanId = newLoan.id ?: "",
                 installmentId = "",
@@ -297,7 +297,7 @@ private fun makeLoanPayment(
             )
 
             FirebaseFunctionsManager.shared.processCashFreePayment(
-                groupFundId = squadViewModel.groupFund.value?.groupFundID ?: "",
+                squadId = squadViewModel.squad.value?.squadID ?: "",
                 action = CashfreePaymentAction.New(payment = newPayment)
             ) { sessionId, orderId, error ->
                 squadViewModel.handleCashFreeResponse(sessionId, orderId, error)
@@ -322,7 +322,7 @@ private fun validateOtherPaymentFields(
 }
 
 private suspend fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String, notes: String) {
-    val availableAmount = squadViewModel.groupFund.value?.currentAvailableAmount ?: 0
+    val availableAmount = squadViewModel.squad.value?.currentAvailableAmount ?: 0
     val amountInt = amountStr.toIntOrNull() ?: 0
     if (availableAmount < amountInt) {
         AlertManager.shared.showAlert(

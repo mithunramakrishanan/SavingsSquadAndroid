@@ -7,16 +7,16 @@ import java.util.Date
 
 
 @Keep
-data class GroupFund(
+data class Squad(
 
     @get:PropertyName("id") @set:PropertyName("id")
     var id: String? = java.util.UUID.randomUUID().toString(),
 
-    @get:PropertyName("groupFundID") @set:PropertyName("groupFundID")
-    var groupFundID: String = "",
+    @get:PropertyName("squadID") @set:PropertyName("squadID")
+    var squadID: String = "",
 
-    @get:PropertyName("groupFundName") @set:PropertyName("groupFundName")
-    var groupFundName: String = "",
+    @get:PropertyName("squadName") @set:PropertyName("squadName")
+    var squadName: String = "",
 
     // 🔹 Manager / Creator Details
     @get:PropertyName("mailID") @set:PropertyName("mailID")
@@ -39,14 +39,14 @@ data class GroupFund(
     var virtualUPI: String = "",
 
     // 🔹 Account Details
-    @get:PropertyName("groupFundAccountName") @set:PropertyName("groupFundAccountName")
-    var groupFundAccountName: String = "",
+    @get:PropertyName("squadAccountName") @set:PropertyName("squadAccountName")
+    var squadAccountName: String = "",
 
-    @get:PropertyName("groupFundAccountNumber") @set:PropertyName("groupFundAccountNumber")
-    var groupFundAccountNumber: String = "",
+    @get:PropertyName("squadAccountNumber") @set:PropertyName("squadAccountNumber")
+    var squadAccountNumber: String = "",
 
-    @get:PropertyName("groupFundIFSCCode") @set:PropertyName("groupFundIFSCCode")
-    var groupFundIFSCCode: String = "",
+    @get:PropertyName("squadIFSCCode") @set:PropertyName("squadIFSCCode")
+    var squadIFSCCode: String = "",
 
     @get:PropertyName("upiBeneId") @set:PropertyName("upiBeneId")
     var upiBeneId: String = "",
@@ -57,18 +57,18 @@ data class GroupFund(
     @get:PropertyName("upiID") @set:PropertyName("upiID")
     var upiID: String = "",
 
-    // 🔹 GroupFund Lifecycle
-    @get:PropertyName("groupFundStartDate") @set:PropertyName("groupFundStartDate")
-    var groupFundStartDate: Timestamp? = null,
+    // 🔹 Squad Lifecycle
+    @get:PropertyName("squadStartDate") @set:PropertyName("squadStartDate")
+    var squadStartDate: Timestamp? = null,
 
-    @get:PropertyName("groupFundEndDate") @set:PropertyName("groupFundEndDate")
-    var groupFundEndDate: Timestamp? = null,
+    @get:PropertyName("squadEndDate") @set:PropertyName("squadEndDate")
+    var squadEndDate: Timestamp? = null,
 
-    @get:PropertyName("groupFundCreatedDate") @set:PropertyName("groupFundCreatedDate")
-    var groupFundCreatedDate: Timestamp? = null,
+    @get:PropertyName("squadCreatedDate") @set:PropertyName("squadCreatedDate")
+    var squadCreatedDate: Timestamp? = null,
 
-    @get:PropertyName("groupFundDueDate") @set:PropertyName("groupFundDueDate")
-    var groupFundDueDate: Timestamp? = null,
+    @get:PropertyName("squadDueDate") @set:PropertyName("squadDueDate")
+    var squadDueDate: Timestamp? = null,
 
     @get:PropertyName("totalDuration") @set:PropertyName("totalDuration")
     var totalDuration: Int = 0,
@@ -83,8 +83,8 @@ data class GroupFund(
     @get:PropertyName("monthlyContribution") @set:PropertyName("monthlyContribution")
     var monthlyContribution: Int = 0,
 
-    @get:PropertyName("groupFundStartAmount") @set:PropertyName("groupFundStartAmount")
-    var groupFundStartAmount: Int = 0,
+    @get:PropertyName("squadStartAmount") @set:PropertyName("squadStartAmount")
+    var squadStartAmount: Int = 0,
 
     @get:PropertyName("totalAmount") @set:PropertyName("totalAmount")
     var totalAmount: Int = 0,
@@ -122,29 +122,29 @@ data class GroupFund(
     // Required empty constructor for Firestore deserialization
     constructor() : this(
         id = java.util.UUID.randomUUID().toString(),
-        groupFundID = "",
-        groupFundName = "",
+        squadID = "",
+        squadName = "",
         mailID = "",
         countryCode = "",
         phoneNumber = "",
         virtualAccountNumber = "",
         paymentInstrumentId = "",
         virtualUPI = "",
-        groupFundAccountName = "",
-        groupFundAccountNumber = "",
-        groupFundIFSCCode = "",
+        squadAccountName = "",
+        squadAccountNumber = "",
+        squadIFSCCode = "",
         upiBeneId = "",
         bankBeneId = "",
         upiID = "",
-        groupFundStartDate = null,
-        groupFundEndDate = null,
-        groupFundCreatedDate = null,
-        groupFundDueDate = null,
+        squadStartDate = null,
+        squadEndDate = null,
+        squadCreatedDate = null,
+        squadDueDate = null,
         totalDuration = 0,
         remainingDuration = 0,
         totalMembers = 0,
         monthlyContribution = 0,
-        groupFundStartAmount = 0,
+        squadStartAmount = 0,
         totalAmount = 0,
         totalContributionAmountReceived = 0,
         totalLoanAmountReceived = 0,

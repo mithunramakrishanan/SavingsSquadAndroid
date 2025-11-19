@@ -7,7 +7,7 @@ import android.database.sqlite.SQLiteException
 
 data class BulkOrder(
     var orderId: String,
-    var groupFundId: String
+    var squadId: String
 )
 
 class LocalDatabase private constructor(context: Context) {
@@ -51,7 +51,7 @@ class LocalDatabase private constructor(context: Context) {
             CREATE TABLE IF NOT EXISTS orders(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 orderId TEXT NOT NULL,
-                groupFundId TEXT NOT NULL
+                squadId TEXT NOT NULL
             );
         """.trimIndent()
         execute(sql, "✅ Orders table ready")
@@ -71,13 +71,13 @@ class LocalDatabase private constructor(context: Context) {
     // MARK: - Insert
     @Throws(Exception::class)
     fun insertOrders(orders: List<BulkOrder>) {
-        val sql = "INSERT INTO orders (orderId, groupFundId) VALUES (?, ?);"
+        val sql = "INSERT INTO orders (orderId, squadId) VALUES (?, ?);"
         db?.beginTransaction()
         try {
             val stmt = db?.compileStatement(sql)
             orders.forEach { order ->
                 stmt?.bindString(1, order.orderId)
-                stmt?.bindString(2, order.groupFundId)
+                stmt?.bindString(2, order.squadId)
                 stmt?.executeInsert()
                 stmt?.clearBindings()
                 Log.d("LocalDatabase", "✅ Inserted order: ${order.orderId}")
@@ -93,7 +93,7 @@ class LocalDatabase private constructor(context: Context) {
     // MARK: - Fetch
     @Throws(Exception::class)
     fun fetchOrders(): List<BulkOrder> {
-        val sql = "SELECT orderId, groupFundId FROM orders;"
+        val sql = "SELECT orderId, squadId FROM orders;"
         val results = mutableListOf<BulkOrder>()
 
         try {
@@ -101,8 +101,8 @@ class LocalDatabase private constructor(context: Context) {
             cursor?.use {
                 while (it.moveToNext()) {
                     val orderId = it.getString(0)
-                    val groupFundId = it.getString(1)
-                    results.add(BulkOrder(orderId, groupFundId))
+                    val squadId = it.getString(1)
+                    results.add(BulkOrder(orderId, squadId))
                 }
             }
         } catch (e: Exception) {

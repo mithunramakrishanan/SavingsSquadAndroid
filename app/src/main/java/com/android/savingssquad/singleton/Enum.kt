@@ -115,30 +115,30 @@ enum class PayoutStatus(@get:PropertyName("value") val value: String) {
 }
 
 // ------------------------------
-// MARK: - Group Fund User Type
+// MARK: - Squad User Type
 // ------------------------------
-enum class GroupFundUserType(@get:PropertyName("value") val value: String) {
-    @PropertyName("AS MANAGER") GROUP_FUND_MANAGER("AS MANAGER"),
-    @PropertyName("AS MEMBER") GROUP_FUND_MEMBER("AS MEMBER");
+enum class SquadUserType(@get:PropertyName("value") val value: String) {
+    @PropertyName("AS MANAGER") SQUAD_MANAGER("AS MANAGER"),
+    @PropertyName("AS MEMBER") SQUAD_MEMBER("AS MEMBER");
 
     val roleDescription: String get() = value
 
     companion object {
-        fun fromValue(value: String?): GroupFundUserType =
-            entries.find { it.value == value } ?: GROUP_FUND_MEMBER
+        fun fromValue(value: String?): SquadUserType =
+            entries.find { it.value == value } ?: SQUAD_MEMBER
     }
 }
 
 // ------------------------------
-// MARK: - Group Fund Activity Type
+// MARK: - Squad Activity Type
 // ------------------------------
-enum class GroupFundActivityType(@get:PropertyName("value") val value: String) {
+enum class SquadActivityType(@get:PropertyName("value") val value: String) {
     @PropertyName("AMOUNT DEBIT") AMOUNT_DEBIT("AMOUNT DEBIT"),
     @PropertyName("AMOUNT CREDIT") AMOUNT_CREDIT("AMOUNT CREDIT"),
     @PropertyName("OTHER ACTIVITY") OTHER_ACTIVITY("OTHER ACTIVITY");
 
     companion object {
-        fun fromValue(value: String?): GroupFundActivityType =
+        fun fromValue(value: String?): SquadActivityType =
             entries.find { it.value == value } ?: OTHER_ACTIVITY
     }
 }

@@ -9,7 +9,7 @@ import java.util.Date
 
 
 @Keep
-data class GroupFundRule(
+data class SquadRule(
 
     @get:PropertyName("id") @set:PropertyName("id")
     var id: String? = null, // Firestore document ID

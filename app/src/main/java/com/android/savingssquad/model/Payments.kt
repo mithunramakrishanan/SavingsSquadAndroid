@@ -1,6 +1,6 @@
 package com.android.savingssquad.model
 
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PaymentSubType
@@ -122,7 +122,7 @@ data class PaymentsDetails(
     var paymentEmail: String = "",
 
     @get:PropertyName("userType") @set:PropertyName("userType")
-    var userType: GroupFundUserType = GroupFundUserType.GROUP_FUND_MEMBER,
+    var userType: SquadUserType = SquadUserType.SQUAD_MEMBER,
 
     @get:PropertyName("amount") @set:PropertyName("amount")
     var amount: Int = 0,
@@ -148,8 +148,8 @@ data class PaymentsDetails(
     @get:PropertyName("description") @set:PropertyName("description")
     var description: String = "",
 
-    @get:PropertyName("groupFundId") @set:PropertyName("groupFundId")
-    var groupFundId: String = "",
+    @get:PropertyName("squadId") @set:PropertyName("squadId")
+    var squadId: String = "",
 
     @get:PropertyName("paymentSessionId") @set:PropertyName("paymentSessionId")
     var paymentSessionId: String = "",
@@ -201,7 +201,7 @@ data class PaymentsDetails(
         memberName = "",
         paymentPhone = "",
         paymentEmail = "",
-        userType = GroupFundUserType.GROUP_FUND_MEMBER,
+        userType = SquadUserType.SQUAD_MEMBER,
         amount = 0,
         intrestAmount = 0,
         paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
@@ -210,7 +210,7 @@ data class PaymentsDetails(
         paymentStatus = PaymentStatus.IN_PROGRESS,
         payoutStatus = PayoutStatus.IN_PROGRESS,
         description = "",
-        groupFundId = "",
+        squadId = "",
         paymentSessionId = "",
         orderId = "",
         contributionId = "",
@@ -244,7 +244,7 @@ data class PaymentsDetails(
         "paymentStatus" to paymentStatus.name,
         "payoutStatus" to payoutStatus.name,
         "description" to description,
-        "groupFundId" to groupFundId,
+        "squadId" to squadId,
         "paymentSessionId" to paymentSessionId,
         "orderId" to orderId,
         "contributionId" to contributionId,

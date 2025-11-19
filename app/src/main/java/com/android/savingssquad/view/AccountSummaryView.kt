@@ -42,7 +42,7 @@ fun AccountSummaryView(
     navController: NavController,
     squadViewModel: SquadViewModel
 ) {
-    val payments = squadViewModel.groupFundPayments.collectAsState().value
+    val payments = squadViewModel.squadPayments.collectAsState().value
 
     LaunchedEffect(Unit) {
         squadViewModel.fetchPayments(showLoader = true) { success, error ->
@@ -77,7 +77,7 @@ fun AccountSummaryView(
                 if (successful.isEmpty()) {
                     item {
                         Text(
-                            text = "No successful payments found",
+                            text = "No payments yet",
                             style = AppFont.ibmPlexSans(14, FontWeight.Medium),
                             color = AppColors.secondaryText,
                             modifier = Modifier

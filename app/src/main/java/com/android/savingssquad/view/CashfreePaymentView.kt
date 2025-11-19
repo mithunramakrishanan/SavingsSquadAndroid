@@ -34,7 +34,7 @@ import com.android.savingssquad.R
 fun CashfreePaymentView(
     orderId: String,
     paymentSessionId: String,
-    groupFundId: String,
+    squadId: String,
     onSuccess: (String) -> Unit,
     onFailure: (String) -> Unit
 ) {
@@ -61,7 +61,7 @@ fun CashfreePaymentView(
         val intent = Intent(context, PaymentViewController::class.java).apply {
             putExtra("orderId", orderId)
             putExtra("paymentSessionId", paymentSessionId)
-            putExtra("groupFundId", groupFundId)
+            putExtra("squadId", squadId)
         }
         launcher.launch(intent)
     }

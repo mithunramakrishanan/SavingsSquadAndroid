@@ -24,7 +24,7 @@ class PaymentViewController : ComponentActivity(), CFCheckoutResponseCallback {
 
     private var orderId: String = ""
     private var paymentSessionId: String = ""
-    private var groupFundId: String = ""
+    private var squadId: String = ""
 
     private lateinit var functions: FirebaseFunctions
 
@@ -36,7 +36,7 @@ class PaymentViewController : ComponentActivity(), CFCheckoutResponseCallback {
 
         orderId = intent.getStringExtra("orderId") ?: ""
         paymentSessionId = intent.getStringExtra("paymentSessionId") ?: ""
-        groupFundId = intent.getStringExtra("groupFundId") ?: ""
+        squadId = intent.getStringExtra("squadId") ?: ""
 
         functions = FirebaseFunctions.getInstance("asia-south1") // ✅ region
 
@@ -98,7 +98,7 @@ class PaymentViewController : ComponentActivity(), CFCheckoutResponseCallback {
             .call(
                 mapOf(
                     "orderId" to orderId,
-                    "groupFundId" to groupFundId
+                    "squadId" to squadId
                 )
             )
             .addOnSuccessListener { result ->

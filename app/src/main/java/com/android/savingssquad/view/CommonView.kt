@@ -1,6 +1,7 @@
 package com.android.savingssquad.view
 
 import android.app.Activity
+import android.util.Log
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -64,7 +65,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.rotate
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Login
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SquadViewModel
@@ -90,6 +91,7 @@ import com.android.savingssquad.singleton.color
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AppDestination
+import com.google.firebase.auth.PhoneAuthOptions
 
 
 // ---------- SSNavigationBar ----------
@@ -310,15 +312,30 @@ fun SSTextField(
 
                 // Dropdown icon clickable **always works**
                 if (showDropdown) {
-                    Icon(
-                        imageVector = dropdownIcon,
-                        contentDescription = "dropdown",
-                        tint = dropdownColor,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .padding(end = 12.dp)
-                            .clickable { onDropdownTap?.invoke() } // ✅ Works even if text is disabled
-                    )
+
+                    if (isLoading) {
+
+                        CircularProgressIndicator(
+                            strokeWidth = 2.dp,
+                            modifier = Modifier
+                                .size(22.dp)
+                                .padding(end = 12.dp)
+                        )
+                    }
+                    else {
+
+                        Icon(
+                            imageVector = dropdownIcon,
+                            contentDescription = "dropdown",
+                            tint = dropdownColor,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .padding(end = 12.dp)
+                                .clickable { onDropdownTap?.invoke() } // ✅ Works even if text is disabled
+                        )
+                    }
+
+
                 }
             }
         }
@@ -663,7 +680,7 @@ fun OverlayBackgroundView(
                     if (onDismiss != null) Modifier.clickable(
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() }
-                    ) { onDismiss() } else Modifier
+                    ) {  } else Modifier
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -893,11 +910,11 @@ fun LoginListPopup(
 
     val context = LocalContext.current
     val inPreview = LocalInspectionMode.current
-    var selectedRole by remember { mutableStateOf(GroupFundUserType.GROUP_FUND_MANAGER) }
+    var selectedRole by remember { mutableStateOf(SquadUserType.SQUAD_MANAGER) }
 
-    val managers = remember(users) { users.filter { it.getRoleEnum() == GroupFundUserType.GROUP_FUND_MANAGER } }
-    val members = remember(users) { users.filter { it.getRoleEnum() == GroupFundUserType.GROUP_FUND_MEMBER } }
-    val filteredUsers = if (selectedRole == GroupFundUserType.GROUP_FUND_MANAGER) managers else members
+    val managers = remember(users) { users.filter { it.role == SquadUserType.SQUAD_MANAGER } }
+    val members = remember(users) { users.filter { it.role == SquadUserType.SQUAD_MEMBER } }
+    val filteredUsers = if (selectedRole == SquadUserType.SQUAD_MANAGER) managers else members
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -910,7 +927,7 @@ fun LoginListPopup(
     ) {
         // 🔹 Title
         Text(
-            text = SquadStrings.selectGroupFund,
+            text = SquadStrings.selectSquad,
             style = AppFont.ibmPlexSans(20, FontWeight.Bold),
             color = AppColors.headerText
         )
@@ -920,15 +937,15 @@ fun LoginListPopup(
         // 🔹 Segmented Picker
         ModernSegmentedPickerView(
             segments = listOf(
-                GroupFundUserType.GROUP_FUND_MANAGER.value,
-                GroupFundUserType.GROUP_FUND_MEMBER.value
+                SquadUserType.SQUAD_MANAGER.value,
+                SquadUserType.SQUAD_MEMBER.value
             ),
             selectedSegment = selectedRole.value,
             onSegmentSelected = {
-                selectedRole = if (it == GroupFundUserType.GROUP_FUND_MANAGER.value)
-                    GroupFundUserType.GROUP_FUND_MANAGER
+                selectedRole = if (it == SquadUserType.SQUAD_MANAGER.value)
+                    SquadUserType.SQUAD_MANAGER
                 else
-                    GroupFundUserType.GROUP_FUND_MEMBER
+                    SquadUserType.SQUAD_MEMBER
             }
         )
 
@@ -958,14 +975,14 @@ fun LoginListPopup(
                                 UserDefaultsManager.saveLogin(user)
                                 UserDefaultsManager.saveIsLoggedIn(true)
 
-                                if (user.getRoleEnum() == GroupFundUserType.GROUP_FUND_MANAGER) {
-                                    UserDefaultsManager.saveGroupFundManagerLogged(true)
+                                if (user.role == SquadUserType.SQUAD_MANAGER) {
+                                    UserDefaultsManager.saveSquadManagerLogged(true)
                                     navController.navigate(AppDestination.MANAGER_HOME.route) {
                                         popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
                                         launchSingleTop = true
                                     }
                                 } else {
-                                    UserDefaultsManager.saveGroupFundManagerLogged(false)
+                                    UserDefaultsManager.saveSquadManagerLogged(false)
                                     navController.navigate(AppDestination.MEMBER_HOME.route) {
                                         popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
                                         launchSingleTop = true
@@ -1005,19 +1022,19 @@ fun LoginListPopupPreview() {
         val mockUsers = listOf(
             Login(
                 id = "1",
-                groupFundID = "GF001",
-                groupFundName = "Daily Saver",
-                groupFundUsername = "Mithun",
+                squadID = "GF001",
+                squadName = "Daily Saver",
+                squadUsername = "Mithun",
                 phoneNumber = "9876543210",
-                role = "AS MANAGER"
+                role = SquadUserType.SQUAD_MANAGER
             ),
             Login(
                 id = "2",
-                groupFundID = "GF002",
-                groupFundName = "Smart Investors",
-                groupFundUsername = "Ravi",
+                squadID = "GF002",
+                squadName = "Smart Investors",
+                squadUsername = "Ravi",
                 phoneNumber = "9876501234",
-                role = "AS MEMBER"
+                role = SquadUserType.SQUAD_MEMBER
             )
         )
 
@@ -1048,7 +1065,7 @@ fun UserSelectionCard(
         Column(
             modifier = Modifier.padding(14.dp)
         ) {
-            user.groupFundName?.let {
+            user.squadName?.let {
                 Text(
                     text = it,
                     style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
@@ -1056,7 +1073,7 @@ fun UserSelectionCard(
                 )
             }
 
-            val dateText = if (user.getRoleEnum() == GroupFundUserType.GROUP_FUND_MANAGER)
+            val dateText = if (user.role == SquadUserType.SQUAD_MANAGER)
                 "Manager since ${CommonFunctions.dateToString(user.userCreatedDate?.toDate() ?: Date())}"
             else
                 "Member since ${CommonFunctions.dateToString(user.userCreatedDate?.toDate() ?: Date())}"
@@ -1354,10 +1371,11 @@ fun AddMemberPopup(
 ) {
     val context = LocalContext.current
 
-    var memberName by remember { mutableStateOf("") }
-    var phoneNumber by remember { mutableStateOf("") }
-    var otpCode by remember { mutableStateOf("") }
-    var verificationID by remember { mutableStateOf("") }
+    // ✅ State variables as MutableState
+    val memberNameState = remember { mutableStateOf("") }
+    val phoneNumberState = remember { mutableStateOf("") }
+    val otpCodeState = remember { mutableStateOf("") }
+    val verificationIDState = remember { mutableStateOf("") }
 
     var sendOTPLoading by remember { mutableStateOf(false) }
     var verifyOTPLoading by remember { mutableStateOf(false) }
@@ -1370,79 +1388,95 @@ fun AddMemberPopup(
     var sendOTPError by remember { mutableStateOf("") }
     var verifyOTPError by remember { mutableStateOf("") }
 
-    // ✅ Validation
+    val coroutineScope = rememberCoroutineScope()
+
+    // ----------------- Validation -----------------
     fun validateFields(): Boolean {
-        memberNameError = if (memberName.trim().isEmpty()) "Name is required" else ""
-        phoneError = if (Regex("^[0-9]{10}$").matches(phoneNumber))
-            ""
-        else
-            "Enter a valid 10-digit phone number"
+        memberNameError = if (memberNameState.value.trim().isEmpty()) "Name is required" else ""
+        phoneError = if (Regex("^[0-9]{10}$").matches(phoneNumberState.value))
+            "" else "Enter a valid 10-digit phone number"
+
         return memberNameError.isEmpty() && phoneError.isEmpty()
     }
 
+    // ----------------- Handle Add Member -----------------
     fun handleAddMember() {
-        if (validateFields()) {
-            if (otpVerified) {
-                val name = CommonFunctions.cleanUpName(memberName)
-                val phone = CommonFunctions.cleanUpPhoneNumber(phoneNumber)
-                LoaderManager.shared.showLoader()
-                squadViewModel.addMember(true, name, phone) { _, _ ->
-                    LoaderManager.shared.hideLoader()
-                    onDismiss()
-                }
-            } else {
-                val phoneWithCode = "+91$phoneNumber"
-                sendOTPLoading = true
-                otpProcessStarted = true
+        if (!validateFields()) return
 
-                PhoneAuthProvider.getInstance().verifyPhoneNumber(
-                    phoneWithCode,
-                    60L,
-                    TimeUnit.SECONDS,
-                    context as Activity,
-                    object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+        if (otpVerified) {
+            // ✅ OTP verified, add member
+            val name = CommonFunctions.cleanUpName(memberNameState.value)
+            val phone = CommonFunctions.cleanUpPhoneNumber(phoneNumberState.value)
+            LoaderManager.shared.showLoader()
+            squadViewModel.addMember(true, name, phone) { success, error ->
+                LoaderManager.shared.hideLoader()
+                onDismiss()
+            }
+        } else {
+            // ✅ OTP not yet verified -> send OTP
+            val phoneWithCode = "+91${phoneNumberState.value}"
+            sendOTPLoading = true
+            otpProcessStarted = true
+
+            val auth = FirebaseAuth.getInstance()
+            val activity = context as? Activity
+            if (activity != null) {
+                val options = PhoneAuthOptions.newBuilder(auth)
+                    .setPhoneNumber(phoneWithCode)       // your phone number with country code
+                    .setTimeout(60L, TimeUnit.SECONDS)       // timeout
+                    .setActivity(activity)                   // required for verification
+                    .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
                         override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                            verifyOTPError = ""
                             otpVerified = true
+                            verifyOTPError = ""
                             verifyOTPLoading = false
+                            Log.d("AddMember", "OTP auto-verified")
                         }
 
                         override fun onVerificationFailed(e: FirebaseException) {
                             sendOTPError = e.localizedMessage ?: "OTP failed"
                             sendOTPLoading = false
                             otpProcessStarted = false
+                            Log.d("AddMember", "OTP verification failed: ${e.localizedMessage}")
                         }
 
-                        override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
-                            verificationID = verificationId
+                        override fun onCodeSent(
+                            verificationId: String,
+                            token: PhoneAuthProvider.ForceResendingToken
+                        ) {
+                            verificationIDState.value = verificationId
                             sendOTPLoading = false
                             otpProcessStarted = false
                             isOTPSent = true
+                            Log.d("AddMember", "OTP code sent: $verificationId")
                         }
-                    }
-                )
+                    })
+                    .build()
+
+                PhoneAuthProvider.verifyPhoneNumber(options)
             }
         }
     }
 
+    // ----------------- Handle OTP Change -----------------
     fun handleOTPChange(newValue: String) {
+        otpCodeState.value = newValue
         verifyOTPError = ""
-        verifyOTPLoading = newValue.length == 6
         if (newValue.length == 6) {
-            val credential = PhoneAuthProvider.getCredential(verificationID, otpCode)
+            verifyOTPLoading = true
+            val credential = PhoneAuthProvider.getCredential(verificationIDState.value, newValue)
             FirebaseAuth.getInstance().signInWithCredential(credential)
                 .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        otpVerified = true
-                        verifyOTPLoading = false
-                    } else {
+                    verifyOTPLoading = false
+                    otpVerified = task.isSuccessful
+                    if (!task.isSuccessful) {
                         verifyOTPError = task.exception?.localizedMessage ?: "Verification failed"
-                        verifyOTPLoading = false
                     }
                 }
         }
     }
 
+    // ----------------- UI -----------------
     AnimatedVisibility(
         visible = true,
         enter = fadeIn() + scaleIn(),
@@ -1466,44 +1500,62 @@ fun AddMemberPopup(
             )
 
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // Member Name
                 SSTextField(
                     icon = Icons.Default.Person,
                     placeholder = "Member Name",
-                    textState = remember { mutableStateOf(memberName) },
+                    textState = memberNameState,
                     error = memberNameError
                 )
 
+                // Phone Number
                 SSTextField(
                     icon = Icons.Default.Phone,
                     placeholder = "Member Mobile.No",
-                    textState = remember { mutableStateOf(phoneNumber) },
+                    textState = phoneNumberState,
                     keyboardType = KeyboardType.Number,
                     showDropdown = sendOTPLoading,
                     isLoading = sendOTPLoading,
                     error = phoneError
                 )
 
-                AnimatedVisibility(visible = isOTPSent) {
-                    SSTextField(
-                        icon = Icons.Default.Numbers,
-                        placeholder = "Enter OTP",
-                        textState = remember { mutableStateOf(otpCode) },
-                        keyboardType = KeyboardType.Number,
-                        showDropdown = verifyOTPLoading || otpVerified,
-                        dropdownIcon = Icons.Default.CheckCircle,
-                        dropdownColor = AppColors.primaryButton,
-                        isLoading = verifyOTPLoading,
-                        error = verifyOTPError
-                    )
+                // OTP field
+                if (isOTPSent) {
+                    // Animated appearance like SwiftUI transition
+                    AnimatedVisibility(
+                        visible = isOTPSent,
+                        enter = fadeIn() + slideInVertically(initialOffsetY = { -40 }),
+                        exit = fadeOut() + slideOutVertically(targetOffsetY = { -40 })
+                    ) {
+                        SSTextField(
+                            icon = Icons.Default.Numbers,
+                            placeholder = "Enter OTP",
+                            textState = otpCodeState,
+                            keyboardType = KeyboardType.Number,
+                            showDropdown = verifyOTPLoading || otpVerified,
+                            dropdownIcon = Icons.Default.CheckCircle,
+                            dropdownColor = AppColors.primaryButton,
+                            isLoading = verifyOTPLoading,
+                            error = verifyOTPError,
+                            onDropdownTap = null
+                        )
+
+                        // Observe OTP changes like SwiftUI's .onChange
+                        LaunchedEffect(otpCodeState.value) {
+                            handleOTPChange(otpCodeState.value)
+                        }
+                    }
                 }
             }
 
+            // Button
             SSButton(
                 title = if (otpVerified) "Add Member" else "Send OTP",
-                isDisabled = memberNameError.isNotEmpty() || otpProcessStarted,
+                isDisabled = otpProcessStarted || sendOTPLoading,
                 action = { handleAddMember() }
             )
 
+            // Cancel
             SSCancelButton(
                 title = "Cancel",
                 isButtonLoading = false,
@@ -1866,17 +1918,17 @@ fun computedStatus(installment: Installment, today: Date): EMIStatus {
 
 
 @Composable
-fun FloatingGroupFundButton(
-    onGroupFundActivity: () -> Unit,
+fun FloatingSquadButton(
+    onSquadActivity: () -> Unit,
     onPaymentHistory: () -> Unit,
-    onGroupFundRules: () -> Unit
+    onSquadRules: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
     val menuItems = listOf(
-        MenuItem(Icons.AutoMirrored.Rounded.List, "Group Fund Activity", onGroupFundActivity),
+        MenuItem(Icons.AutoMirrored.Rounded.List, "Squad Activity", onSquadActivity),
         MenuItem(Icons.Rounded.CreditCard, "Payment History", onPaymentHistory),
-        MenuItem(Icons.AutoMirrored.Rounded.MenuBook, "Group Fund Rules", onGroupFundRules)
+        MenuItem(Icons.AutoMirrored.Rounded.MenuBook, "Squad Rules", onSquadRules)
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -1940,8 +1992,8 @@ fun FloatingGroupFundButton(
             ) {
                 Icon(
                     painter = painterResource(
-                        if (showMenu) R.drawable.groupfund_activity_unselected
-                        else R.drawable.groupfund_activity_selected
+                        if (showMenu) R.drawable.squad_activity_unselected
+                        else R.drawable.squad_activity_selected
                     ),
                     contentDescription = null,
                     tint = AppColors.primaryButtonText,
@@ -2015,9 +2067,9 @@ private data class MenuItem(
 
 object AppIcons {
     fun resolve(name: String): Int = when (name) {
-        "book_fill" -> R.drawable.groupfund_activity_unselected
-        "list_bullet" -> R.drawable.groupfund_activity_unselected
-        "creditcard_fill" -> R.drawable.groupfund_activity_unselected
-        else -> R.drawable.groupfund_activity_selected
+        "book_fill" -> R.drawable.squad_activity_unselected
+        "list_bullet" -> R.drawable.squad_activity_unselected
+        "creditcard_fill" -> R.drawable.squad_activity_unselected
+        else -> R.drawable.squad_activity_selected
     }
 }

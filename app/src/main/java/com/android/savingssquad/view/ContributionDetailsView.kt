@@ -63,7 +63,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Login
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SquadViewModel
@@ -85,7 +85,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.savingssquad.R
 import com.android.savingssquad.model.ContributionDetail
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
@@ -106,15 +106,20 @@ fun ContributionDetailsView(
     var selectedSegment by remember { mutableStateOf(SquadStrings.all) }
     var memberContributions by remember { mutableStateOf(listOf<ContributionDetail>()) }
 
-    val groupFundState by squadViewModel.groupFund.collectAsStateWithLifecycle()
+    val squadState by squadViewModel.squad.collectAsStateWithLifecycle()
 
-    val member by squadViewModel.selectedMember.collectAsStateWithLifecycle()
+    val screenType = if (UserDefaultsManager.getSquadManagerLogged()) {
+        SquadUserType.SQUAD_MANAGER
+    } else {
+        SquadUserType.SQUAD_MEMBER
+    }
 
-    val screenType =
-        if (UserDefaultsManager.getGroupFundManagerLogged())
-            GroupFundUserType.GROUP_FUND_MANAGER
-        else
-            GroupFundUserType.GROUP_FUND_MEMBER
+// Get the member depending on the screen type
+    val member by if (screenType == SquadUserType.SQUAD_MANAGER) {
+        squadViewModel.selectedMember.collectAsStateWithLifecycle()
+    } else {
+        squadViewModel.currentMember.collectAsStateWithLifecycle()
+    }
 
     // Subtitle text
     val subtitleContributions by remember(memberContributions, selectedSegment) {
@@ -149,11 +154,11 @@ fun ContributionDetailsView(
     }
 
     LaunchedEffect(member!!.id) {
-        groupFundState?.let { gf ->
+        squadState?.let { gf ->
             member!!.id?.let {
                 squadViewModel.fetchContributionsForMember(
                     showLoader = true,
-                    groupFundID = gf.groupFundID,
+                    squadID = gf.squadID,
                     memberID = it
                 ) { list, _ ->
                     memberContributions = list ?: emptyList()

@@ -3,7 +3,7 @@ package com.android.savingssquad.singleton
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Login
 import com.android.savingssquad.model.RemainderModel
 import com.google.gson.Gson
@@ -24,8 +24,9 @@ object UserDefaultsManager {
     // 🔹 Keys (like Swift's enum)
     private object Keys {
         const val IS_LOGGED_IN = "ISLOGGEDIN"
+        const val IS_MULTIPLE_ACCOUNT = "ISMULTIPLEACCOUNT"
         const val LOGGED_USER = "LOGGEDUSER"
-        const val SAVED_GROUP_FUND = "SAVEDCHIT"
+        const val SAVED_SQUAD = "SAVEDCHIT"
         const val SAVED_REMAINDER = "SAVEDREMAINDER"
         const val IS_MANAGER_LOGIN = "ISMANAGERLOGIN"
         const val LOGGED_GROUP_ID = "LOGGEDGROUPID"
@@ -95,13 +96,16 @@ object UserDefaultsManager {
     fun saveIsLoggedIn(isLoggedIn: Boolean) = saveBool(Keys.IS_LOGGED_IN, isLoggedIn)
     fun getIsLoggedIn(): Boolean = getBool(Keys.IS_LOGGED_IN)
 
+    fun saveIsMultipleAccount(isMultipleAccount: Boolean) = saveBool(Keys.IS_MULTIPLE_ACCOUNT, isMultipleAccount)
+    fun getIsMultipleAccount(): Boolean = getBool(Keys.IS_MULTIPLE_ACCOUNT)
+
     fun saveLogin(login: Login) = saveObject(Keys.LOGGED_USER, login)
     fun getLogin(): Login? = getObject(Keys.LOGGED_USER)
 
-    // 🔹 Group Fund
-    fun saveGroupFund(groupFund: GroupFund) = saveObject(Keys.SAVED_GROUP_FUND, groupFund)
-    fun getGroupFund(): GroupFund? = getObject(Keys.SAVED_GROUP_FUND)
-    fun removeGroupFund() = removeObject(Keys.SAVED_GROUP_FUND)
+    // 🔹 Squad
+    fun saveSquad(squad: Squad) = saveObject(Keys.SAVED_SQUAD, squad)
+    fun getSquad(): Squad? = getObject(Keys.SAVED_SQUAD)
+    fun removeSquad() = removeObject(Keys.SAVED_SQUAD)
 
     // 🔹 Remainder
     fun saveRemainder(remainder: RemainderModel) = saveObject(Keys.SAVED_REMAINDER, remainder)
@@ -109,18 +113,19 @@ object UserDefaultsManager {
     fun removeRemainder() = removeObject(Keys.SAVED_REMAINDER)
 
     // 🔹 User Type
-    fun saveGroupFundManagerLogged(isManager: Boolean) = saveBool(Keys.IS_MANAGER_LOGIN, isManager)
-    fun getGroupFundManagerLogged(): Boolean = getBool(Keys.IS_MANAGER_LOGIN)
+    fun saveSquadManagerLogged(isManager: Boolean) = saveBool(Keys.IS_MANAGER_LOGIN, isManager)
+    fun getSquadManagerLogged(): Boolean = getBool(Keys.IS_MANAGER_LOGIN)
 
     // 🔹 Clear All
     fun clearAll() {
         listOf(
             Keys.IS_LOGGED_IN,
             Keys.LOGGED_USER,
-            Keys.SAVED_GROUP_FUND,
+            Keys.SAVED_SQUAD,
             Keys.SAVED_REMAINDER,
             Keys.IS_MANAGER_LOGIN,
-            Keys.LOGGED_GROUP_ID
+            Keys.LOGGED_GROUP_ID,
+            Keys.IS_MULTIPLE_ACCOUNT
         ).forEach { key -> removeObject(key) }
 
         Log.d("UserDefaultsManager", "🔄 All user data cleared successfully!")

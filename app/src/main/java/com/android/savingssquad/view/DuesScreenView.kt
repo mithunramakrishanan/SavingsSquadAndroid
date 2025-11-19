@@ -49,6 +49,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.android.savingssquad.R
@@ -60,7 +61,7 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
@@ -68,8 +69,8 @@ import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.unpaidMonths
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.EMIStatus
-import com.android.savingssquad.singleton.GroupFundActivityType
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadActivityType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentStatus
@@ -93,6 +94,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.Calendar
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DuesScreenView(
     navController: NavController,
@@ -100,7 +102,7 @@ fun DuesScreenView(
     loaderManager: LoaderManager = LoaderManager.shared
 ) {
     // replace these collects with actual flows/state from your ViewModel
-    val groupFundPayments by remember { derivedStateOf { squadViewModel.groupFundPayments } } // placeholder
+    val squadPayments by remember { derivedStateOf { squadViewModel.squadPayments } } // placeholder
     var payments by remember { mutableStateOf(listOf<PaymentsDetails>()) }
 
     var currentOverDueContribution by remember { mutableStateOf(listOf<ContributionDetail>()) }
@@ -110,19 +112,19 @@ fun DuesScreenView(
     var isLoading by remember { mutableStateOf(true) }
 
     val screenType =
-        if (UserDefaultsManager.getGroupFundManagerLogged())
-            GroupFundUserType.GROUP_FUND_MANAGER
+        if (UserDefaultsManager.getSquadManagerLogged())
+            SquadUserType.SQUAD_MANAGER
         else
-            GroupFundUserType.GROUP_FUND_MEMBER
+            SquadUserType.SQUAD_MEMBER
 
     // On first composition load data (mimics SwiftUI onAppear)
     LaunchedEffect(Unit) {
         // Payments
         squadViewModel.fetchPayments(showLoader = true) { success, _ ->
-            payments = getCurrentMonthPayments(squadViewModel.groupFundPayments.value)
+            payments = getCurrentMonthPayments(squadViewModel.squadPayments.value)
                 .filter { it.paymentStatus == PaymentStatus.SUCCESS }
 
-            if (screenType == GroupFundUserType.GROUP_FUND_MEMBER) {
+            if (screenType == SquadUserType.SQUAD_MEMBER) {
                 val id = squadViewModel.currentMember.value?.id
                 payments = payments.filter { it.memberId == id }
             }
@@ -160,10 +162,11 @@ fun DuesScreenView(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (screenType == GroupFundUserType.GROUP_FUND_MEMBER) {
+            if (payments.size == 0) {
+
                 DuesCardView(
                     title = "All Due’s Paid",
-                    subtitle = "Group Fund all caught up!",
+                    subtitle = "Squad all caught up!",
                     icon = Icons.Default.CheckCircle,
                     iconColor = Color(0xFF4CAF50),
                     gradientColors = listOf(
@@ -173,30 +176,20 @@ fun DuesScreenView(
                     showChevron = false
                 )
 
-                SectionView(title = "Recent Payments") {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(payments) { payment ->
-                            PaymentRow(
-                                payment = payment,
-                                showPaymentStatusRow = true,
-                                showPayoutStatusRow = false,
-                                squadViewModel = squadViewModel
-                            )
-                        }
-                    }
-                }
+                Text("No payments yet",
+                    style = AppFont.ibmPlexSans(15, FontWeight.Medium),
+                    color = AppColors.secondaryText,
+                    textAlign = TextAlign.Center
+                )
+
                 Spacer(modifier = Modifier.weight(1f))
-            } else {
-                // manager or default
-                if (currentOverDueContribution.isEmpty() && currentOverDueInstallments.isEmpty()) {
+            }
+            else {
+
+                if (screenType == SquadUserType.SQUAD_MEMBER) {
                     DuesCardView(
                         title = "All Due’s Paid",
-                        subtitle = "Group Fund all caught up!",
+                        subtitle = "Squad all caught up!",
                         icon = Icons.Default.CheckCircle,
                         iconColor = Color(0xFF4CAF50),
                         gradientColors = listOf(
@@ -210,101 +203,136 @@ fun DuesScreenView(
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp)
+                                .padding(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(payments) { payment ->
                                 PaymentRow(
                                     payment = payment,
                                     showPaymentStatusRow = true,
-                                    showPayoutStatusRow = true,
+                                    showPayoutStatusRow = false,
                                     squadViewModel = squadViewModel
                                 )
                             }
                         }
                     }
-
                     Spacer(modifier = Modifier.weight(1f))
-                } else {
-                    // Segmented control
-                    ModernSegmentedPickerView(
-                        segments = listOf("Contribution", "EMI"),
-                        selectedSegment = selectedSegment,
-                        onSegmentSelected = { selectedSegment = it }
-                    )
+                }
+                else {
+                    // manager or default
+                    if (currentOverDueContribution.isEmpty() && currentOverDueInstallments.isEmpty()) {
+                        DuesCardView(
+                            title = "All Due’s Paid",
+                            subtitle = "Squad all caught up!",
+                            icon = Icons.Default.CheckCircle,
+                            iconColor = Color(0xFF4CAF50),
+                            gradientColors = listOf(
+                                Color(0xFF4CAF50).copy(alpha = 0.08f),
+                                Color(0xFF4CAF50).copy(alpha = 0.15f)
+                            ),
+                            showChevron = false
+                        )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                        SectionView(title = "Recent Payments") {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                items(payments) { payment ->
+                                    PaymentRow(
+                                        payment = payment,
+                                        showPaymentStatusRow = true,
+                                        showPayoutStatusRow = true,
+                                        squadViewModel = squadViewModel
+                                    )
+                                }
+                            }
+                        }
 
-                    // Content
-                    if (selectedSegment == "Contribution") {
-                        if (currentOverDueContribution.isEmpty()) {
-                            DuesCardView(
-                                title = "All Contributions Paid",
-                                subtitle = "Group Fund all caught up!",
-                                icon = Icons.Default.CheckCircle,
-                                iconColor = Color(0xFF4CAF50),
-                                gradientColors = listOf(
-                                    Color(0xFF4CAF50).copy(alpha = 0.08f),
-                                    Color(0xFF4CAF50).copy(alpha = 0.15f)
-                                ),
-                                showChevron = false
-                            )
-                        } else {
-                            SectionView(title = "$selectedSegment Dues") {
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    contentPadding = PaddingValues(vertical = 8.dp)
-                                ) {
-                                    items(currentOverDueContribution) { contribution ->
-                                        contribution.dueDate?.let {
-                                            CommonFunctions.dateToString(
-                                                it.toDate(), format = "MMM dd yyyy")
-                                        }?.let {
-                                            PaymentDetailRow(
-                                                title = "Contribution ${contribution.monthYear}",
-                                                amount = "₹${contribution.amount}",
-                                                date = it,
-                                                status = if (contribution.paidStatus == PaidStatus.PAID) "PAID" else "PENDING",
-                                                memberName = contribution.memberName
-                                            )
+                        Spacer(modifier = Modifier.weight(1f))
+                    } else {
+                        // Segmented control
+                        ModernSegmentedPickerView(
+                            segments = listOf("Contribution", "EMI"),
+                            selectedSegment = selectedSegment,
+                            onSegmentSelected = { selectedSegment = it }
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Content
+                        if (selectedSegment == "Contribution") {
+                            if (currentOverDueContribution.isEmpty()) {
+                                DuesCardView(
+                                    title = "All Contributions Paid",
+                                    subtitle = "Squad all caught up!",
+                                    icon = Icons.Default.CheckCircle,
+                                    iconColor = Color(0xFF4CAF50),
+                                    gradientColors = listOf(
+                                        Color(0xFF4CAF50).copy(alpha = 0.08f),
+                                        Color(0xFF4CAF50).copy(alpha = 0.15f)
+                                    ),
+                                    showChevron = false
+                                )
+                            } else {
+                                SectionView(title = "$selectedSegment Dues") {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                        contentPadding = PaddingValues(vertical = 8.dp)
+                                    ) {
+                                        items(currentOverDueContribution) { contribution ->
+                                            contribution.dueDate?.let {
+                                                CommonFunctions.dateToString(
+                                                    it.toDate(), format = "MMM dd yyyy")
+                                            }?.let {
+                                                PaymentDetailRow(
+                                                    title = "Contribution ${contribution.monthYear}",
+                                                    amount = "₹${contribution.amount}",
+                                                    date = it,
+                                                    status = if (contribution.paidStatus == PaidStatus.PAID) "PAID" else "PENDING",
+                                                    memberName = contribution.memberName
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                    } else {
-                        if (currentOverDueInstallments.isEmpty()) {
-
-                            DuesCardView(
-                                title = "All EMI's Paid",
-                                subtitle = "Group Fund all caught up!",
-                                icon = Icons.Default.CheckCircle,
-                                iconColor = Color(0xFF4CAF50),
-                                gradientColors = listOf(
-                                    Color(0xFF4CAF50).copy(alpha = 0.08f),
-                                    Color(0xFF4CAF50).copy(alpha = 0.15f)
-                                ),
-                                showChevron = false
-                            )
                         } else {
-                            SectionView(title = "$selectedSegment Dues") {
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    contentPadding = PaddingValues(vertical = 8.dp)
-                                ) {
-                                    items(currentOverDueInstallments) { installment ->
-                                        installment. dueDate?.let {
-                                            CommonFunctions.dateToString(
-                                                it.toDate(), format = "MMM dd yyyy")
-                                        }?.let {
-                                            PaymentDetailRow(
-                                                title = "${installment.installmentNumber} (${installment.loanNumber})",
-                                                amount = "₹${installment.installmentAmount + installment.interestAmount}",
-                                                date = it,
-                                                status = if (installment.status == EMIStatus.PAID) "PAID" else "PENDING",
-                                                memberName = installment.memberName
-                                            )
+                            if (currentOverDueInstallments.isEmpty()) {
+
+                                DuesCardView(
+                                    title = "All EMI's Paid",
+                                    subtitle = "Squad all caught up!",
+                                    icon = Icons.Default.CheckCircle,
+                                    iconColor = Color(0xFF4CAF50),
+                                    gradientColors = listOf(
+                                        Color(0xFF4CAF50).copy(alpha = 0.08f),
+                                        Color(0xFF4CAF50).copy(alpha = 0.15f)
+                                    ),
+                                    showChevron = false
+                                )
+                            } else {
+                                SectionView(title = "$selectedSegment Dues") {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                        contentPadding = PaddingValues(vertical = 8.dp)
+                                    ) {
+                                        items(currentOverDueInstallments) { installment ->
+                                            installment. dueDate?.let {
+                                                CommonFunctions.dateToString(
+                                                    it.toDate(), format = "MMM dd yyyy")
+                                            }?.let {
+                                                PaymentDetailRow(
+                                                    title = "${installment.installmentNumber} (${installment.loanNumber})",
+                                                    amount = "₹${installment.installmentAmount + installment.interestAmount}",
+                                                    date = it,
+                                                    status = if (installment.status == EMIStatus.PAID) "PAID" else "PENDING",
+                                                    memberName = installment.memberName
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -313,6 +341,8 @@ fun DuesScreenView(
                     }
                 }
             }
+
+
         }
     }
 }
@@ -402,6 +432,7 @@ fun PaymentDetailRow(
 /**
  * Filter payments for the current month and only allowed subtypes
  */
+@RequiresApi(Build.VERSION_CODES.O)
 fun getCurrentMonthPayments(allPayments: List<PaymentsDetails>): List<PaymentsDetails> {
     // Current date
     val now = LocalDate.now()
@@ -446,15 +477,15 @@ fun fetchDueContributionsAndInstallments(
     squadViewModel: SquadViewModel,
     onComplete: (List<ContributionDetail>, List<Installment>) -> Unit
 ) {
-    val groupFundID = squadViewModel.groupFund.value?.groupFundID ?: run {
-        Log.e("DuesScreen", "❌ groupFundID is NULL — Cannot fetch dues")
+    val squadID = squadViewModel.squad.value?.squadID ?: run {
+        Log.e("DuesScreen", "❌ squadID is NULL — Cannot fetch dues")
         return
     }
 
-    Log.d("DuesScreen", "🔍 Fetching dues for GroupFundID: $groupFundID")
+    Log.d("DuesScreen", "🔍 Fetching dues for SquadID: $squadID")
 
     squadViewModel.fetchDueContributionsAndInstallments(
-        groupFundID)
+        squadID)
         { contributions, installments ->
             Log.d("DuesScreen", "🟡 Contributions Due = ${contributions.size}")
             Log.d("DuesScreen", "🟡 Installments Due = ${installments.size}")

@@ -56,7 +56,7 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
@@ -64,8 +64,8 @@ import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.unpaidMonths
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.EMIStatus
-import com.android.savingssquad.singleton.GroupFundActivityType
-import com.android.savingssquad.singleton.GroupFundUserType
+import com.android.savingssquad.singleton.SquadActivityType
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentSubType
@@ -96,29 +96,29 @@ fun BankDetailsView(
     val upiState = remember { mutableStateOf("") }
     var upiIDError by remember { mutableStateOf("") }
 
-    val groupFund by squadViewModel.groupFund.collectAsState()
+    val squad by squadViewModel.squad.collectAsState()
     val currentMember by squadViewModel.currentMember.collectAsState()
 
     val screenType =
-        if (UserDefaultsManager.getGroupFundManagerLogged())
-            GroupFundUserType.GROUP_FUND_MANAGER
+        if (UserDefaultsManager.getSquadManagerLogged())
+            SquadUserType.SQUAD_MANAGER
         else
-            GroupFundUserType.GROUP_FUND_MEMBER
+            SquadUserType.SQUAD_MEMBER
 
     // ---------- Load initial values (SwiftUI .onAppear) ----------
-    LaunchedEffect(groupFund, currentMember, screenType) {
-        upiState.value = if (screenType == GroupFundUserType.GROUP_FUND_MEMBER) {
+    LaunchedEffect(squad, currentMember, screenType) {
+        upiState.value = if (screenType == SquadUserType.SQUAD_MEMBER) {
             currentMember?.upiID ?: ""
         }
         else {
-            groupFund?.upiID ?: ""
+            squad?.upiID ?: ""
         }
 
-        accountHoldernameState.value = if (screenType == GroupFundUserType.GROUP_FUND_MEMBER) {
+        accountHoldernameState.value = if (screenType == SquadUserType.SQUAD_MEMBER) {
             currentMember?.name ?: ""
         }
         else {
-            groupFund?.groupFundAccountName ?: ""
+            squad?.squadAccountName ?: ""
         }
     }
 
@@ -135,8 +135,8 @@ fun BankDetailsView(
         ) {
 
             SSNavigationBar(
-                title = if (screenType == GroupFundUserType.GROUP_FUND_MANAGER)
-                    "Group Fund UPI"
+                title = if (screenType == SquadUserType.SQUAD_MANAGER)
+                    "Squad UPI"
                 else
                     "Your UPI",
                 navController = navController,
@@ -195,6 +195,8 @@ fun BankDetailsView(
                 Spacer(Modifier.height(40.dp))
             }
         }
+        SSAlert()
+        SSLoaderView()
     }
 }
 
@@ -241,13 +243,13 @@ private fun validateFields(
 }
 
 private fun saveAccountToFirestore(
-    screenType: GroupFundUserType?,
+    screenType: SquadUserType?,
     squadViewModel: SquadViewModel,
     loaderManager: LoaderManager,
     accountHoldername: String,
     upiID: String
 ) {
-    val groupFundID = squadViewModel.groupFund.value?.groupFundID ?: return
+    val squadID = squadViewModel.squad.value?.squadID ?: return
 
     fun handleResult(result: Result<BeneficiaryResult>) {
         loaderManager.hideLoader()
@@ -272,11 +274,11 @@ private fun saveAccountToFirestore(
 
     when (screenType) {
 
-        GroupFundUserType.GROUP_FUND_MANAGER -> {
+        SquadUserType.SQUAD_MANAGER -> {
             loaderManager.showLoader()
 
             FirebaseFunctionsManager.shared.verifyAndSaveUPIBeneficiary(
-                groupFundId = groupFundID,
+                squadId = squadID,
                 memberId = "",
                 name = accountHoldername,
                 vpa = upiID,
@@ -297,7 +299,7 @@ private fun saveAccountToFirestore(
             loaderManager.showLoader()
 
             FirebaseFunctionsManager.shared.verifyAndSaveUPIBeneficiary(
-                groupFundId = groupFundID,
+                squadId = squadID,
                 memberId = member.id!!,
                 name = member.name,
                 vpa = upiID,

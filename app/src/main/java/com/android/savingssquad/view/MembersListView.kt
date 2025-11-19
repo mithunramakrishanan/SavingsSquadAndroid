@@ -42,7 +42,7 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.GroupFund
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.SquadStrings
@@ -54,6 +54,7 @@ import com.android.savingssquad.viewmodel.AlertManager
 import com.yourapp.utils.CommonFunctions
 import java.util.Calendar
 import androidx.compose.foundation.lazy.items
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.viewmodel.AppDestination
 
 
@@ -65,8 +66,14 @@ fun MembersListView(
 ) {
     var didFetchMembers by remember { mutableStateOf(false) }
 
-    val members by squadViewModel.groupFundMembers.collectAsStateWithLifecycle()
+    val members by squadViewModel.squadMembers.collectAsStateWithLifecycle()
     val showAddMemberPopup by squadViewModel.showAddMemberPopup.collectAsStateWithLifecycle()
+
+    val screenType =
+        if (UserDefaultsManager.getSquadManagerLogged())
+            SquadUserType.SQUAD_MANAGER
+        else
+            SquadUserType.SQUAD_MEMBER
 
     Box(
         modifier = Modifier
@@ -83,12 +90,14 @@ fun MembersListView(
         ) {
 
             SSNavigationBar(
-                title = SquadStrings.groupFundMembersTitle,
+                title = SquadStrings.squadMembersTitle,
                 navController = navController,
                 showBackButton = true,
-                rightButtonDrawable = R.drawable.add_member_icon
+                rightButtonDrawable = if (screenType == SquadUserType.SQUAD_MANAGER)
+                    R.drawable.add_member_icon
+                else null
             ) {
-                if (UserDefaultsManager.getGroupFundManagerLogged()) {
+                if (UserDefaultsManager.getSquadManagerLogged()) {
                     squadViewModel.setShowAddMemberPopup(true)
                 }
             }
@@ -151,7 +160,7 @@ fun EmptyMembersView() {
         )
 
         Text(
-            text = "No group fund members yet!",
+            text = "No squad members yet!",
             style = AppFont.ibmPlexSans(16, FontWeight.Normal),
             color = AppColors.headerText
         )
@@ -172,7 +181,7 @@ fun MembersListContent(
 
         items(members, key = { it.phoneNumber }) { member ->
 
-            if (UserDefaultsManager.getGroupFundManagerLogged()) {
+            if (UserDefaultsManager.getSquadManagerLogged()) {
                 Row(
                     modifier = Modifier.clickable {
                         squadViewModel.setSelectedMember(member)
