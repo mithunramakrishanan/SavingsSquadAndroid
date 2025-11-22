@@ -25,5 +25,9 @@
             </intent-filter>
         </activity>
 
+        <!-- Add this -->
+        <activity
+            android:name="com.android.savingssquad.view.PaymentViewController"
+            android:exported="true" />
     </application>
 </manifest>

@@ -602,8 +602,8 @@ private fun saveSquadData(
                             description = "Started a squad with an amount of",
                             squadId = squad.squadID,
 
-                            paymentSessionId = "",
-                            orderId = "",
+                            payment_session_id = "",
+                            order_id = "",
                             contributionId = "",
                             loanId = "",
                             installmentId = "",

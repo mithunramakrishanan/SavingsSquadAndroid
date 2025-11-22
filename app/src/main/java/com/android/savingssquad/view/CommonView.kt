@@ -86,12 +86,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.zIndex
 import androidx.navigation.compose.rememberNavController
 import com.android.savingssquad.R
+import com.android.savingssquad.model.Member
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.color
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AppDestination
 import com.google.firebase.auth.PhoneAuthOptions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 
 // ---------- SSNavigationBar ----------
@@ -1389,6 +1393,7 @@ fun AddMemberPopup(
     var verifyOTPError by remember { mutableStateOf("") }
 
     val coroutineScope = rememberCoroutineScope()
+    var debounceJob by remember { mutableStateOf<Job?>(null) }
 
     // ----------------- Validation -----------------
     fun validateFields(): Boolean {
@@ -1397,6 +1402,39 @@ fun AddMemberPopup(
             "" else "Enter a valid 10-digit phone number"
 
         return memberNameError.isEmpty() && phoneError.isEmpty()
+    }
+
+    fun handleMemberNameChange(
+        newValue: String,
+        setError: (String) -> Unit,
+        squadMembers: List<Member>,   // list from ViewModel
+        coroutineScope: CoroutineScope,
+        debounceJob: Job?,
+        onUpdateDebounceJob: (Job?) -> Unit
+    ) {
+        // Clear error immediately (like Swift)
+        setError("")
+
+        // Cancel previous debounce job
+        debounceJob?.cancel()
+
+        // Create new debounce job
+        val newJob = coroutineScope.launch {
+            delay(500)
+
+            val cleanedName = CommonFunctions.cleanUpName(newValue)
+
+            val exists = squadMembers
+                .map { it.name.trim().lowercase() }
+                .contains(cleanedName.trim().lowercase())
+
+            if (exists) {
+                setError("Name already exists")
+            }
+        }
+
+        // Update external reference
+        onUpdateDebounceJob(newJob)
     }
 
     // ----------------- Handle Add Member -----------------
@@ -1508,6 +1546,17 @@ fun AddMemberPopup(
                     error = memberNameError
                 )
 
+                LaunchedEffect(memberNameState.value) {
+                    handleMemberNameChange(
+                        newValue = memberNameState.value,
+                        setError = { memberNameError = it },
+                        squadMembers = squadViewModel.squadMembers.value,
+                        coroutineScope = coroutineScope,
+                        debounceJob = debounceJob,
+                        onUpdateDebounceJob = { debounceJob = it }
+                    )
+                }
+
                 // Phone Number
                 SSTextField(
                     icon = Icons.Default.Phone,
@@ -1551,7 +1600,7 @@ fun AddMemberPopup(
             // Button
             SSButton(
                 title = if (otpVerified) "Add Member" else "Send OTP",
-                isDisabled = otpProcessStarted || sendOTPLoading,
+                isDisabled = (otpProcessStarted || sendOTPLoading) || memberNameError.isNotEmpty(),
                 action = { handleAddMember() }
             )
 

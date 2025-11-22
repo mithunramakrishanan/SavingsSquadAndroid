@@ -1,6 +1,7 @@
 package com.android.savingssquad.view
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -23,10 +24,8 @@ class PaymentViewController : ComponentActivity(), CFCheckoutResponseCallback {
     private val squadViewModel: SquadViewModel by viewModels()
 
     private var orderId: String = ""
-    private var paymentSessionId: String = ""
+    private var payment_session_id: String = ""
     private var squadId: String = ""
-
-    private lateinit var functions: FirebaseFunctions
 
     private var onPaymentSuccess: ((String) -> Unit)? = null
     private var onPaymentFailure: ((String) -> Unit)? = null
@@ -35,10 +34,8 @@ class PaymentViewController : ComponentActivity(), CFCheckoutResponseCallback {
         super.onCreate(savedInstanceState)
 
         orderId = intent.getStringExtra("orderId") ?: ""
-        paymentSessionId = intent.getStringExtra("paymentSessionId") ?: ""
+        payment_session_id = intent.getStringExtra("payment_session_id") ?: ""
         squadId = intent.getStringExtra("squadId") ?: ""
-
-        functions = FirebaseFunctions.getInstance("asia-south1") // ✅ region
 
         setContent {
             PaymentScreen(
@@ -54,7 +51,7 @@ class PaymentViewController : ComponentActivity(), CFCheckoutResponseCallback {
     private fun startPayment() {
         try {
             val cfSession = CFSession.CFSessionBuilder()
-                .setEnvironment(CFSession.Environment.SANDBOX).setPaymentSessionID(paymentSessionId)
+                .setEnvironment(CFSession.Environment.SANDBOX).setPaymentSessionID(payment_session_id)
                 .setOrderId(orderId)
                 .build()
 
@@ -76,23 +73,29 @@ class PaymentViewController : ComponentActivity(), CFCheckoutResponseCallback {
 
     // ✅ Callbacks from Cashfree SDK
     override fun onPaymentVerify(orderID: String) {
+        Log.d("Payment flow Success", orderID)
         verifyPayment(orderID)
     }
 
     override fun onPaymentFailure(errorResponse: CFErrorResponse, orderID: String) {
+        Log.d("Payment flow Failed", errorResponse.message)
         val msg = errorResponse.message ?: "Payment failed"
         triggerFailure(msg)
     }
 
     // ✅ Verify payment via Firebase Cloud Function
     private fun verifyPayment(orderId: String) {
+        Log.d("Payment flow", "Verifying payment...")
+
+        Log.d("Payment flow orderId", orderId)
+        Log.d("Payment flow squadId", squadId)
         setContent {
             PaymentScreen(
                 isLoading = true,
                 message = "Verifying payment..."
             )
         }
-
+        val functions = FirebaseFunctions.getInstance()
         functions
             .getHttpsCallable("verifyCashFreePaymentStatus")
             .call(
@@ -102,6 +105,7 @@ class PaymentViewController : ComponentActivity(), CFCheckoutResponseCallback {
                 )
             )
             .addOnSuccessListener { result ->
+                Log.d("Payment flow Success", "verifyCashFreePaymentStatus Success")
                 val data = result.data as? Map<*, *> ?: return@addOnSuccessListener
                 val success = data["success"] as? Boolean ?: false
                 val message = data["paymentResponseMessage"] as? String ?: "Unknown"
@@ -115,6 +119,7 @@ class PaymentViewController : ComponentActivity(), CFCheckoutResponseCallback {
                 }
             }
             .addOnFailureListener { e ->
+                Log.d("Payment flow failed", e.localizedMessage)
                 triggerFailure("Verification failed: ${e.localizedMessage}")
             }
     }

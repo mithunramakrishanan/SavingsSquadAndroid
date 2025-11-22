@@ -143,7 +143,7 @@ fun MemberTabView(
         if (showPayment && squad != null) {
             CashfreePaymentView(
                 orderId = paymentOrderId,
-                paymentSessionId = paymentOrderToken,
+                payment_session_id = paymentOrderToken,
                 squadId = squad.squadID,
                 onSuccess = { orderId ->
                     println("✅ Payment Success: $orderId")

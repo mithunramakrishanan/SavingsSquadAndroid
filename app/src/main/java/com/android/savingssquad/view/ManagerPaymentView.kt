@@ -98,6 +98,26 @@ fun ManagerPaymentView(
 
     val isPendingLoanAvailable by remember { derivedStateOf { squadViewModel.isPendingLoanAvailable } }
 
+    val paymentAmount = remember { mutableStateOf("") }
+
+    var paymentAmountError by remember { mutableStateOf("") }
+
+    var paymentNotes by remember { mutableStateOf("") }
+    var paymentNotesError by remember { mutableStateOf("") }
+
+    fun validateFields(): Boolean {
+        paymentAmountError = if (paymentAmount.value.isEmpty()) {
+            "Amount is required"
+        } else ""
+
+        paymentNotesError = if (paymentNotes.isEmpty()) {
+            "Note is required"
+        } else ""
+
+        return paymentAmountError.isEmpty() &&
+                paymentNotesError.isEmpty()
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
 
         AppBackgroundGradient()
@@ -191,31 +211,57 @@ fun ManagerPaymentView(
                     )
                 }
 
+                item {
+
+                    if (loanSelectedMember != null && loanSelectedMember!!.upiBeneId.isEmpty()) {
+                        Text(
+                            text = "⚠️ ${loanSelectedMember!!.name} has not added a UPI ID",
+                            style = AppFont.ibmPlexSans(12, FontWeight.Normal),
+                            color = AppColors.errorAccent,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        )
+                    }
+                }
+
             } else {
                 // Other Payments
                 item {
                     SectionView(title = "Other Payments") {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            val amountState = remember { mutableStateOf("") }
+
+                            val amount = remember { mutableStateOf("") }
+
+                            LaunchedEffect(amount.value) {
+                                paymentAmount.value = amount.value ?: ""
+                            }
                             SSTextField(
                                 icon = Icons.Default.CreditCard,
                                 placeholder = "Enter Amount",
-                                textState = amountState,
+                                textState = amount,
                                 keyboardType = KeyboardType.Number,
-                                error = ""
+                                error = paymentAmountError
                             )
 
-                            val notesState = remember { mutableStateOf("") }
+
                             SSTextView(
                                 placeholder = "Add a note",
-                                text = notesState.value,
-                                onTextChange = { notesState.value = it },
-                                error = "",
+                                text = paymentNotes,
+                                onTextChange = { paymentNotes = it },
+                                error = paymentNotesError,
                                 maxCharacters = 200
                             )
 
                             SSButton(title = "Make Payment") {
                                 /* handle other payment */
+                                
+                                if (validateFields()) {
+                                    handleOtherPayment(squadViewModel = squadViewModel, amountStr = paymentAmount.value, notes = paymentNotes)
+
+                                }
+                                
                             }
                         }
                     }
@@ -308,26 +354,13 @@ private fun makeLoanPayment(
     }
 }
 
-private fun validateOtherPaymentFields(
-    amount: String,
-    notes: String,
-    onSetAmountError: (String) -> Unit,
-    onSetNotesError: (String) -> Unit
-): Boolean {
-    val amountErr = if (amount.isBlank()) "Amount is required" else ""
-    val notesErr = if (notes.isBlank()) "Note is required" else ""
-    onSetAmountError(amountErr)
-    onSetNotesError(notesErr)
-    return amountErr.isEmpty() && notesErr.isEmpty()
-}
-
-private suspend fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String, notes: String) {
+private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String, notes: String) {
     val availableAmount = squadViewModel.squad.value?.currentAvailableAmount ?: 0
     val amountInt = amountStr.toIntOrNull() ?: 0
     if (availableAmount < amountInt) {
         AlertManager.shared.showAlert(
             title = SquadStrings.appName,
-            message = "❌ Fund not available",
+            message = "Fund not available",
             primaryButtonTitle = "OK",
             primaryAction = {}
         )

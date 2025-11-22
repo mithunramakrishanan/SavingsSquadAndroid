@@ -17,9 +17,9 @@ import com.google.firebase.firestore.SetOptions
 import com.yourapp.utils.CommonFunctions
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
-import com.android.savingssquad.model.PayoutStatus
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentEntryType
+import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.singleton.asTimestamp
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks

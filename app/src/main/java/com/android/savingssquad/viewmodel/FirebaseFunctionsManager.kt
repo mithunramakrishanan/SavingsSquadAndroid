@@ -11,6 +11,7 @@ import com.android.savingssquad.singleton.JsonUtil
 import com.android.savingssquad.singleton.LocalDatabase
 import com.android.savingssquad.singleton.SquadStrings
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
 import com.google.firebase.functions.HttpsCallableResult
 import com.yourapp.utils.CommonFunctions
 
@@ -76,14 +77,15 @@ class FirebaseFunctionsManager private constructor() {
                     )
                 )
             }
-
             is CashfreePaymentAction.Retry -> {
                 functionName = "retryCashFreePayment"
                 data["failedOrderId"] = action.failedOrderId
             }
         }
 
-        functions.useEmulator("localhost", 5001)
+//        functions.useEmulator("192.168.29.35", 5001)
+
+        Log.d("Payment Payload", "${data}")
 
         functions
             .getHttpsCallable(functionName)
@@ -92,16 +94,23 @@ class FirebaseFunctionsManager private constructor() {
                 LoaderManager.shared.hideLoader()
 
                 if (!task.isSuccessful) {
-                    val error = task.exception
-                    val message = error?.message ?: "Unknown error"
+                    val e = task.exception
+                    val firebaseError = (e as? FirebaseFunctionsException)
+
+                    val code = firebaseError?.code
+                    val details = firebaseError?.details
+                    val serverMsg = firebaseError?.message
+
+                    println("🔥 FUNCTION FAILURE: code=$code | message=$serverMsg | details=$details | raw=$e")
+
                     AlertManager.shared.showAlert(
                         title = SquadStrings.appName,
-                        message = "⚠️ $functionName failed.\n$message",
+                        message = "⚠️ $functionName failed.\n$serverMsg",
                         primaryButtonTitle = "OK",
                         primaryAction = {}
                     )
-                    println("❌ Firebase error: $message")
-                    completion(null, null, Exception(message))
+
+                    completion(null, null, e)
                     return@addOnCompleteListener
                 }
 
@@ -202,7 +211,7 @@ class FirebaseFunctionsManager private constructor() {
         val data = mapOf("beneficiaryId" to beneId)
 
         // 🔌 Emulator (debug only)
-        functions.useEmulator("localhost", 5001)
+        functions.useEmulator("10.0.2.2", 5001)
 
         // 2️⃣ Firebase callable
         functions
@@ -307,7 +316,7 @@ class FirebaseFunctionsManager private constructor() {
         transferMode?.let { payoutData["transferMode"] = it }
 
         // 🔌 Emulator (debug only)
-        functions.useEmulator("localhost", 5001)
+        functions.useEmulator("10.0.2.2", 5001)
 
         // 3️⃣ Call Firebase Function
         functions
@@ -380,7 +389,7 @@ class FirebaseFunctionsManager private constructor() {
         )
 
         // 🔌 Emulator
-        functions.useEmulator("localhost", 5001)
+        functions.useEmulator("10.0.2.2", 5001)
 
         functions
             .getHttpsCallable("verifyCashFreePayoutStatus")
@@ -451,7 +460,7 @@ class FirebaseFunctionsManager private constructor() {
             "postalCode" to postalCode
         )
 
-        functions.useEmulator("localhost", 5001)
+        functions.useEmulator("10.0.2.2", 5001)
 
         functions
             .getHttpsCallable("verifyAndSaveUPIBeneficiary")

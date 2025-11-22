@@ -176,11 +176,18 @@ fun DuesScreenView(
                     showChevron = false
                 )
 
-                Text("No payments yet",
-                    style = AppFont.ibmPlexSans(15, FontWeight.Medium),
-                    color = AppColors.secondaryText,
-                    textAlign = TextAlign.Center
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No payments yet",
+                        style = AppFont.ibmPlexSans(15, FontWeight.Medium),
+                        color = AppColors.secondaryText
+                    )
+                }
 
                 Spacer(modifier = Modifier.weight(1f))
             }

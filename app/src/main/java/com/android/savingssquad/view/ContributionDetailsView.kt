@@ -203,12 +203,20 @@ fun ContributionDetailsView(
                 ) {
                     if (filteredContributions.isEmpty()) {
                         item {
-                            Text(
-                                "No contributions found",
-                                color = AppColors.secondaryText,
-                                modifier = Modifier.padding(top = 20.dp),
-                                style = AppFont.ibmPlexSans(14, FontWeight.Normal)
-                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No contributions found",
+                                    color = AppColors.secondaryText,
+                                    modifier = Modifier.padding(top = 20.dp),
+                                    style = AppFont.ibmPlexSans(14, FontWeight.Normal)
+                                )
+                            }
                         }
                     } else {
                         items(filteredContributions, key = { it.monthYear }) { fund ->

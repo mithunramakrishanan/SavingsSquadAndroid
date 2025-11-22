@@ -497,7 +497,7 @@ fun EMIListRow(
             )
 
             Text(
-                "Tenure: ${emi.emiMonths} months @ ${emi.emiInterestRate}%",
+                "Tenure: ${emi.emiMonths} months @ ${emi.emiInterestRate}% interest",
                 style = AppFont.ibmPlexSans(13, FontWeight.Normal),
                 color = AppColors.secondaryText
             )

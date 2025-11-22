@@ -64,8 +64,10 @@ import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentEntryType
+import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
+import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
@@ -282,11 +284,15 @@ fun ManualEntryView(
                                             paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                                             paymentType = PaymentType.PAYMENT_CREDIT,
                                             paymentSubType = PaymentSubType.CONTRIBUTION_AMOUNT,
-                                            description = "Updated $contributionSelectedMemberName contribution for $contributionSelectedMonthYear",
+                                            paymentStatus = PaymentStatus.SUCCESS,
+                                            payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
+                                            description = "Squad Manager updated $contributionSelectedMemberName contribution for $contributionSelectedMonthYear",
                                             squadId = squadLocal.squadID,
                                             contributionId = contributionID,
                                             loanId = "",
                                             installmentId = "",
+                                            paymentSuccess = true,
+                                            payoutSuccess = true,
                                             transferReferenceId = ""
                                         )
 
@@ -413,8 +419,12 @@ fun ManualEntryView(
                                                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                                                 paymentType = PaymentType.PAYMENT_CREDIT,
                                                 paymentSubType = PaymentSubType.EMI_AMOUNT,
-                                                description = "Updated EMI to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber",
-                                                squadId = squad?.squadID ?: ""
+                                                paymentStatus = PaymentStatus.SUCCESS,
+                                                payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
+                                                description = "Squad Manager updated EMI to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber",
+                                                squadId = squad?.squadID ?: "",
+                                                paymentSuccess = true,
+                                                payoutSuccess = true
                                             )
                                             val interestPayment = PaymentsDetails(
                                                 id = CommonFunctions.generatePaymentID(squadId = squad?.squadID ?: ""),
@@ -429,8 +439,12 @@ fun ManualEntryView(
                                                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                                                 paymentType = PaymentType.PAYMENT_CREDIT,
                                                 paymentSubType = PaymentSubType.INTEREST_AMOUNT,
-                                                description = "Updated Interest to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber",
-                                                squadId = squad?.squadID ?: ""
+                                                paymentStatus = PaymentStatus.SUCCESS,
+                                                payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
+                                                description = "Squad Manager updated Interest to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber",
+                                                squadId = squad?.squadID ?: "",
+                                                paymentSuccess = true,
+                                                payoutSuccess = true
                                             )
 
                                             squadViewModel.savePayments(squadID = squad?.squadID ?: "", payment = listOf(loanPayment, interestPayment)) { psuccess, perror ->

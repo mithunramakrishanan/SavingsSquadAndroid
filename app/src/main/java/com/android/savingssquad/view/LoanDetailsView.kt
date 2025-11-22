@@ -170,28 +170,40 @@ fun LoanDetailsView(
                 // 🔵 Loading State
                 squadLoans == null -> {
                     item {
-                        Text(
-                            text = "No loans yet",
+
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 16.dp),
-                            style = AppFont.ibmPlexSans(15),
-                            color = AppColors.secondaryText
-                        )
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No loans yet",
+                                color = AppColors.secondaryText,
+                                modifier = Modifier.padding(top = 20.dp),
+                                style = AppFont.ibmPlexSans(14, FontWeight.Normal)
+                            )
+                        }
                     }
                 }
 
                 // 🔴 Empty State
                 filteredLoans.isEmpty() -> {
                     item {
-                        Text(
-                            text = "No loans yet",
+
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 16.dp),
-                            style = AppFont.ibmPlexSans(15),
-                            color = AppColors.secondaryText
-                        )
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No loans yet",
+                                color = AppColors.secondaryText,
+                                modifier = Modifier.padding(top = 20.dp),
+                                style = AppFont.ibmPlexSans(14, FontWeight.Normal)
+                            )
+                        }
                     }
                 }
 

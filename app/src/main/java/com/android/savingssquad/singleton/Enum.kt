@@ -1,5 +1,6 @@
 package com.android.savingssquad.singleton
 
+import androidx.annotation.Keep
 import androidx.compose.ui.graphics.Color
 import com.android.savingssquad.model.PaymentsDetails
 import kotlinx.serialization.Serializable
@@ -11,8 +12,8 @@ import com.google.firebase.firestore.PropertyName
 // MARK: - Payment Type
 // ------------------------------
 enum class PaymentType(@get:PropertyName("value") val value: String) {
-    @PropertyName("AMOUNT DEBIT") PAYMENT_DEBIT("AMOUNT DEBIT"),
-    @PropertyName("AMOUNT CREDIT") PAYMENT_CREDIT("AMOUNT CREDIT");
+    @PropertyName("PAYMENT_DEBIT") PAYMENT_DEBIT("PAYMENT_DEBIT"),
+    @PropertyName("PAYMENT_CREDIT") PAYMENT_CREDIT("PAYMENT_CREDIT");
 
     companion object {
         fun fromValue(value: String?): PaymentType =
@@ -24,11 +25,11 @@ enum class PaymentType(@get:PropertyName("value") val value: String) {
 // MARK: - Payment SubType
 // ------------------------------
 enum class PaymentSubType(@get:PropertyName("value") val value: String) {
-    @PropertyName("INTEREST AMOUNT") INTEREST_AMOUNT("INTEREST AMOUNT"),
-    @PropertyName("EMI AMOUNT") EMI_AMOUNT("EMI AMOUNT"),
-    @PropertyName("CONTRIBUTION AMOUNT") CONTRIBUTION_AMOUNT("CONTRIBUTION AMOUNT"),
-    @PropertyName("LOAN AMOUNT") LOAN_AMOUNT("LOAN AMOUNT"),
-    @PropertyName("OTHERS AMOUNT") OTHERS_AMOUNT("OTHERS AMOUNT");
+    @PropertyName("INTEREST_AMOUNT") INTEREST_AMOUNT("INTEREST_AMOUNT"),
+    @PropertyName("EMI_AMOUNT") EMI_AMOUNT("EMI_AMOUNT"),
+    @PropertyName("CONTRIBUTION_AMOUNT") CONTRIBUTION_AMOUNT("CONTRIBUTION_AMOUNT"),
+    @PropertyName("LOAN_AMOUNT") LOAN_AMOUNT("LOAN_AMOUNT"),
+    @PropertyName("OTHERS_AMOUNT") OTHERS_AMOUNT("OTHERS_AMOUNT");
 
     companion object {
         fun fromValue(value: String?): PaymentSubType =
@@ -41,7 +42,7 @@ enum class PaymentSubType(@get:PropertyName("value") val value: String) {
 // ------------------------------
 enum class PaymentStatus(@get:PropertyName("value") val value: String) {
     @PropertyName("PENDING") PENDING("PENDING"),
-    @PropertyName("INPROGRESS") IN_PROGRESS("INPROGRESS"),
+    @PropertyName("INPROGRESS") INPROGRESS("INPROGRESS"),
     @PropertyName("SUCCESS") SUCCESS("SUCCESS"),
     @PropertyName("FAILED") FAILED("FAILED"),
     @PropertyName("USER_DROPPED") USER_DROPPED("USER_DROPPED"),
@@ -59,8 +60,8 @@ enum class PaymentStatus(@get:PropertyName("value") val value: String) {
 // MARK: - Payment Entry Type
 // ------------------------------
 enum class PaymentEntryType(@get:PropertyName("value") val value: String) {
-    @PropertyName("MANUAL ENTRY") MANUAL_ENTRY("MANUAL ENTRY"),
-    @PropertyName("AUTOMATIC ENTRY") AUTOMATIC_ENTRY("AUTOMATIC ENTRY");
+    @PropertyName("MANUAL_ENTRY") MANUAL_ENTRY("MANUAL_ENTRY"),
+    @PropertyName("AUTOMATIC_ENTRY") AUTOMATIC_ENTRY("AUTOMATIC_ENTRY");
 
     companion object {
         fun fromValue(value: String?): PaymentEntryType =
@@ -73,7 +74,7 @@ enum class PaymentEntryType(@get:PropertyName("value") val value: String) {
 // ------------------------------
 enum class PaidStatus(@get:PropertyName("value") val value: String) {
     @PropertyName("PAID") PAID("PAID"),
-    @PropertyName("NOT PAID") NOT_PAID("NOT PAID");
+    @PropertyName("NOT_PAID") NOT_PAID("NOT_PAID");
 
     companion object {
         fun fromValue(value: String?): PaidStatus =
@@ -99,27 +100,53 @@ enum class EMIStatus(@get:PropertyName("value") val value: String) {
 // ------------------------------
 // MARK: - Payout Status
 // ------------------------------
+@Keep
 enum class PayoutStatus(@get:PropertyName("value") val value: String) {
-    @PropertyName("PENDING") PENDING("PENDING"),
-    @PropertyName("RECEIVED") INITIATED("RECEIVED"),
-    @PropertyName("PAYOUT_INPROGRESS") IN_PROGRESS("PAYOUT_INPROGRESS"),
-    @PropertyName("PAYOUT_SUCCESS") SUCCESS("PAYOUT_SUCCESS"),
-    @PropertyName("PAYOUT_FAILED") FAILED("PAYOUT_FAILED"),
-    @PropertyName("PAYOUT_CANCELLED") CANCELLED("PAYOUT_CANCELLED"),
-    @PropertyName("PAYOUT_REVERSED") REVERSED("PAYOUT_REVERSED");
+
+    @PropertyName("PENDING")
+    PENDING("PENDING"),
+
+    @PropertyName("RECEIVED")
+    RECEIVED("RECEIVED"),
+
+    @PropertyName("PAYOUT_INPROGRESS")
+    PAYOUT_INPROGRESS("PAYOUT_INPROGRESS"),
+
+    @PropertyName("PAYOUT_SUCCESS")
+    PAYOUT_SUCCESS("PAYOUT_SUCCESS"),
+
+    @PropertyName("PAYOUT_FAILED")
+    PAYOUT_FAILED("PAYOUT_FAILED"),
+
+    @PropertyName("PAYOUT_CANCELLED")
+    PAYOUT_CANCELLED("PAYOUT_CANCELLED"),
+
+    @PropertyName("PAYOUT_REVERSED")
+    PAYOUT_REVERSED("PAYOUT_REVERSED");
+
+    val displayText: String
+        get() = when (this) {
+            PENDING -> "Waiting for Payout"
+            RECEIVED -> "Payout Initiated"
+            PAYOUT_INPROGRESS -> "Payout In Progress"
+            PAYOUT_SUCCESS -> "Payout Successful"
+            PAYOUT_FAILED -> "Payout Failed"
+            PAYOUT_CANCELLED -> "Payout Cancelled"
+            PAYOUT_REVERSED -> "Payout Reversed"
+        }
 
     companion object {
-        fun fromValue(value: String?): PayoutStatus =
-            entries.find { it.value == value } ?: PENDING
+        fun fromValue(value: String?): PayoutStatus {
+            return entries.find { it.value.equals(value, ignoreCase = true) } ?: PENDING
+        }
     }
 }
-
 // ------------------------------
 // MARK: - Squad User Type
 // ------------------------------
 enum class SquadUserType(@get:PropertyName("value") val value: String) {
-    @PropertyName("AS MANAGER") SQUAD_MANAGER("AS MANAGER"),
-    @PropertyName("AS MEMBER") SQUAD_MEMBER("AS MEMBER");
+    @PropertyName("SQUAD_MANAGER") SQUAD_MANAGER("SQUAD_MANAGER"),
+    @PropertyName("SQUAD_MEMBER") SQUAD_MEMBER("SQUAD_MEMBER");
 
     val roleDescription: String get() = value
 
@@ -133,9 +160,9 @@ enum class SquadUserType(@get:PropertyName("value") val value: String) {
 // MARK: - Squad Activity Type
 // ------------------------------
 enum class SquadActivityType(@get:PropertyName("value") val value: String) {
-    @PropertyName("AMOUNT DEBIT") AMOUNT_DEBIT("AMOUNT DEBIT"),
-    @PropertyName("AMOUNT CREDIT") AMOUNT_CREDIT("AMOUNT CREDIT"),
-    @PropertyName("OTHER ACTIVITY") OTHER_ACTIVITY("OTHER ACTIVITY");
+    @PropertyName("AMOUNT_DEBIT") AMOUNT_DEBIT("AMOUNT_DEBIT"),
+    @PropertyName("AMOUNT_CREDIT") AMOUNT_CREDIT("AMOUNT_CREDIT"),
+    @PropertyName("OTHER_ACTIVITY") OTHER_ACTIVITY("OTHER_ACTIVITY");
 
     companion object {
         fun fromValue(value: String?): SquadActivityType =
@@ -147,9 +174,9 @@ enum class SquadActivityType(@get:PropertyName("value") val value: String) {
 // MARK: - Reminder Type
 // ------------------------------
 enum class RemainderType(@get:PropertyName("value") val value: String) {
-    @PropertyName("Contribution") CONTRIBUTION("Contribution"),
+    @PropertyName("CONTRIBUTION") CONTRIBUTION("CONTRIBUTION"),
     @PropertyName("EMI") EMI("EMI"),
-    @PropertyName("Other Remainder") OTHER_REMAINDER("Other Remainder");
+    @PropertyName("OTHER_REMAINDER") OTHER_REMAINDER("OTHER_REMAINDER");
 
     companion object {
         fun fromValue(value: String?): RemainderType =
@@ -182,14 +209,14 @@ enum class RecordStatus(@get:PropertyName("value") val value: String) {
 // MARK: - Cashfree Beneficiary Type
 // ------------------------------
 enum class CashfreeBeneficiaryType(@get:PropertyName("value") val value: String) {
-    @PropertyName("banktransfer") BANK("banktransfer"),
-    @PropertyName("upi") UPI("upi"),
-    @PropertyName("card") CARD("card"),
-    @PropertyName("paypal") PAYPAL("paypal");
+    @PropertyName("banktransfer") banktransfer("banktransfer"),
+    @PropertyName("upi") upi("upi"),
+    @PropertyName("card") card("card"),
+    @PropertyName("paypal") paypal("paypal");
 
     companion object {
         fun fromValue(value: String?): CashfreeBeneficiaryType =
-            entries.find { it.value == value } ?: BANK
+            entries.find { it.value == value } ?: banktransfer
     }
 }
 
@@ -218,7 +245,7 @@ val EMIStatus.color: Color
 val PaymentStatus.displayText: String
     get() = when (this) {
         PaymentStatus.PENDING -> "Waiting for Payment"
-        PaymentStatus.IN_PROGRESS -> "Payment In Progress"
+        PaymentStatus.INPROGRESS -> "Payment In Progress"
         PaymentStatus.SUCCESS -> "Payment Successful"
         PaymentStatus.FAILED -> "Payment Failed"
         PaymentStatus.USER_DROPPED -> "Payment Dropped"

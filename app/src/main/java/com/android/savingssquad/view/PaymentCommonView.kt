@@ -17,7 +17,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.android.savingssquad.model.*
-import com.android.savingssquad.model.PayoutStatus
 import com.android.savingssquad.singleton.*
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.google.firebase.Timestamp
@@ -75,7 +74,7 @@ fun PaymentRow(
             )
         }
 
-        if (showPayoutStatusRow) {
+        if (showPayoutStatusRow && payment.paymentEntryType == PaymentEntryType.AUTOMATIC_ENTRY) {
             PayoutStatusRowView(
                 status = payment.payoutStatus,
                 payoutDate = payment.payoutUpdatedDate,
@@ -237,19 +236,19 @@ fun PayoutStatusRowView(
             // 🔹 Crisp Vector Icon (slightly larger)
             Icon(
                 imageVector = when (status) {
-                    PayoutStatus.SUCCESS -> Icons.Filled.CheckCircle
-                    PayoutStatus.FAILED -> Icons.Filled.Error
+                    PayoutStatus.PAYOUT_SUCCESS -> Icons.Filled.CheckCircle
+                    PayoutStatus.PAYOUT_FAILED -> Icons.Filled.Error
                     PayoutStatus.PENDING -> Icons.Filled.HourglassEmpty
-                    PayoutStatus.IN_PROGRESS -> Icons.Filled.Autorenew
+                    PayoutStatus.PAYOUT_INPROGRESS -> Icons.Filled.Autorenew
                     else -> Icons.Filled.Info
                 },
                 contentDescription = null,
                 tint = when (status) {
-                    PayoutStatus.SUCCESS -> Color(0xFF2ECC71)  // bright green
-                    PayoutStatus.FAILED -> Color(0xFFE74C3C)   // red
+                    PayoutStatus.PAYOUT_SUCCESS -> Color(0xFF2ECC71)  // bright green
+                    PayoutStatus.PAYOUT_FAILED -> Color(0xFFE74C3C)   // red
                     PayoutStatus.PENDING,
-                    PayoutStatus.INITIATED,
-                    PayoutStatus.IN_PROGRESS -> Color(0xFFFFA500) // orange
+                    PayoutStatus.RECEIVED,
+                    PayoutStatus.PAYOUT_INPROGRESS -> Color(0xFFFFA500) // orange
                     else -> AppColors.infoAccent
                 },
                 modifier = Modifier
@@ -265,11 +264,11 @@ fun PayoutStatusRowView(
                     text = status.displayText,
                     style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
                     color = when (status) {
-                        PayoutStatus.SUCCESS -> Color(0xFF2ECC71)
-                        PayoutStatus.FAILED -> Color(0xFFE74C3C)
+                        PayoutStatus.PAYOUT_SUCCESS -> Color(0xFF2ECC71)
+                        PayoutStatus.PAYOUT_FAILED -> Color(0xFFE74C3C)
                         PayoutStatus.PENDING,
-                        PayoutStatus.INITIATED,
-                        PayoutStatus.IN_PROGRESS -> Color(0xFFFFA500)
+                        PayoutStatus.RECEIVED,
+                        PayoutStatus.PAYOUT_INPROGRESS -> Color(0xFFFFA500)
                         else -> AppColors.secondaryText
                     }
                 )
@@ -291,7 +290,7 @@ fun PayoutStatusRowView(
                         color = Color(0xFF007AFF),
                         modifier = Modifier.clickable {
                             reasonData = ReasonSheetData(
-                                title = if (status == PayoutStatus.SUCCESS)
+                                title = if (status == PayoutStatus.PAYOUT_SUCCESS)
                                     "Payout Success" else "Payout Issue",
                                 message = reason
                             )
@@ -310,10 +309,10 @@ fun PayoutStatusRowView(
                 ) {
                     Text(
                         text = when (status) {
-                            PayoutStatus.FAILED -> "Retry"
+                            PayoutStatus.PAYOUT_FAILED -> "Retry"
                             PayoutStatus.PENDING,
-                            PayoutStatus.INITIATED,
-                            PayoutStatus.IN_PROGRESS -> "Verify"
+                            PayoutStatus.RECEIVED,
+                            PayoutStatus.PAYOUT_INPROGRESS -> "Verify"
                             else -> "Refresh"
                         },
                         style = AppFont.ibmPlexSans(11, FontWeight.Medium),
@@ -336,7 +335,7 @@ private fun canShowPayoutAction(
     memberId: String,
     squadViewModel: SquadViewModel
 ): Boolean {
-    return status != PayoutStatus.SUCCESS &&
+    return status != PayoutStatus.PAYOUT_SUCCESS &&
             ((paymentType == PaymentType.PAYMENT_CREDIT &&
                     UserDefaultsManager.getSquadManagerLogged()) ||
                     (paymentType == PaymentType.PAYMENT_DEBIT &&

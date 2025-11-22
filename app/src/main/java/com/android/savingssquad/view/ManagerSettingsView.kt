@@ -214,7 +214,7 @@ fun LogoutButton(action: () -> Unit) {
     }
 }
 
-private fun logoutUser(navController: NavController) {
+fun logoutUser(navController: NavController) {
     UserDefaultsManager.clearAll()
 
     navController.navigate(AppDestination.SIGN_IN.route) {

@@ -9,6 +9,7 @@ import com.android.savingssquad.singleton.RecordStatus
 import com.google.firebase.Timestamp
 import java.util.Date
 import androidx.annotation.Keep
+import com.android.savingssquad.singleton.PayoutStatus
 import com.google.firebase.firestore.PropertyName
 
 // ----------------------
@@ -140,10 +141,10 @@ data class PaymentsDetails(
     var paymentSubType: PaymentSubType = PaymentSubType.CONTRIBUTION_AMOUNT,
 
     @get:PropertyName("paymentStatus") @set:PropertyName("paymentStatus")
-    var paymentStatus: PaymentStatus = PaymentStatus.IN_PROGRESS,
+    var paymentStatus: PaymentStatus = PaymentStatus.INPROGRESS,
 
     @get:PropertyName("payoutStatus") @set:PropertyName("payoutStatus")
-    var payoutStatus: PayoutStatus = PayoutStatus.IN_PROGRESS,
+    var payoutStatus: PayoutStatus = PayoutStatus.PAYOUT_INPROGRESS,
 
     @get:PropertyName("description") @set:PropertyName("description")
     var description: String = "",
@@ -151,11 +152,11 @@ data class PaymentsDetails(
     @get:PropertyName("squadId") @set:PropertyName("squadId")
     var squadId: String = "",
 
-    @get:PropertyName("paymentSessionId") @set:PropertyName("paymentSessionId")
-    var paymentSessionId: String = "",
+    @get:PropertyName("payment_session_id") @set:PropertyName("payment_session_id")
+    var payment_session_id: String = "",
 
-    @get:PropertyName("orderId") @set:PropertyName("orderId")
-    var orderId: String = "",
+    @get:PropertyName("order_id") @set:PropertyName("order_id")
+    var order_id: String = "",
 
     @get:PropertyName("contributionId") @set:PropertyName("contributionId")
     var contributionId: String = "",
@@ -207,12 +208,12 @@ data class PaymentsDetails(
         paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
         paymentType = PaymentType.PAYMENT_CREDIT,
         paymentSubType = PaymentSubType.CONTRIBUTION_AMOUNT,
-        paymentStatus = PaymentStatus.IN_PROGRESS,
-        payoutStatus = PayoutStatus.IN_PROGRESS,
+        paymentStatus = PaymentStatus.INPROGRESS,
+        payoutStatus = PayoutStatus.PAYOUT_INPROGRESS,
         description = "",
         squadId = "",
-        paymentSessionId = "",
-        orderId = "",
+        payment_session_id = "",
+        order_id = "",
         contributionId = "",
         loanId = "",
         installmentId = "",
@@ -245,8 +246,8 @@ data class PaymentsDetails(
         "payoutStatus" to payoutStatus.name,
         "description" to description,
         "squadId" to squadId,
-        "paymentSessionId" to paymentSessionId,
-        "orderId" to orderId,
+        "payment_session_id" to payment_session_id,
+        "order_id" to order_id,
         "contributionId" to contributionId,
         "loanId" to loanId,
         "installmentId" to installmentId,

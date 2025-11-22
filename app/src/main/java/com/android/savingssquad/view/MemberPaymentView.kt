@@ -89,9 +89,10 @@ import kotlinx.coroutines.flow.forEach
 import java.util.Calendar
 
 // MemberPaymentScreen.kt
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MemberPaymentView(
-    navController: NavController?, // if you need nav actions, else pass null
+    navController: NavController, // if you need nav actions, else pass null
     squadViewModel: SquadViewModel,
     loaderManager: LoaderManager = LoaderManager.shared
 ) {
@@ -346,6 +347,30 @@ fun MemberPaymentView(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // LOGOUT BUTTON
+                LogoutButton {
+                    AlertManager.shared.showAlert(
+                        title = SquadStrings.appName,
+                        message = "Are you sure you want to logout?",
+                        primaryButtonTitle = "LOGOUT",
+                        primaryAction = {
+                            logoutUser(navController)
+                        },
+                        secondaryButtonTitle = "NO"
+                    )
+                }
+            }
+
+
         }
 
         val isShowContributionMonthList = squadViewModel.showContributionMonthPopup.collectAsStateWithLifecycle()
@@ -388,9 +413,6 @@ fun MemberPaymentView(
                 )
             }
         }
-        // Alerts & Loader (global)
-        SSAlert()
-        SSLoaderView()
     }
 }
 
@@ -444,12 +466,20 @@ private fun ContributionButton(isDisabled: Boolean, onClick: () -> Unit) {
         SSButton(title = "Pay Contribution", isDisabled = isDisabled, action = onClick)
         Spacer(modifier = Modifier.height(8.dp))
         if (isDisabled) {
-            Text(
-                text = "⚠️ Manager UPI ID is not added for this Squad.",
-                style = AppFont.ibmPlexSans(12, FontWeight.Normal),
-                color = Color.Red,
-                modifier = Modifier.padding(top = 8.dp)
-            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "⚠️ Manager UPI ID is not added for this Squad.",
+                    style = AppFont.ibmPlexSans(12, FontWeight.Normal),
+                    color = Color.Red,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
     }
 }
@@ -476,19 +506,30 @@ private fun EMISection(
 
             if (squad?.upiBeneId.isNullOrEmpty()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "⚠️ Manager UPI ID is not added for this Squad.",
-                        style = AppFont.ibmPlexSans(14, FontWeight.Normal),
-                        color = Color.Red,
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        textAlign = TextAlign.Center
-                    )
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = Color.Red.copy(alpha = 0.8f),
-                        modifier = Modifier.size(40.dp)
-                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+
+                        Text(
+                            text = "⚠️ Manager UPI ID is not added for this Squad.",
+                            style = AppFont.ibmPlexSans(14, FontWeight.Normal),
+                            color = Color.Red,
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            textAlign = TextAlign.Center
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color.Red.copy(alpha = 0.8f),
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
+
+
                 }
             } else if (isPendingLoanAvailable) {
                 SSTextField(

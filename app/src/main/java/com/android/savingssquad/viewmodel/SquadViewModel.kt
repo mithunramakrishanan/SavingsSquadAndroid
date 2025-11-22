@@ -17,7 +17,7 @@ import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.SquadRule
 import com.android.savingssquad.model.Installment
-import com.android.savingssquad.model.PayoutStatus
+import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.model.pendingInstallments
 import com.android.savingssquad.model.pendingLoans
 import com.android.savingssquad.singleton.AlertType
@@ -1517,9 +1517,9 @@ class SquadViewModel : ViewModel() {
                 } else {
                     val errorMsg = error ?: "❌ Failed to fetch payments"
                     println(errorMsg)
-                    handleFetchError(errorMsg) {
-                        fetchPayments(showLoader, completion)
-                    }
+//                    handleFetchError(errorMsg) {
+//                        fetchPayments(showLoader, completion)
+//                    }
                     completion(false, errorMsg)
                 }
             }
@@ -2148,7 +2148,7 @@ class SquadViewModel : ViewModel() {
     //Payment Changes
     fun retryPayoutAction(payment: PaymentsDetails) {
         viewModelScope.launch(Dispatchers.IO) {
-            if (payment.payoutStatus == PayoutStatus.PENDING || payment.payoutStatus == PayoutStatus.FAILED) {
+            if (payment.payoutStatus == PayoutStatus.PENDING || payment.payoutStatus == PayoutStatus.PAYOUT_FAILED) {
 
                 LoaderManager.shared.showLoader()
                 val isManager = UserDefaultsManager.getSquadManagerLogged()
@@ -2190,9 +2190,9 @@ class SquadViewModel : ViewModel() {
                         if (index != -1) {
                             val updatedPayment = _squadPayments.value[index].copy(
                                 payoutStatus = when (status) {
-                                    "SUCCESS" -> PayoutStatus.SUCCESS
-                                    "FAILED" -> PayoutStatus.FAILED
-                                    "RECEIVED", "PENDING", "IN_PROGRESS" -> PayoutStatus.IN_PROGRESS
+                                    "SUCCESS" -> PayoutStatus.PAYOUT_SUCCESS
+                                    "FAILED" -> PayoutStatus.PAYOUT_FAILED
+                                    "RECEIVED", "PENDING", "" -> PayoutStatus.PAYOUT_INPROGRESS
                                     else -> PayoutStatus.PENDING
                                 },
                                 payoutSuccess = status == "SUCCESS",
@@ -2208,7 +2208,7 @@ class SquadViewModel : ViewModel() {
                             AlertManager.shared.showAlert(
                                 title = SquadStrings.appName,
                                 message = updatedPayment.payoutResponseMessage,
-                                type = if (updatedPayment.payoutStatus == PayoutStatus.FAILED)
+                                type = if (updatedPayment.payoutStatus == PayoutStatus.PAYOUT_FAILED)
                                     AlertType.ERROR else AlertType.SUCCESS,
                                 primaryButtonTitle = "OK"
                             )
@@ -2241,9 +2241,9 @@ class SquadViewModel : ViewModel() {
 
                         val updatedPayment = payment.copy(
                             payoutStatus = when (status) {
-                                "SUCCESS" -> PayoutStatus.SUCCESS
-                                "FAILED" -> PayoutStatus.FAILED
-                                "PENDING", "IN_PROGRESS" -> PayoutStatus.IN_PROGRESS
+                                "SUCCESS" -> PayoutStatus.PAYOUT_SUCCESS
+                                "FAILED" -> PayoutStatus.PAYOUT_FAILED
+                                "PENDING", "IN_PROGRESS" -> PayoutStatus.PAYOUT_INPROGRESS
                                 else -> PayoutStatus.PENDING
                             },
                             payoutSuccess = status == "SUCCESS",
@@ -2258,7 +2258,7 @@ class SquadViewModel : ViewModel() {
                             _squadPayments.value = updatedList
                         }
 
-                        if (updatedPayment.payoutStatus == PayoutStatus.SUCCESS) {
+                        if (updatedPayment.payoutStatus == PayoutStatus.PAYOUT_SUCCESS) {
                             AlertManager.shared.showAlert(
                                 title = SquadStrings.appName,
                                 message = updatedPayment.payoutResponseMessage,
@@ -2289,7 +2289,7 @@ class SquadViewModel : ViewModel() {
 
                 FirebaseFunctionsManager.shared.processCashFreePayment(
                     squadId = payment.squadId,
-                    action = CashfreePaymentAction.Retry(failedOrderId = payment.orderId)
+                    action = CashfreePaymentAction.Retry(failedOrderId = payment.order_id)
                 ) { sessionId, orderId, error ->
                     LoaderManager.shared.hideLoader()
                     handleCashFreeResponse(sessionId, orderId, error)
