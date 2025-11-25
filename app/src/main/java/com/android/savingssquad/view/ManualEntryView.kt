@@ -578,7 +578,7 @@ fun ManualEntryView(
                         emiSelectedMonthYear = CommonFunctions.dateToString(date = installment.dueDate?.toDate() ?: Date(), format = "MMM yyyy")
                         squadViewModel.setShowEMIMemberPopup(false)
                     },
-                    isShowing = remember { mutableStateOf(true) }
+                    onCancel = {squadViewModel.setShowEMIMemberPopup(false)}
                 )
             }
         }

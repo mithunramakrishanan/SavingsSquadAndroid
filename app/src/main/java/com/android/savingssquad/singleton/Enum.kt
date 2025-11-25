@@ -148,7 +148,11 @@ enum class SquadUserType(@get:PropertyName("value") val value: String) {
     @PropertyName("SQUAD_MANAGER") SQUAD_MANAGER("SQUAD_MANAGER"),
     @PropertyName("SQUAD_MEMBER") SQUAD_MEMBER("SQUAD_MEMBER");
 
-    val roleDescription: String get() = value
+    val roleDescription: String
+        get() = when (this) {
+            SQUAD_MANAGER -> "AS MANAGER"
+            SQUAD_MEMBER -> "AS MEMBER"
+        }
 
     companion object {
         fun fromValue(value: String?): SquadUserType =

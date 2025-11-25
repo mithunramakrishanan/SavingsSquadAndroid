@@ -3,6 +3,7 @@ package com.android.savingssquad.viewmodel
 import android.os.Build
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -11,9 +12,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.android.savingssquad.view.*
 import com.android.savingssquad.singleton.SquadUserType
+import com.google.accompanist.navigation.animation.rememberAnimatedNavController
 
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 
 @RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun AppNavHost(
     navController: NavHostController,
@@ -23,23 +30,45 @@ fun AppNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = startDestination,
+        enterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(350)
+            )
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Left,
+                animationSpec = tween(350)
+            )
+        },
+        popEnterTransition = {
+            slideIntoContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(350)
+            )
+        },
+        popExitTransition = {
+            slideOutOfContainer(
+                AnimatedContentTransitionScope.SlideDirection.Right,
+                animationSpec = tween(350)
+            )
+        }
     ) {
-        // 🔹 Login
+
         composable(AppDestination.SIGN_IN.route) {
-            SquadSignInView(navController, squadViewModel,loaderManager)
+            SquadSignInView(navController, squadViewModel, loaderManager)
         }
 
         composable(AppDestination.SIGN_UP.route) {
-            SquadSignUpView(navController, squadViewModel,loaderManager)
+            SquadSignUpView(navController, squadViewModel, loaderManager)
         }
 
-        // 🔹 Manager TabView (with internal navigation)
         composable(AppDestination.MANAGER_HOME.route) {
             ManagerTabView(navController, squadViewModel, loaderManager)
         }
 
-        // 🔹 Member TabView (with internal navigation)
         composable(AppDestination.MEMBER_HOME.route) {
             MemberTabView(navController, squadViewModel, loaderManager)
         }
@@ -55,6 +84,7 @@ fun AppNavHost(
         composable(AppDestination.OPEN_MEMBERS_LIST.route) {
             MembersListView(navController, squadViewModel)
         }
+
         composable(AppDestination.OPEN_MEMBER_PROFILE.route) {
             MemberProfileView(navController, squadViewModel)
         }
@@ -98,7 +128,6 @@ fun AppNavHost(
         composable(AppDestination.OPEN_DUES_SCREEN.route) {
             DuesScreenView(navController, squadViewModel)
         }
-
     }
 }
 

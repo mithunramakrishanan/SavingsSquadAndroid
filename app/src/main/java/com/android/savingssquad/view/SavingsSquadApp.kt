@@ -1,6 +1,7 @@
 package com.android.savingssquad.view
 import android.app.Application
 import android.util.Log
+import com.android.savingssquad.singleton.LocalDatabase
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.FirebaseFunctionsManager
 import com.google.firebase.BuildConfig
@@ -28,5 +29,26 @@ class SavingsSquadApp : Application() {
         // Init functions + local managers
         FirebaseFunctionsManager.shared.init(this)
         UserDefaultsManager.init(this)
+
+        val db = LocalDatabase.getInstance(this)
+
+        Thread {
+            try {
+                // Fetch saved orders from local database
+                val savedOrders = db.fetchOrders()
+                Log.d("LocalDatabase", "Saved orders: $savedOrders")
+
+                // Only call Firebase function if there are orders
+                if (savedOrders.isNotEmpty()) {
+                    FirebaseFunctionsManager.shared.verifyBulkOrders(savedOrders,this)
+                } else {
+                    Log.d("LocalDatabase", "No orders to verify.")
+                }
+            } catch (e: Exception) {
+                Log.e("LocalDatabase", "❌ Failed to fetch orders: ${e.localizedMessage}")
+            }
+        }.start()
+
+
     }
 }

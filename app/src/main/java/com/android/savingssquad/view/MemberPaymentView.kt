@@ -2,6 +2,7 @@ package com.android.savingssquad.view
 
 import android.annotation.SuppressLint
 import android.os.Build
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -84,6 +85,7 @@ import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.FirebaseFunctionsManager
 import com.google.firebase.Timestamp
+import com.google.firebase.logger.Logger
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.flow.forEach
 import java.util.Calendar
@@ -222,17 +224,18 @@ fun MemberPaymentView(
                         onClick = {
                             if (validateContributionFields(contributionSelectedMonthYear) { contributionSelectedMonthYearError = it }) {
                                 // Payment flow
+                                LoaderManager.shared.showLoader()
                                 val gf = squad ?: return@ContributionButton
                                 val selectedMember = currentMember ?: return@ContributionButton
                                 val contribution = selectedContributions.firstOrNull { it.monthYear == contributionSelectedMonthYear }
                                 val contributionID = contribution?.id
                                 if (contribution == null || contributionID.isNullOrEmpty()) {
                                     // missing contribution
-                                    loaderManager.hideLoader()
+                                    LoaderManager.shared.hideLoader()
                                     return@ContributionButton
                                 }
 
-                                loaderManager.showLoader()
+
 
                                 val newPayment = PaymentsDetails(
                                     id = CommonFunctions.generatePaymentID(squadId = gf.squadID),
@@ -254,21 +257,37 @@ fun MemberPaymentView(
                                     installmentId = "",
                                     transferReferenceId = ""
                                 )
-
                                 // create or retry payment
                                 if (contribution.orderId.isEmpty()) {
+                                    Log.d("Cashfree Payment Flow", "New Payment")
                                     FirebaseFunctionsManager.shared.processCashFreePayment(
                                         squadId = gf.squadID,
                                         action = CashfreePaymentAction.New(payment = newPayment)
                                     ) { sessionId, orderId, error ->
-                                        squadViewModel.handleCashFreeResponse(sessionId, orderId, error)
+
+                                        squadViewModel.handleCashFreeResponse(
+                                            sessionId, orderId, error,
+                                            completion = {
+                                                LoaderManager.shared.hideLoader()
+                                                contributionSelectedMonthYear = ""
+                                            }
+                                        )
                                     }
                                 } else {
+                                    Log.d("Cashfree Payment Flow", "Retry Payment")
+
                                     FirebaseFunctionsManager.shared.processCashFreePayment(
                                         squadId = gf.squadID,
                                         action = CashfreePaymentAction.Retry(contribution.orderId)
                                     ) { sessionId, orderId, error ->
-                                        squadViewModel.handleCashFreeResponse(sessionId, orderId, error)
+
+                                        squadViewModel.handleCashFreeResponse(
+                                            sessionId, orderId, error,
+                                            completion = {
+                                                LoaderManager.shared.hideLoader()
+                                                contributionSelectedMonthYear = ""
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -285,7 +304,18 @@ fun MemberPaymentView(
                         selectedInstallment = selectedInstallment,
                         onOpenInstallmentList = {
                             // show installment popup
-                            squadViewModel.setShowEMIMonthPopup(true)
+
+                            squadViewModel.fetchMemberLoans(
+                                showLoader = true,
+                                memberID = currentMember?.id ?: ""
+                            ) { success, _ ->
+
+                                if (success) {
+                                    squadViewModel.setShowEMIMonthPopup(true)
+                                }
+                            }
+
+
                         }
                     )
 
@@ -296,8 +326,11 @@ fun MemberPaymentView(
                         onClick = {
                             if (validateEMIFields(emiSelectedMonthYear) { emiSelectedMonthYearError = it }) {
                                 // Manual EMI payment flow (mirrors SwiftUI)
-                                selectedInstallment?.status = EMIStatus.PAID
-                                selectedInstallment?.duePaidDate = Date().asTimestamp
+
+                                LoaderManager.shared.showLoader()
+
+//                                selectedInstallment?.status = EMIStatus.PAID
+//                                selectedInstallment?.duePaidDate = Date().asTimestamp
 
                                 val gf = squad ?: return@EMIButton
                                 val member = currentMember ?: return@EMIButton
@@ -326,20 +359,37 @@ fun MemberPaymentView(
                                     installmentId = installId,
                                     transferReferenceId = ""
                                 )
-
                                 if (!selectedInstallment?.orderId.isNullOrEmpty()) {
+
                                     FirebaseFunctionsManager.shared.processCashFreePayment(
                                         squadId = gf.squadID,
                                         action = CashfreePaymentAction.Retry(selectedInstallment!!.orderId!!)
                                     ) { sessionId, orderId, error ->
-                                        squadViewModel.handleCashFreeResponse(sessionId, orderId, error)
+
+                                        squadViewModel.handleCashFreeResponse(
+                                            sessionId, orderId, error,
+                                            completion = {
+                                                LoaderManager.shared.hideLoader()
+                                                selectedInstallment = null
+                                                emiSelectedMonthYear = ""
+                                            }
+                                        )
                                     }
                                 } else {
+
                                     FirebaseFunctionsManager.shared.processCashFreePayment(
                                         squadId = gf.squadID,
                                         action = CashfreePaymentAction.New(loanPayment)
                                     ) { sessionId, orderId, error ->
-                                        squadViewModel.handleCashFreeResponse(sessionId, orderId, error)
+                                        squadViewModel.handleCashFreeResponse(
+                                            sessionId, orderId, error,
+                                            completion = {
+                                                LoaderManager.shared.hideLoader()
+                                                selectedInstallment = null
+                                                emiSelectedMonthYear = ""
+
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -399,7 +449,7 @@ fun MemberPaymentView(
         if (isShowEMIMonthList.value) {
             OverlayBackgroundView(
                 showPopup = remember { mutableStateOf(true) },
-                onDismiss = {  squadViewModel.setShowEMIMemberPopup(false)}
+                onDismiss = {  squadViewModel.setShowEMIMonthPopup(false)}
             ) {
                 InstallmentPopupView(
                     title = memberPendingLoans?.firstOrNull()?.loanNumber ?: "",
@@ -407,10 +457,9 @@ fun MemberPaymentView(
                     onSelect = { installment ->
                         selectedInstallment = installment
                         emiSelectedMonthYear = CommonFunctions.dateToString(date = installment.dueDate?.toDate() ?: Date(), format = "MMM yyyy")
-                        squadViewModel.setShowEMIMemberPopup(false)
+                        squadViewModel.setShowEMIMonthPopup(false)
                     },
-                    isShowing = remember { mutableStateOf(true) }
-                )
+                     onCancel = {squadViewModel.setShowEMIMonthPopup(false)})
             }
         }
     }
@@ -443,6 +492,7 @@ private fun ContributionSection(
                 placeholder = if (contributionSelectedMonthYear.isEmpty()) "Select Contribution Date" else contributionSelectedMonthYear,
                 textState = remember { mutableStateOf("") },
                 keyboardType = KeyboardType.Text,
+                disabled = true,
                 showDropdown = true,
                 onDropdownTap = onOpenMonthList,
                 error = contributionSelectedMonthYearError
@@ -537,6 +587,7 @@ private fun EMISection(
                     placeholder = if (emiSelectedMonthYear.isEmpty()) "Select EMI" else emiSelectedMonthYear,
                     textState = remember { mutableStateOf("") },
                     keyboardType = KeyboardType.Text,
+                    disabled = true,
                     showDropdown = true,
                     onDropdownTap = onOpenInstallmentList,
                     error = emiSelectedMonthYearError
@@ -545,25 +596,48 @@ private fun EMISection(
                 SSTextField(
                     icon = Icons.Default.CreditCard,
                     placeholder = "EMI Amount",
-                    textState = remember { mutableStateOf(((selectedInstallment?.installmentAmount ?: 0) + (selectedInstallment?.interestAmount
-                        ?: 0)).toString()) },
+                    textState = remember(selectedInstallment) {
+                        mutableStateOf(
+                            ((selectedInstallment?.installmentAmount ?: 0) +
+                                    (selectedInstallment?.interestAmount ?: 0)).toString()
+                        )
+                    },
                     keyboardType = KeyboardType.Number,
                     disabled = true
                 )
             } else {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "${currentMember?.name ?: "Member"} doesn’t have any pending loan.",
-                        style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
-                        color = Color.Green,
-                        textAlign = TextAlign.Center
-                    )
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color.Green,
-                        modifier = Modifier.size(50.dp)
-                    )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "You don’t have any pending loan.",
+                            style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+                            color = AppColors.primaryBrand,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(8.dp)
+                        )
+
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle, // checkmark.circle.fill
+                            contentDescription = "Success",
+                            tint = AppColors.primaryBrand,
+                            modifier = Modifier
+                                .size(50.dp)
+                                .padding(top = 5.dp)
+                        )
+                    }
+
                 }
             }
         }

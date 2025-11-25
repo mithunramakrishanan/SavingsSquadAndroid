@@ -60,7 +60,7 @@ fun PaymentRow(
             modifier = Modifier.padding(top = 4.dp)
         )
 
-        Divider(modifier = Modifier.padding(vertical = 8.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         if (showPaymentStatusRow) {
             PaymentStatusRowView(

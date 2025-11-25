@@ -204,7 +204,11 @@ fun ManagerPaymentView(
                                 makeLoanPayment(
                                     squadViewModel = squadViewModel,
                                     selectedMember = member,
-                                    selectedLoan = emi
+                                    selectedLoan = emi,
+                                    handler = {
+                                        loanSelectedMember = null
+                                            emiSelectedType = null
+                            }
                                 )
                             }
                         }
@@ -308,6 +312,7 @@ private fun makeLoanPayment(
     squadViewModel: SquadViewModel,
     selectedMember: Member,
     selectedLoan: EMIConfiguration,
+    handler : () -> Unit
 ) {
     val newLoan = CommonFunctions.generateMemberLoan(
         emiConfig = selectedLoan,
@@ -321,6 +326,7 @@ private fun makeLoanPayment(
         loan = newLoan
     ) { success, error ->
         if (success) {
+            LoaderManager.shared.showLoader()
             val newPayment = PaymentsDetails(
                 id = CommonFunctions.generatePaymentID(squadId = squadViewModel.squad.value?.squadID ?: ""),
                 paymentUpdatedDate = Timestamp.now(),
@@ -346,7 +352,14 @@ private fun makeLoanPayment(
                 squadId = squadViewModel.squad.value?.squadID ?: "",
                 action = CashfreePaymentAction.New(payment = newPayment)
             ) { sessionId, orderId, error ->
-                squadViewModel.handleCashFreeResponse(sessionId, orderId, error)
+
+                squadViewModel.handleCashFreeResponse(
+                    sessionId, orderId, error,
+                    completion = {
+                        LoaderManager.shared.hideLoader()
+                        handler()
+                    }
+                )
             }
         } else {
             println("❌ Error: ${error ?: "Unknown error"}")

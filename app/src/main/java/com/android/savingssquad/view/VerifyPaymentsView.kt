@@ -125,73 +125,80 @@ fun VerifyPaymentsView(
         squadViewModel.fetchPayments(showLoader = true) { _, _ -> }
     }
 
-    AppBackgroundGradient()
+    Box(modifier = Modifier.fillMaxSize()) {
+        AppBackgroundGradient()
 
-    Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
 
-        // NAV BAR
-        SSNavigationBar("Verify Payments", navController)
+            // NAV BAR
+            SSNavigationBar("Verify Payments", navController)
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        // FILTER SECTION
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (screenType != SquadUserType.SQUAD_MEMBER) {
-                DropdownMenuPicker(
-                    label = "",
-                    selected = selectedUser,
-                    items = userList,
-                    modifier = Modifier.weight(1f)
-                ) { selectedUser = it }
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        // 🔹 Empty State
-        if (pendingAccountTransfers.isEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+            // FILTER SECTION
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Verified,
-                    contentDescription = null,
-                    modifier = Modifier.size(80.dp),
-                    tint = AppColors.successAccent.copy(alpha = 0.7f)
-                )
-                Text(
-                    text = "No pending account transfers",
-                    style = AppFont.ibmPlexSans(15, FontWeight.Medium),
-                    color = AppColors.secondaryText,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
+                if (screenType != SquadUserType.SQUAD_MEMBER) {
+                    DropdownMenuPicker(
+                        label = "",
+                        selected = selectedUser,
+                        items = userList,
+                        modifier = Modifier.weight(1f)
+                    ) { selectedUser = it }
+                }
             }
-            Spacer(Modifier.weight(1f))
-        }
 
-        // 🔹 List
-        else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(pendingAccountTransfers, key = { it.id!! }) { payment ->
+            Spacer(Modifier.height(12.dp))
 
-                    PaymentRow(
-                        payment = payment,
-                        showPaymentStatusRow = true,
-                        showPayoutStatusRow = true,
-                        squadViewModel = squadViewModel
+            // 🔹 Empty State
+            if (pendingAccountTransfers.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Verified,
+                        contentDescription = null,
+                        modifier = Modifier.size(80.dp),
+                        tint = AppColors.successAccent.copy(alpha = 0.7f)
                     )
+                    Text(
+                        text = "No pending account transfers",
+                        style = AppFont.ibmPlexSans(15, FontWeight.Medium),
+                        color = AppColors.secondaryText,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+            }
+
+            // 🔹 List
+            else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(pendingAccountTransfers, key = { it.id!! }) { payment ->
+
+                        PaymentRow(
+                            payment = payment,
+                            showPaymentStatusRow = true,
+                            showPayoutStatusRow = true,
+                            squadViewModel = squadViewModel
+                        )
+                    }
                 }
             }
         }
+
+        SSAlert()
+        SSLoaderView()
     }
+
+
 }

@@ -320,7 +320,7 @@ object CommonFunctions {
     fun parseISODateToTimestamp(isoString: String?): Timestamp? {
         return try {
             if (isoString == null) return null
-            val formatter = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
+            val formatter = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.ENGLISH)
             val date = formatter.parse(isoString)
             if (date != null) Timestamp(date) else null
         } catch (e: Exception) {

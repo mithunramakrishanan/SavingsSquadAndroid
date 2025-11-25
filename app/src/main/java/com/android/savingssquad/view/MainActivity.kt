@@ -69,13 +69,13 @@ fun SavingsSquadRoot() {
             startDestination = startDestination
         )
 
-        // Optional: Show splash screen overlay here
-        // if (showLaunchView) LaunchView()
+        // SHOW LAUNCH / SPLASH VIEW OVERLAY
+        if (showLaunchView) {
+            LaunchView(
+                showLaunchView = showLaunchView,
+                onFinish = { showLaunchView = false }
+            )
+        }
     }
 
-    // Optional launch delay
-    LaunchedEffect(Unit) {
-        delay(2000)
-        showLaunchView = false
-    }
 }

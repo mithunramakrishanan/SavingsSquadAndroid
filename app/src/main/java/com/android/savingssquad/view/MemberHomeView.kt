@@ -1,5 +1,6 @@
 package com.android.savingssquad.view
 
+import android.os.Build
 import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
@@ -39,9 +40,12 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.composable
 import kotlinx.coroutines.flow.count
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material.icons.outlined.CreditCard
@@ -50,6 +54,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.savingssquad.R
 import com.android.savingssquad.viewmodel.AppDestination
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MemberHomeView(
     selectedTab: Int,
@@ -65,7 +70,6 @@ fun MemberHomeView(
     val users by squadViewModel.users.collectAsStateWithLifecycle()
     val showPopup by squadViewModel.showPopup.collectAsStateWithLifecycle()
     val selectedUser by squadViewModel.selectedUser.collectAsStateWithLifecycle()
-
     var remainders by remember { mutableStateOf(listOf<RemainderModel>()) }
     var currentOrOverDueContribution by remember { mutableStateOf(listOf<ContributionDetail>()) }
 
@@ -100,10 +104,10 @@ fun MemberHomeView(
                             showLoader = true,
                             phoneNumber = squadViewModel.loginMember?.phoneNumber ?: ""
                         ) { success,loginList, error ->
-                            Log.d(
-                                "MemberHomeView",
-                                if (success) "✅ User logins fetched" else "❌ $error"
-                            )
+                            if (loginList != null) {
+                                squadViewModel.setShowPopup(UserDefaultsManager.getIsMultipleAccount())
+                                Log.d("ManagerHomeView", if (success) "✅ Logins fetched: ${loginList.size}" else "❌ $error")
+                            }
                         }
                     }
                 }
@@ -247,7 +251,7 @@ fun MemberHomeView(
                                 ) {
                                     ViewAllButton(
                                         title = "View All",
-                                        icon = "arrow.right"
+                                        icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                     ) {
                                         navController.navigate(AppDestination.OPEN_PAYMENT_HISTORY.route)
                                     }
@@ -291,10 +295,9 @@ fun MemberHomeView(
     // ------------------------------
     LaunchedEffect(Unit) {
         val member = UserDefaultsManager.getLogin() ?: return@LaunchedEffect
-        loaderManager.showLoader()
 
         squadViewModel.fetchMember(
-            showLoader = true,
+            showLoader = false,
             squadID = member.squadID,
             memberID = member.squadUserId
         ) { success, fetchedMember, error ->
@@ -303,7 +306,7 @@ fun MemberHomeView(
 
                 // Fetch Contributions
                 squadViewModel.fetchContributionsForMember(
-                    showLoader = true,
+                    showLoader = false,
                     squadID = fetchedMember.squadID,
                     memberID = fetchedMember.id ?: ""
                 ) { contributions, _ ->
@@ -327,7 +330,7 @@ fun MemberHomeView(
 
                 // Fetch Loans
                 squadViewModel.fetchMemberLoans(
-                    showLoader = true,
+                    showLoader = false,
                     memberID = fetchedMember.id ?: ""
                 ) { _, _ ->
                     val pendingUnpaidInstallments =
@@ -371,21 +374,33 @@ fun RemainderCardView(
     onTap: () -> Unit
 ) {
     val isOverdue = dueDate.before(Date())
-    val formattedDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(dueDate)
+    val formattedDate =
+        SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH).format(dueDate)
+
+    // 🔹 Dynamic width logic
+    val cardWidth = when (title.uppercase()) {
+        "CONTRIBUTION" -> 200.dp
+        "EMI" -> 150.dp
+        else -> 200.dp   // fallback
+    }
 
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .appShadow(AppShadows.card)
-            .background(AppColors.surface)
+            .width(cardWidth)            // 👈 Dynamic width applied here
+            .padding(horizontal = 5.dp)
+            .shadow(
+                elevation = 6.dp,
+                shape = RoundedCornerShape(16.dp),
+                clip = false
+            )
+            .background(AppColors.surface, RoundedCornerShape(16.dp))
             .border(1.dp, AppColors.border, RoundedCornerShape(16.dp))
             .clickable { onTap() }
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // 🔹 Title + Badge
+
+        // 🔹 Title + Badge Row
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = title,
@@ -401,10 +416,8 @@ fun RemainderCardView(
                 style = AppFont.ibmPlexSans(10, FontWeight.Bold),
                 color = AppColors.primaryButtonText,
                 modifier = Modifier
-                    .background(
-                        color = if (isOverdue) AppColors.errorAccent else AppColors.warningAccent,
-                        shape = CircleShape
-                    )
+                    .clip(RoundedCornerShape(50))
+                    .background(if (isOverdue) AppColors.errorAccent else AppColors.warningAccent)
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             )
         }
@@ -418,7 +431,10 @@ fun RemainderCardView(
             overflow = TextOverflow.Ellipsis
         )
 
-        Divider(modifier = Modifier.padding(vertical = 4.dp))
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 4.dp),
+            color = AppColors.border.copy(alpha = 0.4f)
+        )
 
         // 🔹 Amount
         Text(
@@ -570,6 +586,7 @@ fun MemberDashBoardCard(
         horizontalAlignment = Alignment.Start,
         modifier = Modifier
             .fillMaxWidth()
+            .appShadow(AppShadows.card)
             .background(AppColors.surface, RoundedCornerShape(16.dp))
             // ✅ Safe modern clickable with ripple
             .then(
@@ -627,7 +644,7 @@ fun MemberDashBoardCard(
 @Composable
 fun ViewAllButton(
     title: String = "View All",
-    icon: String = "arrow.right",
+    icon: ImageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
     onClick: () -> Unit
 ) {
     Box(
@@ -653,10 +670,11 @@ fun ViewAllButton(
                 color = AppColors.headerText
             )
 
-            AppIconView(
-                name = icon,
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
                 tint = AppColors.primaryButton,
-                size = 14.dp
+                modifier = Modifier.size(14.dp)
             )
         }
     }

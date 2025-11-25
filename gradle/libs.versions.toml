@@ -1,5 +1,6 @@
 [versions]
 # Build Tools
+accompanistNavigationAnimation = "0.36.0"
 agp = "8.10.1"
 composeBomVersion = "2024.10.00"
 kotlin = "2.0.21"
@@ -32,6 +33,7 @@ navigationComposeJvmstubs = "2.9.5"
 
 [libraries]
 # AndroidX Core
+accompanist-navigation-animation = { module = "com.google.accompanist:accompanist-navigation-animation", version.ref = "accompanistNavigationAnimation" }
 androidx-compose-bom-v20241000 = { module = "androidx.compose:compose-bom", version.ref = "composeBomVersion" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }

@@ -5,129 +5,113 @@ import java.io.File
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteException
 
+import android.database.sqlite.SQLiteOpenHelper
+
 data class BulkOrder(
-    var orderId: String,
-    var squadId: String
+    val orderId: String,
+    val squadId: String
 )
 
-class LocalDatabase private constructor(context: Context) {
+class LocalDatabase private constructor(context: Context) :
+    SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
+        private const val DATABASE_NAME = "orders.db"
+        private const val DATABASE_VERSION = 1
+
+        private const val TABLE_ORDERS = "orders"
+        private const val COL_ID = "id"
+        private const val COL_ORDER_ID = "orderId"
+        private const val COL_SQUAD_ID = "squadId"
+
         @Volatile
         private var INSTANCE: LocalDatabase? = null
 
-        fun shared(context: Context): LocalDatabase {
-            return INSTANCE ?: synchronized(this) {
+        fun getInstance(context: Context): LocalDatabase =
+            INSTANCE ?: synchronized(this) {
                 INSTANCE ?: LocalDatabase(context.applicationContext).also { INSTANCE = it }
             }
-        }
     }
 
-    private var db: SQLiteDatabase? = null
-
-    init {
-        try {
-            openDatabase(context)
-            createTable()
-        } catch (e: Exception) {
-            Log.e("LocalDatabase", "❌ Database init error: ${e.message}")
-        }
-    }
-
-    // MARK: - Open Database
-    @Throws(Exception::class)
-    private fun openDatabase(context: Context) {
-        val dir = context.getExternalFilesDir(null) ?: context.filesDir
-        val dbFile = File(dir, "orders.sqlite")
-
-        db = SQLiteDatabase.openOrCreateDatabase(dbFile, null)
-        Log.d("LocalDatabase", "✅ Database opened at ${dbFile.absolutePath}")
-    }
-
-    // MARK: - Create Table
-    @Throws(Exception::class)
-    private fun createTable() {
-        val sql = """
-            CREATE TABLE IF NOT EXISTS orders(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                orderId TEXT NOT NULL,
-                squadId TEXT NOT NULL
+    override fun onCreate(db: SQLiteDatabase) {
+        val createTableSQL = """
+            CREATE TABLE IF NOT EXISTS $TABLE_ORDERS(
+                $COL_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COL_ORDER_ID TEXT NOT NULL,
+                $COL_SQUAD_ID TEXT NOT NULL
             );
         """.trimIndent()
-        execute(sql, "✅ Orders table ready")
+
+        db.execSQL(createTableSQL)
+        Log.d("LocalDatabase", "✅ Orders table ready")
     }
 
-    // MARK: - Helper: Execute SQL without results
-    @Throws(Exception::class)
-    private fun execute(sql: String, successMessage: String? = null) {
-        try {
-            db?.execSQL(sql)
-            successMessage?.let { Log.d("LocalDatabase", it) }
-        } catch (e: SQLiteException) {
-            throw Exception("SQL execution failed: ${e.message}")
-        }
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        // Handle DB upgrade if needed
     }
 
-    // MARK: - Insert
-    @Throws(Exception::class)
+    // ------------------ Insert Orders ------------------
     fun insertOrders(orders: List<BulkOrder>) {
-        val sql = "INSERT INTO orders (orderId, squadId) VALUES (?, ?);"
-        db?.beginTransaction()
-        try {
-            val stmt = db?.compileStatement(sql)
-            orders.forEach { order ->
-                stmt?.bindString(1, order.orderId)
-                stmt?.bindString(2, order.squadId)
-                stmt?.executeInsert()
-                stmt?.clearBindings()
-                Log.d("LocalDatabase", "✅ Inserted order: ${order.orderId}")
+        writableDatabase.use { db ->
+            db.beginTransaction()
+            try {
+                val sql = "INSERT INTO $TABLE_ORDERS ($COL_ORDER_ID, $COL_SQUAD_ID) VALUES (?, ?);"
+                val stmt = db.compileStatement(sql)
+                orders.forEach { order ->
+                    stmt.bindString(1, order.orderId)
+                    stmt.bindString(2, order.squadId)
+                    stmt.executeInsert()
+                    Log.d("LocalDatabase", "✅ Inserted order: ${order.orderId}")
+                    stmt.clearBindings()
+                }
+                db.setTransactionSuccessful()
+            } catch (e: Exception) {
+                Log.e("LocalDatabase", "❌ Failed to insert orders: ${e.localizedMessage}")
+            } finally {
+                db.endTransaction()
             }
-            db?.setTransactionSuccessful()
-        } catch (e: Exception) {
-            throw Exception("Insert failed: ${e.message}")
-        } finally {
-            db?.endTransaction()
         }
     }
 
-    // MARK: - Fetch
-    @Throws(Exception::class)
+    // ------------------ Fetch Orders ------------------
     fun fetchOrders(): List<BulkOrder> {
-        val sql = "SELECT orderId, squadId FROM orders;"
-        val results = mutableListOf<BulkOrder>()
-
-        try {
-            val cursor = db?.rawQuery(sql, null)
-            cursor?.use {
+        val orders = mutableListOf<BulkOrder>()
+        readableDatabase.use { db ->
+            val cursor = db.rawQuery("SELECT $COL_ORDER_ID, $COL_SQUAD_ID FROM $TABLE_ORDERS;", null)
+            cursor.use {
                 while (it.moveToNext()) {
-                    val orderId = it.getString(0)
-                    val squadId = it.getString(1)
-                    results.add(BulkOrder(orderId, squadId))
+                    val orderId = it.getString(it.getColumnIndexOrThrow(COL_ORDER_ID))
+                    val squadId = it.getString(it.getColumnIndexOrThrow(COL_SQUAD_ID))
+                    orders.add(BulkOrder(orderId, squadId))
                 }
             }
-        } catch (e: Exception) {
-            throw Exception("Fetch failed: ${e.message}")
         }
-
-        return results
+        return orders
     }
 
-    // MARK: - Delete
-    @Throws(Exception::class)
+    // ------------------ Delete Orders ------------------
     fun deleteOrder(orderId: String) {
-        val sql = "DELETE FROM orders WHERE orderId = ?;"
-        try {
-            val stmt = db?.compileStatement(sql)
-            stmt?.bindString(1, orderId)
-            stmt?.executeUpdateDelete()
-            Log.d("LocalDatabase", "✅ Deleted order: $orderId")
-        } catch (e: Exception) {
-            throw Exception("Failed to delete orderId: $orderId (${e.message})")
+        writableDatabase.use { db ->
+            try {
+                val sql = "DELETE FROM $TABLE_ORDERS WHERE $COL_ORDER_ID = ?;"
+                val stmt = db.compileStatement(sql)
+                stmt.bindString(1, orderId)
+                stmt.executeUpdateDelete()
+                Log.d("LocalDatabase", "✅ Deleted order: $orderId")
+            } catch (e: Exception) {
+                Log.e("LocalDatabase", "❌ Failed to delete order: ${e.localizedMessage}")
+            }
         }
     }
 
-    @Throws(Exception::class)
     fun deleteAllOrders() {
-        execute("DELETE FROM orders;", "✅ All orders deleted")
+        writableDatabase.use { db ->
+            try {
+                db.execSQL("DELETE FROM $TABLE_ORDERS;")
+                Log.d("LocalDatabase", "✅ All orders deleted")
+            } catch (e: Exception) {
+                Log.e("LocalDatabase", "❌ Failed to delete all orders: ${e.localizedMessage}")
+            }
+        }
     }
 }

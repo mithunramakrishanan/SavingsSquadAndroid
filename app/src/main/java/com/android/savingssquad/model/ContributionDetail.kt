@@ -1,5 +1,6 @@
 package com.android.savingssquad.model
 
+import android.os.Build
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.RecordStatus
@@ -9,7 +10,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 import androidx.annotation.Keep
+import androidx.annotation.RequiresApi
 import com.google.firebase.firestore.PropertyName
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.util.Date
 
 @Keep
@@ -76,7 +80,7 @@ data class ContributionDetail(
 }
 
 fun List<ContributionDetail>.unpaidMonths(): List<String> {
-    val formatter = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+    val formatter = SimpleDateFormat("MMM yyyy", Locale.ENGLISH)   // FIXED
     return this
         .filter { it.paidStatus == PaidStatus.NOT_PAID }
         .sortedBy { formatter.parse(it.monthYear) }
@@ -84,20 +88,22 @@ fun List<ContributionDetail>.unpaidMonths(): List<String> {
 }
 
 fun List<ContributionDetail>.unpaidContributions(): List<ContributionDetail> {
-    val formatter = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+    val formatter = SimpleDateFormat("MMM yyyy", Locale.ENGLISH)   // FIXED
     return this
         .filter { it.paidStatus == PaidStatus.NOT_PAID }
         .sortedBy { formatter.parse(it.monthYear) }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 fun List<ContributionDetail>.currentAndOverdueUnpaid(): List<ContributionDetail> {
-    val formatter = SimpleDateFormat("MMM yyyy", Locale.getDefault())
-    val current = Date()
+    val formatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH)
+    val current = YearMonth.now()
+
     return this
         .filter { it.paidStatus == PaidStatus.NOT_PAID }
         .filter {
-            val monthDate = formatter.parse(it.monthYear)
-            monthDate != null && monthDate <= current
+            val month = YearMonth.parse(it.monthYear, formatter)
+            month <= current
         }
-        .sortedBy { formatter.parse(it.monthYear) }
+        .sortedBy { YearMonth.parse(it.monthYear, formatter) }
 }

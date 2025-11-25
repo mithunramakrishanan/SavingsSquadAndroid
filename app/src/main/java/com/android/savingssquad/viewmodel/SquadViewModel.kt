@@ -371,6 +371,7 @@ class SquadViewModel : ViewModel() {
                         if (loginList.size > 1) {
                             multipleAccount = true
                         }
+                        setUsers(loginList)
                         UserDefaultsManager.saveIsMultipleAccount(multipleAccount)
                         completion(true,loginList, null)
 
@@ -2052,7 +2053,7 @@ class SquadViewModel : ViewModel() {
                 val loansRef = membersRef.document(memberID).collection("loans")
 
                 contribRef.get().addOnSuccessListener { contribSnap ->
-                    val formatter = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+                    val formatter = SimpleDateFormat("MMM yyyy", Locale.ENGLISH)
                     for (doc in contribSnap.documents) {
                         val contribution = doc.toObject(ContributionDetail::class.java)
                         contribution?.let {
@@ -2100,7 +2101,7 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-    fun handleCashFreeResponse(sessionId: String?, orderId: String?, error: Exception?) {
+    fun handleCashFreeResponse(sessionId: String?, orderId: String?, error: Exception? , completion: () -> Unit) {
         if (error != null) {
             val nsError = error
             val errorMessage: String
@@ -2143,6 +2144,7 @@ class SquadViewModel : ViewModel() {
         _showPayment.value = true
         _paymentOrderToken.value = sessionId
         _paymentOrderId.value = orderId
+        completion()
     }
 
     //Payment Changes
@@ -2292,7 +2294,7 @@ class SquadViewModel : ViewModel() {
                     action = CashfreePaymentAction.Retry(failedOrderId = payment.order_id)
                 ) { sessionId, orderId, error ->
                     LoaderManager.shared.hideLoader()
-                    handleCashFreeResponse(sessionId, orderId, error)
+                    handleCashFreeResponse(sessionId, orderId, error, completion = {})
                 }
             }
         }

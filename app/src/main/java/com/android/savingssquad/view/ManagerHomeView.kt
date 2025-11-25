@@ -207,7 +207,10 @@ fun ManagerHomeView(
                         showLoader = true,
                         phoneNumber = squadViewModel.loginMember?.phoneNumber.orEmpty()
                     ) { success, loginList,error ->
-                        Log.d("ManagerHomeView", if (success) "✅ Logins fetched" else "❌ $error")
+                        if (loginList != null) {
+                            squadViewModel.setShowPopup(UserDefaultsManager.getIsMultipleAccount())
+                            Log.d("ManagerHomeView", if (success) "✅ Logins fetched: ${loginList.size}" else "❌ $error")
+                        }
                     }
                 }
 
@@ -377,9 +380,9 @@ fun ManagerHomeView(
 
     // 🔹 Fetch initial data
     LaunchedEffect(Unit) {
-        squadViewModel.fetchSquadByID(showLoader = true) { success, _, _ ->
+        squadViewModel.fetchSquadByID(showLoader = false) { success, _, _ ->
             if (success) {
-                squadViewModel.fetchEMIConfigurations(showLoader = true) { _, _ ->
+                squadViewModel.fetchEMIConfigurations(showLoader = false) { _, _ ->
                     loaderManager.hideLoader()
 
                 }

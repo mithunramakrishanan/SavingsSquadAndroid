@@ -24,6 +24,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -914,11 +915,11 @@ fun LoginListPopup(
 
     val context = LocalContext.current
     val inPreview = LocalInspectionMode.current
-    var selectedRole by remember { mutableStateOf(SquadUserType.SQUAD_MANAGER) }
+    var selectedRole by remember { mutableStateOf(SquadUserType.SQUAD_MANAGER.roleDescription) }
 
     val managers = remember(users) { users.filter { it.role == SquadUserType.SQUAD_MANAGER } }
     val members = remember(users) { users.filter { it.role == SquadUserType.SQUAD_MEMBER } }
-    val filteredUsers = if (selectedRole == SquadUserType.SQUAD_MANAGER) managers else members
+    val filteredUsers = if (selectedRole == SquadUserType.SQUAD_MANAGER.roleDescription) managers else members
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -941,15 +942,15 @@ fun LoginListPopup(
         // 🔹 Segmented Picker
         ModernSegmentedPickerView(
             segments = listOf(
-                SquadUserType.SQUAD_MANAGER.value,
-                SquadUserType.SQUAD_MEMBER.value
+                SquadUserType.SQUAD_MANAGER.roleDescription,
+                SquadUserType.SQUAD_MEMBER.roleDescription
             ),
-            selectedSegment = selectedRole.value,
+            selectedSegment = selectedRole,
             onSegmentSelected = {
-                selectedRole = if (it == SquadUserType.SQUAD_MANAGER.value)
-                    SquadUserType.SQUAD_MANAGER
+                selectedRole = if (it == SquadUserType.SQUAD_MANAGER.roleDescription)
+                    SquadUserType.SQUAD_MANAGER.roleDescription
                 else
-                    SquadUserType.SQUAD_MEMBER
+                    SquadUserType.SQUAD_MEMBER.roleDescription
             }
         )
 
@@ -958,7 +959,7 @@ fun LoginListPopup(
         // 🔹 User List
         if (filteredUsers.isEmpty()) {
             Text(
-                text = "No ${selectedRole.value}s available",
+                text = "No ${selectedRole}s available",
                 style = AppFont.ibmPlexSans(14, FontWeight.Medium),
                 color = AppColors.secondaryText,
                 modifier = Modifier.padding(vertical = 10.dp)
@@ -1197,8 +1198,8 @@ fun DuesCardView(
     ) {
         val modifier = Modifier
             .fillMaxWidth()
-            .appShadow(AppShadows.card)
             .clip(RoundedCornerShape(16.dp))
+            .appShadow(AppShadows.card)
             .background(
                 brush = Brush.linearGradient(
                     colors = gradientColors,
@@ -1834,7 +1835,7 @@ fun InstallmentPopupView(
     title: String = "Select Installment",
     installments: List<Installment>,
     onSelect: (Installment) -> Unit,
-    isShowing: MutableState<Boolean>
+    onCancel: () -> Unit
 ) {
     val today = remember { Date() }
 
@@ -1842,13 +1843,12 @@ fun InstallmentPopupView(
         modifier = Modifier
             .padding(16.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(AppColors.surface)
             .appShadow(AppShadows.elevated)
+            .background(AppColors.surface)
             .widthIn(max = 350.dp)
             .heightIn(max = 450.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
         // 🔹 Title Header
         Text(
             text = title,
@@ -1856,11 +1856,8 @@ fun InstallmentPopupView(
             color = AppColors.headerText,
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    color = AppColors.surface,
-                    shape = RoundedCornerShape(12.dp)
-                )
                 .appShadow(AppShadows.card)
+                .background(AppColors.surface, RoundedCornerShape(12.dp))
                 .padding(vertical = 12.dp),
             textAlign = TextAlign.Center
         )
@@ -1872,17 +1869,20 @@ fun InstallmentPopupView(
                 .heightIn(max = 300.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(installments) { installment ->
+            itemsIndexed(installments) { index, installment ->
                 val status = computedStatus(installment, today)
+
+                // Enable only the first pending installment, previous must be paid
+                val isEnabled = if (status == EMIStatus.PENDING) {
+                    if (index == 0) true
+                    else installments[index - 1].status == EMIStatus.PAID
+                } else false
 
                 Button(
                     onClick = {
-                        if (status == EMIStatus.PENDING) {
-                            onSelect(installment)
-                            isShowing.value = false
-                        }
+                        if (isEnabled) onSelect(installment)
                     },
-                    enabled = status == EMIStatus.PENDING,
+                    enabled = isEnabled,
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -1892,7 +1892,10 @@ fun InstallmentPopupView(
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
                         .fillMaxWidth()
-                        .appShadow(AppShadows.card)
+                        .then(
+                            if (isEnabled) Modifier.appShadow(AppShadows.card)
+                            else Modifier
+                        )
                 ) {
                     Row(
                         modifier = Modifier
@@ -1902,30 +1905,30 @@ fun InstallmentPopupView(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Left Section
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(5.dp),
-                            horizontalAlignment = Alignment.Start
-                        ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            val textColor = if (isEnabled) AppColors.secondaryText else Color.Gray
+                            val headerColor = if (isEnabled) AppColors.headerText else Color.Gray
+
                             Text(
                                 text = installment.installmentNumber,
                                 style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                                color = AppColors.secondaryText
+                                color = textColor
                             )
                             Text(
                                 text = installment.installmentAmount.currencyFormattedWithCommas(),
                                 style = AppFont.ibmPlexSans(16, FontWeight.Bold),
-                                color = AppColors.headerText
+                                color = headerColor
                             )
                             Text(
                                 text = "Interest: ${installment.interestAmount.currencyFormattedWithCommas()}",
                                 style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                                color = AppColors.secondaryText
+                                color = textColor
                             )
                             installment.dueDate?.let {
                                 Text(
                                     text = "Due: ${CommonFunctions.dateToString(it.toDate())}",
                                     style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                                    color = AppColors.secondaryText
+                                    color = textColor
                                 )
                             }
                         }
@@ -1947,22 +1950,18 @@ fun InstallmentPopupView(
 
         // 🔹 Close Button
         SSCancelButton(title = "Close") {
-            isShowing.value = false
+            onCancel()
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
-/**
- * Detect overdue installments
- */
+// 🔹 Helper function to compute status (same as iOS logic)
 fun computedStatus(installment: Installment, today: Date): EMIStatus {
     return if (installment.status == EMIStatus.PENDING &&
-        installment.dueDate?.toDate()?.before(today) == true
-    ) {
-        EMIStatus.OVERDUE
-    } else {
-        installment.status
-    }
+        (installment.dueDate?.toDate() ?: today).before(today)
+    ) EMIStatus.OVERDUE else installment.status
 }
 
 

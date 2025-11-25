@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import com.android.savingssquad.singleton.BulkOrder
+import com.android.savingssquad.singleton.LocalDatabase
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.cashfree.pg.api.CFPaymentGatewayService
 //import com.cashfree.pg.core.api.CFPayment
@@ -43,6 +45,21 @@ class PaymentViewController : ComponentActivity(), CFCheckoutResponseCallback {
                 message = "Processing payment..."
             )
         }
+
+        // Get database instance
+        val db = LocalDatabase.getInstance(this)
+
+        // Example: Insert order into DB (run on background thread)
+        val order = BulkOrder(orderId = orderId, squadId = squadId)
+        Thread {
+            try {
+                db.insertOrders(listOf(order))
+                Log.d("PaymentActivity", "✅ Order saved locally: $orderId")
+            } catch (e: Exception) {
+                Log.e("PaymentActivity", "❌ Failed to save order: ${e.localizedMessage}")
+            }
+        }.start()
+
 
         startPayment()
     }
@@ -113,6 +130,16 @@ class PaymentViewController : ComponentActivity(), CFCheckoutResponseCallback {
                 val recipientName = data["recipientName"] as? String ?: "Recipient"
 
                 if (success) {
+
+                    try {
+                        val db = LocalDatabase.getInstance(this)
+                        db.deleteOrder(orderId)
+                        Log.d("LocalDatabase", "✅ Deleted order: $orderId")
+
+                    } catch (e: Exception) {
+                        Log.e("LocalDatabase", "❌ Failed to delete order: ${e.localizedMessage}")
+                    }
+
                     triggerSuccess(orderId, amount, message, recipientName)
                 } else {
                     triggerFailure("Payment failed: $message")
@@ -131,11 +158,12 @@ class PaymentViewController : ComponentActivity(), CFCheckoutResponseCallback {
                 success = true,
                 message = message,
                 recipientName = recipientName,
-                amount = "₹$amount",
+                totalAmount = "₹$amount",
                 onDone = {
                     onPaymentSuccess?.invoke(orderId)
                     finish()
-                }
+                },
+                recipientNumber = orderId
             )
         }
     }
@@ -147,11 +175,12 @@ class PaymentViewController : ComponentActivity(), CFCheckoutResponseCallback {
                 success = false,
                 message = message,
                 recipientName = "",
-                amount = "",
+                totalAmount = "",
                 onDone = {
                     onPaymentFailure?.invoke(message)
                     finish()
-                }
+                },
+                recipientNumber = orderId
             )
         }
     }

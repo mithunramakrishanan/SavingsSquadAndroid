@@ -118,7 +118,7 @@ fun BankDetailsView(
             currentMember?.name ?: ""
         }
         else {
-            squad?.squadAccountName ?: ""
+            squad?.squadName ?: ""
         }
     }
 
@@ -152,6 +152,7 @@ fun BankDetailsView(
                     placeholder = "UPI Holder Name",
                     textState = accountHoldernameState,
                     keyboardType = KeyboardType.Text,
+                    disabled = true,
                     error = accountHoldernameError,
                 )
 
@@ -251,7 +252,7 @@ private fun saveAccountToFirestore(
 ) {
     val squadID = squadViewModel.squad.value?.squadID ?: return
 
-    fun handleResult(result: Result<BeneficiaryResult>) {
+    fun handleResult(result: Result<BeneficiaryResult>, type: SquadUserType) {
         loaderManager.hideLoader()
 
         if (result.isSuccess) {
@@ -259,7 +260,17 @@ private fun saveAccountToFirestore(
                 title = SquadStrings.appName,
                 message = "UPI Updated",
                 primaryButtonTitle = "OK",
-                primaryAction = {}
+                primaryAction = {
+
+                    if (type == SquadUserType.SQUAD_MANAGER) {
+
+                        squadViewModel.squad.value!!.upiID = upiID
+                    }
+                    else {
+                        squadViewModel.currentMember.value!!.upiID = upiID
+                    }
+
+                }
             )
         } else {
             val error = result.exceptionOrNull()?.localizedMessage ?: "Error"
@@ -289,7 +300,7 @@ private fun saveAccountToFirestore(
                 countryCode = "+91",
                 postalCode = ""
             ) { result ->
-                handleResult(result)
+                handleResult(result,SquadUserType.SQUAD_MANAGER )
             }
         }
 
@@ -310,7 +321,7 @@ private fun saveAccountToFirestore(
                 countryCode = "+91",
                 postalCode = ""
             ) { result ->
-                handleResult(result)
+                handleResult(result,SquadUserType.SQUAD_MEMBER )
             }
         }
     }

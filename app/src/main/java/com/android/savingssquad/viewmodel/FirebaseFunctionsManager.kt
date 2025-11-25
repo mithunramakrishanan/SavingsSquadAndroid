@@ -83,8 +83,6 @@ class FirebaseFunctionsManager private constructor() {
             }
         }
 
-//        functions.useEmulator("192.168.29.35", 5001)
-
         Log.d("Payment Payload", "${data}")
 
         functions
@@ -136,7 +134,7 @@ class FirebaseFunctionsManager private constructor() {
             }
     }
 
-    fun verifyBulkOrders(savedOrders: List<BulkOrder>) {
+    fun verifyBulkOrders(savedOrders: List<BulkOrder>, context: Context) {
         if (savedOrders.isEmpty()) {
             println("No orders to verify.")
             return
@@ -170,13 +168,16 @@ class FirebaseFunctionsManager private constructor() {
                 if (completedIds.isNotEmpty()) {
                     completedIds.forEach { completedId ->
                         try {
-                            val db = LocalDatabase.shared(requireContext())
+                            Thread {
+                                try {
+                                    val db = LocalDatabase.getInstance(context)
+                                    db.deleteOrder(completedId)
+                                    Log.d("LocalDatabase", "✅ Deleted order: $completedId")
+                                } catch (e: Exception) {
+                                    Log.e("LocalDatabase", "❌ Failed to delete order: ${e.localizedMessage}")
+                                }
+                            }.start()
 
-                            try {
-                                db.deleteOrder(completedId)
-                            } catch (e: Exception) {
-                                Log.e("DB", "Insert error: ${e.message}")
-                            }
                         } catch (e: Exception) {
                             println("❌ Failed to delete order: ${e.localizedMessage}")
                         }
@@ -209,9 +210,6 @@ class FirebaseFunctionsManager private constructor() {
         }
 
         val data = mapOf("beneficiaryId" to beneId)
-
-        // 🔌 Emulator (debug only)
-        functions.useEmulator("10.0.2.2", 5001)
 
         // 2️⃣ Firebase callable
         functions
@@ -301,6 +299,8 @@ class FirebaseFunctionsManager private constructor() {
             "transferType" to transferType
         )
 
+        Log.d("Payout started", payoutData.toString())
+
         // Attach optional values
         paymentId?.let { payoutData["paymentId"] = it }
         description?.let { payoutData["description"] = it }
@@ -314,9 +314,6 @@ class FirebaseFunctionsManager private constructor() {
         loanId?.let { payoutData["loanId"] = it }
         installmentId?.let { payoutData["installmentId"] = it }
         transferMode?.let { payoutData["transferMode"] = it }
-
-        // 🔌 Emulator (debug only)
-        functions.useEmulator("10.0.2.2", 5001)
 
         // 3️⃣ Call Firebase Function
         functions
@@ -388,9 +385,6 @@ class FirebaseFunctionsManager private constructor() {
             "transferId" to transferId
         )
 
-        // 🔌 Emulator
-        functions.useEmulator("10.0.2.2", 5001)
-
         functions
             .getHttpsCallable("verifyCashFreePayoutStatus")
             .call(payoutData)
@@ -459,8 +453,6 @@ class FirebaseFunctionsManager private constructor() {
             "countryCode" to countryCode,
             "postalCode" to postalCode
         )
-
-        functions.useEmulator("10.0.2.2", 5001)
 
         functions
             .getHttpsCallable("verifyAndSaveUPIBeneficiary")

@@ -43,84 +43,168 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.delay
 
 @Composable
 fun LaunchView(
-    onFinish: () -> Unit,
-    modifier: Modifier = Modifier,
-    // tweak timings if desired
-    fadeInDurationMs: Int = 800,
-    bounceDelayMs: Long = 800L,
-    rotationDelayMs: Long = 600L,
-    fadeOutDelayMs: Long = 2200L,
-    fadeOutDurationMs: Int = 600,
-    imageSizeDp: Int = 140,
-    imageResId: Int = R.drawable.app_icon // replace with your drawable id
+    showLaunchView: Boolean,
+    onFinish: () -> Unit
 ) {
-    // animatable state holders
+    if (!showLaunchView) return
+
+    val appName = "Savings Squad"
+    val characters = appName.toList()
+
+    // States
     val scale = remember { Animatable(0.6f) }
     val opacity = remember { Animatable(0f) }
-    val rotation = remember { Animatable(0f) }
 
-    // animation sequence
+    val textOpacity = remember {
+        characters.map { Animatable(0f) }
+    }
+
+    // Same gradient as SwiftUI
+    val gradientBrush = Brush.horizontalGradient(
+        colors = listOf(
+            AppColors.primaryBrand,
+            AppColors.secondaryAccent.copy(alpha = 0.8f),
+            AppColors.successAccent.copy(alpha = 0.8f),
+            AppColors.primaryBrand.copy(alpha = 0.9f)
+        )
+    )
+
+    // Timings
+    val fadeInDuration = 800
+    val bounceDelay = 800L
+    val textStartDelay = 600L
+    val fadeOutDelay = 2200L
+    val fadeOutDuration = 600
+
+    // -----------------------------------------------------
+    // ANIMATION SEQUENCE
+    // -----------------------------------------------------
     LaunchedEffect(Unit) {
-        // Step 1: Fade & Scale In
-        scale.animateTo(1.2f, animationSpec = tween(durationMillis = fadeInDurationMs))
-        opacity.animateTo(1f, animationSpec = tween(durationMillis = fadeInDurationMs))
 
-        // Step 2: Slight bounce back
-        delay(bounceDelayMs)
-        scale.animateTo(1.0f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow))
+        // 1️⃣ Fade in + scale
+        launch {
+            scale.animateTo(
+                1.2f,
+                tween(fadeInDuration, easing = LinearOutSlowInEasing)
+            )
+        }
+        launch {
+            opacity.animateTo(
+                1f,
+                tween(fadeInDuration, easing = LinearOutSlowInEasing)
+            )
+        }
 
-        // Step 3: Rotation
-        delay(rotationDelayMs)
-        rotation.animateTo(360f, animationSpec = tween(durationMillis = 1200))
+        // 2️⃣ Bounce
+        delay(bounceDelay)
+        scale.animateTo(
+            1f,
+            spring(dampingRatio = 0.5f)
+        )
 
-        // Step 4: Fade out after delay
-        delay(fadeOutDelayMs)
-        opacity.animateTo(0f, animationSpec = tween(durationMillis = fadeOutDurationMs))
-        scale.animateTo(0.9f, animationSpec = tween(durationMillis = fadeOutDurationMs))
+        // 3️⃣ Char by char fade
+        delay(textStartDelay)
+        textOpacity.forEachIndexed { i, anim ->
+            launch {
+                anim.animateTo(
+                    1f,
+                    tween(150)
+                )
+            }
+            delay(50)
+        }
 
-        // Step 5: wait the fade out to complete then call onFinish
-        delay(fadeOutDurationMs.toLong())
+        // 4️⃣ Fade out all
+        delay(fadeOutDelay)
+        launch {
+            opacity.animateTo(0f, tween(fadeOutDuration))
+        }
+        launch {
+            scale.animateTo(0.9f, tween(fadeOutDuration))
+        }
+        textOpacity.forEach { anim ->
+            launch {
+                anim.animateTo(0f, tween(fadeOutDuration))
+            }
+        }
+
+        delay(fadeOutDuration.toLong())
         onFinish()
     }
 
+    // -----------------------------------------------------
+    // UI (exact same layout as SwiftUI)
+    // -----------------------------------------------------
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AppColors.background),
         contentAlignment = Alignment.Center
     ) {
-        // Replace `painterResource(imageResId)` with your own image resource (R.drawable.app_icon)
-        Image(
-            painter = painterResource(id = imageResId),
-            contentDescription = null,
-            modifier = Modifier
-                .size(imageSizeDp.dp)
-                .scale(scale.value)
-                .graphicsLayer { rotationZ = rotation.value }
-                .alpha(opacity.value)
-        )
-    }
-}
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
-suspend fun animate(
-    from: Float,
-    to: Float,
-    duration: Int,
-    onUpdate: (Float) -> Unit
-) {
-    val anim = androidx.compose.animation.core.Animatable(from)
-    anim.animateTo(
-        targetValue = to,
-        animationSpec = tween(durationMillis = duration, easing = FastOutSlowInEasing)
-    ) {
-        onUpdate(this.value)
+            // App Icon
+            Image(
+                painter = painterResource(id = R.drawable.app_icon),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(140.dp)
+                    .graphicsLayer {
+                        scaleX = scale.value
+                        scaleY = scale.value
+                        alpha = opacity.value
+                        shape = RoundedCornerShape(32.dp)
+                        clip = true
+                    }
+                    .shadow(
+                        20.dp,
+                        spotColor = Color.Black.copy(alpha = 0.15f),
+                        ambientColor = Color.Black.copy(alpha = 0.15f)
+                    )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Box(contentAlignment = Alignment.Center) {
+
+                // 1️⃣ Character-by-character stagger fade layer
+                Row {
+                    characters.forEachIndexed { idx, ch ->
+                        Text(
+                            text = ch.toString(),
+                            style = AppFont.ibmPlexSans(30, FontWeight.SemiBold),
+                            color = Color.White,
+                            modifier = Modifier.graphicsLayer {
+                                alpha = textOpacity[idx].value
+                            }
+                        )
+                    }
+                }
+
+                // 2️⃣ Full-word gradient text (Material 3 compatible)
+                Text(
+                    text = appName,
+                    style = AppFont.ibmPlexSans(30, FontWeight.SemiBold).copy(
+                        brush = gradientBrush       // ✔️ WORKS in Material 3
+                    ),
+                    color = Color.Unspecified       // must use Unspecified with brush
+                )
+            }
+        }
     }
 }

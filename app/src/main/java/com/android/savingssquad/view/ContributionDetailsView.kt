@@ -139,7 +139,7 @@ fun ContributionDetailsView(
     // Filtered + sorted list
     val filteredContributions by remember(memberContributions, selectedSegment) {
         derivedStateOf {
-            val formatter = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+            val formatter = SimpleDateFormat("MMM yyyy", Locale.ENGLISH)
 
             memberContributions
                 .sortedBy { formatter.parse(it.monthYear) }

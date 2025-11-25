@@ -14,6 +14,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,9 +30,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.savingssquad.R
+import com.android.savingssquad.singleton.AppFont
 
 @Composable
 fun CashfreePaymentView(
@@ -72,128 +79,195 @@ fun PaymentResultScreen(
     success: Boolean,
     message: String,
     recipientName: String,
-    amount: String,
+    recipientNumber: String,
+    totalAmount: String,
     onDone: () -> Unit
 ) {
-    val gradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFFF9EFE5), Color.White)
-    )
 
+    // Soft background
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(gradient),
-        contentAlignment = Alignment.Center
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color.White, Color(0xFFF4F7F9))
+                )
+            )
     ) {
+
         Column(
             modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(40.dp))
 
-            // ✅ Animated Icon
-            Box(
+            Spacer(modifier = Modifier.height(30.dp))
+
+            // Main Card
+            Column(
                 modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .background(if (success) Color(0xFF4CAF50).copy(alpha = 0.2f) else Color(0xFFF44336).copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(
-                        id = if (success) R.drawable.back_icon else R.drawable.back_icon
-                    ),
-                    contentDescription = null,
-                    tint = if (success) Color(0xFF4CAF50) else Color(0xFFF44336),
-                    modifier = Modifier.size(60.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = if (success) "Payment Sent" else "Payment Failed",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = message,
-                fontSize = 16.sp,
-                color = Color.Gray,
-                lineHeight = 22.sp,
-                modifier = Modifier.padding(horizontal = 30.dp),
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // ✅ Amount card
-            AnimatedVisibility(
-                visible = success,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .background(Color.White, RoundedCornerShape(16.dp))
-                        .padding(16.dp)
-                        .fillMaxWidth()
-                        .shadow(2.dp)
-                ) {
-                    Text("Total Transferred", color = Color.Gray, fontSize = 14.sp)
-                    Text(amount, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // ✅ Recipient info (if success)
-            AnimatedVisibility(visible = success) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White, RoundedCornerShape(16.dp))
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.back_icon),
-                        contentDescription = null,
-                        tint = Color.Black.copy(alpha = 0.6f),
-                        modifier = Modifier.size(50.dp)
+                    .padding(horizontal = 16.dp)
+                    .shadow(
+                        elevation = 20.dp,
+                        spotColor = Color.Black.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(28.dp)
                     )
+                    .background(Color.White, RoundedCornerShape(28.dp))
+                    .padding(vertical = 24.dp, horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
 
-                    Spacer(modifier = Modifier.width(16.dp))
+                // Status Icon
+                Icon(
+                    imageVector = if (success) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                    contentDescription = null,
+                    tint = if (success) Color(0xFF2ECC71) else Color.Red,
+                    modifier = Modifier
+                        .size(80.dp)
+                        .padding(top = 12.dp)
+                )
 
-                    Column {
-                        Text(recipientName, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                // Title
+                Text(
+                    text = if (success) "Payment Successful" else "Payment Failed",
+                    style = AppFont.ibmPlexSans(24, FontWeight.SemiBold),
+                    color = Color.Black
+                )
+
+                // Message
+                Text(
+                    text = message,
+                    style = AppFont.ibmPlexSans(16, FontWeight.Normal),
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                )
+
+                // Amount Card (Success only)
+                if (success) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp)
+                            .shadow(
+                                elevation = 6.dp,
+                                spotColor = Color.Black.copy(alpha = 0.06f),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .background(Color.White, RoundedCornerShape(16.dp))
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Total Amount",
+                            style = AppFont.ibmPlexSans(14, FontWeight.Normal),
+                            color = Color.Gray
+                        )
+
+                        Text(
+                            totalAmount,
+                            style = AppFont.ibmPlexSans(28, FontWeight.Bold),
+                            color = Color.Black
+                        )
+                    }
+                }
+
+                // Recipient Card (Success only)
+                if (success) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp)
+                            .shadow(
+                                elevation = 6.dp,
+                                spotColor = Color.Black.copy(alpha = 0.06f),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .background(Color.White, RoundedCornerShape(16.dp))
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+
+                        // Gray rounded icon background
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .background(Color.Gray.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = Color.Black.copy(alpha = 0.6f),
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        Column {
+                            Text(
+                                text = recipientName,
+                                style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+                                color = Color.Black
+                            )
+                            Text(
+                                text = recipientNumber,
+                                style = AppFont.ibmPlexSans(14, FontWeight.Normal),
+                                color = Color.Gray
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.weight(1f))
 
-            // ✅ Done button
+            // DONE BUTTON
             Button(
                 onClick = onDone,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (success) Color(0xFF2ECC71) else Color.Red
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (success) Color(0xFF4CAF50) else Color(0xFFF44336)
-                ),
+                    .padding(horizontal = 32.dp)
+                    .height(52.dp)
+                    .shadow(
+                        elevation = 8.dp,
+                        spotColor = (if (success) Color(0xFF2ECC71) else Color.Red)
+                            .copy(alpha = 0.25f),
+                        shape = RoundedCornerShape(16.dp)
+                    ),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("Done", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = "Done",
+                    style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
+                    color = Color.White
+                )
             }
+
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PaymentResultPreview() {
+    PaymentResultScreen(
+        success = true,
+        message = "Your transaction is complete and should reflect shortly.",
+        recipientName = "Mithun",
+        recipientNumber = "RESCPE32323",
+        totalAmount = "₹1000",
+        onDone = { }
+    )
 }
 
 @Composable
