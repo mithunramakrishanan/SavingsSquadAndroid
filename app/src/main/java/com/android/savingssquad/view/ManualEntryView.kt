@@ -504,15 +504,10 @@ fun ManualEntryView(
                     SectionView(title = "Other Payments") {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-                            val amount = remember { mutableStateOf("") }
-
-                            LaunchedEffect(amount.value) {
-                                paymentAmount.value = amount.value ?: ""
-                            }
                             SSTextField(
                                 icon = Icons.Default.CreditCard,
                                 placeholder = "Enter Amount",
-                                textState = amount,
+                                textState = paymentAmount,
                                 keyboardType = KeyboardType.Number,
                                 error = paymentAmountError
                             )
@@ -530,7 +525,11 @@ fun ManualEntryView(
                                 /* handle other payment */
 
                                 if (validateFields()) {
-                                    handleOtherPayment(squadViewModel = squadViewModel, amountStr = paymentAmount.value, notes = paymentNotes)
+                                    handleOtherPayment(squadViewModel = squadViewModel, loaderManager = loaderManager,  amountStr = paymentAmount.value, notes = paymentNotes , action = {
+
+                                        paymentAmount.value = ""
+                                        paymentNotes = ""
+                                    })
 
                                 }
 
@@ -652,15 +651,14 @@ fun ManualEntryView(
 
 private fun handleOtherPayment(
     squadViewModel: SquadViewModel,
+    loaderManager : LoaderManager,
     amountStr: String,
-    notes: String
+    notes: String,
+    action : () -> Unit
 ) {
+    loaderManager.showLoader()
     val squad = squadViewModel.squad.value ?: return
-
     val amount = amountStr.toIntOrNull() ?: 0
-    LoaderManager.shared.showLoader()
-
-    CoroutineScope(Dispatchers.IO).launch {
 
         // 🔹 Create new payment
         val newPayment = PaymentsDetails(
@@ -681,7 +679,8 @@ private fun handleOtherPayment(
             paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
             paymentType = PaymentType.PAYMENT_CREDIT,
             paymentSubType = PaymentSubType.OTHERS_AMOUNT,
-
+            paymentStatus = PaymentStatus.SUCCESS,
+            payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
             description = notes,
             squadId = squad.squadID,
             contributionId = "",
@@ -710,27 +709,21 @@ private fun handleOtherPayment(
         ) { success, error ->
             if (success) {
                 println("✅ Payment added successfully!")
+                loaderManager.hideLoader()
+                // 🔹 Record activity entry
+                squadViewModel.createSquadActivity(
+                    activityType = SquadActivityType.AMOUNT_CREDIT,
+                    userName = "CHIT MEMBER",
+                    amount = amount,
+                    description = "Updated amount $amountStr - $notes"
+                ) {
+                    action()
+                }
             } else {
                 println("❌ Error adding payment: $error")
             }
         }
 
-        // 🔹 Record activity entry
-        squadViewModel.createSquadActivity(
-            activityType = SquadActivityType.AMOUNT_CREDIT,
-            userName = "CHIT MEMBER",
-            amount = amount,
-            description = "Updated amount $amountStr - $notes"
-        ) {
-            CoroutineScope(Dispatchers.Main).launch {
-                LoaderManager.shared.hideLoader()
-            }
-        }
-
-        withContext(Dispatchers.Main) {
-            LoaderManager.shared.hideLoader()
-        }
-    }
 
     println("Processing Other Payment: $amountStr - Notes: $notes")
 }

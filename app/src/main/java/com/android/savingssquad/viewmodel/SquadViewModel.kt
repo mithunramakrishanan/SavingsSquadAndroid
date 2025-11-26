@@ -1342,28 +1342,51 @@ class SquadViewModel : ViewModel() {
 
             val userId = payment.firstOrNull()?.memberId
             val member = _squadMembers.value.firstOrNull { it.id == userId }
+
+            //For manual entry amount credit
             if (member == null) {
-                completion(false, "❌ Member not found")
-                return@savePayments
-            }
+                var squadCopy = squadLocal
+                applyPaymentSummaries(payment, squadCopy, Member())
 
-            var squadCopy = squadLocal
-            var memberCopy = member
-            applyPaymentSummaries(payment, squadCopy, memberCopy)
+                CoroutineScope(Dispatchers.IO).launch {
+                    updateSquad(squad = squadCopy) { squadSuccess, _, squadError ->
+                        if (!squadSuccess) {
+                            println("❌ Failed to update squad: ${squadError ?: "Unknown error"}")
+                        }
+                        else {
 
-            CoroutineScope(Dispatchers.IO).launch {
-                updateMembers(squadID = squadCopy.squadID, members = listOf(memberCopy)) { memberSuccess, memberError ->
-                    if (!memberSuccess) {
-                        println("❌ Failed to update member: ${memberError ?: "Unknown error"}")
+                            println("update squad: ${squadCopy}")
+                        }
                     }
                 }
 
-                updateSquad(squad = squadCopy) { squadSuccess, _, squadError ->
-                    if (!squadSuccess) {
-                        println("❌ Failed to update squad: ${squadError ?: "Unknown error"}")
+            }
+            else {
+
+                var squadCopy = squadLocal
+                var memberCopy = member
+                applyPaymentSummaries(payment, squadCopy, memberCopy)
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    updateMembers(squadID = squadCopy.squadID, members = listOf(memberCopy)) { memberSuccess, memberError ->
+                        if (!memberSuccess) {
+                            println("❌ Failed to update member: ${memberError ?: "Unknown error"}")
+                        }
+                    }
+
+                    updateSquad(squad = squadCopy) { squadSuccess, _, squadError ->
+                        if (!squadSuccess) {
+                            println("❌ Failed to update squad: ${squadError ?: "Unknown error"}")
+                        }
+                        else {
+
+                            println("update squad: ${squadCopy}")
+                        }
                     }
                 }
             }
+
+
 
             completion(true, null)
         }
