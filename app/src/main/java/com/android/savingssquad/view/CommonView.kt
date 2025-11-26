@@ -130,7 +130,7 @@ fun SSNavigationBar(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    painter = painterResource(id = R.drawable.back_icon),
                     contentDescription = "Back",
                     tint = AppColors.headerText,
                     modifier = Modifier.size(25.dp)

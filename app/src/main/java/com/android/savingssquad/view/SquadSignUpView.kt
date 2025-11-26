@@ -43,7 +43,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.android.savingssquad.viewmodel.AlertManager
+import com.android.savingssquad.viewmodel.AppDestination
 
 import com.google.firebase.auth.*
 
@@ -89,6 +91,18 @@ fun SquadSignUpView(
 // UI Button state
     var isButtonLoading by remember { mutableStateOf(false) }
     var isTermsAccepted by remember { mutableStateOf(false) }
+
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    LaunchedEffect(Unit) {
+        navController.currentBackStackEntry
+            ?.savedStateHandle
+            ?.getLiveData<Boolean>("termsAccepted")
+            ?.observe(lifecycleOwner) { accepted ->
+                isTermsAccepted = accepted == true
+            }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AppBackgroundGradient()
@@ -265,7 +279,16 @@ fun SquadSignUpView(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(
                         checked = isTermsAccepted,
-                        onCheckedChange = { isTermsAccepted = it },
+                        onCheckedChange = {
+                            // Always open terms on checkbox tap
+
+                            if (!isTermsAccepted) {
+                                navController.navigate(AppDestination.OPEN_TERMS_CONDITIONS.route)
+                            }
+                            else {
+                                isTermsAccepted = false
+                            }
+                        },
                         colors = CheckboxDefaults.colors(checkedColor = AppColors.successAccent)
                     )
 

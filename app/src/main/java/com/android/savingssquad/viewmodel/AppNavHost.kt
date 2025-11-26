@@ -128,6 +128,10 @@ fun AppNavHost(
         composable(AppDestination.OPEN_DUES_SCREEN.route) {
             DuesScreenView(navController, squadViewModel)
         }
+
+        composable(AppDestination.OPEN_TERMS_CONDITIONS.route) {
+            TermsAndConditionsView(navController)
+        }
     }
 }
 
@@ -154,5 +158,6 @@ sealed class AppDestination(val route: String) {
 
     object OPEN_DUES_SCREEN: AppDestination("open_dues_screen")
 
+    object OPEN_TERMS_CONDITIONS: AppDestination("open_terms_conditions")
 
 }

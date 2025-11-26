@@ -68,6 +68,7 @@ import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.PayoutStatus
+import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
@@ -77,7 +78,9 @@ import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
 import com.yourapp.utils.CommonFunctions
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 
@@ -125,6 +128,27 @@ fun ManualEntryView(
     val selectedContributions by squadViewModel.selectedContributions.collectAsState(initial = emptyList())
     val isPendingLoanAvailable by remember { derivedStateOf { squadViewModel.isPendingLoanAvailable } }
 
+    val paymentAmount = remember { mutableStateOf("") }
+
+    var paymentAmountError by remember { mutableStateOf("") }
+
+    var paymentNotes by remember { mutableStateOf("") }
+    var paymentNotesError by remember { mutableStateOf("") }
+
+
+    fun validateFields(): Boolean {
+        paymentAmountError = if (paymentAmount.value.isEmpty()) {
+            "Amount is required"
+        } else ""
+
+        paymentNotesError = if (paymentNotes.isEmpty()) {
+            "Note is required"
+        } else ""
+
+        return paymentAmountError.isEmpty() &&
+                paymentNotesError.isEmpty()
+    }
+
     // fetch rules / initial data if needed
     LaunchedEffect(Unit) {
         // no-op or call any required fetches - keep parity with SwiftUI onAppear
@@ -150,7 +174,7 @@ fun ManualEntryView(
             Spacer(modifier = Modifier.height(12.dp))
 
             ModernSegmentedPickerView(
-                segments = listOf(SquadStrings.manualEntryContribution, SquadStrings.manualEntryEMI),
+                segments = listOf(SquadStrings.manualEntryContribution, SquadStrings.manualEntryEMI,SquadStrings.manualEntryOthers),
                 selectedSegment = selectedSegment,
                 onSegmentSelected = { newSegment -> selectedSegment = newSegment }
             )
@@ -325,7 +349,8 @@ fun ManualEntryView(
                         }
                     }
                 }
-            } else {
+            }
+            else if (selectedSegment == SquadStrings.manualEntryEMI) {
                 // EMI Entry
                 SectionView(title = "EMI Entry") {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
@@ -474,6 +499,46 @@ fun ManualEntryView(
                     }
                 )
             }
+            else {
+
+                    SectionView(title = "Other Payments") {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+                            val amount = remember { mutableStateOf("") }
+
+                            LaunchedEffect(amount.value) {
+                                paymentAmount.value = amount.value ?: ""
+                            }
+                            SSTextField(
+                                icon = Icons.Default.CreditCard,
+                                placeholder = "Enter Amount",
+                                textState = amount,
+                                keyboardType = KeyboardType.Number,
+                                error = paymentAmountError
+                            )
+
+
+                            SSTextView(
+                                placeholder = "Add a note",
+                                text = paymentNotes,
+                                onTextChange = { paymentNotes = it },
+                                error = paymentNotesError,
+                                maxCharacters = 200
+                            )
+
+                            SSButton(title = "Make Payment") {
+                                /* handle other payment */
+
+                                if (validateFields()) {
+                                    handleOtherPayment(squadViewModel = squadViewModel, amountStr = paymentAmount.value, notes = paymentNotes)
+
+                                }
+
+                            }
+                        }
+                    }
+
+            }
 
             Spacer(modifier = Modifier.height(30.dp))
         }
@@ -583,6 +648,91 @@ fun ManualEntryView(
             }
         }
     }
+}
+
+private fun handleOtherPayment(
+    squadViewModel: SquadViewModel,
+    amountStr: String,
+    notes: String
+) {
+    val squad = squadViewModel.squad.value ?: return
+
+    val amount = amountStr.toIntOrNull() ?: 0
+    LoaderManager.shared.showLoader()
+
+    CoroutineScope(Dispatchers.IO).launch {
+
+        // 🔹 Create new payment
+        val newPayment = PaymentsDetails(
+            id = CommonFunctions.generatePaymentID(squad.squadID),
+            paymentUpdatedDate = Date().asTimestamp,
+            payoutUpdatedDate = null,
+
+            memberId = "",
+            memberName = "SQUAD MANAGER",
+            paymentPhone = "",
+            paymentEmail = "",
+
+            userType = SquadUserType.SQUAD_MANAGER,
+
+            amount = amount,
+            intrestAmount = 0,
+
+            paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
+            paymentType = PaymentType.PAYMENT_CREDIT,
+            paymentSubType = PaymentSubType.OTHERS_AMOUNT,
+
+            description = notes,
+            squadId = squad.squadID,
+            contributionId = "",
+            loanId = "",
+            installmentId = "",
+            payment_session_id = "",
+            order_id = "",
+            transferMode = "",
+            beneId = "",
+
+            paymentSuccess = true,
+            paymentResponseMessage = "",
+            payoutSuccess = true,
+            payoutResponseMessage = "",
+            transferReferenceId = "",
+
+            recordStatus = RecordStatus.ACTIVE,
+            recordDate = Date().asTimestamp
+        )
+
+        // 🔹 Save payment
+        squadViewModel.savePayments(
+            showLoader = false,
+            squadID = squad.squadID,
+            payment = listOf(newPayment)
+        ) { success, error ->
+            if (success) {
+                println("✅ Payment added successfully!")
+            } else {
+                println("❌ Error adding payment: $error")
+            }
+        }
+
+        // 🔹 Record activity entry
+        squadViewModel.createSquadActivity(
+            activityType = SquadActivityType.AMOUNT_CREDIT,
+            userName = "CHIT MEMBER",
+            amount = amount,
+            description = "Updated amount $amountStr - $notes"
+        ) {
+            CoroutineScope(Dispatchers.Main).launch {
+                LoaderManager.shared.hideLoader()
+            }
+        }
+
+        withContext(Dispatchers.Main) {
+            LoaderManager.shared.hideLoader()
+        }
+    }
+
+    println("Processing Other Payment: $amountStr - Notes: $notes")
 }
 
 // ===== Helper validation functions (mirrors SwiftUI functions) =====
