@@ -205,7 +205,7 @@ fun ManageSquadView(
                                 AlertManager.shared.showAlert(
                                     title = SquadStrings.appName,
                                     message = message,
-                                    primaryButtonTitle = "OK"
+                                    primaryButtonTitle = SquadStrings.ok
                                 ) {
                                     squadDuration.value = resetValue
                                 }

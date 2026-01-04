@@ -213,7 +213,7 @@ fun ManualEntryView(
                                     AlertManager.shared.showAlert(
                                         title = SquadStrings.appName,
                                         message = "Please select a member",
-                                        primaryButtonTitle = "OK",
+                                        primaryButtonTitle = SquadStrings.ok,
                                         primaryAction = {}
                                     )
                                 } else {
@@ -221,7 +221,7 @@ fun ManualEntryView(
                                         AlertManager.shared.showAlert(
                                             title = SquadStrings.appName,
                                             message = "No outstanding dues for $contributionSelectedMemberName",
-                                            primaryButtonTitle = "OK",
+                                            primaryButtonTitle = SquadStrings.ok,
                                             primaryAction = {}
                                         )
                                     } else {
@@ -352,7 +352,7 @@ fun ManualEntryView(
             }
             else if (selectedSegment == SquadStrings.manualEntryEMI) {
                 // EMI Entry
-                SectionView(title = "EMI Entry") {
+                SectionView(title = SquadStrings.emiEntry) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                         // Member selection
                         SSTextField(
@@ -686,7 +686,6 @@ private fun handleOtherPayment(
             contributionId = "",
             loanId = "",
             installmentId = "",
-            payment_session_id = "",
             order_id = "",
             transferMode = "",
             beneId = "",

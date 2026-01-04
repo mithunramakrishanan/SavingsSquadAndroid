@@ -70,6 +70,7 @@ import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
+import com.android.savingssquad.singleton.RazorpayPaymentAction
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
@@ -132,7 +133,7 @@ fun ManagerPaymentView(
 
             // Navigation Bar
             item {
-                SSNavigationBar(title = "Payment", showBackButton = false, navController = navController)
+                SSNavigationBar(title = SquadStrings.payment, showBackButton = false, navController = navController)
             }
 
             // Segmented Picker
@@ -190,7 +191,7 @@ fun ManagerPaymentView(
 
                 // Payment Button
                 item {
-                    val buttonEnabled = (loanSelectedMember?.upiBeneId?.isNotEmpty() == true) && emiSelectedType != null
+                    val buttonEnabled = (loanSelectedMember?.upiID?.isNotEmpty() == true) && emiSelectedType != null
                     SSButton(
                         title = if (emiSelectedType != null && loanSelectedMember != null)
                             "Pay ₹${emiSelectedType!!.loanAmount} to ${loanSelectedMember!!.name}'s UPI"
@@ -208,6 +209,7 @@ fun ManagerPaymentView(
                                     handler = {
                                         loanSelectedMember = null
                                             emiSelectedType = null
+                                        squadViewModel.setIsPendingLoanAvailable(false)
                             }
                                 )
                             }
@@ -217,7 +219,7 @@ fun ManagerPaymentView(
 
                 item {
 
-                    if (loanSelectedMember != null && loanSelectedMember!!.upiBeneId.isEmpty()) {
+                    if (loanSelectedMember != null && loanSelectedMember!!.upiID.isEmpty()) {
                         Text(
                             text = "⚠️ ${loanSelectedMember!!.name} has not added a UPI ID",
                             style = AppFont.ibmPlexSans(12, FontWeight.Normal),
@@ -345,12 +347,13 @@ private fun makeLoanPayment(
                 contributionId = "",
                 loanId = newLoan.id ?: "",
                 installmentId = "",
-                transferReferenceId = ""
+                transferReferenceId = "",
+                upiID = selectedMember.upiID
             )
 
-            FirebaseFunctionsManager.shared.processCashFreePayment(
+            FirebaseFunctionsManager.shared.processRazorPayPayment(
                 squadId = squadViewModel.squad.value?.squadID ?: "",
-                action = CashfreePaymentAction.New(payment = newPayment)
+                action = RazorpayPaymentAction.New(payment = newPayment)
             ) { sessionId, orderId, error ->
 
                 squadViewModel.handleCashFreeResponse(
@@ -374,7 +377,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
         AlertManager.shared.showAlert(
             title = SquadStrings.appName,
             message = "Fund not available",
-            primaryButtonTitle = "OK",
+            primaryButtonTitle = SquadStrings.ok,
             primaryAction = {}
         )
         return

@@ -31,6 +31,7 @@ import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PaymentType
+import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.appShadow
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.viewmodel.SquadViewModel
@@ -61,7 +62,7 @@ fun AccountSummaryView(
         ) {
 
             // 🔹 Navigation Bar
-            SSNavigationBar(title = "Account Summary", navController = navController)
+            SSNavigationBar(title = SquadStrings.accountSummary, navController = navController)
 
             // 🔹 Totals Header
             AccountsSummaryHeaderView(payments)

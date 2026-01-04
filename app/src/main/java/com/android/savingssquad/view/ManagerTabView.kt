@@ -33,7 +33,6 @@ fun ManagerTabView(
     // 🔹 Shared State
     val showPayment by squadViewModel.showPayment.collectAsState()
     val paymentOrderId by squadViewModel.paymentOrderId.collectAsState()
-    val paymentOrderToken by squadViewModel.paymentOrderToken.collectAsState()
     val squadState by squadViewModel.squad.collectAsState()
     val squad = squadState
 
@@ -107,9 +106,8 @@ fun ManagerTabView(
 
         // ✅ Payment overlay
         if (showPayment && squad != null) {
-            CashfreePaymentView(
+            RazorpayPaymentView (
                 orderId = paymentOrderId,
-                payment_session_id = paymentOrderToken,
                 squadId = squad.squadID,
                 onSuccess = { orderId ->
                     println("✅ Payment Success for order: $orderId")

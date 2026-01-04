@@ -266,6 +266,11 @@ sealed class CashfreePaymentAction {
     data class Retry(val failedOrderId: String) : CashfreePaymentAction()
 }
 
+sealed class RazorpayPaymentAction {
+    data class New(val payment: PaymentsDetails) : RazorpayPaymentAction()
+    data class Retry(val failedOrderId: String) : RazorpayPaymentAction()
+}
+
 // ------------------------------
 // MARK: - Database Error
 // ------------------------------

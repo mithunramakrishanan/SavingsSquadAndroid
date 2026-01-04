@@ -79,6 +79,7 @@ import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.FirebaseFunctionsManager
+import com.android.savingssquad.viewmodel.FirestoreManager
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.Dispatchers
 import java.util.Calendar
@@ -136,9 +137,9 @@ fun BankDetailsView(
 
             SSNavigationBar(
                 title = if (screenType == SquadUserType.SQUAD_MANAGER)
-                    "Squad UPI"
+                    SquadStrings.squadUPI
                 else
-                    "Your UPI",
+                    SquadStrings.yourUPI,
                 navController = navController,
                 showBackButton = true
             )
@@ -250,9 +251,43 @@ private fun saveAccountToFirestore(
     accountHoldername: String,
     upiID: String
 ) {
-    val squadID = squadViewModel.squad.value?.squadID ?: return
+    val member = squadViewModel.currentMember.value ?: return
 
-    fun handleResult(result: Result<BeneficiaryResult>, type: SquadUserType) {
+    val squadID = squadViewModel.squad.value?.squadID ?: return
+    val memberID = if (screenType == SquadUserType.SQUAD_MANAGER) "" else member.id
+
+    FirebaseFunctionsManager.shared.updateUPIIds(squadId = squadID, memberId = memberID, name = accountHoldername, upiId = upiID, completion = { success, message, error ->
+
+        loaderManager.hideLoader()
+
+        if (success) {
+
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = "UPI Updated",
+                primaryButtonTitle = "OK",
+                primaryAction = {
+
+                    if (screenType == SquadUserType.SQUAD_MANAGER) {
+
+                        squadViewModel.squad.value!!.upiID = upiID
+                    }
+                    else {
+                        squadViewModel.currentMember.value!!.upiID = upiID
+                    }
+
+                }
+            )
+        }
+
+
+
+    })
+
+
+
+
+    /*fun handleResult(result: Result<BeneficiaryResult>, type: SquadUserType) {
         loaderManager.hideLoader()
 
         if (result.isSuccess) {
@@ -324,5 +359,5 @@ private fun saveAccountToFirestore(
                 handleResult(result,SquadUserType.SQUAD_MEMBER )
             }
         }
-    }
+    } */
 }

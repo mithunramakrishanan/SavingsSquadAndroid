@@ -1,6 +1,8 @@
 package com.android.savingssquad.view
 
 // Core Compose
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -38,7 +40,6 @@ import com.android.savingssquad.view.SSLoaderView
 import com.android.savingssquad.view.AppBackgroundGradient
 //import com.android.savingssquad.view.MemberHomeView
 //import com.android.savingssquad.view.MemberPaymentView
-import com.android.savingssquad.view.CashfreePaymentView
 
 // ViewModels & Managers
 import com.android.savingssquad.viewmodel.SquadViewModel
@@ -62,6 +63,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.android.savingssquad.singleton.AppFont
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MemberTabView(
     navController: NavController,
@@ -73,7 +75,6 @@ fun MemberTabView(
     // Shared State from ViewModel
     val showPayment by squadViewModel.showPayment.collectAsState()
     val paymentOrderId by squadViewModel.paymentOrderId.collectAsState()
-    val paymentOrderToken by squadViewModel.paymentOrderToken.collectAsState()
     val squadState by squadViewModel.squad.collectAsState()
     val squad = squadState
 
@@ -141,9 +142,8 @@ fun MemberTabView(
 
         // -------- PAYMENT OVERLAY ----------
         if (showPayment && squad != null) {
-            CashfreePaymentView(
+            RazorpayPaymentView(
                 orderId = paymentOrderId,
-                payment_session_id = paymentOrderToken,
                 squadId = squad.squadID,
                 onSuccess = { orderId ->
                     println("✅ Payment Success: $orderId")

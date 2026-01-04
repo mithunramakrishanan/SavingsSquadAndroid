@@ -2,14 +2,18 @@ package com.android.savingssquad.viewmodel
 
 import android.content.Context
 import android.util.Log
+import androidx.activity.compose.setContent
 import com.android.savingssquad.model.BeneficiaryDetails
 import com.android.savingssquad.model.BeneficiaryResult
+import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.PayoutStatusResult
 import com.android.savingssquad.singleton.BulkOrder
 import com.android.savingssquad.singleton.CashfreePaymentAction
 import com.android.savingssquad.singleton.JsonUtil
 import com.android.savingssquad.singleton.LocalDatabase
+import com.android.savingssquad.singleton.RazorpayPaymentAction
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.view.PaymentScreen
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.FirebaseFunctionsException
 import com.google.firebase.functions.HttpsCallableResult
@@ -36,9 +40,9 @@ class FirebaseFunctionsManager private constructor() {
 
     private val functions = FirebaseFunctions.getInstance()
 
-    fun processCashFreePayment(
+    fun processRazorPayPayment(
         squadId: String,
-        action: CashfreePaymentAction,
+        action: RazorpayPaymentAction,
         completion: (String?, String?, Exception?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
@@ -46,7 +50,7 @@ class FirebaseFunctionsManager private constructor() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = "📴 No Internet Connection.",
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             completion(null, null, Exception("No Internet Connection"))
@@ -57,8 +61,11 @@ class FirebaseFunctionsManager private constructor() {
         var functionName = ""
 
         when (action) {
-            is CashfreePaymentAction.New -> {
-                functionName = "makeCashFreePayment"
+
+            /* ───────────── NEW PAYMENT ───────────── */
+            is RazorpayPaymentAction.New -> {
+                functionName = "makeRazorpayPayment"
+
                 data.putAll(
                     mapOf(
                         "memberId" to action.payment.memberId,
@@ -73,38 +80,46 @@ class FirebaseFunctionsManager private constructor() {
                         "description" to action.payment.description,
                         "contributionId" to action.payment.contributionId,
                         "loanId" to action.payment.loanId,
-                        "installmentId" to action.payment.installmentId
+                        "installmentId" to action.payment.installmentId,
+                        "upiID" to action.payment.upiID
                     )
                 )
             }
-            is CashfreePaymentAction.Retry -> {
-                functionName = "retryCashFreePayment"
+
+            /* ───────────── RETRY PAYMENT ───────────── */
+            is RazorpayPaymentAction.Retry -> {
+                functionName = "retryRazorpayPayment"
                 data["failedOrderId"] = action.failedOrderId
             }
         }
 
-        Log.d("Payment Payload", "${data}")
-
+        Log.d("Razorpay Payload", data.toString())
+//        functions.useEmulator("10.0.2.2", 9099)
         functions
             .getHttpsCallable(functionName)
             .call(data)
             .addOnCompleteListener { task ->
+
                 LoaderManager.shared.hideLoader()
 
                 if (!task.isSuccessful) {
                     val e = task.exception
-                    val firebaseError = (e as? FirebaseFunctionsException)
+                    val firebaseError = e as? FirebaseFunctionsException
 
                     val code = firebaseError?.code
                     val details = firebaseError?.details
                     val serverMsg = firebaseError?.message
 
-                    println("🔥 FUNCTION FAILURE: code=$code | message=$serverMsg | details=$details | raw=$e")
+                    Log.e(
+                        "🔥 Razorpay Function Error",
+                        "code=$code | message=$serverMsg | details=$details",
+                        e
+                    )
 
                     AlertManager.shared.showAlert(
                         title = SquadStrings.appName,
-                        message = "⚠️ $functionName failed.\n$serverMsg",
-                        primaryButtonTitle = "OK",
+                        message = "⚠️ Payment initiation failed.\n$serverMsg",
+                        primaryButtonTitle = SquadStrings.ok,
                         primaryAction = {}
                     )
 
@@ -112,25 +127,35 @@ class FirebaseFunctionsManager private constructor() {
                     return@addOnCompleteListener
                 }
 
-                val resultData =
-                    task.result?.data as? Map<*, *> ?: mapOf<String, Any>()
-                val orderId = resultData["orderId"] as? String
-                val sessionId = resultData["sessionId"] as? String
+                val resultData = task.result?.data as? Map<*, *> ?: emptyMap<String, Any>()
 
-                if (orderId.isNullOrEmpty() || sessionId.isNullOrEmpty()) {
+                val orderId = resultData["orderId"] as? String
+
+                if (orderId.isNullOrEmpty()) {
+                    Log.e("❌ Razorpay", "Invalid server response: $resultData")
+
                     AlertManager.shared.showAlert(
                         title = SquadStrings.appName,
                         message = "⚠️ Invalid response from server. Please try again.",
-                        primaryButtonTitle = "OK",
+                        primaryButtonTitle = SquadStrings.ok,
                         primaryAction = {}
                     )
-                    println("❌ Missing orderId/sessionId: $resultData")
-                    completion(null, null, Exception("Invalid response from server"))
+
+                    completion(null, null, Exception("Invalid Razorpay response"))
                     return@addOnCompleteListener
                 }
 
-                println("✅ $functionName succeeded | orderId: $orderId, sessionId: $sessionId")
-                completion(sessionId, orderId, null)
+                Log.d(
+                    "✅ Razorpay Order Created",
+                    "orderId=$orderId | key="
+                )
+
+                /*
+                 * SUCCESS:
+                 * return orderId + key
+                 * Client should now open Razorpay Checkout
+                 */
+                completion("", orderId, null)
             }
     }
 
@@ -145,7 +170,7 @@ class FirebaseFunctionsManager private constructor() {
         }
 
         functions
-            .getHttpsCallable("verifyCashFreePaymentStatusBulk")
+            .getHttpsCallable("verifyRazorpayPaymentStatusBulk")
             .call(mapOf("orders" to ordersData))
             .addOnSuccessListener { result ->
                 val data = result.data as? Map<*, *> ?: return@addOnSuccessListener
@@ -202,7 +227,7 @@ class FirebaseFunctionsManager private constructor() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = "📴 No Internet Connection.",
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             completion(Result.failure(Exception("No Internet Connection")))
@@ -284,7 +309,7 @@ class FirebaseFunctionsManager private constructor() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = "📴 No Internet Connection.",
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             completion(Result.failure(Exception("No Internet Connection")))
@@ -372,7 +397,7 @@ class FirebaseFunctionsManager private constructor() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = "📴 No Internet Connection.",
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             completion(Result.failure(Exception("No Internet Connection")))
@@ -434,7 +459,7 @@ class FirebaseFunctionsManager private constructor() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = "📴 No Internet Connection.",
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             completion(Result.failure(Exception("No Internet Connection")))
@@ -486,6 +511,225 @@ class FirebaseFunctionsManager private constructor() {
 
                 val result = BeneficiaryResult(beneId, upi)
                 completion(Result.success(result))
+            }
+    }
+
+
+    fun createUPIPaymentIntent(
+        squadId: String,
+        payment: PaymentsDetails,
+        completion: (String?, String?, Exception?) -> Unit
+    ) {
+        if (!CommonFunctions.isInternetAvailable()) {
+            LoaderManager.shared.hideLoader()
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = "📴 No Internet Connection.",
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+            completion(null, null, Exception("No Internet Connection"))
+            return
+        }
+
+        val data = mutableMapOf<String, Any>("squadId" to squadId)
+        val functionName = "createUPIPaymentIntent"
+
+        data.putAll(
+            mapOf(
+                "memberId" to payment.memberId,
+                "name" to payment.memberName,
+                "email" to payment.paymentEmail,
+                "phone" to payment.paymentPhone,
+                "amount" to payment.amount,
+                "intrestAmount" to payment.intrestAmount,
+                "paymentEntryType" to payment.paymentEntryType.value,
+                "paymentType" to payment.paymentType.value,
+                "paymentSubType" to payment.paymentSubType.value,
+                "description" to payment.description,
+                "contributionId" to payment.contributionId,
+                "loanId" to payment.loanId,
+                "installmentId" to payment.installmentId
+            )
+        )
+
+        Log.d("Payment Payload", "$data")
+
+        functions
+            .getHttpsCallable(functionName)
+            .call(data)
+            .addOnCompleteListener { task ->
+                LoaderManager.shared.hideLoader()
+
+                if (!task.isSuccessful) {
+                    val e = task.exception
+                    val firebaseError = e as? FirebaseFunctionsException
+
+                    AlertManager.shared.showAlert(
+                        title = SquadStrings.appName,
+                        message = "⚠️ $functionName failed.\n${firebaseError?.message}",
+                        primaryButtonTitle = SquadStrings.ok,
+                        primaryAction = {}
+                    )
+
+                    completion(null, null, e)
+                    return@addOnCompleteListener
+                }
+
+                val resultData = task.result?.data as? Map<*, *> ?: emptyMap<String, Any>()
+                val orderId = resultData["orderId"] as? String
+                val transferId = resultData["transferId"] as? String
+
+                if (orderId.isNullOrEmpty()) {
+                    AlertManager.shared.showAlert(
+                        title = SquadStrings.appName,
+                        message = "⚠️ Invalid response from server. Please try again.",
+                        primaryButtonTitle = SquadStrings.ok,
+                        primaryAction = {}
+                    )
+                    completion(null, null, Exception("Invalid response"))
+                    return@addOnCompleteListener
+                }
+
+                // ✅ sessionId is NOT applicable for UPI
+                completion(transferId, orderId, null)
+            }
+    }
+
+    fun verifyUPIPaymentIntent(
+        context: Context,
+        squadId: String,
+        orderId: String,
+        status: String,
+        amount: Int,
+        completion: (String?, String?, Exception?) -> Unit
+    ) {
+        Log.d("Payment flow", "Verifying payment...")
+
+        Log.d("Payment flow orderId", orderId)
+        Log.d("Payment flow squadId", squadId)
+        Log.d("Payment flow status", status)
+        Log.d("Payment flow amount", amount.toString())
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            LoaderManager.shared.hideLoader()
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = "📴 No Internet Connection.",
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+            completion(null, null, Exception("No Internet Connection"))
+            return
+        }
+
+        functions
+            .getHttpsCallable("verifyUPIPaymentIntent")
+            .call(
+                mapOf(
+                    "orderId" to orderId,
+                    "squadId" to squadId,
+                    "status" to status,
+                    "amount" to amount
+                )
+            )
+            .addOnSuccessListener { result ->
+                Log.d("Payment flow Success", "verifyUPIPaymentIntent Success")
+                val data = result.data as? Map<*, *> ?: return@addOnSuccessListener
+                val success = data["success"] as? Boolean ?: false
+                val message = data["paymentResponseMessage"] as? String ?: "Unknown"
+                val responseAmount = (data["amount"] as? Number)?.toInt() ?: 0
+                val recipientName = data["recipientName"] as? String ?: "Recipient"
+
+                if (success) {
+
+                    try {
+                        val db = LocalDatabase.getInstance(context)
+                        db.deleteOrder(orderId)
+                        Log.d("LocalDatabase", "✅ Deleted order: $orderId")
+
+                    } catch (e: Exception) {
+                        Log.e("LocalDatabase", "❌ Failed to delete order: ${e.localizedMessage}")
+                    }
+
+                    completion(orderId, message, null)
+                } else {
+
+                    completion(null, null, Exception("Payment failed: $message"))
+                }
+            }
+            .addOnFailureListener { e ->
+                e.localizedMessage?.let { Log.d("Payment flow failed", it) }
+                completion(null, null, Exception("Verification failed: ${e.localizedMessage}"))
+
+            }
+    }
+
+    fun updateUPIIds(
+        squadId: String,
+        memberId: String?,
+        name: String,
+        upiId: String,
+        completion: (Boolean, String?, Exception?) -> Unit
+    ) {
+        if (!CommonFunctions.isInternetAvailable()) {
+            completion(false, null, Exception("No Internet Connection"))
+            return
+        }
+
+        val data = mutableMapOf<String, Any>(
+            "squadId" to squadId,
+            "name" to name,
+            "upiID" to upiId
+        )
+
+        if (!memberId.isNullOrEmpty()) {
+            data["memberId"] = memberId
+        }
+
+        functions
+            .getHttpsCallable("updateUPIIds")
+            .call(data)
+            .addOnSuccessListener { result ->
+                val res = result.data as? Map<*, *>
+                val upi = res?.get("upi") as? String
+                completion(true, upi, null)
+            }
+            .addOnFailureListener { e ->
+                completion(false, null, e)
+            }
+    }
+
+    fun retryUPIPayment(
+        squadId: String,
+        failedOrderId: String,
+        onComplete: (transferId: String?, orderId: String?, error: Exception?) -> Unit
+    ) {
+        val data = mapOf(
+            "squadId" to squadId,
+            "failedOrderId" to failedOrderId
+        )
+
+        functions
+            .getHttpsCallable("retryUPIPaymentIntent")
+            .call(data)
+            .addOnCompleteListener { task ->
+                if (!task.isSuccessful) {
+                    val e = task.exception
+                    onComplete(null, null, e)
+                    return@addOnCompleteListener
+                }
+
+                val resultData = task.result?.data as? Map<*, *> ?: mapOf<String, Any>()
+                val orderId = resultData["orderId"] as? String
+                val transferId = resultData["transferId"] as? String
+
+                if (orderId.isNullOrEmpty() || transferId.isNullOrEmpty()) {
+                    onComplete(null, null, Exception("Invalid response from server"))
+                    return@addOnCompleteListener
+                }
+
+                onComplete(transferId, orderId, null)
             }
     }
 }

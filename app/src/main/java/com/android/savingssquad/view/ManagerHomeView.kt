@@ -196,7 +196,7 @@ fun ManagerHomeView(
             ) {
                 // 🔹 Top Navigation Bar
                 SSNavigationBar(
-                    title = "Savings Squad",
+                    title = SquadStrings.appName,
                     navController = navController,
                     showBackButton = false,
                     rightButtonDrawable = if (UserDefaultsManager.getIsMultipleAccount())

@@ -401,7 +401,7 @@ fun SquadSignUpView(
                                     AlertManager.shared.showAlert(
                                         title = SquadStrings.appName,
                                         message = SquadStrings.squadCreatedSuccessfully,
-                                        primaryButtonTitle = "OK",
+                                        primaryButtonTitle = SquadStrings.ok,
                                         primaryAction = {navController.popBackStack()}
                                     )
                                 },
@@ -625,7 +625,6 @@ private fun saveSquadData(
                             description = "Started a squad with an amount of",
                             squadId = squad.squadID,
 
-                            payment_session_id = "",
                             order_id = "",
                             contributionId = "",
                             loanId = "",

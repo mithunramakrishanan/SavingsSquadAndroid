@@ -446,7 +446,7 @@ fun AddEMIPopup(
 
                 // Cancel
                 SSCancelButton(
-                    title = "Cancel",
+                    title = SquadStrings.cancel,
                     modifier = Modifier.weight(1f),
                     action = { onCancel() }
                 )

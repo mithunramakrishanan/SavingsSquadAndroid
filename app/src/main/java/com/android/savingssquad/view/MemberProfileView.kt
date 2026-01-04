@@ -125,7 +125,7 @@ fun MemberProfileView(
         AppBackgroundGradient()
 
         Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            SSNavigationBar(title = if (screenType == SquadUserType.SQUAD_MANAGER) "Member Profile" else "Your Profile",navController)
+            SSNavigationBar(title = if (screenType == SquadUserType.SQUAD_MANAGER) SquadStrings.memberProfile else SquadStrings.yourProfile,navController)
 
             member?.let { safeMember ->
                 MemberProfileHeaderView(
@@ -579,7 +579,7 @@ fun UpdateMemberPopup(
 
             // Cancel Button
             SSCancelButton(
-                title = "Cancel",
+                title = SquadStrings.cancel,
                 action = { showPopup.value = false }
             )
         }

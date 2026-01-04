@@ -26,6 +26,7 @@ import com.android.savingssquad.singleton.appShadow
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.yourapp.utils.CommonFunctions
 import com.android.savingssquad.singleton.SquadActivityType
+import com.android.savingssquad.singleton.SquadStrings
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -74,7 +75,7 @@ fun SquadActivityView(
     Column(modifier = Modifier.fillMaxSize()) {
 
         // NAV BAR
-        SSNavigationBar("Squad Activities", navController)
+        SSNavigationBar(SquadStrings.squadActivities, navController)
 
         Spacer(modifier = Modifier.height(16.dp))
 

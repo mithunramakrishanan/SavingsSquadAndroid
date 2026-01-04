@@ -152,9 +152,6 @@ data class PaymentsDetails(
     @get:PropertyName("squadId") @set:PropertyName("squadId")
     var squadId: String = "",
 
-    @get:PropertyName("payment_session_id") @set:PropertyName("payment_session_id")
-    var payment_session_id: String = "",
-
     @get:PropertyName("order_id") @set:PropertyName("order_id")
     var order_id: String = "",
 
@@ -188,6 +185,9 @@ data class PaymentsDetails(
     @get:PropertyName("transferReferenceId") @set:PropertyName("transferReferenceId")
     var transferReferenceId: String = "",
 
+    @get:PropertyName("upiID") @set:PropertyName("upiID")
+    var upiID: String = "",
+
     @get:PropertyName("recordStatus") @set:PropertyName("recordStatus")
     var recordStatus: RecordStatus = RecordStatus.ACTIVE,
 
@@ -212,7 +212,6 @@ data class PaymentsDetails(
         payoutStatus = PayoutStatus.PAYOUT_INPROGRESS,
         description = "",
         squadId = "",
-        payment_session_id = "",
         order_id = "",
         contributionId = "",
         loanId = "",
@@ -224,6 +223,7 @@ data class PaymentsDetails(
         payoutSuccess = false,
         payoutResponseMessage = "",
         transferReferenceId = "",
+        upiID = "",
         recordStatus = RecordStatus.ACTIVE,
         recordDate = Timestamp(Date())
     )
@@ -246,7 +246,6 @@ data class PaymentsDetails(
         "payoutStatus" to payoutStatus.name,
         "description" to description,
         "squadId" to squadId,
-        "payment_session_id" to payment_session_id,
         "order_id" to order_id,
         "contributionId" to contributionId,
         "loanId" to loanId,
@@ -258,6 +257,7 @@ data class PaymentsDetails(
         "payoutSuccess" to payoutSuccess,
         "payoutResponseMessage" to payoutResponseMessage,
         "transferReferenceId" to transferReferenceId,
+        "upiID" to upiID,
         "recordStatus" to recordStatus.name,
         "recordDate" to recordDate
     )

@@ -122,7 +122,7 @@ fun LoanDetailsView(
     Column(modifier = Modifier.fillMaxSize()) {
 
         // NAV BAR
-        SSNavigationBar("Loan Details",navController)
+        SSNavigationBar(SquadStrings.loanDetails,navController)
 
         Spacer(modifier = Modifier.height(16.dp))
 

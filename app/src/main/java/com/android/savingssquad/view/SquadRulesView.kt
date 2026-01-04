@@ -28,6 +28,7 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.model.SquadRule
 import com.android.savingssquad.singleton.AppShadows
+import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
@@ -272,7 +273,7 @@ fun RuleEditorSheet(
             )
 
             SSCancelButton(
-                title = "Cancel",
+                title = SquadStrings.cancel,
                 action = onCancel
             )
         }

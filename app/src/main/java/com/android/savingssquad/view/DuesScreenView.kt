@@ -158,7 +158,7 @@ fun DuesScreenView(
 
         Column(modifier = Modifier.fillMaxSize().padding(vertical = 16.dp)) {
             // Top nav
-            SSNavigationBar(title = "Current & Over Dues", navController = navController, showBackButton = true)
+            SSNavigationBar(title = SquadStrings.currentOverDues, navController = navController, showBackButton = true)
 
             Spacer(modifier = Modifier.height(12.dp))
 

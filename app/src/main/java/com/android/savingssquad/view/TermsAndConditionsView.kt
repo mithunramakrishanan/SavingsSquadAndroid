@@ -64,7 +64,7 @@ fun TermsAndConditionsView(
     ) {
 
         // 🔹 Top Bar
-        SSNavigationBar("Terms & Conditions", navController)
+        SSNavigationBar(SquadStrings.termsConditions, navController)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -182,7 +182,7 @@ private fun TermsContent(navController: NavController) {
                 .height(48.dp)
         ) {
             Text(
-                text = "Accept & Continue",
+                text = SquadStrings.acceptAndContinue,
                 style = AppFont.ibmPlexSans(15, FontWeight.Bold),
                 color = Color.White
             )

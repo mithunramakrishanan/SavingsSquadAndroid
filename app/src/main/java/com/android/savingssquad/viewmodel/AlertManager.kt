@@ -1,6 +1,7 @@
 package com.android.savingssquad.viewmodel
 
 import com.android.savingssquad.singleton.AlertType
+import com.android.savingssquad.singleton.SquadStrings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -16,7 +17,7 @@ class AlertManager private constructor() {
 
     var title: String = ""
     var message: String = ""
-    var primaryButtonTitle: String = "OK"
+    var primaryButtonTitle: String = SquadStrings.ok
     var primaryAction: (() -> Unit)? = null
     var secondaryButtonTitle: String? = null
     var secondaryAction: (() -> Unit)? = null
@@ -26,7 +27,7 @@ class AlertManager private constructor() {
         title: String,
         message: String,
         type: AlertType = AlertType.SUCCESS,
-        primaryButtonTitle: String = "OK",
+        primaryButtonTitle: String = SquadStrings.ok,
         primaryAction: (() -> Unit)? = null,
         secondaryButtonTitle: String? = null,
         secondaryAction: (() -> Unit)? = null

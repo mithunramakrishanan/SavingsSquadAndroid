@@ -55,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.savingssquad.singleton.AppFont
+import com.android.savingssquad.singleton.SquadStrings
 import kotlinx.coroutines.delay
 
 @Composable
@@ -64,8 +65,7 @@ fun LaunchView(
 ) {
     if (!showLaunchView) return
 
-    val appName = "Savings Squad"
-    val characters = appName.toList()
+    val characters = SquadStrings.appName.toList()
 
     // States
     val scale = remember { Animatable(0.6f) }
@@ -198,7 +198,7 @@ fun LaunchView(
 
                 // 2️⃣ Full-word gradient text (Material 3 compatible)
                 Text(
-                    text = appName,
+                    text = SquadStrings.appName,
                     style = AppFont.ibmPlexSans(30, FontWeight.SemiBold).copy(
                         brush = gradientBrush       // ✔️ WORKS in Material 3
                     ),

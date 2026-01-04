@@ -131,7 +131,7 @@ fun VerifyPaymentsView(
         Column(modifier = Modifier.fillMaxSize()) {
 
             // NAV BAR
-            SSNavigationBar("Verify Payments", navController)
+            SSNavigationBar(SquadStrings.verifyPayments, navController)
 
             Spacer(modifier = Modifier.height(16.dp))
 

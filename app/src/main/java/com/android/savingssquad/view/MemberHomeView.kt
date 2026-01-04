@@ -93,7 +93,7 @@ fun MemberHomeView(
                 // 🔹 Top Navigation Bar
                 item {
                     SSNavigationBar(
-                        title = "Savings Squad",
+                        title = SquadStrings.appName,
                         navController = navController,
                         showBackButton = false,
                         rightButtonDrawable = if (UserDefaultsManager.getIsMultipleAccount())

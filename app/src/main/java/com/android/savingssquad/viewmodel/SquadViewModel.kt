@@ -34,6 +34,7 @@ import com.android.savingssquad.singleton.asTimestamp
 import com.android.savingssquad.singleton.orNow
 import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.PaymentSubType
+import com.android.savingssquad.singleton.RazorpayPaymentAction
 import com.android.savingssquad.view.MemberTabView
 import com.android.savingssquad.view.ManagerTabView
 import com.google.android.gms.tasks.Task
@@ -233,10 +234,6 @@ class SquadViewModel : ViewModel() {
     val paymentOrderId: StateFlow<String> = _paymentOrderId
     fun setPaymentOrderId(value: String) { _paymentOrderId.value = value }
 
-    private val _paymentOrderToken = MutableStateFlow("")
-    val paymentOrderToken: StateFlow<String> = _paymentOrderToken
-    fun setPaymentOrderToken(value: String) { _paymentOrderToken.value = value }
-
     init {
         val login = UserDefaultsManager.getLogin()
         if (login != null) {
@@ -297,7 +294,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -345,7 +342,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -401,7 +398,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -481,7 +478,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -527,7 +524,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -592,7 +589,7 @@ class SquadViewModel : ViewModel() {
                         AlertManager.shared.showAlert(
                             title = SquadStrings.appName,
                             message = SquadStrings.nameAlreadyExists,
-                            primaryButtonTitle = "OK",
+                            primaryButtonTitle = SquadStrings.ok,
                             primaryAction = {}
                         )
                         completion(false, SquadStrings.nameAlreadyExists)
@@ -619,7 +616,7 @@ class SquadViewModel : ViewModel() {
                 AlertManager.shared.showAlert(
                     title = SquadStrings.appName,
                     message = SquadStrings.networkError,
-                    primaryButtonTitle = "OK",
+                    primaryButtonTitle = SquadStrings.ok,
                     primaryAction = {}
                 )
                 return
@@ -661,7 +658,7 @@ class SquadViewModel : ViewModel() {
                 AlertManager.shared.showAlert(
                     title = SquadStrings.appName,
                     message = SquadStrings.networkError,
-                    primaryButtonTitle = "OK",
+                    primaryButtonTitle = SquadStrings.ok,
                     primaryAction = {}
                 )
                 return
@@ -721,7 +718,7 @@ class SquadViewModel : ViewModel() {
                 AlertManager.shared.showAlert(
                     title = SquadStrings.appName,
                     message = SquadStrings.networkError,
-                    primaryButtonTitle = "OK",
+                    primaryButtonTitle = SquadStrings.ok,
                     primaryAction = {}
                 )
                 return
@@ -765,7 +762,7 @@ class SquadViewModel : ViewModel() {
                 AlertManager.shared.showAlert(
                     title = SquadStrings.appName,
                     message = SquadStrings.networkError,
-                    primaryButtonTitle = "OK",
+                    primaryButtonTitle = SquadStrings.ok,
                     primaryAction = {}
                 )
                 return
@@ -820,7 +817,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -872,7 +869,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -928,7 +925,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -970,7 +967,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1001,7 +998,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1031,7 +1028,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = "⚠️ No internet connection",
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1060,7 +1057,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1145,7 +1142,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1192,7 +1189,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             completion(false, SquadStrings.networkError)
@@ -1220,7 +1217,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             completion(false, SquadStrings.networkError)
@@ -1254,7 +1251,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1309,7 +1306,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1440,7 +1437,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1491,7 +1488,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1523,7 +1520,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1574,7 +1571,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1609,7 +1606,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1650,7 +1647,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1681,7 +1678,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1712,7 +1709,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1790,7 +1787,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1829,7 +1826,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1900,7 +1897,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1938,7 +1935,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -1976,7 +1973,7 @@ class SquadViewModel : ViewModel() {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -2006,7 +2003,7 @@ class SquadViewModel : ViewModel() {
         AlertManager.shared.showAlert(
             title = SquadStrings.appName,
             message = error,
-            primaryButtonTitle = "OK",
+            primaryButtonTitle = SquadStrings.ok,
             primaryAction = {},
             secondaryButtonTitle = "Retry",
             secondaryAction = retryAction
@@ -2042,7 +2039,7 @@ class SquadViewModel : ViewModel() {
                     AlertManager.shared.showAlert(
                         title = SquadStrings.appName,
                         message = description,
-                        primaryButtonTitle = "OK",
+                        primaryButtonTitle = SquadStrings.ok,
                         primaryAction = alertOK ?: {}
                     )
                 } else {
@@ -2145,19 +2142,19 @@ class SquadViewModel : ViewModel() {
                 title = SquadStrings.appName,
                 message = errorMessage,
                 type = AlertType.ERROR,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
         }
 
-        if (sessionId.isNullOrEmpty() || orderId.isNullOrEmpty()) {
+        if (orderId.isNullOrEmpty()) {
             Log.d("Payment", "❌ Missing or empty sessionId/orderId in response")
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = "Payment entry could not be created. Please try again.",
                 type = AlertType.ERROR,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             return
@@ -2165,7 +2162,6 @@ class SquadViewModel : ViewModel() {
 
         Log.d("Payment", "✅ Payment entry ready | orderId: $orderId, sessionId: $sessionId")
         _showPayment.value = true
-        _paymentOrderToken.value = sessionId
         _paymentOrderId.value = orderId
         completion()
     }
@@ -2235,7 +2231,7 @@ class SquadViewModel : ViewModel() {
                                 message = updatedPayment.payoutResponseMessage,
                                 type = if (updatedPayment.payoutStatus == PayoutStatus.PAYOUT_FAILED)
                                     AlertType.ERROR else AlertType.SUCCESS,
-                                primaryButtonTitle = "OK"
+                                primaryButtonTitle = SquadStrings.ok
                             )
                         }
                     }
@@ -2246,7 +2242,7 @@ class SquadViewModel : ViewModel() {
                             title = SquadStrings.appName,
                             message = message,
                             type = AlertType.ERROR,
-                            primaryButtonTitle = "OK"
+                            primaryButtonTitle = SquadStrings.ok
                         )
                     }
                 }
@@ -2288,7 +2284,7 @@ class SquadViewModel : ViewModel() {
                                 title = SquadStrings.appName,
                                 message = updatedPayment.payoutResponseMessage,
                                 type = AlertType.SUCCESS,
-                                primaryButtonTitle = "OK"
+                                primaryButtonTitle = SquadStrings.ok
                             )
                         }
                     }
@@ -2299,7 +2295,7 @@ class SquadViewModel : ViewModel() {
                             title = SquadStrings.appName,
                             message = message,
                             type = AlertType.ERROR,
-                            primaryButtonTitle = "OK"
+                            primaryButtonTitle = SquadStrings.ok
                         )
                     }
                 }
@@ -2312,9 +2308,9 @@ class SquadViewModel : ViewModel() {
             if (payment.paymentStatus == PaymentStatus.PENDING || payment.paymentStatus == PaymentStatus.FAILED) {
                 LoaderManager.shared.showLoader()
 
-                FirebaseFunctionsManager.shared.processCashFreePayment(
+                FirebaseFunctionsManager.shared.processRazorPayPayment(
                     squadId = payment.squadId,
-                    action = CashfreePaymentAction.Retry(failedOrderId = payment.order_id)
+                    action = RazorpayPaymentAction.Retry(failedOrderId = payment.id!!)
                 ) { sessionId, orderId, error ->
                     LoaderManager.shared.hideLoader()
                     handleCashFreeResponse(sessionId, orderId, error, completion = {})

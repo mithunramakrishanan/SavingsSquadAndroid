@@ -38,9 +38,8 @@ import com.android.savingssquad.R
 import com.android.savingssquad.singleton.AppFont
 
 @Composable
-fun CashfreePaymentView(
+fun RazorpayPaymentView(
     orderId: String,
-    payment_session_id: String,
     squadId: String,
     onSuccess: (String) -> Unit,
     onFailure: (String) -> Unit
@@ -66,8 +65,8 @@ fun CashfreePaymentView(
     // Step 2: Trigger launch once
     LaunchedEffect(Unit) {
         val intent = Intent(context, PaymentViewController::class.java).apply {
+
             putExtra("orderId", orderId)
-            putExtra("payment_session_id", payment_session_id)
             putExtra("squadId", squadId)
         }
         launcher.launch(intent)
@@ -79,8 +78,8 @@ fun PaymentResultScreen(
     success: Boolean,
     message: String,
     recipientName: String,
-    recipientNumber: String,
-    totalAmount: String,
+    orderId: String,
+    amount: String,
     onDone: () -> Unit
 ) {
 
@@ -167,7 +166,7 @@ fun PaymentResultScreen(
                         )
 
                         Text(
-                            totalAmount,
+                            amount,
                             style = AppFont.ibmPlexSans(28, FontWeight.Bold),
                             color = Color.Black
                         )
@@ -214,7 +213,7 @@ fun PaymentResultScreen(
                                 color = Color.Black
                             )
                             Text(
-                                text = recipientNumber,
+                                text = orderId,
                                 style = AppFont.ibmPlexSans(14, FontWeight.Normal),
                                 color = Color.Gray
                             )
@@ -264,8 +263,8 @@ fun PaymentResultPreview() {
         success = true,
         message = "Your transaction is complete and should reflect shortly.",
         recipientName = "Mithun",
-        recipientNumber = "RESCPE32323",
-        totalAmount = "₹1000",
+        orderId = "RESCPE32323",
+        amount = "₹1000",
         onDone = { }
     )
 }

@@ -497,7 +497,7 @@ fun SingleSelectionPopupView(
 
             // ▣ CANCEL BUTTON
             SSCancelButton(
-                title = "Cancel",
+                title = SquadStrings.cancel,
                 action = onCancelClick
             )
 
@@ -1005,7 +1005,7 @@ fun LoginListPopup(
 
         // 🔹 Cancel Button
         SSCancelButton(
-            title = "Cancel",
+            title = SquadStrings.cancel,
             isButtonLoading = false,
             isDisabled = false
         ) {
@@ -1607,7 +1607,7 @@ fun AddMemberPopup(
 
             // Cancel
             SSCancelButton(
-                title = "Cancel",
+                title = SquadStrings.cancel,
                 isButtonLoading = false,
                 isDisabled = false,
                 action = { onDismiss() }

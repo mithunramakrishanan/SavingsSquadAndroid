@@ -1,6 +1,7 @@
 package com.android.savingssquad.view
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.Composable
@@ -51,6 +52,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -75,6 +77,7 @@ import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
+import com.android.savingssquad.singleton.RazorpayPaymentAction
 import com.android.savingssquad.singleton.RemainderType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
@@ -86,8 +89,10 @@ import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.FirebaseFunctionsManager
 import com.google.firebase.Timestamp
 import com.google.firebase.logger.Logger
+import com.google.gson.Gson
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.flow.forEach
+import org.json.JSONObject
 import java.util.Calendar
 
 // MemberPaymentScreen.kt
@@ -99,7 +104,7 @@ fun MemberPaymentView(
     loaderManager: LoaderManager = LoaderManager.shared
 ) {
     val coroutineScope = rememberCoroutineScope()
-
+    val context = LocalContext.current
     // UI state
     var contributionSelectedMonthYear by remember { mutableStateOf("") }
     var availableContributionMonths by remember { mutableStateOf(listOf<String>()) }
@@ -177,7 +182,7 @@ fun MemberPaymentView(
         AppBackgroundGradient()
 
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp)) {
-            SSNavigationBar(title = "Payment", navController = navController, showBackButton = false)
+            SSNavigationBar(title = SquadStrings.payment, navController = navController, showBackButton = false)
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -209,7 +214,7 @@ fun MemberPaymentView(
 
                                 } else {
                                     availableContributionMonths = emptyList()
-                                    AlertManager.shared.showAlert(title = SquadStrings.appName, message = "No outstanding dues for ${currentMember?.name ?: ""}", primaryButtonTitle = "OK", primaryAction = {})
+                                    AlertManager.shared.showAlert(title = SquadStrings.appName, message = "No outstanding dues for ${currentMember?.name ?: ""}", primaryButtonTitle = SquadStrings.ok, primaryAction = {})
                                 }
                             }
                         },
@@ -220,7 +225,7 @@ fun MemberPaymentView(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     ContributionButton(
-                        isDisabled = squad?.upiBeneId.isNullOrEmpty(),
+                        isDisabled = squad?.upiID.isNullOrEmpty(),
                         onClick = {
                             if (validateContributionFields(contributionSelectedMonthYear) { contributionSelectedMonthYearError = it }) {
                                 // Payment flow
@@ -255,14 +260,15 @@ fun MemberPaymentView(
                                     contributionId = contributionID,
                                     loanId = "",
                                     installmentId = "",
-                                    transferReferenceId = ""
+                                    transferReferenceId = "",
+                                    upiID = gf.upiID
                                 )
                                 // create or retry payment
                                 if (contribution.orderId.isEmpty()) {
                                     Log.d("Cashfree Payment Flow", "New Payment")
-                                    FirebaseFunctionsManager.shared.processCashFreePayment(
+                                    FirebaseFunctionsManager.shared.processRazorPayPayment(
                                         squadId = gf.squadID,
-                                        action = CashfreePaymentAction.New(payment = newPayment)
+                                        action = RazorpayPaymentAction.New(payment = newPayment)
                                     ) { sessionId, orderId, error ->
 
                                         squadViewModel.handleCashFreeResponse(
@@ -276,9 +282,9 @@ fun MemberPaymentView(
                                 } else {
                                     Log.d("Cashfree Payment Flow", "Retry Payment")
 
-                                    FirebaseFunctionsManager.shared.processCashFreePayment(
+                                    FirebaseFunctionsManager.shared.processRazorPayPayment(
                                         squadId = gf.squadID,
-                                        action = CashfreePaymentAction.Retry(contribution.orderId)
+                                        action = RazorpayPaymentAction.Retry(contribution.orderId)
                                     ) { sessionId, orderId, error ->
 
                                         squadViewModel.handleCashFreeResponse(
@@ -357,13 +363,14 @@ fun MemberPaymentView(
                                     contributionId = "",
                                     loanId = loanId,
                                     installmentId = installId,
-                                    transferReferenceId = ""
+                                    transferReferenceId = "",
+                                    upiID = squad!!.upiID
                                 )
                                 if (!selectedInstallment?.orderId.isNullOrEmpty()) {
 
-                                    FirebaseFunctionsManager.shared.processCashFreePayment(
+                                    FirebaseFunctionsManager.shared.processRazorPayPayment(
                                         squadId = gf.squadID,
-                                        action = CashfreePaymentAction.Retry(selectedInstallment!!.orderId!!)
+                                        action = RazorpayPaymentAction.Retry(selectedInstallment!!.orderId!!)
                                     ) { sessionId, orderId, error ->
 
                                         squadViewModel.handleCashFreeResponse(
@@ -377,9 +384,9 @@ fun MemberPaymentView(
                                     }
                                 } else {
 
-                                    FirebaseFunctionsManager.shared.processCashFreePayment(
+                                    FirebaseFunctionsManager.shared.processRazorPayPayment(
                                         squadId = gf.squadID,
-                                        action = CashfreePaymentAction.New(loanPayment)
+                                        action = RazorpayPaymentAction.New(loanPayment)
                                     ) { sessionId, orderId, error ->
                                         squadViewModel.handleCashFreeResponse(
                                             sessionId, orderId, error,
@@ -554,7 +561,7 @@ private fun EMISection(
                 disabled = true
             )
 
-            if (squad?.upiBeneId.isNullOrEmpty()) {
+            if (squad?.upiID.isNullOrEmpty()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
                     Box(
