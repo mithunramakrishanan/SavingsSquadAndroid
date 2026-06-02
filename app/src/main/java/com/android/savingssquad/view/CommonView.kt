@@ -60,6 +60,7 @@ import com.android.savingssquad.singleton.ShadowStyle
 import com.android.savingssquad.singleton.appShadow
 
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -361,7 +362,9 @@ fun SingleSelectionPopupView(
     listValues: List<String>,
     title: String,
     onItemSelected: (String) -> Unit,
-    onCancelClick:() -> Unit
+    onCancelClick: () -> Unit,
+    enableOnlyFirstIndex: Boolean = false
+
 ) {
     var searchText by remember { mutableStateOf("") }
 
@@ -460,7 +463,10 @@ fun SingleSelectionPopupView(
                             )
                         }
                     } else {
-                        items(filteredValues) { value ->
+                        itemsIndexed(filteredValues) { index, value ->
+
+                            val isEnabled = !enableOnlyFirstIndex || index == 0
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -471,20 +477,30 @@ fun SingleSelectionPopupView(
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(14.dp))
                                         .background(AppColors.primaryBackground)
+                                        .alpha(if (isEnabled) 1f else 0.5f)
                                         .shadow(
                                             elevation = 3.dp,
                                             spotColor = Color.Black.copy(alpha = 0.03f),
                                             ambientColor = Color.Black.copy(alpha = 0.03f)
                                         )
-                                        .clickable {
+                                        .clickable(enabled = isEnabled) {
                                             onItemSelected(value)
                                         }
-                                        .padding(vertical = 12.dp, horizontal = 16.dp)
+                                        .padding(
+                                            vertical = 12.dp,
+                                            horizontal = 16.dp
+                                        )
                                 ) {
                                     Text(
                                         text = value,
-                                        style = AppFont.ibmPlexSans(14, FontWeight.Medium),
-                                        color = AppColors.headerText
+                                        style = AppFont.ibmPlexSans(
+                                            14,
+                                            FontWeight.Medium
+                                        ),
+                                        color = if (isEnabled)
+                                            AppColors.headerText
+                                        else
+                                            AppColors.secondaryText
                                     )
                                 }
                             }

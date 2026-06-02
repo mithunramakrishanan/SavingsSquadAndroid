@@ -621,7 +621,7 @@ private fun saveSquadData(
                             paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                             paymentType = PaymentType.PAYMENT_CREDIT,
                             paymentSubType = PaymentSubType.OTHERS_AMOUNT,
-
+                            paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
                             description = "Started a squad with an amount of",
                             squadId = squad.squadID,
 

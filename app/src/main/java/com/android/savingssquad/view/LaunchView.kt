@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.savingssquad.singleton.AppFont
@@ -65,146 +66,116 @@ fun LaunchView(
 ) {
     if (!showLaunchView) return
 
-    val characters = SquadStrings.appName.toList()
-
-    // States
-    val scale = remember { Animatable(0.6f) }
+    val scale = remember { Animatable(0.9f) }
     val opacity = remember { Animatable(0f) }
 
-    val textOpacity = remember {
-        characters.map { Animatable(0f) }
-    }
-
-    // Same gradient as SwiftUI
-    val gradientBrush = Brush.horizontalGradient(
-        colors = listOf(
-            AppColors.primaryBrand,
-            AppColors.secondaryAccent.copy(alpha = 0.8f),
-            AppColors.successAccent.copy(alpha = 0.8f),
-            AppColors.primaryBrand.copy(alpha = 0.9f)
-        )
-    )
-
-    // Timings
-    val fadeInDuration = 800
-    val bounceDelay = 800L
-    val textStartDelay = 600L
-    val fadeOutDelay = 2200L
-    val fadeOutDuration = 600
-
-    // -----------------------------------------------------
-    // ANIMATION SEQUENCE
-    // -----------------------------------------------------
     LaunchedEffect(Unit) {
 
-        // 1️⃣ Fade in + scale
-        launch {
-            scale.animateTo(
-                1.2f,
-                tween(fadeInDuration, easing = LinearOutSlowInEasing)
-            )
-        }
+        // Fade + slight zoom
         launch {
             opacity.animateTo(
                 1f,
-                tween(fadeInDuration, easing = LinearOutSlowInEasing)
+                animationSpec = tween(
+                    durationMillis = 800,
+                    easing = FastOutSlowInEasing
+                )
             )
         }
 
-        // 2️⃣ Bounce
-        delay(bounceDelay)
-        scale.animateTo(
-            1f,
-            spring(dampingRatio = 0.5f)
+        launch {
+            scale.animateTo(
+                1f,
+                animationSpec = tween(
+                    durationMillis = 800,
+                    easing = FastOutSlowInEasing
+                )
+            )
+        }
+
+        // Wait 2 seconds
+        delay(2000)
+
+        // Fade out
+        opacity.animateTo(
+            0f,
+            animationSpec = tween(500)
         )
 
-        // 3️⃣ Char by char fade
-        delay(textStartDelay)
-        textOpacity.forEachIndexed { i, anim ->
-            launch {
-                anim.animateTo(
-                    1f,
-                    tween(150)
-                )
-            }
-            delay(50)
-        }
+        delay(500)
 
-        // 4️⃣ Fade out all
-        delay(fadeOutDelay)
-        launch {
-            opacity.animateTo(0f, tween(fadeOutDuration))
-        }
-        launch {
-            scale.animateTo(0.9f, tween(fadeOutDuration))
-        }
-        textOpacity.forEach { anim ->
-            launch {
-                anim.animateTo(0f, tween(fadeOutDuration))
-            }
-        }
-
-        delay(fadeOutDuration.toLong())
         onFinish()
     }
 
-    // -----------------------------------------------------
-    // UI (exact same layout as SwiftUI)
-    // -----------------------------------------------------
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppColors.background),
+            .background(Color.White),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
 
             // App Icon
             Image(
                 painter = painterResource(id = R.drawable.app_icon),
                 contentDescription = null,
                 modifier = Modifier
-                    .size(140.dp)
+                    .size(110.dp)
                     .graphicsLayer {
                         scaleX = scale.value
                         scaleY = scale.value
                         alpha = opacity.value
-                        shape = RoundedCornerShape(32.dp)
-                        clip = true
                     }
+                    .clip(RoundedCornerShape(24.dp))
                     .shadow(
-                        20.dp,
-                        spotColor = Color.Black.copy(alpha = 0.15f),
-                        ambientColor = Color.Black.copy(alpha = 0.15f)
+                        elevation = 10.dp,
+                        shape = RoundedCornerShape(24.dp)
                     )
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-            Box(contentAlignment = Alignment.Center) {
+            Spacer(modifier = Modifier.height(14.dp))
 
-                // 1️⃣ Character-by-character stagger fade layer
-                Row {
-                    characters.forEachIndexed { idx, ch ->
-                        Text(
-                            text = ch.toString(),
-                            style = AppFont.ibmPlexSans(30, FontWeight.SemiBold),
-                            color = Color.White,
-                            modifier = Modifier.graphicsLayer {
-                                alpha = textOpacity[idx].value
-                            }
-                        )
-                    }
+            // App Name
+            Text(
+                text = "Savings Squad",
+                style = AppFont.ibmPlexSans(
+                    size = 26,
+                    weight = FontWeight.SemiBold
+                ),
+                color = Color.Black,
+                modifier = Modifier.graphicsLayer {
+                    alpha = opacity.value
                 }
+            )
 
-                // 2️⃣ Full-word gradient text (Material 3 compatible)
-                Text(
-                    text = SquadStrings.appName,
-                    style = AppFont.ibmPlexSans(30, FontWeight.SemiBold).copy(
-                        brush = gradientBrush       // ✔️ WORKS in Material 3
-                    ),
-                    color = Color.Unspecified       // must use Unspecified with brush
-                )
-            }
+            // Tagline
+            Text(
+                text = "Your Pocket Accountant",
+                style = AppFont.ibmPlexSans(
+                    size = 12,
+                    weight = FontWeight.Normal
+                ),
+                color = Color.Gray,
+                modifier = Modifier
+                    .offset(y = (8).dp)
+                    .graphicsLayer {
+                        alpha = opacity.value
+                    }
+            )
         }
     }
+}
+
+@Preview(
+    showBackground = true,
+    showSystemUi = true,
+    device = "id:pixel_7"
+)
+@Composable
+fun LaunchViewPreview() {
+    LaunchView(
+        showLaunchView = true,
+        onFinish = {}
+    )
 }

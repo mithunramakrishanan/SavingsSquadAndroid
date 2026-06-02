@@ -464,8 +464,8 @@ fun ManagerTwoButtons(
         )
 
         TwoButtonGradient(
-            icon = Icons.Filled.ThumbUp,
-            title = "Approve Payment",
+            icon = Icons.Filled.Update,
+            title = "Payment Status",
             gradientColors = listOf(AppColors.secondaryAccent, AppColors.warningAccent),
             onClick = acceptAmountAction,
             modifier = Modifier.weight(1f)

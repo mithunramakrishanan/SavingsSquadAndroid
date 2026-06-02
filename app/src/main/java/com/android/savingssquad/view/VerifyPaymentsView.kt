@@ -72,7 +72,7 @@ import kotlinx.coroutines.flow.map
 import java.util.Calendar
 
 @Composable
-fun VerifyPaymentsView(
+fun VerifyPaymentsViewOld(
     navController: NavController,
     squadViewModel: SquadViewModel,
     loaderManager: LoaderManager = LoaderManager.shared

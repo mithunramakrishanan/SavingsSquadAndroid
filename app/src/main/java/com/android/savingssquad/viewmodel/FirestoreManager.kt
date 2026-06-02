@@ -18,7 +18,9 @@ import com.yourapp.utils.CommonFunctions
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.singleton.PaidStatus
+import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentEntryType
+import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.singleton.asTimestamp
 import com.google.android.gms.tasks.Task
@@ -210,6 +212,166 @@ class FirestoreManager private constructor() {
         ref.update(updateData)
             .addOnSuccessListener { completion(true, null) }
             .addOnFailureListener { e -> completion(false, "❌ Failed to update payment: ${e.localizedMessage}") }
+    }
+
+    fun updateContributionApproveStatus(
+        squadID: String,
+        memberID: String,
+        contributionID: String,
+        status: PaidStatus,
+        completion: (Boolean, ContributionDetail?, String?) -> Unit
+    ) {
+
+        val contributionRef = db.collection("squads")
+            .document(squadID)
+            .collection("members")
+            .document(memberID)
+            .collection("contributions")
+            .document(contributionID)
+
+        val updateData = hashMapOf<String, Any>(
+            "paidStatus" to status.value
+        )
+
+        contributionRef.update(updateData)
+            .addOnSuccessListener {
+
+                contributionRef.get()
+                    .addOnSuccessListener { snapshot ->
+
+                        if (!snapshot.exists()) {
+                            completion(false, null, "Contribution not found")
+                            return@addOnSuccessListener
+                        }
+
+                        try {
+                            val contribution =
+                                snapshot.toObject(ContributionDetail::class.java)
+
+                            completion(true, contribution, null)
+
+                        } catch (e: Exception) {
+                            completion(false, null, "❌ Decode error: ${e.localizedMessage}")
+                        }
+                    }
+                    .addOnFailureListener { e ->
+                        completion(false, null, "❌ Failed to fetch updated contribution: ${e.localizedMessage}")
+                    }
+            }
+            .addOnFailureListener { e ->
+                completion(false, null, "❌ Failed to update contribution approval: ${e.localizedMessage}")
+            }
+    }
+
+
+    fun updatePaymentApproveStatus(
+        squadID: String,
+        paymentID: String,
+        status: PaymentApproveStatus,
+        completion: (Boolean, PaymentsDetails?, String?) -> Unit
+    ) {
+        val paymentRef = db.collection("squads")
+            .document(squadID)
+            .collection("payments")
+            .document(paymentID)
+
+        var paymentStatus: PaymentStatus
+
+        var paymentResponseMessage = ""
+
+        if (status == PaymentApproveStatus.ACCEPTED) {
+
+            paymentStatus = PaymentStatus.SUCCESS
+
+            paymentResponseMessage =
+
+                "Your payment has been successfully processed and verified."
+
+        } else if (status == PaymentApproveStatus.REJECTED) {
+
+            paymentStatus = PaymentStatus.FAILED
+
+            paymentResponseMessage =
+
+                "Your payment was rejected by the admin as the amount was not received. Please verify and try again."
+
+        } else {
+
+            paymentStatus = PaymentStatus.FAILED
+
+            paymentResponseMessage = ""
+
+        }
+
+        val updateData = hashMapOf<String, Any>(
+            "paymentStatus" to paymentStatus.value,
+            "paymentResponseMessage" to paymentResponseMessage,
+            "paymentApproveStatus" to status.value,
+            "paymentUpdatedDate" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+        )
+
+        paymentRef.update(updateData)
+            .addOnSuccessListener {
+
+                // Fetch updated document
+                paymentRef.get()
+                    .addOnSuccessListener { snapshot ->
+
+                        if (!snapshot.exists()) {
+                            completion(false, null, "❌ Payment not found")
+                            return@addOnSuccessListener
+                        }
+
+                        try {
+                            val payment = snapshot.toObject(PaymentsDetails::class.java)
+                            completion(true, payment, null)
+                        } catch (e: Exception) {
+                            completion(false, null, "❌ Decode error: ${e.localizedMessage}")
+                        }
+                    }
+                    .addOnFailureListener { e ->
+                        completion(false, null, "❌ Failed to fetch updated payment: ${e.localizedMessage}")
+                    }
+            }
+            .addOnFailureListener { e ->
+                completion(false, null, "❌ Failed to update approval status: ${e.localizedMessage}")
+            }
+    }
+
+
+    fun fetchPendingApprovalPayments(
+        squadID: String,
+        completion: (List<PaymentsDetails>?, String?) -> Unit
+    ) {
+        db.collection("squads")
+            .document(squadID)
+            .collection("payments")
+            .whereEqualTo(
+                "paymentApproveStatus",
+                PaymentApproveStatus.REQUESTED
+            )
+            .get()
+            .addOnSuccessListener { snapshot ->
+
+                if (snapshot == null || snapshot.isEmpty) {
+                    completion(emptyList(), null)
+                    return@addOnSuccessListener
+                }
+
+                try {
+                    val payments = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(PaymentsDetails::class.java)
+                    }
+
+                    completion(payments, null)
+
+                } catch (e: Exception) {
+                    completion(null, "❌ Decode error: ${e.localizedMessage}")
+                }
+            }
+            .addOnFailureListener { e ->
+                completion(null, "❌ Fetch failed: ${e.localizedMessage}")
+            }
     }
 
     // MARK: - 🔹 Update Member UPI BeneId

@@ -72,6 +72,7 @@ import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.CashfreeBeneficiaryType
 import com.android.savingssquad.singleton.CashfreePaymentAction
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentStatus
@@ -155,22 +156,49 @@ fun MemberPaymentView(
             when (remainder.remainderType) {
                 RemainderType.CONTRIBUTION -> {
                     memberPaymentSegment = SquadStrings.manualEntryContribution
-                    contributionSelectedMonthYear = CommonFunctions.dateToString(
-                        date = remainder.remainderDueDate?.toDate() ?: Date(),
-                        format = "MMM yyyy"
-                    )
+//                    contributionSelectedMonthYear = CommonFunctions.dateToString(
+//                        date = remainder.remainderDueDate?.toDate() ?: Date(),
+//                        format = "MMM yyyy"
+//                    )
+
+                    loaderManager.showLoader()
+                    val gfId = currentMember?.squadID ?: ""
+                    val memberId = currentMember?.id ?: ""
+                    squadViewModel.fetchContributionsForMember(showLoader = true, squadID = gfId, memberID = memberId) { contributions, error ->
+                        loaderManager.hideLoader()
+                        if (contributions != null) {
+                            availableContributionMonths = contributions.unpaidMonths()
+                            squadViewModel.setShowContributionMonthPopup(true)
+
+                        } else {
+                            availableContributionMonths = emptyList()
+                            AlertManager.shared.showAlert(title = SquadStrings.appName, message = "No outstanding dues for ${currentMember?.name ?: ""}", primaryButtonTitle = SquadStrings.ok, primaryAction = {})
+                        }
+                    }
+
                 }
                 RemainderType.EMI -> {
                     memberPaymentSegment = SquadStrings.manualEntryEMI
-                    val installment = squadViewModel.memberPendingLoans.value?.firstOrNull()?.installments
-                        ?.firstOrNull { it.id == remainder.remainderID }
-                    if (installment != null) {
-                        selectedInstallment = installment
-                        emiSelectedMonthYear = CommonFunctions.dateToString(
-                            date = remainder.remainderDueDate?.toDate() ?: Date(),
-                            format = "MMM yyyy"
-                        )
+
+                    squadViewModel.fetchMemberLoans(
+                        showLoader = true,
+                        memberID = currentMember?.id ?: ""
+                    ) { success, _ ->
+
+                        if (success) {
+                            squadViewModel.setShowEMIMonthPopup(true)
+                        }
                     }
+
+//                    val installment = squadViewModel.memberPendingLoans.value?.firstOrNull()?.installments
+//                        ?.firstOrNull { it.id == remainder.remainderID }
+//                    if (installment != null) {
+//                        selectedInstallment = installment
+//                        emiSelectedMonthYear = CommonFunctions.dateToString(
+//                            date = remainder.remainderDueDate?.toDate() ?: Date(),
+//                            format = "MMM yyyy"
+//                        )
+//                    }
                 }
 
                 RemainderType.OTHER_REMAINDER -> TODO()
@@ -255,16 +283,43 @@ fun MemberPaymentView(
                                     paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
                                     paymentType = PaymentType.PAYMENT_CREDIT,
                                     paymentSubType = PaymentSubType.CONTRIBUTION_AMOUNT,
+                                    paymentStatus = PaymentStatus.INVERIFICATION,
+                                    paymentApproveStatus = PaymentApproveStatus.REQUESTED,
                                     description = "Contribution for $contributionSelectedMonthYear.",
                                     squadId = gf.squadID,
                                     contributionId = contributionID,
                                     loanId = "",
                                     installmentId = "",
+                                    paymentResponseMessage = "Pending admin verification.",
                                     transferReferenceId = "",
                                     upiID = gf.upiID
                                 )
+
+
+                                squadViewModel.savePayments(
+                                    showLoader = true,
+                                    squadID = squad!!.squadID,
+                                    payment = listOf(newPayment)
+                                ) { success, error ->
+                                    if (success) {
+                                        println("✅ Payment added successfully!")
+                                        AlertManager.shared.showAlert(
+                                            title = SquadStrings.appName,
+                                            message = "Payment updated. Pending admin verification.",
+                                            primaryButtonTitle = "OK",
+                                            primaryAction = {
+                                                contributionSelectedMonthYear = ""
+                                            }
+                                        )
+
+                                    } else {
+                                        println("❌ Error adding payment: $error")
+                                    }
+                                }
+
+
                                 // create or retry payment
-                                if (contribution.orderId.isEmpty()) {
+                                /*if (contribution.orderId.isEmpty()) {
                                     Log.d("Cashfree Payment Flow", "New Payment")
                                     FirebaseFunctionsManager.shared.processRazorPayPayment(
                                         squadId = gf.squadID,
@@ -279,7 +334,8 @@ fun MemberPaymentView(
                                             }
                                         )
                                     }
-                                } else {
+                                }
+                                else {
                                     Log.d("Cashfree Payment Flow", "Retry Payment")
 
                                     FirebaseFunctionsManager.shared.processRazorPayPayment(
@@ -295,7 +351,7 @@ fun MemberPaymentView(
                                             }
                                         )
                                     }
-                                }
+                                } */
                             }
                         }
                     )
@@ -445,7 +501,7 @@ fun MemberPaymentView(
                         contributionSelectedMonthYear = selectedValue
                         squadViewModel.setShowContributionMonthPopup(false)
                     },
-                    onCancelClick = {squadViewModel.setShowContributionMonthPopup(false)}
+                    onCancelClick = {squadViewModel.setShowContributionMonthPopup(false)},  enableOnlyFirstIndex = true
                 )
             }
         }

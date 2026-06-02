@@ -514,13 +514,13 @@ fun MemberTwoButtons(
             modifier = Modifier.weight(1f)
         )
 
-        TwoButtonGradient(
-            icon = Icons.Filled.CreditCard,
-            title = "Approve Payment",
-            gradientColors = listOf(AppColors.secondaryAccent, AppColors.warningAccent),
-            onClick = approveCashAction,
-            modifier = Modifier.weight(1f)
-        )
+//        TwoButtonGradient(
+//            icon = Icons.Filled.CreditCard,
+//            title = "Approve Payment",
+//            gradientColors = listOf(AppColors.secondaryAccent, AppColors.warningAccent),
+//            onClick = approveCashAction,
+//            modifier = Modifier.weight(1f)
+//        )
     }
 }
 

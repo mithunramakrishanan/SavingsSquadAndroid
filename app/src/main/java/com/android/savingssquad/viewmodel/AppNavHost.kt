@@ -98,7 +98,7 @@ fun AppNavHost(
         }
 
         composable(AppDestination.OPEN_VERIFY_PAYMENTS.route) {
-            VerifyPaymentsView(navController, squadViewModel)
+            PaymentApprovalView(navController, squadViewModel)
         }
 
         composable(AppDestination.OPEN_ACTIITY.route) {

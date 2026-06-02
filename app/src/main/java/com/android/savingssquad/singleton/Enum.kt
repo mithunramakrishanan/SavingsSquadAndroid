@@ -48,7 +48,9 @@ enum class PaymentStatus(@get:PropertyName("value") val value: String) {
     @PropertyName("USER_DROPPED") USER_DROPPED("USER_DROPPED"),
     @PropertyName("CANCELLED") CANCELLED("CANCELLED"),
     @PropertyName("REFUNDED") REFUNDED("REFUNDED"),
-    @PropertyName("VOID") VOID("VOID");
+    @PropertyName("VOID") VOID("VOID"),
+
+    @PropertyName("INVERIFICATION") INVERIFICATION("INVERIFICATION");
 
     companion object {
         fun fromValue(value: String?): PaymentStatus =
@@ -72,14 +74,32 @@ enum class PaymentEntryType(@get:PropertyName("value") val value: String) {
 // ------------------------------
 // MARK: - Paid Status
 // ------------------------------
-enum class PaidStatus(@get:PropertyName("value") val value: String) {
-    @PropertyName("PAID") PAID("PAID"),
-    @PropertyName("NOT_PAID") NOT_PAID("NOT_PAID");
+enum class PaidStatus(
+
+    @get:PropertyName("value") val value: String
+
+) {
+
+    @PropertyName("PAID")
+
+    PAID("PAID"),
+
+    @PropertyName("NOT_PAID")
+
+    NOT_PAID("NOT_PAID"),
+
+    @PropertyName("IN_VERIFICATION")
+
+    IN_VERIFICATION("IN_VERIFICATION");
 
     companion object {
+
         fun fromValue(value: String?): PaidStatus =
+
             entries.find { it.value == value } ?: NOT_PAID
+
     }
+
 }
 
 // ------------------------------
@@ -256,6 +276,7 @@ val PaymentStatus.displayText: String
         PaymentStatus.CANCELLED -> "Payment Cancelled"
         PaymentStatus.REFUNDED -> "Refunded"
         PaymentStatus.VOID -> "Payment Voided"
+        PaymentStatus.INVERIFICATION -> "Payment In Verification"
     }
 
 // ------------------------------
@@ -289,4 +310,16 @@ enum class AlertType {
     SUCCESS,
     ERROR,
     INFO
+}
+
+enum class PaymentApproveStatus(@get:PropertyName("value") val value: String) {
+    @PropertyName("NOT_REQUESTED") NOT_REQUESTED("NOT_REQUESTED"),
+    @PropertyName("REQUESTED") REQUESTED("REQUESTED"),
+    @PropertyName("ACCEPTED") ACCEPTED("ACCEPTED"),
+    @PropertyName("REJECTED") REJECTED("REJECTED");
+
+    companion object {
+        fun fromValue(value: String?): PaymentApproveStatus =
+            entries.find { it.value == value } ?: NOT_REQUESTED
+    }
 }

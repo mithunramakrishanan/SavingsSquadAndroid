@@ -26,6 +26,7 @@ import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaidStatus
+import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.SquadStrings
@@ -75,6 +76,10 @@ class SquadViewModel : ViewModel() {
     private val _squad = MutableStateFlow<Squad?>(null)
     val squad: StateFlow<Squad?> = _squad
     fun setSquad(value: Squad?) { _squad.value = value }
+
+    private val _pendingApprovalPayments = MutableStateFlow<List<PaymentsDetails>>(emptyList())
+    val pendingApprovalPayments: StateFlow<List<PaymentsDetails>> = _pendingApprovalPayments
+    fun setPendingApprovalPayments(list: List<PaymentsDetails>) { _pendingApprovalPayments.value = list }
 
     private val _rules = MutableStateFlow<List<SquadRule>>(emptyList())
     val rules: StateFlow<List<SquadRule>> = _rules
@@ -1312,8 +1317,6 @@ class SquadViewModel : ViewModel() {
             return
         }
 
-        if (showLoader) LoaderManager.shared.showLoader()
-
         manager.savePayments(squadID, payment) { success, error ->
             if (showLoader) LoaderManager.shared.hideLoader()
 
@@ -1331,61 +1334,115 @@ class SquadViewModel : ViewModel() {
                 addAll(payment)
             }
 
-            val squadLocal = _squad.value
-            if (squadLocal == null) {
-                completion(false, "❌ Squad not found")
-                return@savePayments
-            }
 
-            val userId = payment.firstOrNull()?.memberId
-            val member = _squadMembers.value.firstOrNull { it.id == userId }
+            for (payment in payment) {
 
-            //For manual entry amount credit
-            if (member == null) {
-                var squadCopy = squadLocal
-                applyPaymentSummaries(payment, squadCopy, Member())
+                if (payment.paymentSubType == PaymentSubType.CONTRIBUTION_AMOUNT) {
 
-                CoroutineScope(Dispatchers.IO).launch {
-                    updateSquad(squad = squadCopy) { squadSuccess, _, squadError ->
-                        if (!squadSuccess) {
-                            println("❌ Failed to update squad: ${squadError ?: "Unknown error"}")
-                        }
-                        else {
+                    updateContributionStatus(
+                        squadID = payment.squadId,
+                        memberID = payment.memberId,
+                        contributionID = payment.contributionId,
+                        newStatus = PaidStatus.IN_VERIFICATION.value
+                    ) { success, error ->
 
-                            println("update squad: ${squadCopy}")
-                        }
-                    }
-                }
-
-            }
-            else {
-
-                var squadCopy = squadLocal
-                var memberCopy = member
-                applyPaymentSummaries(payment, squadCopy, memberCopy)
-
-                CoroutineScope(Dispatchers.IO).launch {
-                    updateMembers(squadID = squadCopy.squadID, members = listOf(memberCopy)) { memberSuccess, memberError ->
-                        if (!memberSuccess) {
-                            println("❌ Failed to update member: ${memberError ?: "Unknown error"}")
-                        }
-                    }
-
-                    updateSquad(squad = squadCopy) { squadSuccess, _, squadError ->
-                        if (!squadSuccess) {
-                            println("❌ Failed to update squad: ${squadError ?: "Unknown error"}")
-                        }
-                        else {
-
-                            println("update squad: ${squadCopy}")
+                        // handle response if needed
+                        if (!success) {
+                            println("Error updating: $error")
                         }
                     }
                 }
             }
 
-
-
+            if (showLoader) LoaderManager.shared.showLoader()
             completion(true, null)
+        }
+    }
+
+    fun updateContributionApproveStatus(
+        showLoader: Boolean = true,
+        squadID: String,
+        memberID: String,
+        contributionID: String,
+        status: PaidStatus,
+        completion: (Boolean, ContributionDetail?, String?) -> Unit
+    ) {
+
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        manager.updateContributionApproveStatus(
+            squadID = squadID,
+            memberID = memberID,
+            contributionID = contributionID,
+            status = status
+        ) { success, contribution, error ->
+
+            if (showLoader) {
+                LoaderManager.shared.hideLoader()
+            }
+
+            if (!success) {
+                completion(false, null, error)
+                return@updateContributionApproveStatus
+            }
+
+            completion(true, contribution, null)
+        }
+    }
+
+    fun updatePaymentCalculations(payment: List<PaymentsDetails>) {
+
+        val squadLocal = _squad.value
+        if (squadLocal == null) {
+            return
+        }
+
+        val userId = payment.firstOrNull()?.memberId
+        val member = _squadMembers.value.firstOrNull { it.id == userId }
+
+        //For manual entry amount credit
+        if (member == null) {
+            var squadCopy = squadLocal
+            applyPaymentSummaries(payment, squadCopy, Member())
+
+            CoroutineScope(Dispatchers.IO).launch {
+                updateSquad(squad = squadCopy) { squadSuccess, _, squadError ->
+                    if (!squadSuccess) {
+                        println("❌ Failed to update squad: ${squadError ?: "Unknown error"}")
+                    }
+                    else {
+
+                        println("update squad: ${squadCopy}")
+                    }
+                }
+            }
+
+        }
+        else {
+
+            var squadCopy = squadLocal
+            var memberCopy = member
+            applyPaymentSummaries(payment, squadCopy, memberCopy)
+
+            CoroutineScope(Dispatchers.IO).launch {
+                updateMembers(squadID = squadCopy.squadID, members = listOf(memberCopy)) { memberSuccess, memberError ->
+                    if (!memberSuccess) {
+                        println("❌ Failed to update member: ${memberError ?: "Unknown error"}")
+                    }
+                }
+
+                updateSquad(squad = squadCopy) { squadSuccess, _, squadError ->
+                    if (!squadSuccess) {
+                        println("❌ Failed to update squad: ${squadError ?: "Unknown error"}")
+                    }
+                    else {
+
+                        println("update squad: ${squadCopy}")
+                    }
+                }
+            }
         }
     }
 
@@ -1423,6 +1480,163 @@ class SquadViewModel : ViewModel() {
                     }
                 }
             }
+        }
+    }
+
+    fun updatePaymentApproveStatus(
+        showLoader: Boolean = true,
+        squadID: String,
+        paymentID: String,
+        status: PaymentApproveStatus,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            LoaderManager.shared.hideLoader()
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = SquadStrings.networkError
+            )
+            completion(false, "No internet connection")
+            return
+        }
+
+        if (showLoader) LoaderManager.shared.showLoader()
+
+        manager.updatePaymentApproveStatus(
+            squadID = squadID,
+            paymentID = paymentID,
+            status = status
+        ) { success, payment, error ->
+
+            if (success && payment != null) {
+
+                val list = (squadPayments.value ?: mutableListOf()).toMutableList()
+
+                val index = list.indexOfFirst { it.id == paymentID }
+                if (index != -1) {
+                    list[index] = list[index].copy(
+                        paymentApproveStatus = status
+                    )
+                }
+
+                _squadPayments.value = list;
+
+                // remove from pending list
+                val pending = pendingApprovalPayments.value.toMutableList() ?: mutableListOf()
+
+                pending.removeAll { it.id == paymentID }
+
+                _pendingApprovalPayments.value = pending;
+
+                updatePaymentCalculations(listOf(payment))
+
+                // contribution logic
+                if (payment.paymentSubType == PaymentSubType.CONTRIBUTION_AMOUNT) {
+
+                    when (status) {
+
+                        PaymentApproveStatus.ACCEPTED -> {
+                            updateContributionStatus(
+                                squadID = payment.squadId,
+                                memberID = payment.memberId,
+                                contributionID = payment.contributionId,
+                                newStatus = PaidStatus.PAID.value
+                            ){ success, error ->
+
+                                if (success) {
+
+                                    // success logic
+
+                                } else {
+
+                                    // show error
+
+                                    println(error)
+
+                                }
+
+                            }
+                        }
+
+                        PaymentApproveStatus.REJECTED -> {
+                            updateContributionStatus(
+                                squadID = payment.squadId,
+                                memberID = payment.memberId,
+                                contributionID = payment.contributionId,
+                                newStatus = PaidStatus.NOT_PAID.value
+                            ){ success, error ->
+
+                                if (success) {
+
+                                    // success logic
+
+                                } else {
+
+                                    // show error
+
+                                    println(error)
+
+                                }
+
+                            }
+                        }
+
+                        else -> {}
+                    }
+                }
+
+                if (showLoader) LoaderManager.shared.hideLoader()
+
+                completion(true, null)
+                return@updatePaymentApproveStatus
+            }
+
+            val errorMsg = error ?: "Failed to update approval status"
+            completion(false, errorMsg)
+        }
+    }
+
+    fun fetchPendingApprovalPayments(
+        showLoader: Boolean = true,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val squadID = squadID
+        if (squadID == null) {
+            completion(false, "Squad not found")
+            return
+        }
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            LoaderManager.shared.hideLoader()
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = SquadStrings.networkError
+            )
+            completion(false, "No internet connection")
+            return
+        }
+
+        if (showLoader) LoaderManager.shared.showLoader()
+
+        manager.fetchPendingApprovalPayments(squadID) { payments, error ->
+
+            if (showLoader) LoaderManager.shared.hideLoader()
+
+            if (error != null) {
+
+                handleFetchError(error) {
+                    fetchPendingApprovalPayments(showLoader, completion)
+                }
+
+                completion(false, error)
+                return@fetchPendingApprovalPayments
+            }
+
+            _pendingApprovalPayments.value = payments?.toMutableList() ?: mutableListOf()
+
+            completion(true, null)
         }
     }
 

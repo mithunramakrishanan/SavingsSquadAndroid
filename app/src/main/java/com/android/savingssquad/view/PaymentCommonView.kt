@@ -161,11 +161,31 @@ fun PaymentStatusRowView(
                         style = AppFont.ibmPlexSans(11, FontWeight.Medium),
                         color = Color(0xFF007AFF),
                         modifier = Modifier.clickable {
+
+                            val title = when (status) {
+
+                                PaymentStatus.SUCCESS ->
+
+                                    SquadStrings.paymentSuccess
+
+                                PaymentStatus.INVERIFICATION ->
+
+                                    "Waiting for admin confirmation"
+
+                                else ->
+
+                                    SquadStrings.paymentIssue
+
+                            }
+
                             reasonData = ReasonSheetData(
-                                title = if (status == PaymentStatus.SUCCESS)
-                                    "Payment Success" else "Payment Issue",
+
+                                title = title,
+
                                 message = reason
+
                             )
+
                         }
                     )
                 }

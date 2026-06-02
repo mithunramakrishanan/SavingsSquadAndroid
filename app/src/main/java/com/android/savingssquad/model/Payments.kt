@@ -9,6 +9,7 @@ import com.android.savingssquad.singleton.RecordStatus
 import com.google.firebase.Timestamp
 import java.util.Date
 import androidx.annotation.Keep
+import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PayoutStatus
 import com.google.firebase.firestore.PropertyName
 
@@ -146,6 +147,9 @@ data class PaymentsDetails(
     @get:PropertyName("payoutStatus") @set:PropertyName("payoutStatus")
     var payoutStatus: PayoutStatus = PayoutStatus.PAYOUT_INPROGRESS,
 
+    @get:PropertyName("paymentApproveStatus") @set:PropertyName("paymentApproveStatus")
+    var paymentApproveStatus: PaymentApproveStatus? = null,
+
     @get:PropertyName("description") @set:PropertyName("description")
     var description: String = "",
 
@@ -210,6 +214,7 @@ data class PaymentsDetails(
         paymentSubType = PaymentSubType.CONTRIBUTION_AMOUNT,
         paymentStatus = PaymentStatus.INPROGRESS,
         payoutStatus = PayoutStatus.PAYOUT_INPROGRESS,
+        paymentApproveStatus = null,
         description = "",
         squadId = "",
         order_id = "",
@@ -244,6 +249,7 @@ data class PaymentsDetails(
         "paymentSubType" to paymentSubType.name,
         "paymentStatus" to paymentStatus.name,
         "payoutStatus" to payoutStatus.name,
+        "paymentApproveStatus" to paymentApproveStatus,
         "description" to description,
         "squadId" to squadId,
         "order_id" to order_id,
