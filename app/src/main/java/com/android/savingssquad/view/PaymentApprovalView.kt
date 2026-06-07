@@ -104,13 +104,28 @@ fun PaymentApprovalView(
                     .distinct()
     }
 
+    val screenType =
+        if (UserDefaultsManager.getSquadManagerLogged())
+            SquadUserType.SQUAD_MANAGER
+        else
+            SquadUserType.SQUAD_MEMBER
+
     val pendingPayments by squadViewModel.pendingApprovalPayments.collectAsStateWithLifecycle()
+
 
     val pendingApprovals = pendingPayments.filter {
         it.paymentApproveStatus == PaymentApproveStatus.REQUESTED
     }.let { list ->
-        if (selectedUser == "All") list
-        else list.filter { it.memberName == selectedUser }
+
+        if (screenType == SquadUserType.SQUAD_MANAGER) {
+            if (selectedUser == "All") list
+            else list.filter { it.memberName == selectedUser }
+        }
+        else {
+            list.filter { it.memberId == squadViewModel.currentMember.value!!.id }
+        }
+
+
     }
 
     LaunchedEffect(Unit) {

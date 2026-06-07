@@ -465,7 +465,7 @@ fun ManagerTwoButtons(
 
         TwoButtonGradient(
             icon = Icons.Filled.Update,
-            title = "Payment Status",
+            title = "Verify Payment",
             gradientColors = listOf(AppColors.secondaryAccent, AppColors.warningAccent),
             onClick = acceptAmountAction,
             modifier = Modifier.weight(1f)

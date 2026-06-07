@@ -66,8 +66,10 @@ import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.CashfreeBeneficiaryType
 import com.android.savingssquad.singleton.CashfreePaymentAction
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaymentEntryType
+import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.RazorpayPaymentAction
@@ -230,6 +232,20 @@ fun ManagerPaymentView(
                                 .padding(horizontal = 16.dp)
                         )
                     }
+                    else {
+
+                        Text(
+                            text = loanSelectedMember?.upiID?.let {
+                                "Sending payment to $it"
+                            } ?: "",
+                            style = AppFont.ibmPlexSans(12, FontWeight.Normal),
+                            color = AppColors.errorAccent,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        )
+                    }
                 }
 
             } else {
@@ -338,6 +354,8 @@ private fun makeLoanPayment(
                 paymentEmail = selectedMember.mailID ?: "",
                 userType = SquadUserType.SQUAD_MANAGER,
                 amount = selectedLoan.loanAmount,
+                paymentStatus = PaymentStatus.INVERIFICATION,
+                paymentApproveStatus = PaymentApproveStatus.REQUESTED,
                 intrestAmount = 0,
                 paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
                 paymentType = PaymentType.PAYMENT_DEBIT,
@@ -347,11 +365,33 @@ private fun makeLoanPayment(
                 contributionId = "",
                 loanId = newLoan.id ?: "",
                 installmentId = "",
+                paymentResponseMessage = "Pending member verification.",
                 transferReferenceId = "",
                 upiID = selectedMember.upiID
             )
 
-            FirebaseFunctionsManager.shared.processRazorPayPayment(
+
+            squadViewModel.savePayments(
+                showLoader = true,
+                squadID = squadViewModel.squad.value?.squadID ?: "",
+                payment = listOf(newPayment)
+            ) { success, error ->
+                if (success) {
+                    println("✅ Payment added successfully!")
+                    AlertManager.shared.showAlert(
+                        title = SquadStrings.appName,
+                        message = "Payment updated. Pending member verification.",
+                        primaryButtonTitle = "OK",
+                        primaryAction = {
+                        }
+                    )
+
+                } else {
+                    println("❌ Error adding payment: $error")
+                }
+            }
+
+            /*FirebaseFunctionsManager.shared.processRazorPayPayment(
                 squadId = squadViewModel.squad.value?.squadID ?: "",
                 action = RazorpayPaymentAction.New(payment = newPayment)
             ) { sessionId, orderId, error ->
@@ -363,7 +403,7 @@ private fun makeLoanPayment(
                         handler()
                     }
                 )
-            }
+            } */
         } else {
             println("❌ Error: ${error ?: "Unknown error"}")
         }

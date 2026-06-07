@@ -1392,7 +1392,7 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-    fun updatePaymentCalculations(payment: List<PaymentsDetails>) {
+    fun updatePaymentCalculations(payment: List<PaymentsDetails>, status: PaymentApproveStatus,) {
 
         val squadLocal = _squad.value
         if (squadLocal == null) {
@@ -1405,7 +1405,7 @@ class SquadViewModel : ViewModel() {
         //For manual entry amount credit
         if (member == null) {
             var squadCopy = squadLocal
-            applyPaymentSummaries(payment, squadCopy, Member())
+            applyPaymentSummaries(payment, squadCopy, Member(), status)
 
             CoroutineScope(Dispatchers.IO).launch {
                 updateSquad(squad = squadCopy) { squadSuccess, _, squadError ->
@@ -1424,7 +1424,7 @@ class SquadViewModel : ViewModel() {
 
             var squadCopy = squadLocal
             var memberCopy = member
-            applyPaymentSummaries(payment, squadCopy, memberCopy)
+            applyPaymentSummaries(payment, squadCopy, memberCopy,status)
 
             CoroutineScope(Dispatchers.IO).launch {
                 updateMembers(squadID = squadCopy.squadID, members = listOf(memberCopy)) { memberSuccess, memberError ->
@@ -1446,37 +1446,41 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-    fun applyPaymentSummaries(payments: List<PaymentsDetails>, squad: Squad, member: Member) {
+    fun applyPaymentSummaries(payments: List<PaymentsDetails>, squad: Squad, member: Member, status: PaymentApproveStatus,) {
         for (pay in payments) {
-            when (pay.paymentType) {
-                PaymentType.PAYMENT_CREDIT -> {
-                    when (pay.paymentSubType) {
-                        PaymentSubType.INTEREST_AMOUNT -> {
-                            squad.totalInterestAmountReceived += pay.intrestAmount
-                            member.totalInterestPaid += pay.intrestAmount
-                        }
 
-                        PaymentSubType.EMI_AMOUNT -> {
-                            squad.totalLoanAmountReceived += (pay.amount - pay.intrestAmount)
-                            member.totalLoanPaid += (pay.amount - pay.intrestAmount)
-                        }
+            if (status == PaymentApproveStatus.ACCEPTED) {
 
-                        PaymentSubType.CONTRIBUTION_AMOUNT -> {
-                            squad.totalContributionAmountReceived += pay.amount
-                            member.totalContributionPaid += pay.amount
-                        }
+                when (pay.paymentType) {
+                    PaymentType.PAYMENT_CREDIT -> {
+                        when (pay.paymentSubType) {
+                            PaymentSubType.INTEREST_AMOUNT -> {
+                                squad.totalInterestAmountReceived += pay.intrestAmount
+                                member.totalInterestPaid += pay.intrestAmount
+                            }
 
-                        PaymentSubType.OTHERS_AMOUNT -> Unit
-                        else -> Unit
+                            PaymentSubType.EMI_AMOUNT -> {
+                                squad.totalLoanAmountReceived += (pay.amount - pay.intrestAmount)
+                                member.totalLoanPaid += (pay.amount - pay.intrestAmount)
+                            }
+
+                            PaymentSubType.CONTRIBUTION_AMOUNT -> {
+                                squad.totalContributionAmountReceived += pay.amount
+                                member.totalContributionPaid += pay.amount
+                            }
+
+                            PaymentSubType.OTHERS_AMOUNT -> Unit
+                            else -> Unit
+                        }
+                        squad.currentAvailableAmount += pay.amount
                     }
-                    squad.currentAvailableAmount += pay.amount
-                }
 
-                PaymentType.PAYMENT_DEBIT -> {
-                    if (pay.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
-                        squad.totalLoanAmountSent += (pay.amount - pay.intrestAmount)
-                        member.totalLoanBorrowed += (pay.amount - pay.intrestAmount)
-                        squad.currentAvailableAmount -= pay.amount
+                    PaymentType.PAYMENT_DEBIT -> {
+                        if (pay.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
+                            squad.totalLoanAmountSent += (pay.amount - pay.intrestAmount)
+                            member.totalLoanBorrowed += (pay.amount - pay.intrestAmount)
+                            squad.currentAvailableAmount -= pay.amount
+                        }
                     }
                 }
             }
@@ -1529,7 +1533,7 @@ class SquadViewModel : ViewModel() {
 
                 _pendingApprovalPayments.value = pending;
 
-                updatePaymentCalculations(listOf(payment))
+                updatePaymentCalculations(listOf(payment), status)
 
                 // contribution logic
                 if (payment.paymentSubType == PaymentSubType.CONTRIBUTION_AMOUNT) {

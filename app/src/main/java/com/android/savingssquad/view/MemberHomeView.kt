@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -514,13 +515,13 @@ fun MemberTwoButtons(
             modifier = Modifier.weight(1f)
         )
 
-//        TwoButtonGradient(
-//            icon = Icons.Filled.CreditCard,
-//            title = "Approve Payment",
-//            gradientColors = listOf(AppColors.secondaryAccent, AppColors.warningAccent),
-//            onClick = approveCashAction,
-//            modifier = Modifier.weight(1f)
-//        )
+        TwoButtonGradient(
+            icon = Icons.Filled.Update,
+            title = "Verify Payment",
+            gradientColors = listOf(AppColors.secondaryAccent, AppColors.warningAccent),
+            onClick = approveCashAction,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 

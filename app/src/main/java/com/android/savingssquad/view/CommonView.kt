@@ -1617,7 +1617,7 @@ fun AddMemberPopup(
             // Button
             SSButton(
                 title = if (otpVerified) "Add Member" else "Send OTP",
-                isDisabled = (otpProcessStarted || sendOTPLoading) || memberNameError.isNotEmpty(),
+                isDisabled = (otpProcessStarted || sendOTPLoading) || memberNameError.isNotEmpty() || verifyOTPLoading,
                 action = { handleAddMember() }
             )
 
