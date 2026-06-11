@@ -2137,3 +2137,247 @@ object AppIcons {
         else -> R.drawable.squad_activity_selected
     }
 }
+
+@Composable
+fun EditAmountPopup(
+    phoneNumber: String,
+    currentAmount: Int,
+    onDismiss: () -> Unit,
+    updateAmountAction: (Int) -> Unit
+) {
+
+    val context = LocalContext.current
+    val activity = context as Activity
+
+    val otpCode = remember { mutableStateOf("") }
+    val amount = remember { mutableStateOf("") }
+
+    var verificationID by remember { mutableStateOf("") }
+
+    var sendOTPLoading by remember { mutableStateOf(false) }
+    var verifyOTPLoading by remember { mutableStateOf(false) }
+
+    var isOTPSent by remember { mutableStateOf(false) }
+    var otpVerified by remember { mutableStateOf(false) }
+    var otpProcessStarted by remember { mutableStateOf(false) }
+
+    var otpError by remember { mutableStateOf("") }
+    var amountError by remember { mutableStateOf("") }
+
+    fun sendOTP() {
+
+        sendOTPLoading = true
+        otpProcessStarted = true
+
+        PhoneAuthProvider.verifyPhoneNumber(
+            PhoneAuthOptions.newBuilder(FirebaseAuth.getInstance())
+                .setPhoneNumber("+91$phoneNumber")
+                .setTimeout(60L, TimeUnit.SECONDS)
+                .setActivity(activity)
+                .setCallbacks(
+                    object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+
+                        override fun onVerificationCompleted(
+                            credential: PhoneAuthCredential
+                        ) {
+                        }
+
+                        override fun onVerificationFailed(
+                            e: FirebaseException
+                        ) {
+
+                            sendOTPLoading = false
+                            otpProcessStarted = false
+                            otpError = e.localizedMessage ?: "Failed to send OTP"
+                        }
+
+                        override fun onCodeSent(
+                            verificationId: String,
+                            token: PhoneAuthProvider.ForceResendingToken
+                        ) {
+
+                            sendOTPLoading = false
+                            otpProcessStarted = false
+
+                            verificationID = verificationId
+                            isOTPSent = true
+                        }
+                    }
+                )
+                .build()
+        )
+    }
+
+    fun verifyOTP() {
+
+        if (otpCode.value.length != 6) {
+
+            otpError = "Enter valid OTP"
+            return
+        }
+
+        verifyOTPLoading = true
+
+        val credential =
+            PhoneAuthProvider.getCredential(
+                verificationID,
+                otpCode.value
+            )
+
+        FirebaseAuth.getInstance()
+            .signInWithCredential(credential)
+            .addOnCompleteListener { task ->
+
+                verifyOTPLoading = false
+
+                if (task.isSuccessful) {
+
+                    amount.value = currentAmount.toString()
+                    otpVerified = true
+
+                } else {
+
+                    otpError =
+                        task.exception?.localizedMessage
+                            ?: "Invalid OTP"
+                }
+            }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+    ) {
+
+        Column(
+            modifier = Modifier
+                .background(
+                    AppColors.background,
+                    RoundedCornerShape(20.dp)
+                )
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+
+            Text(
+                text = "Edit Amount",
+                style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                color = AppColors.headerText,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+
+            if (!otpVerified) {
+
+                Text(
+                    text = "OTP will send to $phoneNumber",
+                    style = AppFont.ibmPlexSans(14, FontWeight.Normal),
+                    color = AppColors.secondaryText,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (isOTPSent) {
+
+                    SSTextField(
+                        icon = Icons.Default.Lock,
+                        placeholder = "Enter OTP",
+                        textState = otpCode,
+                        keyboardType = KeyboardType.Number,
+                        showDropdown = verifyOTPLoading || otpVerified,
+                        dropdownIcon = Icons.Default.CheckCircle,
+                        dropdownColor = AppColors.primaryButton,
+                        isLoading = verifyOTPLoading,
+                        error = otpError
+                    )
+
+                    LaunchedEffect(otpCode.value) {
+
+                        otpError = ""
+
+                        if (otpCode.value.length == 6) {
+
+                            delay(500)
+                            verifyOTP()
+                        }
+                    }
+                }
+
+            } else {
+
+                Text(
+                    text = "OTP Verified",
+                    style = AppFont.ibmPlexSans(
+                        14,
+                        FontWeight.Medium
+                    ),
+                    color = Color.Green,
+                    modifier = Modifier.align(
+                        Alignment.CenterHorizontally
+                    )
+                )
+
+                SSTextField(
+                    icon = Icons.Default.Edit,
+                    placeholder = "Enter Amount",
+                    textState = amount,
+                    keyboardType = KeyboardType.Number,
+                    error = amountError
+                )
+            }
+
+            SSButton(
+                title = when {
+                    otpVerified -> "Update Amount"
+                    isOTPSent -> "Verify OTP"
+                    else -> "Send OTP"
+                },
+                isButtonLoading = sendOTPLoading || verifyOTPLoading,
+                isDisabled = otpProcessStarted
+            ) {
+
+                when {
+
+                    otpVerified -> {
+
+                        amountError = ""
+
+                        if (amount.value.isBlank()) {
+
+                            amountError = "Amount is required"
+                            return@SSButton
+                        }
+
+                        val amountInt =
+                            amount.value.toIntOrNull()
+
+                        if (amountInt == null) {
+
+                            amountError = "Enter valid amount"
+                            return@SSButton
+                        }
+
+                        updateAmountAction(amountInt)
+                        onDismiss()
+                    }
+
+                    isOTPSent -> {
+
+                        verifyOTP()
+                    }
+
+                    else -> {
+
+                        sendOTP()
+                    }
+                }
+            }
+
+            SSCancelButton(
+                title = "Cancel"
+            ) {
+                onDismiss()
+            }
+        }
+    }
+}

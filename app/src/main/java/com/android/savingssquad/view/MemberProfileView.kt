@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.viewmodel.AppDestination
 import com.google.firebase.FirebaseException
@@ -89,10 +90,12 @@ fun MemberProfileView(
     val scope = rememberCoroutineScope()
     val showPopup by squadViewModel.showUpdateMemberPopup.collectAsStateWithLifecycle()
 
-    var openContributionDetails by remember { mutableStateOf(false) }
+    val showEditAmountPopup by squadViewModel.showEditAmountPopup.collectAsStateWithLifecycle()
+
+    var selectedEditAmount by remember { mutableStateOf(0) }
     var openLoanDetailsView by remember { mutableStateOf(false) }
 
-
+    var openContributionDetails by remember { mutableStateOf(false) }
     val screenType = if (UserDefaultsManager.getSquadManagerLogged()) {
         SquadUserType.SQUAD_MANAGER
     } else {
@@ -154,33 +157,92 @@ fun MemberProfileView(
                     // -------------------------
                     val stats: List<MemberStatItem> = if (screenType == SquadUserType.SQUAD_MANAGER) {
                         listOf(
+
                             MemberStatItem(
+
                                 title = "Contribution Received",
+
                                 value = member!!.totalContributionPaid.currencyFormattedWithCommas(),
+
                                 icon = Icons.Default.ArrowDownward,
+
                                 color = Color.Green,
-                                onClick = { openContributionDetails = true }
+
+                                onClick = { openContributionDetails = true },
+
+                                onEditClick = {
+
+                                    squadViewModel.setShowEditAmountPopup(true)
+                                    selectedEditAmount = member!!.totalContributionPaid
+                                    squadViewModel.setEditAmountType(AmountEditType.contribution)
+
+                                }
+
                             ),
+
                             MemberStatItem(
+
                                 title = "Total Loan Borrowed",
+
                                 value = member!!.totalLoanBorrowed.currencyFormattedWithCommas(),
+
                                 icon = Icons.Default.ArrowUpward,
+
                                 color = Color.Red,
-                                onClick = { openLoanDetailsView = true }
+
+                                onClick = { openLoanDetailsView = true },
+
+                                onEditClick = {
+
+                                    squadViewModel.setShowEditAmountPopup(true)
+                                    selectedEditAmount = member!!.totalLoanBorrowed
+                                    squadViewModel.setEditAmountType(AmountEditType.loanBorrowed)
+                                }
+
                             ),
+
                             MemberStatItem(
+
                                 title = "Paid Loan Amount",
+
                                 value = member!!.totalLoanPaid.currencyFormattedWithCommas(),
+
                                 icon = Icons.Default.CheckCircle,
+
                                 color = Color.Blue,
-                                onClick = { openLoanDetailsView = true }
+
+                                onClick = { openLoanDetailsView = true },
+
+                                onEditClick = {
+
+                                    squadViewModel.setShowEditAmountPopup(true)
+                                    selectedEditAmount = member!!.totalLoanPaid
+                                    squadViewModel.setEditAmountType(AmountEditType.paidLoadAmount)
+
+                                }
+
                             ),
+
                             MemberStatItem(
+
                                 title = "Interest Received",
+
                                 value = member!!.totalInterestPaid.currencyFormattedWithCommas(),
+
                                 icon = Icons.Default.Percent,
-                                color = Color(0xFF7B61FF)
+
+                                color = Color(0xFF7B61FF),
+
+                                onEditClick = {
+
+                                    squadViewModel.setShowEditAmountPopup(true)
+                                    selectedEditAmount = member!!.totalInterestPaid
+                                    squadViewModel.setEditAmountType(AmountEditType.intrestAmount)
+
+                                }
+
                             )
+
                         )
                     } else {
                         listOf(
@@ -228,7 +290,8 @@ fun MemberProfileView(
                                 value = item.value,
                                 icon = item.icon,
                                 color = item.color,
-                                onClick = item.onClick
+                                onClick = item.onClick,
+                                onEditClick = item.onEditClick
                             )
                         }
                     }
@@ -249,6 +312,58 @@ fun MemberProfileView(
                     squadViewModel = squadViewModel,
                     showPopup = remember { mutableStateOf(showPopup) }
                 )
+            }
+        }
+
+        if (showEditAmountPopup) {
+            OverlayBackgroundView(
+                showPopup = remember { mutableStateOf(showEditAmountPopup) },
+                onDismiss = { squadViewModel.setShowEditAmountPopup(false) }
+            ) {
+                UpdateMemberPopup(
+                    squadViewModel = squadViewModel,
+                    showPopup = remember { mutableStateOf(showEditAmountPopup) }
+                )
+
+                EditAmountPopup(
+
+                    phoneNumber = member!!.phoneNumber,
+
+                    currentAmount = selectedEditAmount,
+
+                    onDismiss = {
+
+                        squadViewModel.setShowEditAmountPopup(false)
+
+                    }
+
+                ) { newAmount ->
+
+                    println("Updated Amount: $newAmount")
+
+                    LoaderManager.shared.showLoader()
+
+                    squadViewModel.updateMemberAmount(
+                        showLoader = true,
+                        squadID = squadViewModel.squad.value?.squadID ?: "",
+                        memberID = member!!.id ?: "",
+                        amount = newAmount,
+                        editAmountType = squadViewModel.editAmountType.value ?: AmountEditType.others
+                    ) { success, error ->
+
+                        LoaderManager.shared.hideLoader()
+
+                        if (success) {
+
+                            // Success
+
+                        } else {
+
+                            println(error ?: "Unknown error")
+                        }
+                    }
+
+                }
             }
         }
 
@@ -340,46 +455,74 @@ fun MemberProfileStatsCard(
     value: String,
     icon: ImageVector,
     color: Color,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onEditClick: (() -> Unit)? = null
 ) {
-    Row(
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(15.dp))
-            .appShadow(AppShadows.card, RoundedCornerShape(15.dp))
-            .background(AppColors.surface)
-            .border(0.5.dp, AppColors.border, RoundedCornerShape(15.dp))
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
+
+        Row(
             modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(color.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(15.dp))
+                .appShadow(AppShadows.card, RoundedCornerShape(15.dp))
+                .background(AppColors.surface)
+                .border(0.5.dp, AppColors.border, RoundedCornerShape(15.dp))
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, tint = color)
+
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = color)
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = AppFont.ibmPlexSans(14, FontWeight.Normal),
+                    color = AppColors.secondaryText
+                )
+
+                Text(
+                    text = value,
+                    style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
+                    color = AppColors.headerText
+                )
+            }
+
+            // Space for edit icon
+            if (onEditClick != null) {
+                Spacer(modifier = Modifier.width(32.dp))
+            }
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = title,
-                style = AppFont.ibmPlexSans(14, FontWeight.Normal),
-                color = AppColors.secondaryText
-            )
-            Text(
-                text = value,
-                style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
-                color = AppColors.headerText
-            )
+        if (onEditClick != null) {
+            IconButton(
+                onClick = onEditClick,
+                modifier = Modifier.align(Alignment.CenterEnd) // Vertical Center Trailing
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit",
+                    tint = AppColors.primaryButton
+                )
+            }
         }
     }
 }
@@ -591,5 +734,6 @@ data class MemberStatItem(
     val value: String,
     val icon: ImageVector,
     val color: Color,
-    val onClick: () -> Unit = {}
+    val onClick: () -> Unit = {},
+    val onEditClick: (() -> Unit)? = null
 )

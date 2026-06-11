@@ -17,6 +17,7 @@ import com.google.firebase.firestore.SetOptions
 import com.yourapp.utils.CommonFunctions
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
+import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentEntryType
@@ -408,6 +409,62 @@ class FirestoreManager private constructor() {
         ref.update(updateData)
             .addOnSuccessListener { completion(true, null) }
             .addOnFailureListener { e -> completion(false, "❌ Failed to updateMemberMobileNumber: ${e.localizedMessage}") }
+    }
+
+
+    fun updateMemberAmount(
+        squadID: String,
+        memberID: String,
+        amount: Int,
+        editAmountType: AmountEditType,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val ref = db.collection("squads")
+            .document(squadID)
+            .collection("members")
+            .document(memberID)
+
+        val updateData = when (editAmountType) {
+
+            AmountEditType.contribution -> mapOf(
+                "totalContributionPaid" to amount
+            )
+
+            AmountEditType.loanBorrowed -> mapOf(
+                "totalLoanBorrowed" to amount
+            )
+
+            AmountEditType.paidLoadAmount -> mapOf(
+                "totalLoanPaid" to amount
+            )
+
+            AmountEditType.intrestAmount -> mapOf(
+                "totalInterestPaid" to amount
+            )
+
+            AmountEditType.totalSquadAmount -> mapOf(
+                "totalSquadAmount" to amount
+            )
+
+            AmountEditType.others -> mapOf(
+                "others" to amount
+            )
+        }
+
+        ref.update(updateData)
+            .addOnSuccessListener {
+                completion(true, null)
+            }
+            .addOnFailureListener { e ->
+
+                val fieldName = updateData.keys.firstOrNull() ?: "amount"
+
+                completion(
+                    false,
+                    "❌ Failed to update $fieldName: ${e.localizedMessage}"
+                )
+            }
     }
 
     // MARK: - 🔹 Update Contribution Status

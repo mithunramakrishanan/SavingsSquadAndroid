@@ -186,6 +186,7 @@ enum class SquadUserType(@get:PropertyName("value") val value: String) {
 enum class SquadActivityType(@get:PropertyName("value") val value: String) {
     @PropertyName("AMOUNT_DEBIT") AMOUNT_DEBIT("AMOUNT_DEBIT"),
     @PropertyName("AMOUNT_CREDIT") AMOUNT_CREDIT("AMOUNT_CREDIT"),
+    @PropertyName("AMOUNT_EDIT") AMOUNT_EDIT("AMOUNT_EDIT"),
     @PropertyName("OTHER_ACTIVITY") OTHER_ACTIVITY("OTHER_ACTIVITY");
 
     companion object {
@@ -322,4 +323,14 @@ enum class PaymentApproveStatus(@get:PropertyName("value") val value: String) {
         fun fromValue(value: String?): PaymentApproveStatus =
             entries.find { it.value == value } ?: NOT_REQUESTED
     }
+}
+
+enum class AmountEditType {
+    contribution,
+    loanBorrowed,
+    paidLoadAmount,
+    intrestAmount,
+    totalSquadAmount,
+    others
+
 }

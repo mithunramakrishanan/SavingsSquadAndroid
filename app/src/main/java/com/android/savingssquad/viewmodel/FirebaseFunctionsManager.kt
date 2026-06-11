@@ -680,15 +680,13 @@ class FirebaseFunctionsManager private constructor() {
         val data = mutableMapOf<String, Any>(
             "squadId" to squadId,
             "name" to name,
-            "upiID" to upiId
+            "vpa" to upiId,
+            "memberId" to (memberId ?: "")
         )
 
-        if (!memberId.isNullOrEmpty()) {
-            data["memberId"] = memberId
-        }
 
         functions
-            .getHttpsCallable("updateUPIIds")
+            .getHttpsCallable("updateUPIID")
             .call(data)
             .addOnSuccessListener { result ->
                 val res = result.data as? Map<*, *>

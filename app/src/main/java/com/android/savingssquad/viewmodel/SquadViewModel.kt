@@ -21,6 +21,7 @@ import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.model.pendingInstallments
 import com.android.savingssquad.model.pendingLoans
 import com.android.savingssquad.singleton.AlertType
+import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.CashfreePaymentAction
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.SquadActivityType
@@ -197,6 +198,11 @@ class SquadViewModel : ViewModel() {
     fun setShowUpdateMemberPopup(value: Boolean) { _showUpdateMemberPopup.value = value }
 
 
+    private val _showEditAmountPopup = MutableStateFlow(false)
+    val showEditAmountPopup: StateFlow<Boolean> = _showEditAmountPopup
+    fun setShowEditAmountPopup(value: Boolean) { _showEditAmountPopup.value = value }
+
+
     private val _showContributionMemberPopup = MutableStateFlow(false)
     val showContributionMemberPopup: StateFlow<Boolean> = _showContributionMemberPopup
     fun setShowContributionMemberPopup(value: Boolean) { _showContributionMemberPopup.value = value }
@@ -238,6 +244,10 @@ class SquadViewModel : ViewModel() {
     private val _paymentOrderId = MutableStateFlow("")
     val paymentOrderId: StateFlow<String> = _paymentOrderId
     fun setPaymentOrderId(value: String) { _paymentOrderId.value = value }
+
+    private val _editAmountType = MutableStateFlow<AmountEditType?>(null)
+    val editAmountType: StateFlow<AmountEditType?> = _editAmountType
+    fun setEditAmountType(value: AmountEditType?) { _editAmountType.value = value }
 
     init {
         val login = UserDefaultsManager.getLogin()
@@ -1726,6 +1736,132 @@ class SquadViewModel : ViewModel() {
                     handleFetchError(errorMsg) {
                         updateMemberMobileNumber(showLoader, squadID, memberID, mobileNumber, completion)
                     }
+                    completion(false, errorMsg)
+                }
+            }
+        }
+    }
+
+    fun updateMemberAmount(
+        showLoader: Boolean,
+        squadID: String,
+        memberID: String,
+        amount: Int,
+        editAmountType: AmountEditType,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            LoaderManager.shared.hideLoader()
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+            return
+        }
+
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        manager.updateMemberAmount(
+            squadID = squadID,
+            memberID = memberID,
+            amount = amount,
+            editAmountType = editAmountType
+        ) { success, error ->
+
+            MainScope().launch {
+
+                if (showLoader) {
+                    LoaderManager.shared.hideLoader()
+                }
+
+                if (success) {
+
+                    currentMember.value?.let { member ->
+
+                        when (editAmountType) {
+
+                            AmountEditType.contribution -> {
+
+                                createSquadActivity(
+                                    activityType = SquadActivityType.AMOUNT_EDIT,
+                                    userName = "SQUAD MANAGER",
+                                    amount = amount,
+                                    description = "Manager updated member contribution ${currentMember.value?.totalContributionPaid ?: 0} to $amount"                                ) {
+
+                                }
+
+                                member.totalContributionPaid = amount
+                            }
+
+                            AmountEditType.loanBorrowed -> {
+
+                                createSquadActivity(
+                                    activityType = SquadActivityType.AMOUNT_EDIT,
+                                    userName = "SQUAD MANAGER",
+                                    amount = amount,
+                                    description = "Manager updated member loan borrowed ${currentMember.value?.totalLoanBorrowed ?: 0} to $amount"                                ) {
+
+                                }
+
+                                member.totalLoanBorrowed = amount
+                            }
+
+                            AmountEditType.paidLoadAmount -> {
+
+                                createSquadActivity(
+                                    activityType = SquadActivityType.AMOUNT_EDIT,
+                                    userName = "SQUAD MANAGER",
+                                    amount = amount,
+                                    description = "Manager updated member loan paid ${currentMember.value?.totalLoanPaid ?: 0} to $amount"                                ) {
+
+                                }
+
+                                member.totalLoanPaid = amount
+                            }
+
+                            AmountEditType.intrestAmount -> {
+
+                                createSquadActivity(
+                                    activityType = SquadActivityType.AMOUNT_EDIT,
+                                    userName = "SQUAD MANAGER",
+                                    amount = amount,
+                                    description = "Manager updated member pain interest ${currentMember.value?.totalInterestPaid ?: 0} to $amount"                                ) {
+
+                                }
+
+                                member.totalInterestPaid = amount
+                            }
+
+                            else -> {}
+                        }
+
+                        setCurrentMember(member)
+                    }
+
+                    completion(true, null)
+
+                } else {
+
+                    val errorMsg = error ?: "❌ Failed to updateMemberAmount"
+
+                    println(errorMsg)
+
+                    handleFetchError(errorMsg) {
+                        updateMemberAmount(
+                            showLoader = showLoader,
+                            squadID = squadID,
+                            memberID = memberID,
+                            amount = amount,
+                            editAmountType = editAmountType,
+                            completion = completion
+                        )
+                    }
+
                     completion(false, errorMsg)
                 }
             }

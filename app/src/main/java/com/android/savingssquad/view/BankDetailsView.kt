@@ -251,11 +251,20 @@ private fun saveAccountToFirestore(
     accountHoldername: String,
     upiID: String
 ) {
-    val member = squadViewModel.currentMember.value ?: return
+    val member = if (screenType == SquadUserType.SQUAD_MANAGER) {
+        null
+    } else {
+        squadViewModel.currentMember.value ?: return
+    }
 
     val squadID = squadViewModel.squad.value?.squadID ?: return
-    val memberID = if (screenType == SquadUserType.SQUAD_MANAGER) "" else member.id
 
+    val memberID = if (screenType == SquadUserType.SQUAD_MANAGER) {
+        ""
+    } else {
+        member!!.id
+    }
+    loaderManager.showLoader()
     FirebaseFunctionsManager.shared.updateUPIIds(squadId = squadID, memberId = memberID, name = accountHoldername, upiId = upiID, completion = { success, message, error ->
 
         loaderManager.hideLoader()
