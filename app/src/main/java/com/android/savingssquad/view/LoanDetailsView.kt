@@ -378,6 +378,7 @@ private fun statusColor(status: EMIStatus): Color = when (status) {
     EMIStatus.PENDING -> AppColors.warningAccent
     EMIStatus.OVERDUE -> AppColors.errorAccent
     EMIStatus.FAILED -> AppColors.errorAccent
+    EMIStatus.INVERIFICATION -> AppColors.warningAccent
 }
 
 @Composable

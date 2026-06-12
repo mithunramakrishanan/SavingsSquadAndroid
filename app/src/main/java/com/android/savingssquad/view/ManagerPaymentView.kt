@@ -344,7 +344,7 @@ private fun makeLoanPayment(
         loan = newLoan
     ) { success, error ->
         if (success) {
-            LoaderManager.shared.showLoader()
+            LoaderManager.shared.hideLoader()
             val newPayment = PaymentsDetails(
                 id = CommonFunctions.generatePaymentID(squadId = squadViewModel.squad.value?.squadID ?: ""),
                 paymentUpdatedDate = Timestamp.now(),
@@ -378,6 +378,7 @@ private fun makeLoanPayment(
             ) { success, error ->
                 if (success) {
                     println("✅ Payment added successfully!")
+                    LoaderManager.shared.hideLoader()
                     AlertManager.shared.showAlert(
                         title = SquadStrings.appName,
                         message = "Payment updated. Pending member verification.",

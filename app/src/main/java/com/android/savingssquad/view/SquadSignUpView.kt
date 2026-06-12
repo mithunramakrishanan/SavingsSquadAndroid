@@ -399,12 +399,15 @@ fun SquadSignUpView(
                                 squadStartAmount = squadStartAmount,
                                 onComplete = {
                                     isButtonLoading = false
+                                    loaderManager.hideLoader()
                                     AlertManager.shared.showAlert(
                                         title = SquadStrings.appName,
                                         message = SquadStrings.squadCreatedSuccessfully,
                                         primaryButtonTitle = SquadStrings.ok,
                                         primaryAction = {navController.popBackStack()}
                                     )
+
+
                                 },
                                 onError = { err ->
                                     isButtonLoading = false

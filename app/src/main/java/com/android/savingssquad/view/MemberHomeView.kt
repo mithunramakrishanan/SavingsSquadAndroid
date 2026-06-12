@@ -94,7 +94,7 @@ fun MemberHomeView(
                 // 🔹 Top Navigation Bar
                 item {
                     SSNavigationBar(
-                        title = SquadStrings.appName,
+                        title = "Member Dashboard",
                         navController = navController,
                         showBackButton = false,
                         rightButtonDrawable = if (UserDefaultsManager.getIsMultipleAccount())

@@ -109,7 +109,9 @@ enum class EMIStatus(@get:PropertyName("value") val value: String) {
     @PropertyName("PENDING") PENDING("PENDING"),
     @PropertyName("PAID") PAID("PAID"),
     @PropertyName("OVERDUE") OVERDUE("OVERDUE"),
-    @PropertyName("FAILED") FAILED("FAILED");
+    @PropertyName("FAILED") FAILED("FAILED"),
+
+    @PropertyName("INVERIFICATION") INVERIFICATION("INVERIFICATION");
 
     companion object {
         fun fromValue(value: String?): EMIStatus =
@@ -254,6 +256,7 @@ val EMIStatus.displayText: String
         EMIStatus.PAID -> "PAID"
         EMIStatus.OVERDUE -> "OVERDUE"
         EMIStatus.FAILED -> "FAILED"
+        EMIStatus.INVERIFICATION -> "INVERIFICATION"
     }
 
 val EMIStatus.color: Color
@@ -262,6 +265,7 @@ val EMIStatus.color: Color
         EMIStatus.PAID -> Color(0xFF4CAF50)    // Green
         EMIStatus.OVERDUE -> Color(0xFFE53935) // Red
         EMIStatus.FAILED -> Color(0xFF9E9E9E)  // Gray
+        EMIStatus.INVERIFICATION -> Color(0xFFFFA500)  // Gray
     }
 
 // ------------------------------

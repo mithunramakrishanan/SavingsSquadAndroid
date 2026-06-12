@@ -414,47 +414,73 @@ fun MemberPaymentView(
                                     paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
                                     paymentType = PaymentType.PAYMENT_CREDIT,
                                     paymentSubType = PaymentSubType.EMI_AMOUNT,
+                                    paymentStatus = PaymentStatus.INVERIFICATION,
+                                    paymentApproveStatus = PaymentApproveStatus.REQUESTED,
                                     description = "EMI and Interest - ${selectedInstallment?.installmentNumber ?: ""} for #${loan?.loanNumber ?: "N/A"} ${total.currencyFormattedWithCommas()}",
                                     squadId = gf.squadID,
                                     contributionId = "",
                                     loanId = loanId,
                                     installmentId = installId,
+                                    paymentResponseMessage = "Pending admin verification.",
                                     transferReferenceId = "",
                                     upiID = squad!!.upiID
                                 )
-                                if (!selectedInstallment?.orderId.isNullOrEmpty()) {
 
-                                    FirebaseFunctionsManager.shared.processRazorPayPayment(
-                                        squadId = gf.squadID,
-                                        action = RazorpayPaymentAction.Retry(selectedInstallment!!.orderId!!)
-                                    ) { sessionId, orderId, error ->
 
-                                        squadViewModel.handleCashFreeResponse(
-                                            sessionId, orderId, error,
-                                            completion = {
-                                                LoaderManager.shared.hideLoader()
-                                                selectedInstallment = null
-                                                emiSelectedMonthYear = ""
+                                squadViewModel.savePayments(
+                                    showLoader = true,
+                                    squadID = squad!!.squadID,
+                                    payment = listOf(loanPayment)
+                                ) { success, error ->
+                                    if (success) {
+                                        println("✅ Payment added successfully!")
+                                        AlertManager.shared.showAlert(
+                                            title = SquadStrings.appName,
+                                            message = "Payment updated. Pending admin verification.",
+                                            primaryButtonTitle = "OK",
+                                            primaryAction = {
+                                                contributionSelectedMonthYear = ""
                                             }
                                         )
-                                    }
-                                } else {
 
-                                    FirebaseFunctionsManager.shared.processRazorPayPayment(
-                                        squadId = gf.squadID,
-                                        action = RazorpayPaymentAction.New(loanPayment)
-                                    ) { sessionId, orderId, error ->
-                                        squadViewModel.handleCashFreeResponse(
-                                            sessionId, orderId, error,
-                                            completion = {
-                                                LoaderManager.shared.hideLoader()
-                                                selectedInstallment = null
-                                                emiSelectedMonthYear = ""
-
-                                            }
-                                        )
+                                    } else {
+                                        println("❌ Error adding payment: $error")
                                     }
                                 }
+
+//                                if (!selectedInstallment?.orderId.isNullOrEmpty()) {
+//
+//                                    FirebaseFunctionsManager.shared.processRazorPayPayment(
+//                                        squadId = gf.squadID,
+//                                        action = RazorpayPaymentAction.Retry(selectedInstallment!!.orderId!!)
+//                                    ) { sessionId, orderId, error ->
+//
+//                                        squadViewModel.handleCashFreeResponse(
+//                                            sessionId, orderId, error,
+//                                            completion = {
+//                                                LoaderManager.shared.hideLoader()
+//                                                selectedInstallment = null
+//                                                emiSelectedMonthYear = ""
+//                                            }
+//                                        )
+//                                    }
+//                                } else {
+//
+//                                    FirebaseFunctionsManager.shared.processRazorPayPayment(
+//                                        squadId = gf.squadID,
+//                                        action = RazorpayPaymentAction.New(loanPayment)
+//                                    ) { sessionId, orderId, error ->
+//                                        squadViewModel.handleCashFreeResponse(
+//                                            sessionId, orderId, error,
+//                                            completion = {
+//                                                LoaderManager.shared.hideLoader()
+//                                                selectedInstallment = null
+//                                                emiSelectedMonthYear = ""
+//
+//                                            }
+//                                        )
+//                                    }
+//                                }
                             }
                         }
                     )

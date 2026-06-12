@@ -1362,6 +1362,21 @@ class SquadViewModel : ViewModel() {
                         }
                     }
                 }
+                else if (payment.paymentSubType == PaymentSubType.EMI_AMOUNT) {
+
+                    updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.INVERIFICATION.value){ success, error ->
+                        // handle response if needed
+                        if (!success) {
+                            println("Error updating: $error")
+                        }
+                        else {
+
+                            if (_isPendingLoanAvailable.value) {
+                                updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), payment.memberId)
+                            }
+                        }
+                    }
+                }
             }
 
             if (showLoader) LoaderManager.shared.showLoader()
@@ -1472,6 +1487,8 @@ class SquadViewModel : ViewModel() {
                             PaymentSubType.EMI_AMOUNT -> {
                                 squad.totalLoanAmountReceived += (pay.amount - pay.intrestAmount)
                                 member.totalLoanPaid += (pay.amount - pay.intrestAmount)
+                                squad.totalInterestAmountReceived += pay.intrestAmount
+                                member.totalInterestPaid += pay.intrestAmount
                             }
 
                             PaymentSubType.CONTRIBUTION_AMOUNT -> {
@@ -1598,6 +1615,45 @@ class SquadViewModel : ViewModel() {
 
                         else -> {}
                     }
+                }
+                else if (payment.paymentSubType == PaymentSubType.EMI_AMOUNT) {
+
+                    when (status) {
+
+                        PaymentApproveStatus.ACCEPTED -> {
+                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.value){ success, error ->
+                                // handle response if needed
+                                if (!success) {
+                                    println("Error updating: $error")
+                                }
+                                else {
+
+                                    if (_isPendingLoanAvailable.value) {
+                                        updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), payment.memberId)
+                                    }
+                                }
+                            }
+                        }
+
+                        PaymentApproveStatus.REJECTED -> {
+                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.FAILED.value){ success, error ->
+                                // handle response if needed
+                                if (!success) {
+                                    println("Error updating: $error")
+                                }
+                                else {
+
+                                    if (_isPendingLoanAvailable.value) {
+                                        updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), payment.memberId)
+                                    }
+                                }
+                            }
+                        }
+
+                        else -> {}
+                    }
+
+
                 }
 
                 if (showLoader) LoaderManager.shared.hideLoader()
