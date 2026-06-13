@@ -374,6 +374,7 @@ private fun InfoColumn(title: String, value: String) {
 }
 
 private fun statusColor(status: EMIStatus): Color = when (status) {
+    EMIStatus.CREATED -> AppColors.warningAccent
     EMIStatus.PAID -> AppColors.successAccent
     EMIStatus.PENDING -> AppColors.warningAccent
     EMIStatus.OVERDUE -> AppColors.errorAccent

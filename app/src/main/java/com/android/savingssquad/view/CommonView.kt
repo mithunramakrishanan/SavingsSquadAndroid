@@ -94,6 +94,7 @@ import com.android.savingssquad.singleton.color
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AppDestination
+import com.android.savingssquad.viewmodel.FirestoreManager
 import com.google.firebase.auth.PhoneAuthOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -998,12 +999,58 @@ fun LoginListPopup(
 
                                 if (user.role == SquadUserType.SQUAD_MANAGER) {
                                     UserDefaultsManager.saveSquadManagerLogged(true)
+
+                                    FirestoreManager.shared.updateFCMTokenBasedOnRole(
+
+                                        squadID = user.squadID,
+
+                                        memberID = user.squadUserId,
+
+                                        isManager = true
+
+                                    ) { success, error ->
+
+                                        if (success) {
+
+                                            println("FCM token updated successfully")
+
+                                        } else {
+
+                                            println(error)
+
+                                        }
+
+                                    }
+
                                     navController.navigate(AppDestination.MANAGER_HOME.route) {
                                         popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
                                         launchSingleTop = true
                                     }
                                 } else {
                                     UserDefaultsManager.saveSquadManagerLogged(false)
+
+                                    FirestoreManager.shared.updateFCMTokenBasedOnRole(
+
+                                        squadID = user.squadID,
+
+                                        memberID = user.squadUserId,
+
+                                        isManager = false
+
+                                    ) { success, error ->
+
+                                        if (success) {
+
+                                            println("FCM token updated successfully")
+
+                                        } else {
+
+                                            println(error)
+
+                                        }
+
+                                    }
+
                                     navController.navigate(AppDestination.MEMBER_HOME.route) {
                                         popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
                                         launchSingleTop = true

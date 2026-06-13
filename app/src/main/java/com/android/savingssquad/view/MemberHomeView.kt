@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -516,7 +517,7 @@ fun MemberTwoButtons(
         )
 
         TwoButtonGradient(
-            icon = Icons.Filled.Update,
+            icon = Icons.Default.VerifiedUser,
             title = "Verify Payment",
             gradientColors = listOf(AppColors.secondaryAccent, AppColors.warningAccent),
             onClick = approveCashAction,

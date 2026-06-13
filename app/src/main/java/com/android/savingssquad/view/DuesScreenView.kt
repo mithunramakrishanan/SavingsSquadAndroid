@@ -250,7 +250,7 @@ fun DuesScreenView(
                                     PaymentRow(
                                         payment = payment,
                                         showPaymentStatusRow = true,
-                                        showPayoutStatusRow = true,
+                                        showPayoutStatusRow = false,
                                         squadViewModel = squadViewModel
                                     )
                                 }

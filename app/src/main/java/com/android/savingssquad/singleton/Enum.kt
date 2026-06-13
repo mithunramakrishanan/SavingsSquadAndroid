@@ -106,6 +106,7 @@ enum class PaidStatus(
 // MARK: - EMI Status
 // ------------------------------
 enum class EMIStatus(@get:PropertyName("value") val value: String) {
+    @PropertyName("CREATED") CREATED("CREATED"),
     @PropertyName("PENDING") PENDING("PENDING"),
     @PropertyName("PAID") PAID("PAID"),
     @PropertyName("OVERDUE") OVERDUE("OVERDUE"),
@@ -252,6 +253,7 @@ enum class CashfreeBeneficiaryType(@get:PropertyName("value") val value: String)
 // ------------------------------
 val EMIStatus.displayText: String
     get() = when (this) {
+        EMIStatus.CREATED -> "CREATED"
         EMIStatus.PENDING -> "PENDING"
         EMIStatus.PAID -> "PAID"
         EMIStatus.OVERDUE -> "OVERDUE"
@@ -261,6 +263,7 @@ val EMIStatus.displayText: String
 
 val EMIStatus.color: Color
     get() = when (this) {
+        EMIStatus.CREATED -> Color(0xFFFFA500) // Orange
         EMIStatus.PENDING -> Color(0xFFFFA500) // Orange
         EMIStatus.PAID -> Color(0xFF4CAF50)    // Green
         EMIStatus.OVERDUE -> Color(0xFFE53935) // Red

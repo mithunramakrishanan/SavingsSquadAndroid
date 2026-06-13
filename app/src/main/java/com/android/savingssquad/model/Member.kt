@@ -84,7 +84,10 @@ data class Member(
     var bankBeneId: String = "",
 
     @get:PropertyName("upiID") @set:PropertyName("upiID")
-    var upiID: String = ""
+    var upiID: String = "",
+
+    @get:PropertyName("fcmToken") @set:PropertyName("fcmToken")
+    var fcmToken: String = ""
 ) {
     // 🔹 Firestore needs a no-arg constructor
     constructor() : this(
@@ -105,6 +108,7 @@ data class Member(
         recordDate = Date(),
         upiBeneId = "",
         bankBeneId = "",
-        upiID = ""
+        upiID = "",
+        fcmToken = ""
     )
 }

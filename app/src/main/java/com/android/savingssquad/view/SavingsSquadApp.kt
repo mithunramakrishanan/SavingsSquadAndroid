@@ -9,6 +9,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
+import com.google.firebase.messaging.FirebaseMessaging
 
 class SavingsSquadApp : Application() {
     override fun onCreate() {
@@ -29,6 +30,15 @@ class SavingsSquadApp : Application() {
         // Init functions + local managers
         FirebaseFunctionsManager.shared.init(this)
         UserDefaultsManager.init(this)
+
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) return@addOnCompleteListener
+
+            val token = task.result
+            Log.d("FCM_TOKEN", token)
+
+            // Save to backend
+        }
 
         val db = LocalDatabase.getInstance(this)
 

@@ -78,6 +78,8 @@ dependencies {
     // Navigation
     implementation(libs.androidx.navigation.compose)
     implementation(libs.accompanist.navigation.animation)
+    implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
+    implementation("com.google.firebase:firebase-messaging")
 
     // Debug / Test
     debugImplementation(libs.androidx.ui.tooling)

@@ -30,6 +30,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.firestore
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.text.SimpleDateFormat
@@ -525,6 +526,67 @@ class FirestoreManager private constructor() {
             }
     }
 
+    fun updateLoanAndAllInstallmentsStatus(
+        squadID: String,
+        memberID: String,
+        loanID: String,
+        status: String,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val loanRef = db.collection("squads")
+            .document(squadID)
+            .collection("members")
+            .document(memberID)
+            .collection("loans")
+            .document(loanID)
+
+        loanRef.get()
+            .addOnSuccessListener { document ->
+
+                if (!document.exists()) {
+                    completion(false, "❌ Loan not found")
+                    return@addOnSuccessListener
+                }
+
+                val data = document.data ?: run {
+                    completion(false, "❌ No data found")
+                    return@addOnSuccessListener
+                }
+
+                val installments =
+                    (data["installments"] as? List<HashMap<String, Any>>)?.toMutableList()
+
+                if (installments == null) {
+                    completion(false, "❌ No installments found")
+                    return@addOnSuccessListener
+                }
+
+                val now = FieldValue.serverTimestamp()
+
+                // update all installments
+                for (i in installments.indices) {
+                    installments[i]["status"] = status
+                }
+
+                val updateMap = hashMapOf<String, Any>(
+                    "loanStatus" to status,
+                    "installments" to installments
+                )
+
+                loanRef.update(updateMap)
+                    .addOnSuccessListener {
+                        completion(true, "✅ Loan + all installments updated successfully")
+                    }
+                    .addOnFailureListener { e ->
+                        completion(false, "❌ Update failed: ${e.localizedMessage}")
+                    }
+            }
+            .addOnFailureListener { e ->
+                completion(false, "❌ Fetch failed: ${e.localizedMessage}")
+            }
+    }
+
     // MARK: - 🔹 Update Installment Status
     fun updateInstallmentStatus(
         squadID: String,
@@ -534,26 +596,90 @@ class FirestoreManager private constructor() {
         status: String,
         completion: (Boolean, String?) -> Unit
     ) {
-        val installmentRef = db.collection("squads")
+
+        val loanRef = db.collection("squads")
             .document(squadID)
             .collection("members")
             .document(memberID)
             .collection("loans")
             .document(loanID)
-            .collection("installments")
-            .document(installmentID)
 
-        val updateData = mapOf(
-            "amountReceivedDate" to FieldValue.serverTimestamp(),
-            "loanStatus" to status
-        )
+        loanRef.get()
+            .addOnSuccessListener { document ->
 
-        installmentRef.update(updateData)
-            .addOnSuccessListener {
-                completion(true, "✅ Installment status updated successfully")
+                if (!document.exists()) {
+                    completion(false, "Loan not found")
+                    return@addOnSuccessListener
+                }
+
+                val data = document.data ?: run {
+                    completion(false, "No data found")
+                    return@addOnSuccessListener
+                }
+
+                @Suppress("UNCHECKED_CAST")
+                val installments =
+                    (data["installments"] as? List<HashMap<String, Any>>)?.toMutableList()
+
+                if (installments == null) {
+                    completion(false, "Installments not found")
+                    return@addOnSuccessListener
+                }
+
+                var found = false
+
+                // Use Timestamp instead of FieldValue.serverTimestamp()
+                val now = com.google.firebase.Timestamp.now()
+
+                // Update selected installment
+                for (i in installments.indices) {
+                    val item = installments[i]
+
+                    if (item["id"]?.toString() == installmentID) {
+                        item["status"] = status
+                        item["duePaidDate"] = now
+                        found = true
+                        break
+                    }
+                }
+
+                if (!found) {
+                    completion(false, "Installment ID not found")
+                    return@addOnSuccessListener
+                }
+
+                // Check whether all installments are PAID
+                val allPaid = installments.all {
+                    it["status"]?.toString()?.uppercase() == "PAID"
+                }
+
+                val updateMap = hashMapOf<String, Any>(
+                    "installments" to installments,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                )
+
+                if (allPaid) {
+                    updateMap["loanStatus"] = "PAID"
+                    updateMap["loanClosedDate"] = FieldValue.serverTimestamp()
+                }
+
+                loanRef.update(updateMap)
+                    .addOnSuccessListener {
+
+                        val message = if (allPaid) {
+                            "Installment updated & Loan closed successfully"
+                        } else {
+                            "Installment updated successfully"
+                        }
+
+                        completion(true, message)
+                    }
+                    .addOnFailureListener { e ->
+                        completion(false, "Update failed: ${e.localizedMessage}")
+                    }
             }
             .addOnFailureListener { e ->
-                completion(false, "❌ Failed to update installment status: ${e.localizedMessage}")
+                completion(false, "Fetch failed: ${e.localizedMessage}")
             }
     }
 
@@ -1747,5 +1873,188 @@ class FirestoreManager private constructor() {
             .addOnFailureListener { e ->
                 completion(false, "Error removing installment: ${e.localizedMessage}")
             }
+    }
+
+
+    fun updateFCMTokenBasedOnRole(
+
+        squadID: String,
+
+        memberID: String,
+
+        isManager: Boolean,
+
+        completion: (Boolean, String?) -> Unit
+
+    ) {
+
+        val db = FirebaseFirestore.getInstance()
+
+        FirebaseMessaging.getInstance().token
+
+            .addOnSuccessListener { token ->
+
+                if (isManager) {
+
+                    // Update Squad Manager FCM Token
+
+                    db.collection("squads")
+
+                        .document(squadID)
+
+                        .update("fcmToken", token)
+
+                        .addOnSuccessListener {
+
+                            completion(true, null)
+
+                        }
+
+                        .addOnFailureListener { error ->
+
+                            completion(
+
+                                false,
+
+                                "Manager update failed: ${error.localizedMessage}"
+
+                            )
+
+                        }
+
+                } else {
+
+                    // Update Member FCM Token
+
+                    db.collection("squads")
+
+                        .document(squadID)
+
+                        .collection("members")
+
+                        .document(memberID)
+
+                        .update("fcmToken", token)
+
+                        .addOnSuccessListener {
+
+                            completion(true, null)
+
+                        }
+
+                        .addOnFailureListener { error ->
+
+                            completion(
+
+                                false,
+
+                                "Member update failed: ${error.localizedMessage}"
+
+                            )
+
+                        }
+
+                }
+
+            }
+
+            .addOnFailureListener { error ->
+
+                completion(
+
+                    false,
+
+                    "FCM token not available: ${error.localizedMessage}"
+
+                )
+
+            }
+
+    }
+
+    fun updateFCMToken(
+
+        phoneNumber: String,
+
+        squadID: String,
+
+        role: String,
+
+        fcmToken: String,
+
+        completion: (Boolean, String?) -> Unit
+
+    ) {
+
+        FirebaseFirestore.getInstance()
+
+            .collection("users")
+
+            .document(phoneNumber)
+
+            .collection("logins")
+
+            .whereEqualTo("squadID", squadID)
+
+            .whereEqualTo("role", role)
+
+            .get()
+
+            .addOnSuccessListener { snapshot ->
+
+                val document = snapshot.documents.firstOrNull()
+
+                if (document == null) {
+
+                    completion(false, "Login record not found")
+
+                    return@addOnSuccessListener
+
+                }
+
+                document.reference
+
+                    .update("fcmToken", fcmToken)
+
+                    .addOnSuccessListener {
+
+                        completion(true, null)
+
+                    }
+
+                    .addOnFailureListener {
+
+                        completion(false, it.localizedMessage)
+
+                    }
+
+            }
+
+            .addOnFailureListener {
+
+                completion(false, it.localizedMessage)
+
+            }
+
+    }
+
+    fun getFCMToken(completion: (String?) -> Unit) {
+
+        FirebaseMessaging.getInstance().token
+
+            .addOnCompleteListener { task ->
+
+                if (!task.isSuccessful) {
+
+                    completion(null)
+
+                    return@addOnCompleteListener
+
+                }
+
+                completion(task.result)
+
+            }
+
     }
 }

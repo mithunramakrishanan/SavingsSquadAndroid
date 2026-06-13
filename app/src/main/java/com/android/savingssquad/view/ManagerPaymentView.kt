@@ -72,7 +72,10 @@ import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
+import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.singleton.RazorpayPaymentAction
+import com.android.savingssquad.singleton.RecordStatus
+import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
@@ -210,7 +213,7 @@ fun ManagerPaymentView(
                                     selectedLoan = emi,
                                     handler = {
                                         loanSelectedMember = null
-                                            emiSelectedType = null
+                                        emiSelectedType = null
                                         squadViewModel.setIsPendingLoanAvailable(false)
                             }
                                 )
@@ -422,6 +425,77 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
             primaryAction = {}
         )
         return
+    }
+    LoaderManager.shared.showLoader()
+
+    val newPayment = PaymentsDetails(
+        id = CommonFunctions.generatePaymentID(squadViewModel.squad.value?.squadID ?: ""),
+        paymentUpdatedDate = Date().asTimestamp,
+        payoutUpdatedDate = null,
+
+        memberId = "",
+        memberName = "SQUAD MANAGER",
+        paymentPhone = "",
+        paymentEmail = "",
+
+        userType = SquadUserType.SQUAD_MANAGER,
+
+        amount = amountInt,
+        intrestAmount = 0,
+
+        paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
+        paymentType = PaymentType.PAYMENT_CREDIT,
+        paymentSubType = PaymentSubType.OTHERS_AMOUNT,
+        paymentStatus = PaymentStatus.SUCCESS,
+        payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
+        paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
+        description = notes,
+        squadId = squadViewModel.squad.value?.squadID ?: "",
+        contributionId = "",
+        loanId = "",
+        installmentId = "",
+        order_id = "",
+        transferMode = "",
+        beneId = "",
+
+        paymentSuccess = true,
+        paymentResponseMessage = "",
+        payoutSuccess = true,
+        payoutResponseMessage = "",
+        transferReferenceId = "",
+
+        recordStatus = RecordStatus.ACTIVE,
+        recordDate = Date().asTimestamp
+    )
+
+    // 🔹 Save payment
+    squadViewModel.savePayments(
+        showLoader = false,
+        squadID = squadViewModel.squad.value?.squadID ?: "",
+        payment = listOf(newPayment)
+    ) { success, error ->
+        if (success) {
+            println("✅ Payment added successfully!")
+
+            squadViewModel.createSquadActivity(
+                activityType = SquadActivityType.AMOUNT_DEBIT,
+                userName = "CHIT MEMBER",
+                amount = amountInt,
+                description = "Amount $amountStr debited for $notes"
+            ) {
+
+            }
+            LoaderManager.shared.hideLoader()
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = "Payment updated",
+                primaryButtonTitle = "OK",
+                primaryAction = {
+                }
+            )
+        } else {
+            println("❌ Error adding payment: $error")
+        }
     }
 
     println("Processing Other Payment: $amountStr - Notes: $notes")

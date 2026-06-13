@@ -245,7 +245,7 @@ object CommonFunctions {
                     interestAmount = interestSplits[i],
                     dueDate = dueDate.asTimestamp,
                     duePaidDate = null,
-                    status = EMIStatus.PENDING,
+                    status = EMIStatus.INVERIFICATION,
                     loanNumber = loanNumber
                 )
             )
@@ -261,7 +261,7 @@ object CommonFunctions {
             loanMonth = emiConfig.emiMonths,
             interest = emiConfig.emiInterestRate,
             amountSentDate = today.asTimestamp,
-            loanStatus = EMIStatus.PENDING,
+            loanStatus = EMIStatus.INVERIFICATION,
             loanClosedDate = null,
             installments = installments
         )

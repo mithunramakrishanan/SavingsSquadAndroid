@@ -566,7 +566,8 @@ class SquadViewModel : ViewModel() {
             recordStatus = RecordStatus.ACTIVE,
             upiBeneId = "",
             bankBeneId = "",
-            upiID = ""
+            upiID = "",
+            fcmToken = ""
         )
 
         val addAndSave: () -> Unit = {
@@ -1219,6 +1220,50 @@ class SquadViewModel : ViewModel() {
         }
     }
 
+    fun updateLoanAndAllInstallmentsStatus(
+        squadID: String,
+        memberID: String,
+        loanID: String,
+        status: String,
+        showLoader: Boolean = true,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        // 1. Internet check
+        if (!CommonFunctions.isInternetAvailable()) {
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+            completion(false, SquadStrings.networkError)
+            return
+        }
+
+        // 2. Show loader
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        // 3. Call manager
+        manager.updateLoanAndAllInstallmentsStatus(
+            squadID,
+            memberID,
+            loanID,
+            status
+        ) { success, message ->
+
+            // 4. Hide loader
+            if (showLoader) {
+                LoaderManager.shared.hideLoader()
+            }
+
+            // 5. Return result
+            completion(success, message)
+        }
+    }
+
     fun updateInstallmentStatus(
         squadID: String,
         memberID: String,
@@ -1377,6 +1422,10 @@ class SquadViewModel : ViewModel() {
                         }
                     }
                 }
+
+                if (payment.paymentSubType == PaymentSubType.OTHERS_AMOUNT) {
+                    updatePaymentCalculations(listOf(payment), PaymentApproveStatus.ACCEPTED)
+                }
             }
 
             if (showLoader) LoaderManager.shared.showLoader()
@@ -1506,8 +1555,8 @@ class SquadViewModel : ViewModel() {
                         if (pay.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
                             squad.totalLoanAmountSent += (pay.amount - pay.intrestAmount)
                             member.totalLoanBorrowed += (pay.amount - pay.intrestAmount)
-                            squad.currentAvailableAmount -= pay.amount
                         }
+                        squad.currentAvailableAmount -= pay.amount
                     }
                 }
             }
@@ -1628,24 +1677,64 @@ class SquadViewModel : ViewModel() {
                                 }
                                 else {
 
-                                    if (_isPendingLoanAvailable.value) {
-                                        updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), payment.memberId)
-                                    }
+
                                 }
                             }
                         }
 
                         PaymentApproveStatus.REJECTED -> {
-                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.FAILED.value){ success, error ->
+                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PENDING.value){ success, error ->
                                 // handle response if needed
                                 if (!success) {
                                     println("Error updating: $error")
                                 }
                                 else {
 
-                                    if (_isPendingLoanAvailable.value) {
-                                        updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), payment.memberId)
-                                    }
+                                }
+                            }
+                        }
+
+                        else -> {}
+                    }
+
+
+                }
+                else if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
+
+                    when (status) {
+
+                        PaymentApproveStatus.ACCEPTED -> {
+
+                            updateLoanAndAllInstallmentsStatus(
+                                squadID = payment.squadId,
+                                memberID = payment.memberId,
+                                loanID = payment.loanId,
+                                status = EMIStatus.PENDING.value
+                            ) { success, message ->
+
+                                if (success) {
+                                    // ✅ success handling
+                                } else {
+                                    // ❌ error handling
+                                    Log.e("LoanUpdate", message ?: "Unknown error")
+                                }
+                            }
+                        }
+
+                        PaymentApproveStatus.REJECTED -> {
+
+                            updateLoanAndAllInstallmentsStatus(
+                                squadID = payment.squadId,
+                                memberID = payment.memberId,
+                                loanID = payment.loanId,
+                                status = EMIStatus.FAILED.value
+                            ) { success, message ->
+
+                                if (success) {
+                                    // ✅ success handling
+                                } else {
+                                    // ❌ error handling
+                                    Log.e("LoanUpdate", message ?: "Unknown error")
                                 }
                             }
                         }

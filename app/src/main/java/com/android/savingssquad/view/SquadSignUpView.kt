@@ -41,6 +41,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 
 import androidx.compose.material.icons.filled.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -62,14 +63,14 @@ fun SquadSignUpView(
     val coroutineScope = rememberCoroutineScope()
 
     // VALUES
-    var squadName by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var phoneNumber by remember { mutableStateOf("") }
-    var otpCode by remember { mutableStateOf("") }
-    var totalMonths by remember { mutableStateOf("") }
-    var squadAmount by remember { mutableStateOf("") }
-    var squadStartAmount by remember { mutableStateOf("") }
-    var verificationID by remember { mutableStateOf("") }
+    var squadName by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var phoneNumber by rememberSaveable { mutableStateOf("") }
+    var otpCode by rememberSaveable { mutableStateOf("") }
+    var totalMonths by rememberSaveable { mutableStateOf("") }
+    var squadAmount by rememberSaveable { mutableStateOf("") }
+    var squadStartAmount by rememberSaveable { mutableStateOf("") }
+    var verificationID by rememberSaveable { mutableStateOf("") }
 
 // ERRORS
     var squadNameError by remember { mutableStateOf("") }
@@ -82,15 +83,15 @@ fun SquadSignUpView(
     var verifyOTPError by remember { mutableStateOf("") }
 
 // OTP states
-    var isOTPSent by remember { mutableStateOf(false) }
-    var OTPVerified by remember { mutableStateOf(false) }
-    var OTPProcessStarted by remember { mutableStateOf(false) }
+    var isOTPSent by rememberSaveable { mutableStateOf(false) }
+    var OTPVerified by rememberSaveable { mutableStateOf(false) }
+    var OTPProcessStarted by rememberSaveable { mutableStateOf(false) }
+    var isTermsAccepted by rememberSaveable { mutableStateOf(false) }
     var sendOTPLoading by remember { mutableStateOf(false) }
     var verifyOTPLoading by remember { mutableStateOf(false) }
 
 // UI Button state
     var isButtonLoading by remember { mutableStateOf(false) }
-    var isTermsAccepted by remember { mutableStateOf(false) }
 
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -399,7 +400,7 @@ fun SquadSignUpView(
                                 squadStartAmount = squadStartAmount,
                                 onComplete = {
                                     isButtonLoading = false
-                                    loaderManager.hideLoader()
+
                                     AlertManager.shared.showAlert(
                                         title = SquadStrings.appName,
                                         message = SquadStrings.squadCreatedSuccessfully,
@@ -674,6 +675,8 @@ private fun saveSquadData(
                             loaderManager.hideLoader()
                         }
                     }
+
+                    loaderManager.hideLoader()
                     onComplete()
 
                 } else {

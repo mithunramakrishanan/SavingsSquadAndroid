@@ -191,20 +191,20 @@ fun PaymentStatusRowView(
                 }
             }
 
-            if (canShowPaymentAction(status, paymentType, memberId, squadViewModel)) {
-                Button(
-                    onClick = retryAction,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2ECC71).copy(alpha = 0.15f)),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
-                ) {
-                    Text(
-                        "Retry",
-                        style = AppFont.ibmPlexSans(11, FontWeight.Medium),
-                        color = Color(0xFF2ECC71)
-                    )
-                }
-            }
+//            if (canShowPaymentAction(status, paymentType, memberId, squadViewModel)) {
+//                Button(
+//                    onClick = retryAction,
+//                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2ECC71).copy(alpha = 0.15f)),
+//                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+//                    modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
+//                ) {
+//                    Text(
+//                        "Retry",
+//                        style = AppFont.ibmPlexSans(11, FontWeight.Medium),
+//                        color = Color(0xFF2ECC71)
+//                    )
+//                }
+//            }
         }
 
         reasonData?.let {
@@ -320,26 +320,26 @@ fun PayoutStatusRowView(
             }
 
             // 🔹 Retry / Verify / Refresh Button
-            if (canShowPayoutAction(status, paymentType, memberId, squadViewModel)) {
-                Button(
-                    onClick = retryAction,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2ECC71).copy(alpha = 0.15f)),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
-                ) {
-                    Text(
-                        text = when (status) {
-                            PayoutStatus.PAYOUT_FAILED -> "Retry"
-                            PayoutStatus.PENDING,
-                            PayoutStatus.RECEIVED,
-                            PayoutStatus.PAYOUT_INPROGRESS -> "Verify"
-                            else -> "Refresh"
-                        },
-                        style = AppFont.ibmPlexSans(11, FontWeight.Medium),
-                        color = Color(0xFF2ECC71)
-                    )
-                }
-            }
+//            if (canShowPayoutAction(status, paymentType, memberId, squadViewModel)) {
+//                Button(
+//                    onClick = retryAction,
+//                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2ECC71).copy(alpha = 0.15f)),
+//                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+//                    modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
+//                ) {
+//                    Text(
+//                        text = when (status) {
+//                            PayoutStatus.PAYOUT_FAILED -> "Retry"
+//                            PayoutStatus.PENDING,
+//                            PayoutStatus.RECEIVED,
+//                            PayoutStatus.PAYOUT_INPROGRESS -> "Verify"
+//                            else -> "Refresh"
+//                        },
+//                        style = AppFont.ibmPlexSans(11, FontWeight.Medium),
+//                        color = Color(0xFF2ECC71)
+//                    )
+//                }
+//            }
         }
 
         // 🔹 Crisp Reason Sheet Popup

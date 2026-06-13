@@ -185,7 +185,7 @@ fun PaymentHistoryView(
                     PaymentRow(
                         payment = payment,
                         showPaymentStatusRow = true,
-                        showPayoutStatusRow = true,
+                        showPayoutStatusRow = false,
                         squadViewModel
                     )
                 }

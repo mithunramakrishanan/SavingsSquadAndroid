@@ -441,7 +441,7 @@ fun ManualEntryView(
                                                 paymentPhone = emiSelectedMember?.phoneNumber ?: "",
                                                 paymentEmail = emiSelectedMember?.mailID ?: "",
                                                 userType = SquadUserType.SQUAD_MANAGER,
-                                                amount = selectedInstallment?.installmentAmount ?: 0,
+                                                amount = (selectedInstallment?.installmentAmount ?: 0) + (selectedInstallment?.interestAmount ?: 0),
                                                 intrestAmount = 0,
                                                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                                                 paymentType = PaymentType.PAYMENT_CREDIT,
@@ -449,34 +449,34 @@ fun ManualEntryView(
                                                 paymentStatus = PaymentStatus.SUCCESS,
                                                 payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
                                                 paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
-                                                description = "Squad Manager updated EMI to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber",
+                                                description = "Squad Manager updated EMI and Interest amount to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber",
                                                 squadId = squad?.squadID ?: "",
                                                 paymentSuccess = true,
                                                 payoutSuccess = true
                                             )
-                                            val interestPayment = PaymentsDetails(
-                                                id = CommonFunctions.generatePaymentID(squadId = squad?.squadID ?: ""),
-                                                paymentUpdatedDate = Date().asTimestamp,
-                                                memberId = emiSelectedMember?.id ?: "",
-                                                memberName = emiSelectedMemberName,
-                                                paymentPhone = emiSelectedMember?.phoneNumber ?: "",
-                                                paymentEmail = emiSelectedMember?.mailID ?: "",
-                                                userType = SquadUserType.SQUAD_MEMBER,
-                                                amount = selectedInstallment?.interestAmount ?: 0,
-                                                intrestAmount = 0,
-                                                paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
-                                                paymentType = PaymentType.PAYMENT_CREDIT,
-                                                paymentSubType = PaymentSubType.INTEREST_AMOUNT,
-                                                paymentStatus = PaymentStatus.SUCCESS,
-                                                payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
-                                                paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
-                                                description = "Squad Manager updated Interest to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber",
-                                                squadId = squad?.squadID ?: "",
-                                                paymentSuccess = true,
-                                                payoutSuccess = true
-                                            )
+//                                            val interestPayment = PaymentsDetails(
+//                                                id = CommonFunctions.generatePaymentID(squadId = squad?.squadID ?: ""),
+//                                                paymentUpdatedDate = Date().asTimestamp,
+//                                                memberId = emiSelectedMember?.id ?: "",
+//                                                memberName = emiSelectedMemberName,
+//                                                paymentPhone = emiSelectedMember?.phoneNumber ?: "",
+//                                                paymentEmail = emiSelectedMember?.mailID ?: "",
+//                                                userType = SquadUserType.SQUAD_MEMBER,
+//                                                amount = selectedInstallment?.interestAmount ?: 0,
+//                                                intrestAmount = 0,
+//                                                paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
+//                                                paymentType = PaymentType.PAYMENT_CREDIT,
+//                                                paymentSubType = PaymentSubType.INTEREST_AMOUNT,
+//                                                paymentStatus = PaymentStatus.SUCCESS,
+//                                                payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
+//                                                paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
+//                                                description = "Squad Manager updated Interest to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber",
+//                                                squadId = squad?.squadID ?: "",
+//                                                paymentSuccess = true,
+//                                                payoutSuccess = true
+//                                            )
 
-                                            squadViewModel.savePayments(squadID = squad?.squadID ?: "", payment = listOf(loanPayment, interestPayment)) { psuccess, perror ->
+                                            squadViewModel.savePayments(squadID = squad?.squadID ?: "", payment = listOf(loanPayment)) { psuccess, perror ->
                                                 // no-op
                                             }
 

@@ -117,7 +117,10 @@ data class Squad(
 
     // 🔹 Optional runtime-only field (not persisted)
     @get:PropertyName("password") @set:PropertyName("password")
-    var password: String? = null
+    var password: String? = null,
+
+    @get:PropertyName("fcmToken") @set:PropertyName("fcmToken")
+    var fcmToken: String = ""
 ) {
     // Required empty constructor for Firestore deserialization
     constructor() : this(
@@ -154,6 +157,7 @@ data class Squad(
         emiConfiguration = emptyList(),
         recordStatus = RecordStatus.ACTIVE,
         recordDate = Date(),
-        password = null
+        password = null,
+        fcmToken = ""
     )
 }

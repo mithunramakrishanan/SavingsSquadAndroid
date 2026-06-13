@@ -303,11 +303,13 @@ fun MemberPaymentView(
                                 ) { success, error ->
                                     if (success) {
                                         println("✅ Payment added successfully!")
+                                        LoaderManager.shared.hideLoader()
                                         AlertManager.shared.showAlert(
                                             title = SquadStrings.appName,
                                             message = "Payment updated. Pending admin verification.",
                                             primaryButtonTitle = "OK",
                                             primaryAction = {
+
                                                 contributionSelectedMonthYear = ""
                                             }
                                         )
@@ -434,12 +436,14 @@ fun MemberPaymentView(
                                 ) { success, error ->
                                     if (success) {
                                         println("✅ Payment added successfully!")
+                                        LoaderManager.shared.hideLoader()
                                         AlertManager.shared.showAlert(
                                             title = SquadStrings.appName,
                                             message = "Payment updated. Pending admin verification.",
                                             primaryButtonTitle = "OK",
                                             primaryAction = {
-                                                contributionSelectedMonthYear = ""
+                                                selectedInstallment = null
+                                                emiSelectedMonthYear = ""
                                             }
                                         )
 

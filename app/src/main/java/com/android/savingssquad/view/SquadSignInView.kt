@@ -50,6 +50,7 @@ import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
+import com.android.savingssquad.viewmodel.FirestoreManager
 import com.android.savingssquad.viewmodel.LoaderManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.google.firebase.auth.PhoneAuthOptions
@@ -200,12 +201,59 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
 
                                                     if (selectedUser.role == SquadUserType.SQUAD_MANAGER) {
                                                         UserDefaultsManager.saveSquadManagerLogged(true)
+
+                                                        FirestoreManager.shared.updateFCMTokenBasedOnRole(
+
+                                                            squadID = selectedUser.squadID,
+
+                                                            memberID = selectedUser.squadUserId,
+
+                                                            isManager = true
+
+                                                        ) { success, error ->
+
+                                                            if (success) {
+
+                                                                println("FCM token updated successfully")
+
+                                                            } else {
+
+                                                                println(error)
+
+                                                            }
+
+                                                        }
+
+
                                                         navController.navigate(AppDestination.MANAGER_HOME.route) {
                                                             popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
                                                             launchSingleTop = true
                                                         }
                                                     } else {
                                                         UserDefaultsManager.saveSquadManagerLogged(false)
+
+                                                        FirestoreManager.shared.updateFCMTokenBasedOnRole(
+
+                                                            squadID = selectedUser.squadID,
+
+                                                            memberID = selectedUser.squadUserId,
+
+                                                            isManager = false
+
+                                                        ) { success, error ->
+
+                                                            if (success) {
+
+                                                                println("FCM token updated successfully")
+
+                                                            } else {
+
+                                                                println(error)
+
+                                                            }
+
+                                                        }
+
                                                         navController.navigate(AppDestination.MEMBER_HOME.route) {
                                                             popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
                                                             launchSingleTop = true

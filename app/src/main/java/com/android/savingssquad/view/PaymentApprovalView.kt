@@ -114,7 +114,15 @@ fun PaymentApprovalView(
 
 
     val pendingApprovals = pendingPayments.filter {
-        it.paymentApproveStatus == PaymentApproveStatus.REQUESTED
+
+        if (screenType == SquadUserType.SQUAD_MANAGER) {
+            it.paymentApproveStatus == PaymentApproveStatus.REQUESTED && it.paymentType == PaymentType.PAYMENT_CREDIT
+        }
+        else {
+            it.paymentApproveStatus == PaymentApproveStatus.REQUESTED && it.paymentType == PaymentType.PAYMENT_DEBIT
+        }
+
+
     }.let { list ->
 
         if (screenType == SquadUserType.SQUAD_MANAGER) {
