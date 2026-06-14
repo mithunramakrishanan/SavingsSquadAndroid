@@ -4,11 +4,10 @@ import android.util.Log
 import com.android.savingssquad.singleton.LocalDatabase
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.FirebaseFunctionsManager
-import com.google.firebase.BuildConfig
 import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
-import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
 
 class SavingsSquadApp : Application() {
@@ -39,6 +38,9 @@ class SavingsSquadApp : Application() {
 
             // Save to backend
         }
+
+//        val dab = FirebaseFirestore.getInstance()
+//        dab.useEmulator("192.168.31.73", 8080)
 
         val db = LocalDatabase.getInstance(this)
 
