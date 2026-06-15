@@ -50,6 +50,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.savingssquad.model.EMIConfiguration
 import com.android.savingssquad.viewmodel.LoaderManager
@@ -224,30 +225,68 @@ fun ManagerPaymentView(
 
                 item {
 
-                    if (loanSelectedMember != null && loanSelectedMember!!.upiID.isEmpty()) {
-                        Text(
-                            text = "⚠️ ${loanSelectedMember!!.name} has not added a UPI ID",
-                            style = AppFont.ibmPlexSans(12, FontWeight.Normal),
-                            color = AppColors.errorAccent,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        )
-                    }
-                    else {
+                    if (loanSelectedMember != null) {
 
-                        Text(
-                            text = loanSelectedMember?.upiID?.let {
-                                "Sending payment to $it"
-                            } ?: "",
-                            style = AppFont.ibmPlexSans(12, FontWeight.Normal),
-                            color = AppColors.errorAccent,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                        )
+                        if (loanSelectedMember!!.upiID.trim().isEmpty()) {
+
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                            ) {
+
+                                Text(
+                                    text = "UPI ID not available",
+                                    style = AppFont.ibmPlexSans(13, FontWeight.Medium),
+                                    color = AppColors.errorAccent
+                                )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = "Please ask the member to add their UPI ID before proceeding with the payment.",
+                                    style = AppFont.ibmPlexSans(12, FontWeight.Normal),
+                                    color = AppColors.secondaryText,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+
+                        } else {
+
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                            ) {
+
+                                Text(
+                                    text = "Payment will be sent to",
+                                    style = AppFont.ibmPlexSans(12, FontWeight.Normal),
+                                    color = AppColors.secondaryText
+                                )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = loanSelectedMember!!.upiID,
+                                    style = AppFont.ibmPlexSans(14, FontWeight.Medium),
+                                    color = AppColors.successAccent,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = "Please verify the UPI ID before completing the transfer.",
+                                    style = AppFont.ibmPlexSans(11, FontWeight.Normal),
+                                    color = AppColors.secondaryText,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
                     }
                 }
 

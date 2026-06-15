@@ -1,100 +1,51 @@
 package com.android.savingssquad.view
 
-import android.annotation.SuppressLint
-import android.content.Intent
 import android.os.Build
-import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavController
-import androidx.navigation.NavHostController
 import com.android.savingssquad.viewmodel.SquadViewModel
-import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.android.savingssquad.model.EMIConfiguration
 import com.android.savingssquad.viewmodel.LoaderManager
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
-import kotlinx.coroutines.launch
 import java.util.Date
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Member
-import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.unpaidMonths
-import com.android.savingssquad.singleton.AppShadows
-import com.android.savingssquad.singleton.CashfreeBeneficiaryType
-import com.android.savingssquad.singleton.CashfreePaymentAction
-import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
-import com.android.savingssquad.singleton.RazorpayPaymentAction
 import com.android.savingssquad.singleton.RemainderType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
-import com.android.savingssquad.singleton.appShadow
-import com.android.savingssquad.singleton.asTimestamp
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
-import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AlertManager
-import com.android.savingssquad.viewmodel.FirebaseFunctionsManager
 import com.google.firebase.Timestamp
-import com.google.firebase.logger.Logger
-import com.google.gson.Gson
 import com.yourapp.utils.CommonFunctions
-import kotlinx.coroutines.flow.forEach
-import org.json.JSONObject
-import java.util.Calendar
 
 // MemberPaymentScreen.kt
 @RequiresApi(Build.VERSION_CODES.O)
@@ -253,7 +204,7 @@ fun MemberPaymentView(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     ContributionButton(
-                        isDisabled = squad?.upiID.isNullOrEmpty(),
+                        upiID = squad?.upiID ?: "",
                         onClick = {
                             if (validateContributionFields(contributionSelectedMonthYear) { contributionSelectedMonthYearError = it }) {
                                 // Payment flow
@@ -506,7 +457,7 @@ fun MemberPaymentView(
                         message = "Are you sure you want to logout?",
                         primaryButtonTitle = "LOGOUT",
                         primaryAction = {
-                            logoutUser(navController)
+                            logoutUser(navController,squadViewModel)
                         },
                         secondaryButtonTitle = "NO"
                     )
@@ -604,25 +555,67 @@ private fun ContributionSection(
 }
 
 @Composable
-private fun ContributionButton(isDisabled: Boolean, onClick: () -> Unit) {
+private fun ContributionButton(upiID: String, onClick: () -> Unit) {
     Column {
-        SSButton(title = "Pay Contribution", isDisabled = isDisabled, action = onClick)
+        SSButton(title = "Pay Contribution", isDisabled = upiID.isEmpty(), action = onClick)
         Spacer(modifier = Modifier.height(8.dp))
-        if (isDisabled) {
 
-            Box(
+        if (upiID.trim().isEmpty()) {
+
+            Text(
+
+                text = "UPI ID not available for this squad yet",
+
+                style = AppFont.ibmPlexSans(12, FontWeight.Normal),
+
+                color = AppColors.errorAccent,
+
+                textAlign = TextAlign.Center,
+
                 modifier = Modifier
+
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
+
+                    .padding(horizontal = 16.dp)
+
+            )
+
+        } else {
+
+            Column(
+
+                horizontalAlignment = Alignment.CenterHorizontally,
+
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+
+                modifier = Modifier.padding(horizontal = 16.dp)
+
             ) {
+
                 Text(
-                    text = "⚠️ Manager UPI ID is not added for this Squad.",
+
+                    text = "Payment will be sent to",
+
                     style = AppFont.ibmPlexSans(12, FontWeight.Normal),
-                    color = Color.Red,
-                    modifier = Modifier.padding(top = 8.dp)
+
+                    color = AppColors.secondaryText
+
                 )
+
+                Text(
+
+                    text = upiID,
+
+                    style = AppFont.ibmPlexSans(13, FontWeight.Medium),
+
+                    color = AppColors.successAccent,
+
+                    textAlign = TextAlign.Center
+
+                )
+
             }
+
         }
     }
 }

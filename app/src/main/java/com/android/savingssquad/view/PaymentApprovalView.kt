@@ -137,6 +137,7 @@ fun PaymentApprovalView(
     }
 
     LaunchedEffect(Unit) {
+        UserDefaultsManager.saveIsFromnotification(false)
         squadViewModel.fetchPendingApprovalPayments { _, _ -> }
     }
 

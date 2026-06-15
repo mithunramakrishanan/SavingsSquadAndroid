@@ -105,6 +105,12 @@ data class Squad(
     @get:PropertyName("currentAvailableAmount") @set:PropertyName("currentAvailableAmount")
     var currentAvailableAmount: Int = 0,
 
+    @get:PropertyName("currentDebitAmount") @set:PropertyName("currentDebitAmount")
+    var currentDebitAmount: Int = 0,
+
+    @get:PropertyName("currentCreditAmount") @set:PropertyName("currentCreditAmount")
+    var currentCreditAmount: Int = 0,
+
     // 🔹 Configurations
     @get:PropertyName("emiConfiguration") @set:PropertyName("emiConfiguration")
     var emiConfiguration: List<EMIConfiguration> = emptyList(),
@@ -154,6 +160,8 @@ data class Squad(
         totalLoanAmountSent = 0,
         totalInterestAmountReceived = 0,
         currentAvailableAmount = 0,
+        currentDebitAmount = 0,
+        currentCreditAmount = 0,
         emiConfiguration = emptyList(),
         recordStatus = RecordStatus.ACTIVE,
         recordDate = Date(),

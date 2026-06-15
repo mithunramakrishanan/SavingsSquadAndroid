@@ -1,5 +1,6 @@
 package com.android.savingssquad.view
 
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.activity.compose.BackHandler
@@ -63,6 +64,7 @@ import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
+import com.android.savingssquad.viewmodel.FirestoreManager
 import com.yourapp.utils.CommonFunctions
 import java.util.Calendar
 
@@ -177,7 +179,7 @@ fun ManagerSettingsView(
                     message = "Are you sure you want to logout?",
                     primaryButtonTitle = "LOGOUT",
                     primaryAction = {
-                        logoutUser(navController)
+                        logoutUser(navController,squadViewModel)
                     },
                     secondaryButtonTitle = "NO"
                 )
@@ -214,12 +216,21 @@ fun LogoutButton(action: () -> Unit) {
     }
 }
 
-fun logoutUser(navController: NavController) {
+fun logoutUser(navController: NavController, squadViewModel : SquadViewModel) {
     UserDefaultsManager.clearAll()
 
-    navController.navigate(AppDestination.SIGN_IN.route) {
-        // Remove the entire back stack
-        popUpTo(0) { inclusive = true }
-        launchSingleTop = true
+    FirestoreManager.shared.clearFCMTokenForAllUsers(squadViewModel.users.value) { success, error ->
+
+        if (success) {
+            Log.d("LOGOUT", "✅ FCM tokens cleared")
+        } else {
+            Log.e("LOGOUT", "❌ Error: $error")
+        }
+
+        navController.navigate(AppDestination.SIGN_IN.route) {
+            // Remove the entire back stack
+            popUpTo(0) { inclusive = true }
+            launchSingleTop = true
+        }
     }
 }

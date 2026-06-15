@@ -39,9 +39,6 @@ class SavingsSquadApp : Application() {
             // Save to backend
         }
 
-//        val dab = FirebaseFirestore.getInstance()
-//        dab.useEmulator("192.168.31.73", 8080)
-
         val db = LocalDatabase.getInstance(this)
 
         Thread {

@@ -180,6 +180,24 @@ fun ManagerHomeView(
         }
     }
 
+    LaunchedEffect(Unit) {
+        // runs once when Composable enters composition
+        if (UserDefaultsManager.getIsFromnotification()) {
+
+            UserDefaultsManager.getLogin()?.let { user ->
+                if (user.role == SquadUserType.SQUAD_MANAGER) {
+                    UserDefaultsManager.saveSquadManagerLogged(true)
+                    openVerifyPayment = true
+                }else {
+                    UserDefaultsManager.saveSquadManagerLogged(false)
+                    navController.navigate(AppDestination.MEMBER_HOME.route) {
+                        popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
+        }
+    }
     // 🔹 Main Layout
     Box(
         modifier = Modifier

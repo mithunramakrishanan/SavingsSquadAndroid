@@ -23,6 +23,7 @@ import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PayoutStatus
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.asTimestamp
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
@@ -173,6 +174,54 @@ class FirestoreManager private constructor() {
             }
     }
 
+    fun updateSquadDebitCredit(
+        squadId: String,
+        amount: Int,
+        paymentType: PaymentType,
+        completion: (Boolean, String?) -> Unit
+    ) {
+        val squadRef = FirebaseFirestore.getInstance()
+            .collection("squads")
+            .document(squadId)
+
+        val updateData = if (paymentType == PaymentType.PAYMENT_DEBIT) {
+            mapOf(
+                "currentDebitAmount" to FieldValue.increment(amount.toLong())
+            )
+        } else {
+            mapOf(
+                "currentCreditAmount" to FieldValue.increment(amount.toLong())
+            )
+        }
+
+        squadRef.update(updateData)
+            .addOnSuccessListener {
+
+                squadRef.get()
+                    .addOnSuccessListener { snapshot ->
+
+                        val squad = snapshot.toObject(Squad::class.java)
+
+                        println("✅ currentDebitAmount: ${squad?.currentDebitAmount}")
+                        println("✅ currentCreditAmount: ${squad?.currentCreditAmount}")
+
+                        completion(true, null)
+                    }
+                    .addOnFailureListener { e ->
+                        completion(
+                            false,
+                            "❌ Failed to fetch updated squad: ${e.localizedMessage}"
+                        )
+                    }
+            }
+            .addOnFailureListener { e ->
+                completion(
+                    false,
+                    "❌ Failed to update: ${e.localizedMessage}"
+                )
+            }
+    }
+
     // MARK: - 🔹 Delete Squad
     fun deleteSquad(squadID: String, completion: (Boolean, String?) -> Unit) {
         db.collection("squads").document(squadID)
@@ -272,71 +321,80 @@ class FirestoreManager private constructor() {
         status: PaymentApproveStatus,
         completion: (Boolean, PaymentsDetails?, String?) -> Unit
     ) {
+
         val paymentRef = db.collection("squads")
             .document(squadID)
             .collection("payments")
             .document(paymentID)
 
-        var paymentStatus: PaymentStatus
+        paymentRef.get()
+            .addOnSuccessListener { snapshot ->
 
-        var paymentResponseMessage = ""
+                if (!snapshot.exists()) {
+                    completion(false, null, "❌ Payment not found")
+                    return@addOnSuccessListener
+                }
 
-        if (status == PaymentApproveStatus.ACCEPTED) {
+                val existingPayment = snapshot.toObject(PaymentsDetails::class.java)
 
-            paymentStatus = PaymentStatus.SUCCESS
+                // 🔥 IMPORTANT: check same status
+                if (existingPayment?.paymentApproveStatus?.value == status.value) {
+                    completion(false, existingPayment, "ℹ️ Already in ${status.value} status")
+                    return@addOnSuccessListener
+                }
 
-            paymentResponseMessage =
+                var paymentStatus: PaymentStatus
+                var paymentResponseMessage = ""
 
-                "Your payment has been successfully processed and verified."
+                if (status == PaymentApproveStatus.ACCEPTED) {
+                    paymentStatus = PaymentStatus.SUCCESS
+                    paymentResponseMessage =
+                        "Your payment has been successfully processed and verified."
+                } else {
+                    paymentStatus = PaymentStatus.FAILED
+                    paymentResponseMessage =
+                        "Your payment was rejected by the admin as the amount was not received. Please verify and try again."
+                }
 
-        } else if (status == PaymentApproveStatus.REJECTED) {
+                val updateData = hashMapOf<String, Any>(
+                    "paymentStatus" to paymentStatus.value,
+                    "paymentResponseMessage" to paymentResponseMessage,
+                    "paymentApproveStatus" to status.value,
+                    "paymentUpdatedDate" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                )
 
-            paymentStatus = PaymentStatus.FAILED
+                paymentRef.update(updateData)
+                    .addOnSuccessListener {
 
-            paymentResponseMessage =
+                        paymentRef.get()
+                            .addOnSuccessListener { updatedSnapshot ->
 
-                "Your payment was rejected by the admin as the amount was not received. Please verify and try again."
+                                if (!updatedSnapshot.exists()) {
+                                    completion(false, null, "❌ Payment not found")
+                                    return@addOnSuccessListener
+                                }
 
-        } else {
+                                try {
+                                    val payment =
+                                        updatedSnapshot.toObject(PaymentsDetails::class.java)
 
-            paymentStatus = PaymentStatus.FAILED
+                                    completion(true, payment, null)
 
-            paymentResponseMessage = ""
-
-        }
-
-        val updateData = hashMapOf<String, Any>(
-            "paymentStatus" to paymentStatus.value,
-            "paymentResponseMessage" to paymentResponseMessage,
-            "paymentApproveStatus" to status.value,
-            "paymentUpdatedDate" to com.google.firebase.firestore.FieldValue.serverTimestamp()
-        )
-
-        paymentRef.update(updateData)
-            .addOnSuccessListener {
-
-                // Fetch updated document
-                paymentRef.get()
-                    .addOnSuccessListener { snapshot ->
-
-                        if (!snapshot.exists()) {
-                            completion(false, null, "❌ Payment not found")
-                            return@addOnSuccessListener
-                        }
-
-                        try {
-                            val payment = snapshot.toObject(PaymentsDetails::class.java)
-                            completion(true, payment, null)
-                        } catch (e: Exception) {
-                            completion(false, null, "❌ Decode error: ${e.localizedMessage}")
-                        }
+                                } catch (e: Exception) {
+                                    completion(false, null, "❌ Decode error: ${e.localizedMessage}")
+                                }
+                            }
+                            .addOnFailureListener { e ->
+                                completion(false, null, "❌ Failed to fetch updated payment: ${e.localizedMessage}")
+                            }
                     }
                     .addOnFailureListener { e ->
-                        completion(false, null, "❌ Failed to fetch updated payment: ${e.localizedMessage}")
+                        completion(false, null, "❌ Failed to update approval status: ${e.localizedMessage}")
                     }
+
             }
             .addOnFailureListener { e ->
-                completion(false, null, "❌ Failed to update approval status: ${e.localizedMessage}")
+                completion(false, null, "❌ Failed to fetch payment: ${e.localizedMessage}")
             }
     }
 
@@ -2056,5 +2114,48 @@ class FirestoreManager private constructor() {
 
             }
 
+    }
+
+    fun clearFCMTokenForAllUsers(
+        users: List<Login>,
+        completion: (Boolean, String?) -> Unit
+    ) {
+        val db = FirebaseFirestore.getInstance()
+        val batch = db.batch()
+
+        try {
+            for (user in users) {
+
+                val isManager = user.role == SquadUserType.SQUAD_MANAGER
+
+                if (isManager) {
+
+                    val ref = db.collection("squads")
+                        .document(user.squadID)
+
+                    batch.update(ref, "fcmToken", "")
+
+                } else {
+
+                    val ref = db.collection("squads")
+                        .document(user.squadID)
+                        .collection("members")
+                        .document(user.squadUserId)
+
+                    batch.update(ref, "fcmToken", "")
+                }
+            }
+
+            batch.commit()
+                .addOnSuccessListener {
+                    completion(true, null)
+                }
+                .addOnFailureListener { e ->
+                    completion(false, e.localizedMessage)
+                }
+
+        } catch (e: Exception) {
+            completion(false, e.localizedMessage)
+        }
     }
 }

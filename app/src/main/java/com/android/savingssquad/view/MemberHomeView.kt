@@ -76,6 +76,25 @@ fun MemberHomeView(
     var currentOrOverDueContribution by remember { mutableStateOf(listOf<ContributionDetail>()) }
 
 
+    LaunchedEffect(Unit) {
+        // runs once when Composable enters composition
+        if (UserDefaultsManager.getIsFromnotification()) {
+
+            UserDefaultsManager.getLogin()?.let { user ->
+                if (user.role == SquadUserType.SQUAD_MEMBER) {
+                    UserDefaultsManager.saveSquadManagerLogged(false)
+                    navController.navigate(AppDestination.OPEN_VERIFY_PAYMENTS.route)
+                }else {
+                    UserDefaultsManager.saveSquadManagerLogged(true)
+                    navController.navigate(AppDestination.MANAGER_HOME.route) {
+                        popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()

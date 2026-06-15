@@ -24,6 +24,9 @@ object UserDefaultsManager {
     // 🔹 Keys (like Swift's enum)
     private object Keys {
         const val IS_LOGGED_IN = "ISLOGGEDIN"
+
+        const val IS_FROM_NOTIFICATION_IN = "IS_FROM_NOTIFICATION_IN"
+
         const val IS_MULTIPLE_ACCOUNT = "ISMULTIPLEACCOUNT"
         const val LOGGED_USER = "LOGGEDUSER"
         const val SAVED_SQUAD = "SAVEDCHIT"
@@ -102,6 +105,9 @@ object UserDefaultsManager {
     fun saveLogin(login: Login) = saveObject(Keys.LOGGED_USER, login)
     fun getLogin(): Login? = getObject(Keys.LOGGED_USER)
 
+    fun saveIsFromnotification(isLoggedIn: Boolean) = saveBool(Keys.IS_FROM_NOTIFICATION_IN, isLoggedIn)
+    fun getIsFromnotification(): Boolean = getBool(Keys.IS_FROM_NOTIFICATION_IN)
+
     // 🔹 Squad
     fun saveSquad(squad: Squad) = saveObject(Keys.SAVED_SQUAD, squad)
     fun getSquad(): Squad? = getObject(Keys.SAVED_SQUAD)
@@ -119,6 +125,7 @@ object UserDefaultsManager {
     // 🔹 Clear All
     fun clearAll() {
         listOf(
+            Keys.IS_FROM_NOTIFICATION_IN,
             Keys.IS_LOGGED_IN,
             Keys.LOGGED_USER,
             Keys.SAVED_SQUAD,

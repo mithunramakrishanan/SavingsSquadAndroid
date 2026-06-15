@@ -161,3 +161,4 @@ sealed class AppDestination(val route: String) {
     object OPEN_TERMS_CONDITIONS: AppDestination("open_terms_conditions")
 
 }
+

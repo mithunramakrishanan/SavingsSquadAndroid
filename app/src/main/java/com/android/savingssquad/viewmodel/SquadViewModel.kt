@@ -527,6 +527,73 @@ class SquadViewModel : ViewModel() {
         }
     }
 
+    fun updateSquadDebitCredit(
+        squadId: String,
+        amount: Int,
+        paymentType: PaymentType,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+
+            LoaderManager.shared.hideLoader()
+
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+
+            return
+        }
+
+        LoaderManager.shared.showLoader()
+
+        manager.updateSquadDebitCredit(
+            squadId = squadId,
+            amount = amount,
+            paymentType = paymentType
+        ) { success, errorMessage ->
+
+            LoaderManager.shared.hideLoader()
+
+            if (success) {
+
+                println("✅ Squad debit/credit updated successfully!")
+
+                _squad.value?.let { currentSquad ->
+
+                    val updatedSquad = currentSquad.copy(
+                        currentDebitAmount =
+                            if (paymentType == PaymentType.PAYMENT_DEBIT)
+                                currentSquad.currentDebitAmount + amount
+                            else
+                                currentSquad.currentDebitAmount,
+
+                        currentCreditAmount =
+                            if (paymentType == PaymentType.PAYMENT_CREDIT)
+                                currentSquad.currentCreditAmount + amount
+                            else
+                                currentSquad.currentCreditAmount
+                    )
+
+                    _squad.value = updatedSquad
+                }
+
+                completion(true, null)
+
+            } else {
+
+                val errorMsg =
+                    errorMessage ?: "Unknown error while updating debit/credit"
+
+                println("❌ $errorMsg")
+
+                completion(false, errorMsg)
+            }
+        }
+    }
 
     fun addMember(
         showLoader: Boolean = true,
@@ -1742,6 +1809,28 @@ class SquadViewModel : ViewModel() {
                         else -> {}
                     }
 
+
+                }
+
+                updateSquadDebitCredit(
+
+                    squadId = payment.squadId,
+
+                    amount = payment.amount,
+
+                    paymentType = payment.paymentType
+
+                ) { success, error ->
+
+                    if (success) {
+
+                        println("✅ Updated")
+
+                    } else {
+
+                        println("❌ $error")
+
+                    }
 
                 }
 
