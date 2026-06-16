@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Login
+import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.RemainderModel
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -33,6 +34,8 @@ object UserDefaultsManager {
         const val SAVED_REMAINDER = "SAVEDREMAINDER"
         const val IS_MANAGER_LOGIN = "ISMANAGERLOGIN"
         const val LOGGED_GROUP_ID = "LOGGEDGROUPID"
+
+        const val PENDING_PAYMENT = "PENDING_PAYMENT"
     }
 
     /**
@@ -122,6 +125,18 @@ object UserDefaultsManager {
     fun saveSquadManagerLogged(isManager: Boolean) = saveBool(Keys.IS_MANAGER_LOGIN, isManager)
     fun getSquadManagerLogged(): Boolean = getBool(Keys.IS_MANAGER_LOGIN)
 
+    fun savePendingPayment(payment: PaymentsDetails) {
+        saveObject(Keys.PENDING_PAYMENT, payment)
+    }
+
+    fun getPendingPayment(): PaymentsDetails? {
+        return getObject(Keys.PENDING_PAYMENT)
+    }
+
+    fun clearPendingPayment() {
+        removeObject(Keys.PENDING_PAYMENT)
+    }
+
     // 🔹 Clear All
     fun clearAll() {
         listOf(
@@ -132,7 +147,8 @@ object UserDefaultsManager {
             Keys.SAVED_REMAINDER,
             Keys.IS_MANAGER_LOGIN,
             Keys.LOGGED_GROUP_ID,
-            Keys.IS_MULTIPLE_ACCOUNT
+            Keys.IS_MULTIPLE_ACCOUNT,
+            Keys.PENDING_PAYMENT
         ).forEach { key -> removeObject(key) }
 
         Log.d("UserDefaultsManager", "🔄 All user data cleared successfully!")

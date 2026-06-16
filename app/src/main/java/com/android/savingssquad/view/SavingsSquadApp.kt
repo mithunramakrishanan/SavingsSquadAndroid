@@ -1,6 +1,7 @@
 package com.android.savingssquad.view
 import android.app.Application
 import android.util.Log
+import com.android.savingssquad.singleton.AppContext
 import com.android.savingssquad.singleton.LocalDatabase
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.FirebaseFunctionsManager
@@ -16,7 +17,7 @@ class SavingsSquadApp : Application() {
 
         // Init Firebase
         FirebaseApp.initializeApp(this)
-
+        AppContext.init(this)
         // Enable App Check Debug
         val providerFactory = DebugAppCheckProviderFactory.getInstance()
         FirebaseAppCheck.getInstance().installAppCheckProviderFactory(providerFactory)

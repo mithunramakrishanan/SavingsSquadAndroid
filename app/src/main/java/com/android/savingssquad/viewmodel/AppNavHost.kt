@@ -18,6 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.platform.LocalContext
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalAnimationApi::class)
@@ -132,6 +133,21 @@ fun AppNavHost(
         composable(AppDestination.OPEN_TERMS_CONDITIONS.route) {
             TermsAndConditionsView(navController)
         }
+
+        composable(AppDestination.PAYMENT_CONFIRMATION.route) {
+
+            val context = LocalContext.current
+
+            PaymentConfirmationView(
+
+                navController = navController,
+
+                squadViewModel = squadViewModel,
+
+                loaderManager = loaderManager
+            )
+
+        }
     }
 }
 
@@ -159,6 +175,8 @@ sealed class AppDestination(val route: String) {
     object OPEN_DUES_SCREEN: AppDestination("open_dues_screen")
 
     object OPEN_TERMS_CONDITIONS: AppDestination("open_terms_conditions")
+
+    object PAYMENT_CONFIRMATION : AppDestination("payment_confirmation")
 
 }
 

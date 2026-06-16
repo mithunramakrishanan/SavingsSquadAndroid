@@ -13,27 +13,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.android.savingssquad.model.Login
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.singleton.AppColors
+import com.android.savingssquad.singleton.ObserveAppResume
 import com.android.savingssquad.singleton.SquadUserType
+import com.android.savingssquad.singleton.UPIPaymentManager
 import com.android.savingssquad.singleton.UserDefaultsManager
-import com.android.savingssquad.singleton.asTimestamp
 import com.android.savingssquad.viewmodel.AppNavHost
 import com.android.savingssquad.viewmodel.LoaderManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.google.gson.Gson
-import kotlinx.coroutines.delay
-import java.util.Date
 
 class MainActivity : ComponentActivity() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        UPIPaymentManager.shared.register(this)
         handleNotification(intent) // 🔥 IMPORTANT (cold start)
 
         setContent {
@@ -105,6 +105,7 @@ class MainActivity : ComponentActivity() {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun SavingsSquadRoot() {
+    val context = LocalContext.current
     val loaderManager = remember { LoaderManager.shared }
     val squadViewModel: SquadViewModel = viewModel()
     val navController = rememberNavController()
@@ -136,6 +137,7 @@ fun SavingsSquadRoot() {
     ) {
         // ✅ Launch the main navigation host
         RequestNotificationPermission()
+        ObserveAppResume(navController, context)
         AppNavHost(
             navController = navController,
             squadViewModel = squadViewModel,

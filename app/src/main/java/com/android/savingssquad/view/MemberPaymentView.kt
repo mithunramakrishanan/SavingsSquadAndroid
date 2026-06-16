@@ -1,5 +1,6 @@
 package com.android.savingssquad.view
 
+import android.app.Activity
 import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavController
@@ -41,11 +42,13 @@ import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.RemainderType
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.singleton.UPIPaymentManager
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.viewmodel.AlertManager
 import com.google.firebase.Timestamp
 import com.yourapp.utils.CommonFunctions
+import com.android.savingssquad.singleton.UPIPaymentStatus
 
 // MemberPaymentScreen.kt
 @RequiresApi(Build.VERSION_CODES.O)
@@ -81,6 +84,9 @@ fun MemberPaymentView(
 
     // Payments list for "Recent Payments" similar to SwiftUI logic (current month)
     var payments by remember { mutableStateOf(listOf<PaymentsDetails>()) }
+
+    val activity = LocalContext.current as Activity
+    val appContext = LocalContext.current.applicationContext
 
     // On first composition fetch payments and reset UI states
     LaunchedEffect(Unit) {
@@ -242,12 +248,14 @@ fun MemberPaymentView(
                                     loanId = "",
                                     installmentId = "",
                                     paymentResponseMessage = "Pending admin verification.",
-                                    transferReferenceId = "",
+                                    transferReferenceId = contributionID,
                                     upiID = gf.upiID
                                 )
 
 
                                 squadViewModel.savePayments(
+                                    activity = activity,
+                                    context = appContext,
                                     showLoader = true,
                                     squadID = squad!!.squadID,
                                     payment = listOf(newPayment)
@@ -375,12 +383,14 @@ fun MemberPaymentView(
                                     loanId = loanId,
                                     installmentId = installId,
                                     paymentResponseMessage = "Pending admin verification.",
-                                    transferReferenceId = "",
+                                    transferReferenceId = "${selectedInstallment?.installmentNumber ?: ""} - ${loan?.loanNumber ?: "N/A"}",
                                     upiID = squad!!.upiID
                                 )
 
 
                                 squadViewModel.savePayments(
+                                    activity = activity,
+                                    context = appContext,
                                     showLoader = true,
                                     squadID = squad!!.squadID,
                                     payment = listOf(loanPayment)

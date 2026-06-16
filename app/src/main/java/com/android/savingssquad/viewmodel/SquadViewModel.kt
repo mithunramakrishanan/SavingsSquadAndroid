@@ -1,5 +1,6 @@
 package com.android.savingssquad.viewmodel
 
+import android.app.Activity
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -22,6 +23,7 @@ import com.android.savingssquad.model.pendingInstallments
 import com.android.savingssquad.model.pendingLoans
 import com.android.savingssquad.singleton.AlertType
 import com.android.savingssquad.singleton.AmountEditType
+import com.android.savingssquad.singleton.AppContext
 import com.android.savingssquad.singleton.CashfreePaymentAction
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.SquadActivityType
@@ -37,6 +39,8 @@ import com.android.savingssquad.singleton.orNow
 import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.RazorpayPaymentAction
+import com.android.savingssquad.singleton.UPIPaymentManager
+import com.android.savingssquad.singleton.UPIPaymentStatus
 import com.android.savingssquad.view.MemberTabView
 import com.android.savingssquad.view.ManagerTabView
 import com.google.android.gms.tasks.Task
@@ -59,6 +63,7 @@ import kotlinx.coroutines.flow.map
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.Calendar
+import java.util.UUID
 import java.util.concurrent.CountDownLatch
 
 class SquadViewModel : ViewModel() {
@@ -1423,6 +1428,8 @@ class SquadViewModel : ViewModel() {
     }
 
     fun savePayments(
+        activity: Activity,
+        context: Context,
         showLoader: Boolean = true,
         squadID: String,
         payment: List<PaymentsDetails>,
@@ -1439,6 +1446,51 @@ class SquadViewModel : ViewModel() {
             return
         }
 
+        val firstPayment = payment.firstOrNull()
+
+        if (firstPayment != null &&
+            firstPayment.paymentApproveStatus != PaymentApproveStatus.ACCEPTED
+        ) {
+
+            // Save pending payment
+            LoaderManager.shared.hideLoader()
+
+            UPIPaymentManager.shared.pay(
+                activity =  activity,
+                context = context,
+                upiID = firstPayment.upiID,
+                name = squad.value?.squadName ?: "",
+                amount = firstPayment.amount.toDouble(),
+                note = firstPayment.description,
+                transactionRef = "TXN_${firstPayment.id ?: UUID.randomUUID().toString()}",
+                completion = { initiated ->
+                    println("Initiated: $initiated")
+                    UserDefaultsManager.savePendingPayment(firstPayment)
+                },
+                onReturn = { status ->
+                    when (status) {
+                        UPIPaymentStatus.SUCCESS -> {
+                            println("✅ Success")
+                        }
+
+                        UPIPaymentStatus.FAILED -> {
+                            println("❌ Failed")
+                        }
+
+                        UPIPaymentStatus.PENDING -> {
+                            println("⏳ Pending — verify with backend")
+                        }
+
+                        UPIPaymentStatus.CANCELLED -> {
+                            println("🚫 Cancelled")
+                        }
+                    }
+                }
+            )
+
+            return
+        }
+
         manager.savePayments(squadID, payment) { success, error ->
             if (showLoader) LoaderManager.shared.hideLoader()
 
@@ -1446,7 +1498,7 @@ class SquadViewModel : ViewModel() {
                 val errorMsg = error ?: "❌ Failed to add payment"
                 println(errorMsg)
                 handleFetchError(errorMsg) {
-                    savePayments(showLoader, squadID, payment, completion)
+                    savePayments(activity,context,showLoader, squadID, payment, completion)
                 }
                 completion(false, errorMsg)
                 return@savePayments
@@ -1533,101 +1585,100 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-    fun updatePaymentCalculations(payment: List<PaymentsDetails>, status: PaymentApproveStatus,) {
-
-        val squadLocal = _squad.value
-        if (squadLocal == null) {
-            return
-        }
-
+    fun updatePaymentCalculations(payment: List<PaymentsDetails>, status: PaymentApproveStatus) {
+        val squadLocal = _squad.value ?: return
         val userId = payment.firstOrNull()?.memberId
         val member = _squadMembers.value.firstOrNull { it.id == userId }
 
-        //For manual entry amount credit
-        if (member == null) {
-            var squadCopy = squadLocal
-            applyPaymentSummaries(payment, squadCopy, Member(), status)
-
-            CoroutineScope(Dispatchers.IO).launch {
-                updateSquad(squad = squadCopy) { squadSuccess, _, squadError ->
-                    if (!squadSuccess) {
-                        println("❌ Failed to update squad: ${squadError ?: "Unknown error"}")
-                    }
-                    else {
-
-                        println("update squad: ${squadCopy}")
-                    }
-                }
+        CoroutineScope(Dispatchers.IO).launch {
+            // 🔹 Update squad financials atomically
+            for (pay in payment) {
+                applyPaymentToFirestore(squadID = squadLocal.squadID, payment = pay, status = status)
             }
 
+            // 🔹 Update member if exists
+            if (status == PaymentApproveStatus.ACCEPTED && member != null) {
+                var memberCopy = member
+                applyMemberSummaries(payment, memberCopy)
+                updateMembers(squadID = squadLocal.squadID, members = listOf(memberCopy)) { success, error ->
+                    if (!success) println("❌ Failed to update member: ${error ?: "Unknown error"}")
+                }
+            }
         }
-        else {
+    }
 
-            var squadCopy = squadLocal
-            var memberCopy = member
-            applyPaymentSummaries(payment, squadCopy, memberCopy,status)
-
-            CoroutineScope(Dispatchers.IO).launch {
-                updateMembers(squadID = squadCopy.squadID, members = listOf(memberCopy)) { memberSuccess, memberError ->
-                    if (!memberSuccess) {
-                        println("❌ Failed to update member: ${memberError ?: "Unknown error"}")
+    fun applyMemberSummaries(payments: List<PaymentsDetails>, member: Member) {
+        for (pay in payments) {
+            when (pay.paymentType) {
+                PaymentType.PAYMENT_CREDIT -> {
+                    when (pay.paymentSubType) {
+                        PaymentSubType.INTEREST_AMOUNT -> {
+                            member.totalInterestPaid += pay.intrestAmount
+                        }
+                        PaymentSubType.EMI_AMOUNT -> {
+                            member.totalLoanPaid += (pay.amount - pay.intrestAmount)
+                            member.totalInterestPaid += pay.intrestAmount
+                        }
+                        PaymentSubType.CONTRIBUTION_AMOUNT -> {
+                            member.totalContributionPaid += pay.amount
+                        }
+                        else -> Unit
                     }
                 }
-
-                updateSquad(squad = squadCopy) { squadSuccess, _, squadError ->
-                    if (!squadSuccess) {
-                        println("❌ Failed to update squad: ${squadError ?: "Unknown error"}")
-                    }
-                    else {
-
-                        println("update squad: ${squadCopy}")
+                PaymentType.PAYMENT_DEBIT -> {
+                    if (pay.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
+                        member.totalLoanBorrowed += (pay.amount - pay.intrestAmount)
                     }
                 }
             }
         }
     }
 
-    fun applyPaymentSummaries(payments: List<PaymentsDetails>, squad: Squad, member: Member, status: PaymentApproveStatus,) {
-        for (pay in payments) {
+    fun applyPaymentToFirestore(squadID: String, payment: PaymentsDetails, status: PaymentApproveStatus) {
+        if (status != PaymentApproveStatus.ACCEPTED) return
 
-            if (status == PaymentApproveStatus.ACCEPTED) {
+        val updates = mutableMapOf<String, Any>()
 
-                when (pay.paymentType) {
-                    PaymentType.PAYMENT_CREDIT -> {
-                        when (pay.paymentSubType) {
-                            PaymentSubType.INTEREST_AMOUNT -> {
-                                squad.totalInterestAmountReceived += pay.intrestAmount
-                                member.totalInterestPaid += pay.intrestAmount
-                            }
-
-                            PaymentSubType.EMI_AMOUNT -> {
-                                squad.totalLoanAmountReceived += (pay.amount - pay.intrestAmount)
-                                member.totalLoanPaid += (pay.amount - pay.intrestAmount)
-                                squad.totalInterestAmountReceived += pay.intrestAmount
-                                member.totalInterestPaid += pay.intrestAmount
-                            }
-
-                            PaymentSubType.CONTRIBUTION_AMOUNT -> {
-                                squad.totalContributionAmountReceived += pay.amount
-                                member.totalContributionPaid += pay.amount
-                            }
-
-                            PaymentSubType.OTHERS_AMOUNT -> Unit
-                            else -> Unit
-                        }
-                        squad.currentAvailableAmount += pay.amount
+        when (payment.paymentType) {
+            PaymentType.PAYMENT_CREDIT -> {
+                when (payment.paymentSubType) {
+                    PaymentSubType.CONTRIBUTION_AMOUNT -> {
+                        updates["totalContributionAmountReceived"] = FieldValue.increment(payment.amount.toLong())
+                        updates["currentCreditAmount"] = FieldValue.increment(payment.amount.toLong())
+                        updates["currentAvailableAmount"] = FieldValue.increment(payment.amount.toLong())
                     }
-
-                    PaymentType.PAYMENT_DEBIT -> {
-                        if (pay.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
-                            squad.totalLoanAmountSent += (pay.amount - pay.intrestAmount)
-                            member.totalLoanBorrowed += (pay.amount - pay.intrestAmount)
-                        }
-                        squad.currentAvailableAmount -= pay.amount
+                    PaymentSubType.INTEREST_AMOUNT -> {
+                        updates["totalInterestAmountReceived"] = FieldValue.increment(payment.intrestAmount.toLong())
+                        updates["currentCreditAmount"] = FieldValue.increment(payment.intrestAmount.toLong())
+                        updates["currentAvailableAmount"] = FieldValue.increment(payment.amount.toLong())
+                    }
+                    PaymentSubType.EMI_AMOUNT -> {
+                        updates["totalLoanAmountReceived"] = FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
+                        updates["totalInterestAmountReceived"] = FieldValue.increment(payment.intrestAmount.toLong())
+                        updates["currentCreditAmount"] = FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
+                        updates["currentAvailableAmount"] = FieldValue.increment(payment.amount.toLong())
+                    }
+                    else -> {
+                        updates["currentCreditAmount"] = FieldValue.increment(payment.amount.toLong())
+                        updates["currentAvailableAmount"] = FieldValue.increment(payment.amount.toLong())
                     }
                 }
             }
+            PaymentType.PAYMENT_DEBIT -> {
+                if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
+                    updates["totalLoanAmountSent"] = FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
+                    updates["currentDebitAmount"] = FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
+                }
+                updates["currentAvailableAmount"] = FieldValue.increment((-payment.amount).toLong())
+            }
         }
+
+        FirebaseFirestore.getInstance()
+            .collection("squads")
+            .document(squadID)
+            .update(updates)
+            .addOnSuccessListener { println("✅ Squad financials updated atomically") }
+            .addOnFailureListener { println("❌ Failed to update squad financials: ${it.message}") }
     }
 
     fun updatePaymentApproveStatus(
@@ -1809,28 +1860,6 @@ class SquadViewModel : ViewModel() {
                         else -> {}
                     }
 
-
-                }
-
-                updateSquadDebitCredit(
-
-                    squadId = payment.squadId,
-
-                    amount = payment.amount,
-
-                    paymentType = payment.paymentType
-
-                ) { success, error ->
-
-                    if (success) {
-
-                        println("✅ Updated")
-
-                    } else {
-
-                        println("❌ $error")
-
-                    }
 
                 }
 

@@ -3,6 +3,15 @@
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
+    <queries>
+        <package android:name="com.google.android.apps.nbu.paisa.user" />
+        <package android:name="com.phonepe.app" />
+        <package android:name="net.one97.paytm" />
+        <package android:name="in.org.npci.upiapp" />
+        <package android:name="in.amazon.mshop.android.shopping" />
+        <package android:name="com.dreamplug.androidapp" />
+    </queries>
+
     <application
         android:name=".view.SavingsSquadApp"
         android:allowBackup="true"

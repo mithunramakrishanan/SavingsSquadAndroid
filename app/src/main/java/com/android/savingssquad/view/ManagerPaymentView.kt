@@ -1,6 +1,8 @@
 package com.android.savingssquad.view
 
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -48,6 +50,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -111,6 +114,9 @@ fun ManagerPaymentView(
 
     var paymentNotes by remember { mutableStateOf("") }
     var paymentNotesError by remember { mutableStateOf("") }
+
+    val activity = LocalContext.current as Activity
+    val appContext = LocalContext.current.applicationContext
 
     fun validateFields(): Boolean {
         paymentAmountError = if (paymentAmount.value.isEmpty()) {
@@ -212,6 +218,8 @@ fun ManagerPaymentView(
                                     squadViewModel = squadViewModel,
                                     selectedMember = member,
                                     selectedLoan = emi,
+                                    context = appContext,
+                                    activity = activity,
                                     handler = {
                                         loanSelectedMember = null
                                         emiSelectedType = null
@@ -322,7 +330,7 @@ fun ManagerPaymentView(
                                 /* handle other payment */
                                 
                                 if (validateFields()) {
-                                    handleOtherPayment(squadViewModel = squadViewModel, amountStr = paymentAmount.value, notes = paymentNotes)
+                                    handleOtherPayment(squadViewModel = squadViewModel, amountStr = paymentAmount.value, notes = paymentNotes, context = appContext, activity = activity)
 
                                 }
                                 
@@ -369,6 +377,8 @@ fun ManagerPaymentView(
 }
 
 private fun makeLoanPayment(
+    activity : Activity,
+    context : Context,
     squadViewModel: SquadViewModel,
     selectedMember: Member,
     selectedLoan: EMIConfiguration,
@@ -408,12 +418,12 @@ private fun makeLoanPayment(
                 loanId = newLoan.id ?: "",
                 installmentId = "",
                 paymentResponseMessage = "Pending member verification.",
-                transferReferenceId = "",
+                transferReferenceId = newLoan.id ?: "",
                 upiID = selectedMember.upiID
             )
-
-
             squadViewModel.savePayments(
+                activity = activity,
+                context = context,
                 showLoader = true,
                 squadID = squadViewModel.squad.value?.squadID ?: "",
                 payment = listOf(newPayment)
@@ -453,7 +463,7 @@ private fun makeLoanPayment(
     }
 }
 
-private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String, notes: String) {
+private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String, notes: String, context: Context, activity: Activity) {
     val availableAmount = squadViewModel.squad.value?.currentAvailableAmount ?: 0
     val amountInt = amountStr.toIntOrNull() ?: 0
     if (availableAmount < amountInt) {
@@ -466,9 +476,9 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
         return
     }
     LoaderManager.shared.showLoader()
-
+    val otherID = CommonFunctions.generatePaymentID(squadViewModel.squad.value?.squadID ?: "")
     val newPayment = PaymentsDetails(
-        id = CommonFunctions.generatePaymentID(squadViewModel.squad.value?.squadID ?: ""),
+        id = otherID,
         paymentUpdatedDate = Date().asTimestamp,
         payoutUpdatedDate = null,
 
@@ -501,7 +511,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
         paymentResponseMessage = "",
         payoutSuccess = true,
         payoutResponseMessage = "",
-        transferReferenceId = "",
+        transferReferenceId = otherID,
 
         recordStatus = RecordStatus.ACTIVE,
         recordDate = Date().asTimestamp
@@ -509,6 +519,8 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
 
     // 🔹 Save payment
     squadViewModel.savePayments(
+        activity = activity,
+        context = context,
         showLoader = false,
         squadID = squadViewModel.squad.value?.squadID ?: "",
         payment = listOf(newPayment)

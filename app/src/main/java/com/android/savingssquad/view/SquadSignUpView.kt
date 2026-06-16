@@ -1,5 +1,6 @@
 package com.android.savingssquad.view
 
+import android.app.Activity
 import android.content.Context
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -61,6 +62,8 @@ fun SquadSignUpView(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val activity = LocalContext.current as Activity
+    val appContext = LocalContext.current.applicationContext
 
     // VALUES
     var squadName by rememberSaveable { mutableStateOf("") }
@@ -398,6 +401,8 @@ fun SquadSignUpView(
                                 totalMonths = totalMonths,
                                 squadAmount = squadAmount,
                                 squadStartAmount = squadStartAmount,
+                                activity = activity,
+                                context = appContext,
                                 onComplete = {
                                     isButtonLoading = false
 
@@ -517,6 +522,8 @@ private fun saveSquadData(
     totalMonths: String,
     squadAmount: String,
     squadStartAmount: String,
+    activity: Activity,
+    context: Context,
     onComplete: () -> Unit,
     onError: (String) -> Unit
 ) {
@@ -534,55 +541,38 @@ private fun saveSquadData(
         mailID = email,
         countryCode = "+91",
         phoneNumber = phoneNumber,
-
-        // 🔹 Virtual account details (Swift version didn't have these)
         virtualAccountNumber = "",
         paymentInstrumentId = "",
         virtualUPI = "",
-
-        // 🔹 Account details
         squadAccountName = "",
         squadAccountNumber = "",
         squadIFSCCode = "",
-
         upiBeneId = "",
         bankBeneId = "",
         upiID = "",
-
         squadStartDate = squadStartDate.asTimestamp,
-
         squadEndDate = CommonFunctions.getFutureMonthYearDate(
             squadStartDate,
             monthsInt
         )?.asTimestamp ?: squadStartDate.asTimestamp,
-
         squadCreatedDate = squadStartDate.asTimestamp,
-
         squadDueDate = CommonFunctions.getEndOfMonthFromDate(
             squadStartDate
         )?.asTimestamp ?: squadStartDate.asTimestamp,
-
         totalDuration = monthsInt,
         remainingDuration = monthsInt,
-
         totalMembers = 0,
-
         monthlyContribution = squadAmountInt,
         squadStartAmount = startAmountInt,
-
         totalAmount = 0,
         totalContributionAmountReceived = 0,
         totalLoanAmountReceived = 0,
         totalLoanAmountSent = 0,
         totalInterestAmountReceived = 0,
-
         currentAvailableAmount = startAmountInt,
-
         emiConfiguration = emptyList(),
-
         recordStatus = RecordStatus.ACTIVE,   // ✅ MUST be enum, not string
         recordDate = Date(),
-
         password = null
     )
 
@@ -651,9 +641,10 @@ private fun saveSquadData(
                         )
 
 
-
                         // 1️⃣ ADD PAYMENT ENTRY
                         squadViewModel.savePayments(
+                            activity = activity,
+                            context = context,
                             showLoader = true,
                             squadID = squadID,
                             payment = listOf(newPayment)

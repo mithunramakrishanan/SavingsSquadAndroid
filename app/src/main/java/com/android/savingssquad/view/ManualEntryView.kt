@@ -1,5 +1,6 @@
 package com.android.savingssquad.view
 
+import android.app.Activity
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.activity.compose.BackHandler
@@ -42,6 +43,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -78,6 +80,7 @@ import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
+import com.google.api.Context
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -136,6 +139,8 @@ fun ManualEntryView(
     var paymentNotes by remember { mutableStateOf("") }
     var paymentNotesError by remember { mutableStateOf("") }
 
+    val activity = LocalContext.current as Activity
+    val appContext = LocalContext.current.applicationContext
 
     fun validateFields(): Boolean {
         paymentAmountError = if (paymentAmount.value.isEmpty()) {
@@ -319,10 +324,12 @@ fun ManualEntryView(
                                             installmentId = "",
                                             paymentSuccess = true,
                                             payoutSuccess = true,
-                                            transferReferenceId = ""
+                                            transferReferenceId = contributionID
                                         )
 
                                         squadViewModel.savePayments(
+                                            activity = activity,
+                                            context = appContext,
                                             squadID = squadLocal.squadID,
                                             payment = listOf(newPayment)
                                         ) { pSuccess, pError ->
@@ -476,7 +483,7 @@ fun ManualEntryView(
 //                                                payoutSuccess = true
 //                                            )
 
-                                            squadViewModel.savePayments(squadID = squad?.squadID ?: "", payment = listOf(loanPayment)) { psuccess, perror ->
+                                            squadViewModel.savePayments(activity = activity, context = appContext, squadID = squad?.squadID ?: "", payment = listOf(loanPayment)) { psuccess, perror ->
                                                 // no-op
                                             }
 
@@ -529,7 +536,7 @@ fun ManualEntryView(
                                 /* handle other payment */
 
                                 if (validateFields()) {
-                                    handleOtherPayment(squadViewModel = squadViewModel, loaderManager = loaderManager,  amountStr = paymentAmount.value, notes = paymentNotes , action = {
+                                    handleOtherPayment(squadViewModel = squadViewModel, loaderManager = loaderManager,  amountStr = paymentAmount.value, notes = paymentNotes , activity = activity, context = appContext,  action = {
 
                                         paymentAmount.value = ""
                                         paymentNotes = ""
@@ -658,6 +665,8 @@ private fun handleOtherPayment(
     loaderManager : LoaderManager,
     amountStr: String,
     notes: String,
+    activity: Activity,
+    context: android.content.Context,
     action : () -> Unit
 ) {
     loaderManager.showLoader()
@@ -665,8 +674,9 @@ private fun handleOtherPayment(
     val amount = amountStr.toIntOrNull() ?: 0
 
         // 🔹 Create new payment
+    val otherID = CommonFunctions.generatePaymentID(squad.squadID)
         val newPayment = PaymentsDetails(
-            id = CommonFunctions.generatePaymentID(squad.squadID),
+            id = otherID,
             paymentUpdatedDate = Date().asTimestamp,
             payoutUpdatedDate = null,
 
@@ -699,7 +709,7 @@ private fun handleOtherPayment(
             paymentResponseMessage = "",
             payoutSuccess = true,
             payoutResponseMessage = "",
-            transferReferenceId = "",
+            transferReferenceId = otherID,
 
             recordStatus = RecordStatus.ACTIVE,
             recordDate = Date().asTimestamp
@@ -707,6 +717,8 @@ private fun handleOtherPayment(
 
         // 🔹 Save payment
         squadViewModel.savePayments(
+            activity = activity,
+            context = context,
             showLoader = false,
             squadID = squad.squadID,
             payment = listOf(newPayment)

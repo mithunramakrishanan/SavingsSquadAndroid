@@ -22,6 +22,7 @@ import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentStatus
+import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.asTimestamp
