@@ -20,6 +20,9 @@ data class SquadActivity(
     @get:PropertyName("squadName") @set:PropertyName("squadName")
     var squadName: String = "", // Squad name for context
 
+    @get:PropertyName("memberId") @set:PropertyName("memberId")
+    var memberId: String?,
+
     @get:PropertyName("date") @set:PropertyName("date")
     var date: Timestamp? = null, // Activity date
 
@@ -46,6 +49,7 @@ data class SquadActivity(
         id = null,
         squadID = "",
         squadName = "",
+        memberId = null,
         date = null,
         activityType = SquadActivityType.AMOUNT_CREDIT,
         userName = "",

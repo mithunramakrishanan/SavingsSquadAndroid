@@ -414,11 +414,12 @@ private fun makeLoanPayment(
                 paymentSubType = PaymentSubType.LOAN_AMOUNT,
                 description = "Loan disbursement",
                 squadId = squadViewModel.squad.value?.squadID ?: "",
+                order_id = newLoan.id ?: "",
                 contributionId = "",
                 loanId = newLoan.id ?: "",
                 installmentId = "",
                 paymentResponseMessage = "Pending member verification.",
-                transferReferenceId = newLoan.id ?: "",
+                transferReferenceId = "Loan disbursement to " + selectedMember.name,
                 upiID = selectedMember.upiID
             )
             squadViewModel.savePayments(
@@ -503,7 +504,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
         contributionId = "",
         loanId = "",
         installmentId = "",
-        order_id = "",
+        order_id = otherID,
         transferMode = "",
         beneId = "",
 
@@ -511,7 +512,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
         paymentResponseMessage = "",
         payoutSuccess = true,
         payoutResponseMessage = "",
-        transferReferenceId = otherID,
+        transferReferenceId = notes,
 
         recordStatus = RecordStatus.ACTIVE,
         recordDate = Date().asTimestamp
@@ -531,6 +532,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
             squadViewModel.createSquadActivity(
                 activityType = SquadActivityType.AMOUNT_DEBIT,
                 userName = "CHIT MEMBER",
+                memberId = newPayment.memberId,
                 amount = amountInt,
                 description = "Amount $amountStr debited for $notes"
             ) {

@@ -70,45 +70,46 @@ import com.android.savingssquad.singleton.SquadActivityType
 @Composable
 fun PaymentHistoryView(
     navController: NavController,
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared
+    squadViewModel: SquadViewModel
 ) {
+
     val screenType =
         if (UserDefaultsManager.getSquadManagerLogged())
             SquadUserType.SQUAD_MANAGER
         else
             SquadUserType.SQUAD_MEMBER
 
-    var selectedUser by remember { mutableStateOf("All") }
-
     val payments = squadViewModel.squadPayments.collectAsStateWithLifecycle()
+    val members = squadViewModel.squadMembers.collectAsStateWithLifecycle()
 
-    val squadMembers = squadViewModel.squadMembers.collectAsStateWithLifecycle()
+    var selectedUser by remember { mutableStateOf("All") }
+    var selectedMemberId by remember { mutableStateOf<String?>(null) }
 
-    // User Dropdown List
-    val userList = remember(squadMembers.value) {
-        listOf("All") + squadMembers.value.map { it.name }.distinct()
+    // MARK: - User List (iOS style)
+    val userList = remember(members.value) {
+        listOf("All") + members.value.map { it.name }.distinct()
     }
 
-    // Filter Logic
-    val filteredPayments = remember(selectedUser, payments.value) {
-        if (selectedUser == "All") payments.value
-        else payments.value.filter { it.memberName == selectedUser }
-    }
+    // MARK: - INIT LOAD GUARD (iOS equivalent)
+    var hasLoaded by remember { mutableStateOf(false) }
 
-    // Load Data on Appear
     LaunchedEffect(Unit) {
 
-        // First update the user selection
-        selectedUser = if (screenType == SquadUserType.SQUAD_MEMBER) {
-            squadViewModel.currentMember.value?.name ?: "All"
-        } else {
-            "All"
-        }
+        if (hasLoaded) return@LaunchedEffect
+        hasLoaded = true
 
-        // Then fetch payments
-        squadViewModel.fetchPayments(showLoader = true) { success, error ->
-            if (!success) println("❌ Error: ${error ?: "Unknown error"}")
+        selectedMemberId =
+            if (screenType == SquadUserType.SQUAD_MEMBER)
+                squadViewModel.currentMember.value?.id
+            else null
+
+        squadViewModel.fetchPayments(
+            showLoader = true,
+            memberId = selectedMemberId
+        ) { _, error ->
+            if (error != null) {
+                println("❌ $error")
+            }
         }
     }
 
@@ -118,13 +119,17 @@ fun PaymentHistoryView(
         modifier = Modifier.fillMaxSize()
     ) {
 
-        // NAV BAR
-        SSNavigationBar("Payment History", navController)
+        // NAV BAR (same as iOS SSNavigationBar)
+        SSNavigationBar(
+            title = "Payment History",
+            navController = navController
+        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // USER PICKER (only for Managers)
+        // MARK: - USER PICKER (Manager only)
         if (screenType != SquadUserType.SQUAD_MEMBER) {
+
             DropdownMenuPicker(
                 label = "",
                 selected = selectedUser,
@@ -133,19 +138,36 @@ fun PaymentHistoryView(
                     .padding(horizontal = 16.dp)
                     .fillMaxWidth()
             ) { selected ->
+
                 selectedUser = selected
+
+                selectedMemberId =
+                    members.value.firstOrNull {
+                        it.name == selected
+                    }?.id
+
+                squadViewModel.resetPaymentsPagination()
+
+                squadViewModel.fetchPayments(
+                    showLoader = true,
+                    memberId = selectedMemberId
+                ) { _, error ->
+                    if (error != null) {
+                        println("❌ $error")
+                    }
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // EMPTY STATE
-        if (filteredPayments.isEmpty()) {
+        // MARK: - EMPTY STATE (iOS style)
+        if (payments.value.isEmpty()) {
 
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 60.dp),
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
 
@@ -163,33 +185,55 @@ fun PaymentHistoryView(
                         "No payments yet"
                     else
                         "No transactions yet",
-                    style = AppFont.ibmPlexSans(15, FontWeight.Medium),
+                    style = AppFont.ibmPlexSans(
+                        15,
+                        FontWeight.Medium
+                    ),
                     color = AppColors.secondaryText
                 )
             }
+        }
 
-        } else {
+        // MARK: - LIST
+        else {
 
-            // PAYMENT LIST
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(bottom = 20.dp)
             ) {
 
                 items(
-                    items = filteredPayments,
-                    key = { it.id!! }
+                    items = payments.value,
+                    key = { it.id ?: "" }
                 ) { payment ->
 
                     PaymentRow(
                         payment = payment,
                         showPaymentStatusRow = true,
                         showPayoutStatusRow = false,
-                        squadViewModel
+                        squadViewModel = squadViewModel
                     )
+
+                    // MARK: - Pagination trigger (iOS onAppear equivalent)
+                    LaunchedEffect(payment.id) {
+
+                        squadViewModel.loadMorePaymentsIfNeeded(
+                            currentPayment = payment,
+                            memberId = selectedMemberId
+                        )
+                    }
+                }
+
+                // MARK: - Loader (pagination)
+                if (squadViewModel.paymentsIsLoadingMore) {
+
+                    item {
+                        ShimmerLoader()
+                    }
                 }
             }
         }
     }
 }
+

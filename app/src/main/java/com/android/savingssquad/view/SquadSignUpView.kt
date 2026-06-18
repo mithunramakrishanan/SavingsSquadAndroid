@@ -660,6 +660,7 @@ private fun saveSquadData(
                         squadViewModel.createSquadActivity(
                             activityType = SquadActivityType.AMOUNT_CREDIT,
                             userName = "SQUAD MANAGER",
+                            memberId = "",
                             amount = startAmountInt,
                             description = "Started a squad with an amount of"
                         ) {

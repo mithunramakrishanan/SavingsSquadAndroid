@@ -1,11 +1,11 @@
 [versions]
 # Build Tools
 accompanistNavigationAnimation = "0.36.0"
-agp = "8.13.2"
+agp = "9.0.1"
 checkout = "1.6.41"
 composeBomVersion = "2024.10.00"
 easyupipayment = "3.0.3"
-kotlin = "2.0.21"
+kotlin = "2.2.10"
 
 # AndroidX
 coreKtx = "1.12.0"

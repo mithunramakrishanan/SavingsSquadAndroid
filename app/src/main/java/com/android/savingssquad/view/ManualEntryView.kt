@@ -319,12 +319,13 @@ fun ManualEntryView(
                                             paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
                                             description = "Squad Manager updated $contributionSelectedMemberName contribution for $contributionSelectedMonthYear",
                                             squadId = squadLocal.squadID,
+                                            order_id = contributionID,
                                             contributionId = contributionID,
                                             loanId = "",
                                             installmentId = "",
                                             paymentSuccess = true,
                                             payoutSuccess = true,
-                                            transferReferenceId = contributionID
+                                            transferReferenceId = contributionID.split("-").lastOrNull() ?: ""
                                         )
 
                                         squadViewModel.savePayments(
@@ -339,6 +340,7 @@ fun ManualEntryView(
                                         squadViewModel.createSquadActivity(
                                             activityType = SquadActivityType.AMOUNT_CREDIT,
                                             userName = "CHIT MEMBER",
+                                            memberId = newPayment.memberId,
                                             amount = squadLocal.monthlyContribution,
                                             description = "Updated $contributionSelectedMemberName contribution for $contributionSelectedMonthYear"
                                         ) {
@@ -491,6 +493,7 @@ fun ManualEntryView(
                                             squadViewModel.createSquadActivity(
                                                 activityType = SquadActivityType.AMOUNT_CREDIT,
                                                 userName = "SQUAD MANAGER",
+                                                memberId = "",
                                                 amount = total,
                                                 description = "Updated EMI and Interest to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber ${total.currencyFormattedWithCommas()}"
                                             ) {
@@ -701,7 +704,7 @@ private fun handleOtherPayment(
             contributionId = "",
             loanId = "",
             installmentId = "",
-            order_id = "",
+            order_id = otherID,
             transferMode = "",
             beneId = "",
 
@@ -709,7 +712,7 @@ private fun handleOtherPayment(
             paymentResponseMessage = "",
             payoutSuccess = true,
             payoutResponseMessage = "",
-            transferReferenceId = otherID,
+            transferReferenceId = notes,
 
             recordStatus = RecordStatus.ACTIVE,
             recordDate = Date().asTimestamp
@@ -730,6 +733,7 @@ private fun handleOtherPayment(
                 squadViewModel.createSquadActivity(
                     activityType = SquadActivityType.AMOUNT_CREDIT,
                     userName = "CHIT MEMBER",
+                    memberId = newPayment.memberId,
                     amount = amount,
                     description = "Updated amount $amountStr - $notes"
                 ) {

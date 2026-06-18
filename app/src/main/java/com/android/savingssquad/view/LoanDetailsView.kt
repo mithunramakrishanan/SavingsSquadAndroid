@@ -329,7 +329,14 @@ fun LoanCard(loan: MemberLoan) {
         Row {
             InfoColumn("Start Date", CommonFunctions.dateToString(loan.amountSentDate?.toDate() ?: Date()))
             Spacer(modifier = Modifier.weight(1f))
-            InfoColumn("Close Date", CommonFunctions.dateToString(loan.loanClosedDate?.toDate() ?: Date()))
+
+            if (loan.loanStatus == EMIStatus.PAID){
+                InfoColumn("Close Date", CommonFunctions.dateToString(loan.loanClosedDate?.toDate() ?: Date()))
+            }
+            else {
+                InfoColumn("Close Date", "-")
+            }
+
         }
 
         // INSTALLMENTS

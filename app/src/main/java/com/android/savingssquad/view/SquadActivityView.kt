@@ -6,9 +6,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -35,15 +40,22 @@ fun SquadActivityView(
     squadViewModel: SquadViewModel,
     loaderManager: LoaderManager = LoaderManager.shared,
 ) {
-    val dismiss = { navController.popBackStack() }
 
     var selectedUser by remember { mutableStateOf("All") }
+    var selectedMemberId by remember { mutableStateOf<String?>(null) }
+    var hasLoaded by remember { mutableStateOf(false) }
 
-    val currentMember by squadViewModel.currentMember.collectAsStateWithLifecycle()
+    val squadActivities by squadViewModel
+        .squadActivities
+        .collectAsStateWithLifecycle()
 
-    val userList = remember {
-        listOf("All") + squadViewModel.squadMembers.value.map { it.name }.distinct()
-    }
+    val squadMembers by squadViewModel
+        .squadMembers
+        .collectAsStateWithLifecycle()
+
+    val currentMember by squadViewModel
+        .currentMember
+        .collectAsStateWithLifecycle()
 
     val screenType =
         if (UserDefaultsManager.getSquadManagerLogged())
@@ -51,79 +63,168 @@ fun SquadActivityView(
         else
             SquadUserType.SQUAD_MEMBER
 
-    val squadActivities by squadViewModel.squadActivities.collectAsStateWithLifecycle()
-
-    val filteredActivities = remember(selectedUser, squadActivities) {
-        if (selectedUser == "All") squadActivities
-        else squadActivities.filter { it.userName == selectedUser }
+    val userList = remember(squadMembers) {
+        listOf("All") + squadMembers
+            .map { it.name }
+            .distinct()
     }
 
+    // Initial Load
     LaunchedEffect(Unit) {
-        fetchMoreActivities(squadViewModel)
 
-        selectedUser = if (screenType == SquadUserType.SQUAD_MEMBER) {
-//            squadViewModel.currentMember.value?.name ?: "All"
-            "All"
+        if (hasLoaded) return@LaunchedEffect
+
+        hasLoaded = true
+
+        if (screenType == SquadUserType.SQUAD_MEMBER) {
+
+//            selectedMemberId = currentMember?.id
+//            selectedUser = currentMember?.name ?: ""
+
+            selectedUser = "All"
+            selectedMemberId = null
+
         } else {
-            "All"
-        }
-    }
 
+            selectedUser = "All"
+            selectedMemberId = null
+        }
+
+        squadViewModel.resetActivitiesPagination()
+
+        squadViewModel.fetchSquadActivities(
+            squadID = squadViewModel.squad.value?.squadID ?: return@LaunchedEffect,
+            memberId = selectedMemberId,
+            showLoader = true
+        ) { _, _ -> }
+    }
 
     AppBackgroundGradient()
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
 
-        // NAV BAR
-        SSNavigationBar(SquadStrings.squadActivities, navController)
+        SSNavigationBar(
+            SquadStrings.squadActivities,
+            navController
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // FILTER SECTION
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (screenType != SquadUserType.SQUAD_MEMBER) {
-                DropdownMenuPicker(
-                    label = "",
-                    selected = selectedUser,
-                    items = userList,          // ✅ CHANGED from items = userList
-                    modifier = Modifier.weight(1f)
-                ) { selectedUser = it }
+        // User Filter
+        if (screenType != SquadUserType.SQUAD_MEMBER) {
+
+            DropdownMenuPicker(
+                label = "",
+                selected = selectedUser,
+                items = userList,
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth()
+            ) { selected ->
+
+                selectedUser = selected
+
+                selectedMemberId =
+                    if (selected == "All") {
+                        null
+                    } else {
+                        squadMembers.firstOrNull {
+                            it.name == selected
+                        }?.id
+                    }
+
+                squadViewModel.resetActivitiesPagination()
+
+                squadViewModel.fetchSquadActivities(
+                    squadID = squadViewModel.squad.value?.squadID ?: return@DropdownMenuPicker,
+                    memberId = selectedMemberId,
+                    showLoader = true
+                ) { _, _ -> }
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        if (squadActivities.isEmpty()) {
 
-            items(
-                items = filteredActivities,
-                key = { it.id!! }
-            ) { activity ->
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
 
-                ActivityCardComposable(activity = activity)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
 
-                // 🔥 Pagination trigger logic
-                val lastId = squadViewModel.squadActivities.value.lastOrNull()?.id
-                if (activity.id == lastId) {
-                    fetchMoreActivities(squadViewModel)
+                    Icon(
+                        imageVector = Icons.Default.History,
+                        contentDescription = null,
+                        modifier = Modifier.size(72.dp),
+                        tint = Color.Gray.copy(alpha = 0.6f)
+                    )
+
+                    Spacer(
+                        modifier = Modifier.height(12.dp)
+                    )
+
+                    Text(
+                        text = "No activities found",
+                        style = AppFont.ibmPlexSans(
+                            15,
+                            FontWeight.Medium
+                        ),
+                        color = AppColors.secondaryText
+                    )
+                }
+            }
+
+        } else {
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    bottom = 20.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(
+                    12.dp
+                )
+            ) {
+
+                items(
+                    items = squadActivities,
+                    key = { it.id ?: "" }
+                ) { activity ->
+
+                    ActivityCardComposable(
+                        activity = activity
+                    )
+
+                    LaunchedEffect(activity.id) {
+
+                        squadViewModel
+                            .loadMoreActivitiesIfNeeded(
+                                currentActivity = activity,
+                                squadID = squadViewModel.squad.value?.squadID
+                                    ?: return@LaunchedEffect,
+                                memberId = selectedMemberId
+                            )
+                    }
+                }
+
+                if (
+                    squadViewModel.isLoadingMoreActivities &&
+                    squadActivities.isNotEmpty()
+                ) {
+
+                    item {
+                        ShimmerLoader()
+                    }
                 }
             }
         }
     }
-}
-
-private fun fetchMoreActivities(squadViewModel: SquadViewModel) {
-    val squadID = squadViewModel.squad.value?.squadID ?: return
-    squadViewModel.fetchSquadActivities(true, squadID = squadID)
 }
 
 @Composable

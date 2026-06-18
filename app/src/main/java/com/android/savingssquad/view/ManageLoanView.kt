@@ -169,6 +169,7 @@ fun ManageLoanView(
                                                 squadViewModel.createSquadActivity(
                                                     activityType = SquadActivityType.OTHER_ACTIVITY,
                                                     userName = "SQUAD MANAGER",
+                                                    memberId = "",
                                                     amount = 0,
                                                     description = "Deleted EMI Config - Loan Amount $amount with interest $rate"
                                                 )
@@ -281,6 +282,7 @@ private fun handleAddEditEMI(
             squadViewModel.createSquadActivity(
                 activityType = SquadActivityType.OTHER_ACTIVITY,
                 userName = "SQUAD MANAGER",
+                memberId = "",
                 amount = 0,
                 description = desc
             ) {

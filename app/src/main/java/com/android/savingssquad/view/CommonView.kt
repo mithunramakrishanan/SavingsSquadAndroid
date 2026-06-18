@@ -2467,3 +2467,14 @@ fun RequestNotificationPermission() {
         }
     }
 }
+
+@Composable
+fun ShimmerLoader() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+            .padding(horizontal = 16.dp)
+            .background(Color.Gray.copy(alpha = 0.2f), shape = RoundedCornerShape(12.dp))
+    )
+}

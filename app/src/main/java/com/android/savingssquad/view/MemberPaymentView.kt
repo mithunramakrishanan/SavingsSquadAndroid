@@ -244,11 +244,12 @@ fun MemberPaymentView(
                                     paymentApproveStatus = PaymentApproveStatus.REQUESTED,
                                     description = "Contribution for $contributionSelectedMonthYear.",
                                     squadId = gf.squadID,
+                                    order_id = contributionID,
                                     contributionId = contributionID,
                                     loanId = "",
                                     installmentId = "",
                                     paymentResponseMessage = "Pending admin verification.",
-                                    transferReferenceId = contributionID,
+                                    transferReferenceId = contributionID.split("-").lastOrNull() ?: "",
                                     upiID = gf.upiID
                                 )
 
@@ -379,11 +380,12 @@ fun MemberPaymentView(
                                     paymentApproveStatus = PaymentApproveStatus.REQUESTED,
                                     description = "EMI and Interest - ${selectedInstallment?.installmentNumber ?: ""} for #${loan?.loanNumber ?: "N/A"} ${total.currencyFormattedWithCommas()}",
                                     squadId = gf.squadID,
+                                    order_id = "${selectedInstallment?.installmentNumber ?: ""} - ${loan?.loanNumber ?: "N/A"}",
                                     contributionId = "",
                                     loanId = loanId,
                                     installmentId = installId,
                                     paymentResponseMessage = "Pending admin verification.",
-                                    transferReferenceId = "${selectedInstallment?.installmentNumber ?: ""} - ${loan?.loanNumber ?: "N/A"}",
+                                    transferReferenceId = "${selectedInstallment?.installmentNumber ?: ""} for #${loan?.loanNumber ?: "N/A"}",
                                     upiID = squad!!.upiID
                                 )
 
@@ -593,37 +595,26 @@ private fun ContributionButton(upiID: String, onClick: () -> Unit) {
         } else {
 
             Column(
-
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-
-                modifier = Modifier.padding(horizontal = 16.dp)
-
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
 
                 Text(
-
                     text = "Payment will be sent to",
-
                     style = AppFont.ibmPlexSans(12, FontWeight.Normal),
-
-                    color = AppColors.secondaryText
-
+                    color = AppColors.secondaryText,
+                    textAlign = TextAlign.Center
                 )
 
                 Text(
-
                     text = upiID,
-
                     style = AppFont.ibmPlexSans(13, FontWeight.Medium),
-
                     color = AppColors.successAccent,
-
                     textAlign = TextAlign.Center
-
                 )
-
             }
 
         }

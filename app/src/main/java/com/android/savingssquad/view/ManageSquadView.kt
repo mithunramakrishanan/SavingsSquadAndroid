@@ -311,6 +311,7 @@ private fun saveChanges(
                     squadViewModel.createSquadActivity(
                         activityType = com.android.savingssquad.singleton.SquadActivityType.OTHER_ACTIVITY,
                         userName = "SQUAD MANAGER",
+                        memberId = "",
                         amount = 0,
                         description = description
                     ) {

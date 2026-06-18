@@ -30,6 +30,7 @@ import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.firestore
 import com.google.firebase.messaging.FirebaseMessaging
@@ -782,52 +783,45 @@ class FirestoreManager private constructor() {
     // MARK: - 🔹 Fetch Payments
     fun fetchPayments(
         squadID: String,
-        completion: (List<PaymentsDetails>?, String?) -> Unit
+        memberId: String? = null,
+        lastDocument: DocumentSnapshot? = null,
+        limit: Int,
+        completion: (List<PaymentsDetails>?, DocumentSnapshot?, String?) -> Unit
     ) {
-        val paymentsRef = db.collection("squads")
+
+        var query: Query = FirebaseFirestore.getInstance()
+            .collection("squads")
             .document(squadID)
             .collection("payments")
             .orderBy("recordDate", Query.Direction.DESCENDING)
+            .limit(limit.toLong())
 
-        paymentsRef.get()
+        if (!memberId.isNullOrEmpty()) {
+            query = query.whereEqualTo("memberId", memberId)
+        }
+
+        if (lastDocument != null) {
+            query = query.startAfter(lastDocument)
+        }
+
+        query.get()
             .addOnSuccessListener { snapshot ->
-                if (snapshot == null || snapshot.isEmpty) {
-                    completion(null, "❌  records found.")
-                    return@addOnSuccessListener
+
+                val payments = snapshot.documents.mapNotNull {
+                    it.toObject(PaymentsDetails::class.java)
                 }
 
-                val payments = snapshot.documents.mapNotNull { doc ->
-                    try {
-                        // Try normal Firestore decoding
-                        val payment = doc.toObject(PaymentsDetails::class.java)
-
-                        // Extra safety: ensure payoutStatus is valid (handles cases like PAYOUT_SUCCESS)
-                        payment?.payoutStatus = PayoutStatus.fromValue(payment?.payoutStatus?.value)
-
-                        payment
-                    } catch (e: Exception) {
-                        println("❌ Decoding error for ${doc.id}: ${e.localizedMessage}")
-
-                        // Try fallback manual mapping if enum decoding fails
-                        try {
-                            val rawMap = doc.data ?: return@mapNotNull null
-                            val payoutStatusStr = rawMap["payoutStatus"] as? String
-                            val payment = doc.toObject(PaymentsDetails::class.java)
-                            payment?.payoutStatus = PayoutStatus.fromValue(payoutStatusStr)
-                            payment
-                        } catch (inner: Exception) {
-                            println("⚠️ Fallback mapping failed for ${doc.id}: ${inner.localizedMessage}")
-                            null
-                        }
-                    }
-                }
-
-                completion(payments, null)
+                completion(
+                    payments,
+                    snapshot.documents.lastOrNull(),
+                    null
+                )
             }
-            .addOnFailureListener { e ->
-                completion(null, "❌ Error fetching payments: ${e.localizedMessage}")
+            .addOnFailureListener {
+                completion(null, null, it.localizedMessage)
             }
     }
+
     // MARK: - 🔹 Observe Payments (Realtime)
     fun observePayments(squadID: String, completion: (List<PaymentsDetails>?, String?) -> Unit) {
         val paymentsRef = db.collection("squads")
@@ -1518,36 +1512,67 @@ class FirestoreManager private constructor() {
             }
     }
 
-    // MARK: - Fetch All Squad Activities
     fun fetchSquadActivities(
         squadID: String,
-        completion: (List<SquadActivity>?, String?) -> Unit
+        memberId: String? = null,
+        lastDocument: DocumentSnapshot? = null,
+        limit: Int = 20,
+        completion: (
+            List<SquadActivity>?,
+            DocumentSnapshot?,
+            String?
+        ) -> Unit
     ) {
-        val activitiesRef = db.collection("squads")
+
+        var query: Query = db.collection("squads")
             .document(squadID)
             .collection("activities")
             .orderBy("recordDate", Query.Direction.DESCENDING)
+            .limit(limit.toLong())
 
-        activitiesRef.get()
+        if (!memberId.isNullOrEmpty()) {
+
+            query = query.whereEqualTo(
+                "memberId",
+                memberId
+            )
+        }
+
+        if (lastDocument != null) {
+
+            query = query.startAfter(
+                lastDocument
+            )
+        }
+
+        query.get()
             .addOnSuccessListener { snapshot ->
-                val documents = snapshot.documents
-                if (documents.isEmpty()) {
-                    completion(emptyList(), null)
-                    return@addOnSuccessListener
-                }
 
-                try {
-                    val activities = documents.mapNotNull { doc ->
-                        val activity = doc.toObject(SquadActivity::class.java)
-                        activity?.copy(id = doc.id)
+                val activities =
+                    snapshot.documents.mapNotNull { doc ->
+
+                        try {
+                            doc.toObject(
+                                SquadActivity::class.java
+                            )
+                        } catch (e: Exception) {
+                            null
+                        }
                     }
-                    completion(activities, null)
-                } catch (e: Exception) {
-                    completion(null, "❌ Decoding error: ${e.localizedMessage}")
-                }
+
+                completion(
+                    activities,
+                    snapshot.documents.lastOrNull(),
+                    null
+                )
             }
-            .addOnFailureListener { e ->
-                completion(null, "❌ Error fetching activities: ${e.localizedMessage}")
+            .addOnFailureListener { error ->
+
+                completion(
+                    null,
+                    null,
+                    error.localizedMessage
+                )
             }
     }
 

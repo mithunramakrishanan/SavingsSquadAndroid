@@ -1,5 +1,6 @@
 package com.android.savingssquad.view
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -32,6 +33,7 @@ import android.app.Activity
 import android.content.Context
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.filled.CurrencyRupee
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.TextButton
@@ -63,6 +65,7 @@ import com.google.firebase.auth.PhoneAuthOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+@SuppressLint("StateFlowValueCalledInComposition")
 @Composable
 fun PaymentConfirmationView(
     navController: NavController,
@@ -73,8 +76,8 @@ fun PaymentConfirmationView(
     var payment by remember { mutableStateOf<PaymentsDetails?>(null) }
     var isLoading by remember { mutableStateOf(false) }
 
-    val activity = LocalContext.current as Activity
     val context = LocalContext.current
+    val activity = LocalContext.current as Activity
 
     LaunchedEffect(Unit) {
         payment = UserDefaultsManager.getPendingPayment()
@@ -92,7 +95,7 @@ fun PaymentConfirmationView(
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // ✅ Background (iOS match)
+        // ================= BACKGROUND =================
         AppBackgroundGradient()
 
         Column(
@@ -102,26 +105,33 @@ fun PaymentConfirmationView(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // ---------------- HERO ----------------
+            // ================= HERO =================
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
 
-                Icon(
-                    imageVector = Icons.Default.CurrencyRupee,
+                Image(
+                    painter = painterResource(id = R.drawable.payment_confirmation),
                     contentDescription = null,
-                    modifier = Modifier.size(90.dp),
-                    tint = AppColors.successAccent
+                    modifier = Modifier.size(90.dp)
                 )
-
-                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = paymentTitle(payment!!.paymentSubType),
                     style = AppFont.ibmPlexSans(22, FontWeight.Bold),
                     color = AppColors.headerText
+                )
+
+                Text(
+                    text = payment!!.transferReferenceId,
+                    style = AppFont.ibmPlexSans(13, FontWeight.Medium),
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    modifier = Modifier.padding(horizontal = 12.dp)
                 )
 
                 Text(
@@ -133,14 +143,14 @@ fun PaymentConfirmationView(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // ---------------- GLASS CARD ----------------
+            // ================= GLASS CARD =================
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(
+                            listOf(
                                 Color.White.copy(alpha = 0.35f),
                                 Color.White.copy(alpha = 0.15f)
                             )
@@ -166,34 +176,29 @@ fun PaymentConfirmationView(
 
                 Text(
                     text = "₹${payment!!.amount}",
-                    style = AppFont.ibmPlexSans(32, FontWeight.Bold),
+                    style = AppFont.ibmPlexSans(34, FontWeight.Bold),
                     color = AppColors.successAccent
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
+
                 Divider()
+
                 Spacer(modifier = Modifier.height(14.dp))
 
+                // ================= INFO ROWS =================
                 InfoRow("Member", payment!!.memberName)
                 InfoRow("Reference", payment!!.transferReferenceId)
                 InfoRow("Type", paymentTitle(payment!!.paymentSubType))
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // ✅ iOS-like 2-line behavior
-                Text(
-                    text = infoMessage(payment!!.paymentSubType),
-                    style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                    color = Color.Gray,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // ================= INFO BANNER =================
+                InfoBanner(infoMessage(payment!!.paymentSubType))
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // ---------------- BUTTON ----------------
+                // ================= BUTTONS =================
                 SSButton(
                     isButtonLoading = isLoading,
                     title = "I Completed Payment"
@@ -203,6 +208,7 @@ fun PaymentConfirmationView(
                     loaderManager.showLoader()
 
                     squadViewModel.savePayments(
+                        showUPIIntent = false,
                         activity = activity,
                         context = context,
                         squadID = squadViewModel.squad.value?.squadID ?: "",
@@ -214,15 +220,7 @@ fun PaymentConfirmationView(
 
                         if (success) {
                             UserDefaultsManager.clearPendingPayment()
-
-                            AlertManager.shared.showAlert(
-                                title = SquadStrings.appName,
-                                message = "Payment updated successfully",
-                                primaryButtonTitle = "OK",
-                                primaryAction = {
-                                    navController.popBackStack()
-                                }
-                            )
+                            navController.popBackStack()
                         } else {
                             AlertManager.shared.showAlert(
                                 title = SquadStrings.appName,
@@ -234,20 +232,30 @@ fun PaymentConfirmationView(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // ---------------- CANCEL ----------------
-                Text(
-                    text = "Payment Not Made",
-                    style = AppFont.ibmPlexSans(15, FontWeight.SemiBold),
-                    color = Color.Red,
-                    textAlign = TextAlign.Center,
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.White.copy(alpha = 0.12f))
+                        .border(
+                            width = 1.dp,
+                            color = Color.Red.copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(14.dp)
+                        )
                         .clickable {
                             UserDefaultsManager.clearPendingPayment()
                             navController.popBackStack()
                         }
-                        .padding(12.dp)
-                )
+                        .padding(vertical = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+
+                    Text(
+                        text = "Payment Not Made",
+                        style = AppFont.ibmPlexSans(15, FontWeight.SemiBold),
+                        color = Color.Red
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.weight(1f))
@@ -259,17 +267,49 @@ fun PaymentConfirmationView(
 }
 
 @Composable
-fun InfoRow(
-    title: String,
-    value: String
-) {
+fun InfoBanner(message: String) {
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White.copy(alpha = 0.25f))
+            .border(
+                1.dp,
+                Color.White.copy(alpha = 0.4f),
+                RoundedCornerShape(14.dp)
+            )
+            .padding(14.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+
+        Icon(
+            imageVector = Icons.Default.Info,
+            contentDescription = null,
+            tint = AppColors.successAccent,
+            modifier = Modifier.size(18.dp)
+        )
+
+        Text(
+            text = message,
+            style = AppFont.ibmPlexSans(13, FontWeight.Medium),
+            color = Color.Gray,
+            maxLines = 2
+        )
+    }
+}
+
+@Composable
+fun InfoRow(title: String, value: String) {
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
+
         Text(
             text = title,
             style = AppFont.ibmPlexSans(13, FontWeight.Medium),

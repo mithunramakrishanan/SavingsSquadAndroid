@@ -95,9 +95,30 @@ class SquadViewModel : ViewModel() {
     val squadActivities: StateFlow<List<SquadActivity>> = _squadActivities
     fun setSquadActivities(list: List<SquadActivity>) { _squadActivities.value = list }
 
+    var isLoadingMoreActivities by mutableStateOf(false)
+
+        private set
+
+    private var activitiesLastDocument: DocumentSnapshot? = null
+
+    private var activitiesIsLoadingMore = false
+
+    private var activitiesHasMoreData = true
+
+    private val activitiesPageSize = 20
+
     private val _squadPayments = MutableStateFlow<List<PaymentsDetails>>(emptyList())
     val squadPayments: StateFlow<List<PaymentsDetails>> = _squadPayments
     fun setSquadPayments(list: List<PaymentsDetails>) { _squadPayments.value = list }
+
+    private var paymentsLastDocument: DocumentSnapshot? = null
+
+    var paymentsIsLoadingMore: Boolean = false
+
+    private var paymentsHasMoreData: Boolean = true
+
+    private val paymentsPageSize: Int = 20
+
 
     private val _remainingMonths = MutableStateFlow(0)
     val remainingMonths: StateFlow<Int> = _remainingMonths
@@ -458,13 +479,23 @@ class SquadViewModel : ViewModel() {
                     val fetchEMI = async { fetchEMIConfigurations(true) { _, _ -> } }
                     val fetchMembers = async { fetchMembers(false) { _, _, _ -> } }
                     val fetchPayments = async {
-                        manager.fetchPayments(squadID) { fetchedPayments, err ->
+                        manager.fetchPayments(
+
+                            squadID = squadID,
+
+                            memberId = null,
+
+                            lastDocument = null,
+
+                            limit = paymentsPageSize
+
+                        ) { fetchedPayments, lastDoc, error ->
                             viewModelScope.launch(Dispatchers.IO) {
                                 if (fetchedPayments != null) {
                                     _squadPayments.value = fetchedPayments
                                     _isFetchingTotalAmountCollected.value = false
                                 } else {
-                                    val errorMsg = err ?: "❌ Failed to fetch payments"
+                                    val errorMsg = error ?: "❌ Failed to fetch payments"
                                     println(errorMsg)
                                 }
                             }
@@ -826,6 +857,7 @@ class SquadViewModel : ViewModel() {
                     createSquadActivity(
                         activityType = SquadActivityType.OTHER_ACTIVITY,
                         userName = "SQUAD MANAGER",
+                        memberId = "",
                         amount = 0,
                         description = "Added a new member ${member.name} to the squad"
                     ) {}
@@ -1049,35 +1081,140 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-    fun fetchSquadActivities(showLoader: Boolean = true, squadID: String) {
+    fun fetchSquadActivities(
+        squadID: String,
+        memberId: String? = null,
+        showLoader: Boolean = true,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
         if (!CommonFunctions.isInternetAvailable()) {
+
             LoaderManager.shared.hideLoader()
-            AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
-                message = SquadStrings.networkError,
-                primaryButtonTitle = SquadStrings.ok,
-                primaryAction = {}
-            )
+
+            completion(false, SquadStrings.networkError)
+
             return
         }
 
-        if (showLoader) LoaderManager.shared.showLoader()
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
 
-        manager.fetchSquadActivities(squadID) { activities, error ->
+        activitiesIsLoadingMore = true
+        isLoadingMoreActivities = true
+
+        manager.fetchSquadActivities(
+            squadID = squadID,
+            memberId = memberId,
+            lastDocument = null,
+            limit = activitiesPageSize
+        ) { activities, lastDocument, error ->
+
             MainScope().launch {
-                if (showLoader) LoaderManager.shared.hideLoader()
+
+                LoaderManager.shared.hideLoader()
+
+                activitiesIsLoadingMore = false
+                isLoadingMoreActivities = false
 
                 if (activities != null) {
+
                     _squadActivities.value = activities
+
+                    activitiesLastDocument = lastDocument
+
+                    activitiesHasMoreData =
+                        activities.size == activitiesPageSize
+
+                    completion(true, null)
+
                 } else {
-                    val errorMsg = error ?: "Unknown error"
-                    println("❌ Error fetching squad activities: $errorMsg")
-                    handleFetchError(errorMsg) {
-                        fetchSquadActivities(showLoader, squadID)
-                    }
+
+                    completion(
+                        false,
+                        error ?: "Failed to fetch activities"
+                    )
                 }
             }
         }
+    }
+
+    fun resetActivitiesPagination() {
+
+        _squadActivities.value = emptyList()
+
+        activitiesLastDocument = null
+
+        activitiesHasMoreData = true
+
+        activitiesIsLoadingMore = false
+
+        isLoadingMoreActivities = false
+    }
+
+    fun loadMoreActivities(
+        squadID: String,
+        memberId: String? = null
+    ) {
+
+        if (!activitiesHasMoreData) return
+
+        if (activitiesIsLoadingMore) return
+
+        val lastDocument = activitiesLastDocument ?: return
+
+        activitiesIsLoadingMore = true
+        isLoadingMoreActivities = true
+
+        manager.fetchSquadActivities(
+            squadID = squadID,
+            memberId = memberId,
+            lastDocument = lastDocument,
+            limit = activitiesPageSize
+        ) { activities, newLastDocument, _ ->
+
+            MainScope().launch {
+
+                activitiesIsLoadingMore = false
+                isLoadingMoreActivities = false
+
+                if (activities != null) {
+
+                    val updated =
+                        _squadActivities.value.toMutableList()
+
+                    updated.addAll(activities)
+
+                    _squadActivities.value = updated
+
+                    activitiesLastDocument = newLastDocument
+
+                    activitiesHasMoreData =
+                        activities.size == activitiesPageSize
+                }
+            }
+        }
+    }
+
+    fun loadMoreActivitiesIfNeeded(
+        currentActivity: SquadActivity,
+        squadID: String,
+        memberId: String? = null
+    ) {
+
+        val lastActivity =
+            _squadActivities.value.lastOrNull()
+                ?: return
+
+        if (currentActivity.id != lastActivity.id) {
+            return
+        }
+
+        loadMoreActivities(
+            squadID = squadID,
+            memberId = memberId
+        )
     }
 
     fun deleteSquadActivity(showLoader: Boolean = true, activityID: String) {
@@ -1430,6 +1567,7 @@ class SquadViewModel : ViewModel() {
     fun savePayments(
         activity: Activity,
         context: Context,
+        showUPIIntent: Boolean = true,
         showLoader: Boolean = true,
         squadID: String,
         payment: List<PaymentsDetails>,
@@ -1449,7 +1587,7 @@ class SquadViewModel : ViewModel() {
         val firstPayment = payment.firstOrNull()
 
         if (firstPayment != null &&
-            firstPayment.paymentApproveStatus != PaymentApproveStatus.ACCEPTED
+            firstPayment.paymentApproveStatus != PaymentApproveStatus.ACCEPTED && showUPIIntent
         ) {
 
             // Save pending payment
@@ -1498,7 +1636,7 @@ class SquadViewModel : ViewModel() {
                 val errorMsg = error ?: "❌ Failed to add payment"
                 println(errorMsg)
                 handleFetchError(errorMsg) {
-                    savePayments(activity,context,showLoader, squadID, payment, completion)
+                    savePayments(activity,context,showUPIIntent, showLoader, squadID, payment, completion)
                 }
                 completion(false, errorMsg)
                 return@savePayments
@@ -2053,6 +2191,7 @@ class SquadViewModel : ViewModel() {
                                 createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_EDIT,
                                     userName = "SQUAD MANAGER",
+                                    memberId = memberID,
                                     amount = amount,
                                     description = "Manager updated member contribution ${currentMember.value?.totalContributionPaid ?: 0} to $amount"                                ) {
 
@@ -2066,6 +2205,7 @@ class SquadViewModel : ViewModel() {
                                 createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_EDIT,
                                     userName = "SQUAD MANAGER",
+                                    memberId = memberID,
                                     amount = amount,
                                     description = "Manager updated member loan borrowed ${currentMember.value?.totalLoanBorrowed ?: 0} to $amount"                                ) {
 
@@ -2079,6 +2219,7 @@ class SquadViewModel : ViewModel() {
                                 createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_EDIT,
                                     userName = "SQUAD MANAGER",
+                                    memberId = memberID,
                                     amount = amount,
                                     description = "Manager updated member loan paid ${currentMember.value?.totalLoanPaid ?: 0} to $amount"                                ) {
 
@@ -2092,6 +2233,7 @@ class SquadViewModel : ViewModel() {
                                 createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_EDIT,
                                     userName = "SQUAD MANAGER",
+                                    memberId = memberID,
                                     amount = amount,
                                     description = "Manager updated member pain interest ${currentMember.value?.totalInterestPaid ?: 0} to $amount"                                ) {
 
@@ -2131,37 +2273,102 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-    fun fetchPayments(showLoader: Boolean, completion: (Boolean, String?) -> Unit) {
+    fun fetchPayments(
+        showLoader: Boolean,
+        memberId: String? = null,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
         if (!CommonFunctions.isInternetAvailable()) {
             LoaderManager.shared.hideLoader()
-            AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
-                message = SquadStrings.networkError,
-                primaryButtonTitle = SquadStrings.ok,
-                primaryAction = {}
-            )
+            completion(false, "No Internet")
             return
         }
 
         if (showLoader) LoaderManager.shared.showLoader()
 
-        manager.fetchPayments(squadID) { fetchedPayments, error ->
-            MainScope().launch {
-                if (showLoader) LoaderManager.shared.hideLoader()
+        paymentsIsLoadingMore = true
 
-                if (fetchedPayments != null) {
-                    _squadPayments.value = fetchedPayments.toMutableList()
-                    completion(true, null)
-                } else {
-                    val errorMsg = error ?: "❌ Failed to fetch payments"
-                    println(errorMsg)
-//                    handleFetchError(errorMsg) {
-//                        fetchPayments(showLoader, completion)
-//                    }
-                    completion(false, errorMsg)
-                }
+        manager.fetchPayments(
+            squadID = squadID,
+            memberId = memberId,
+            lastDocument = null,
+            limit = paymentsPageSize
+        ) { payments, lastDoc, error ->
+
+            paymentsIsLoadingMore = false
+            LoaderManager.shared.hideLoader()
+
+            if (payments != null) {
+
+                setSquadPayments(payments)
+
+                paymentsLastDocument = lastDoc
+
+                paymentsHasMoreData =
+                    payments.size == paymentsPageSize
+
+                completion(true, null)
+
+            } else {
+
+                completion(false, error ?: "Failed to fetch payments")
             }
         }
+    }
+
+    fun resetPaymentsPagination() {
+
+        setSquadPayments(emptyList())
+
+        paymentsLastDocument = null
+
+        paymentsHasMoreData = true
+
+        paymentsIsLoadingMore = false
+    }
+
+    fun loadMorePayments(memberId: String? = null) {
+
+        if (paymentsIsLoadingMore) return
+        if (!paymentsHasMoreData) return
+        val last = paymentsLastDocument ?: return
+
+        paymentsIsLoadingMore = true
+
+        manager.fetchPayments(
+            squadID = squadID,
+            memberId = memberId,
+            lastDocument = last,
+            limit = paymentsPageSize
+        ) { payments, newLastDoc, _ ->
+
+            paymentsIsLoadingMore = false
+
+            if (payments != null) {
+
+                val current = squadPayments.value.toMutableList()
+                current.addAll(payments)
+                setSquadPayments(current)
+
+                paymentsLastDocument = newLastDoc
+
+                paymentsHasMoreData =
+                    payments.size == paymentsPageSize
+            }
+        }
+    }
+
+    fun loadMorePaymentsIfNeeded(
+        currentPayment: PaymentsDetails,
+        memberId: String? = null
+    ) {
+
+        val last = squadPayments.value.lastOrNull() ?: return
+
+        if (currentPayment.id != last.id) return
+
+        loadMorePayments(memberId)
     }
 
     fun observePayments() {
@@ -2630,6 +2837,7 @@ class SquadViewModel : ViewModel() {
     fun createSquadActivity(
         activityType: SquadActivityType,
         userName: String,
+        memberId : String,
         amount: Int,
         description: String,
         alertOK: (() -> Unit)? = null
@@ -2642,6 +2850,7 @@ class SquadViewModel : ViewModel() {
         val activity = SquadActivity(
             squadID = squad.squadID,
             squadName = squad.squadName,
+            memberId = memberId,
             date = Timestamp.now(),
             activityType = activityType,
             userName = userName,
@@ -2661,7 +2870,7 @@ class SquadViewModel : ViewModel() {
                     )
                 } else {
                     handleFetchError(error ?: "Unknown error") {
-                        createSquadActivity(activityType, userName, amount, description, alertOK)
+                        createSquadActivity(activityType, userName, memberId ,amount, description, alertOK)
                     }
                 }
             }
