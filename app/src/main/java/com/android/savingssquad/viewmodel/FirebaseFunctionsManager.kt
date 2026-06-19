@@ -665,38 +665,6 @@ class FirebaseFunctionsManager private constructor() {
             }
     }
 
-    fun updateUPIIds(
-        squadId: String,
-        memberId: String?,
-        name: String,
-        upiId: String,
-        completion: (Boolean, String?, Exception?) -> Unit
-    ) {
-        if (!CommonFunctions.isInternetAvailable()) {
-            completion(false, null, Exception("No Internet Connection"))
-            return
-        }
-
-        val data = mutableMapOf<String, Any>(
-            "squadId" to squadId,
-            "name" to name,
-            "vpa" to upiId,
-            "memberId" to (memberId ?: "")
-        )
-
-
-        functions
-            .getHttpsCallable("updateUPIID")
-            .call(data)
-            .addOnSuccessListener { result ->
-                val res = result.data as? Map<*, *>
-                val upi = res?.get("upi") as? String
-                completion(true, upi, null)
-            }
-            .addOnFailureListener { e ->
-                completion(false, null, e)
-            }
-    }
 
     fun retryUPIPayment(
         squadId: String,

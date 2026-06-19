@@ -263,16 +263,21 @@ fun MemberPaymentView(
                                 ) { success, error ->
                                     if (success) {
                                         println("✅ Payment added successfully!")
-                                        LoaderManager.shared.hideLoader()
-                                        AlertManager.shared.showAlert(
-                                            title = SquadStrings.appName,
-                                            message = "Payment updated. Pending admin verification.",
-                                            primaryButtonTitle = "OK",
-                                            primaryAction = {
 
-                                                contributionSelectedMonthYear = ""
-                                            }
-                                        )
+                                        if (error == "UPI_OPENED") {
+                                            contributionSelectedMonthYear = ""
+                                        }
+
+//                                        LoaderManager.shared.hideLoader()
+//                                        AlertManager.shared.showAlert(
+//                                            title = SquadStrings.appName,
+//                                            message = "Payment updated. Pending admin verification.",
+//                                            primaryButtonTitle = "OK",
+//                                            primaryAction = {
+//
+//                                                contributionSelectedMonthYear = ""
+//                                            }
+//                                        )
 
                                     } else {
                                         println("❌ Error adding payment: $error")
@@ -399,16 +404,22 @@ fun MemberPaymentView(
                                 ) { success, error ->
                                     if (success) {
                                         println("✅ Payment added successfully!")
-                                        LoaderManager.shared.hideLoader()
-                                        AlertManager.shared.showAlert(
-                                            title = SquadStrings.appName,
-                                            message = "Payment updated. Pending admin verification.",
-                                            primaryButtonTitle = "OK",
-                                            primaryAction = {
-                                                selectedInstallment = null
-                                                emiSelectedMonthYear = ""
-                                            }
-                                        )
+
+                                        if (error == "UPI_OPENED") {
+                                            selectedInstallment = null
+                                            emiSelectedMonthYear = ""
+                                        }
+
+//                                        LoaderManager.shared.hideLoader()
+//                                        AlertManager.shared.showAlert(
+//                                            title = SquadStrings.appName,
+//                                            message = "Payment updated. Pending admin verification.",
+//                                            primaryButtonTitle = "OK",
+//                                            primaryAction = {
+//                                                selectedInstallment = null
+//                                                emiSelectedMonthYear = ""
+//                                            }
+//                                        )
 
                                     } else {
                                         println("❌ Error adding payment: $error")

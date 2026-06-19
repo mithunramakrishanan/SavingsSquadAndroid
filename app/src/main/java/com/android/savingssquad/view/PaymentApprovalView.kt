@@ -95,61 +95,55 @@ fun PaymentApprovalView(
 
     var selectedUser by remember { mutableStateOf("All") }
 
-    val userList = remember(
-        squadViewModel.squadMembers.value
-    ) {
-        listOf("All") +
-                squadViewModel.squadMembers.value
-                    .map { it.name }
-                    .distinct()
-    }
-
     val screenType =
         if (UserDefaultsManager.getSquadManagerLogged())
             SquadUserType.SQUAD_MANAGER
         else
             SquadUserType.SQUAD_MEMBER
 
+    val squadMembers by squadViewModel.squadMembers.collectAsStateWithLifecycle()
     val pendingPayments by squadViewModel.pendingApprovalPayments.collectAsStateWithLifecycle()
 
-
-    val pendingApprovals = pendingPayments.filter {
-
-        if (screenType == SquadUserType.SQUAD_MANAGER) {
-            it.paymentApproveStatus == PaymentApproveStatus.REQUESTED && it.paymentType == PaymentType.PAYMENT_CREDIT
-        }
-        else {
-            it.paymentApproveStatus == PaymentApproveStatus.REQUESTED && it.paymentType == PaymentType.PAYMENT_DEBIT
-        }
-
-
-    }.let { list ->
-
-        if (screenType == SquadUserType.SQUAD_MANAGER) {
-            if (selectedUser == "All") list
-            else list.filter { it.memberName == selectedUser }
-        }
-        else {
-            list.filter { it.memberId == squadViewModel.currentMember.value!!.id }
-        }
-
-
+    val userList = remember(squadMembers) {
+        listOf("All") + squadMembers.map { it.name }.distinct()
     }
+
+    // ❌ NO FILTERING HERE (Firestore already does it)
+    val pendingApprovals = pendingPayments
 
     LaunchedEffect(Unit) {
+
         UserDefaultsManager.saveIsFromnotification(false)
-        squadViewModel.fetchPendingApprovalPayments { _, _ -> }
+
+        val memberId =
+            if (screenType == SquadUserType.SQUAD_MEMBER)
+                squadViewModel.currentMember.value?.id
+            else null
+
+        squadViewModel.fetchPendingApprovalPayments(
+
+            showLoader = true,
+
+            screenType = screenType,
+
+            memberId = memberId
+
+        ) { success, error ->
+
+            if (!success) {
+
+                println("Error: $error")
+
+            }
+
+        }
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
 
         AppBackgroundGradient()
 
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
 
             SSNavigationBar(
                 title = "Verify Payments",
@@ -158,21 +152,45 @@ fun PaymentApprovalView(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            DropdownMenuPicker(
-                label = "",
-                selected = selectedUser,
-                items = userList
-            ) {
-                selectedUser = it
-            }
+            // Manager only dropdown (UI only, NOT filtering)
+            if (screenType == SquadUserType.SQUAD_MANAGER) {
+                DropdownMenuPicker(
+                    label = "",
+                    selected = selectedUser,
+                    items = userList
+                ) {
+                    selectedUser = it
 
-            Spacer(modifier = Modifier.height(12.dp))
+                    val memberId = if (it == "All") null else {
+                        squadMembers.firstOrNull { m -> m.name == it }?.id
+                    }
+
+                    squadViewModel.fetchPendingApprovalPayments(
+
+                        showLoader = true,
+
+                        screenType = screenType,
+
+                        memberId = memberId
+
+                    ) { success, error ->
+
+                        if (!success) {
+
+                            println("Error: $error")
+
+                        }
+
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             if (pendingApprovals.isEmpty()) {
 
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -188,13 +206,11 @@ fun PaymentApprovalView(
 
                     Text(
                         text = "No Payments Pending Verification",
-                        style = AppFont.ibmPlexSans(
-                            15,
-                            FontWeight.Medium
-                        ),
+                        style = AppFont.ibmPlexSans(15, FontWeight.Medium),
                         color = AppColors.secondaryText
                     )
                 }
+
             } else {
 
                 LazyColumn(
@@ -219,15 +235,31 @@ fun PaymentApprovalView(
                                     squadID = payment.squadId,
                                     paymentID = payment.id ?: "",
                                     status = PaymentApproveStatus.ACCEPTED
-                                ) { success, error ->
+                                ) { success, _ ->
 
                                     if (success) {
 
-                                        AlertManager.shared.showAlert(
-                                            title = SquadStrings.appName,
-                                            message = "Payment verified successfully",
-                                            primaryButtonTitle = "OK"
-                                        ) {}
+                                        val memberId =
+                                            if (screenType == SquadUserType.SQUAD_MEMBER)
+                                                squadViewModel.currentMember.value?.id
+                                            else null
+                                        squadViewModel.fetchPendingApprovalPayments(
+
+                                            showLoader = true,
+
+                                            screenType = screenType,
+
+                                            memberId = memberId
+
+                                        ) { success, error ->
+
+                                            if (!success) {
+
+                                                println("Error: $error")
+
+                                            }
+
+                                        }
                                     }
                                 }
                             },
@@ -237,15 +269,32 @@ fun PaymentApprovalView(
                                     squadID = payment.squadId,
                                     paymentID = payment.id ?: "",
                                     status = PaymentApproveStatus.REJECTED
-                                ) { success, error ->
+                                ) { success, _ ->
 
                                     if (success) {
 
-                                        AlertManager.shared.showAlert(
-                                            title = SquadStrings.appName,
-                                            message = "Payment rejected successfully",
-                                            primaryButtonTitle = "OK"
-                                        ) {}
+                                        val memberId =
+                                            if (screenType == SquadUserType.SQUAD_MEMBER)
+                                                squadViewModel.currentMember.value?.id
+                                            else null
+
+                                        squadViewModel.fetchPendingApprovalPayments(
+
+                                            showLoader = true,
+
+                                            screenType = screenType,
+
+                                            memberId = memberId
+
+                                        ) { success, error ->
+
+                                            if (!success) {
+
+                                                println("Error: $error")
+
+                                            }
+
+                                        }
                                     }
                                 }
                             }

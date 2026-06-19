@@ -431,14 +431,20 @@ private fun makeLoanPayment(
             ) { success, error ->
                 if (success) {
                     println("✅ Payment added successfully!")
-                    LoaderManager.shared.hideLoader()
-                    AlertManager.shared.showAlert(
-                        title = SquadStrings.appName,
-                        message = "Payment updated. Pending member verification.",
-                        primaryButtonTitle = "OK",
-                        primaryAction = {
-                        }
-                    )
+
+                    if (error == "UPI_OPENED") {
+                        handler()
+                    }
+
+
+//                    LoaderManager.shared.hideLoader()
+//                    AlertManager.shared.showAlert(
+//                        title = SquadStrings.appName,
+//                        message = "Payment updated. Pending member verification.",
+//                        primaryButtonTitle = "OK",
+//                        primaryAction = {
+//                        }
+//                    )
 
                 } else {
                     println("❌ Error adding payment: $error")

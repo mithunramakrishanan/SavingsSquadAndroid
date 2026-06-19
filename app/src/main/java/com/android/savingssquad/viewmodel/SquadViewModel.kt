@@ -23,8 +23,6 @@ import com.android.savingssquad.model.pendingInstallments
 import com.android.savingssquad.model.pendingLoans
 import com.android.savingssquad.singleton.AlertType
 import com.android.savingssquad.singleton.AmountEditType
-import com.android.savingssquad.singleton.AppContext
-import com.android.savingssquad.singleton.CashfreePaymentAction
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadUserType
@@ -41,10 +39,6 @@ import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.RazorpayPaymentAction
 import com.android.savingssquad.singleton.UPIPaymentManager
 import com.android.savingssquad.singleton.UPIPaymentStatus
-import com.android.savingssquad.view.MemberTabView
-import com.android.savingssquad.view.ManagerTabView
-import com.google.android.gms.tasks.Task
-import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.*
 import com.google.firebase.Timestamp
 import com.yourapp.utils.CommonFunctions
@@ -52,14 +46,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.Date
-import kotlin.coroutines.resume
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.forEach
-import kotlinx.coroutines.flow.map
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.Calendar
@@ -1604,6 +1594,7 @@ class SquadViewModel : ViewModel() {
                 completion = { initiated ->
                     println("Initiated: $initiated")
                     UserDefaultsManager.savePendingPayment(firstPayment)
+                    completion(true, "UPI_OPENED")
                 },
                 onReturn = { status ->
                     when (status) {
@@ -1655,7 +1646,7 @@ class SquadViewModel : ViewModel() {
                         squadID = payment.squadId,
                         memberID = payment.memberId,
                         contributionID = payment.contributionId,
-                        newStatus = PaidStatus.IN_VERIFICATION.value
+                        newStatus = PaidStatus.INVERIFICATION.value
                     ) { success, error ->
 
                         // handle response if needed
@@ -2013,46 +2004,60 @@ class SquadViewModel : ViewModel() {
     }
 
     fun fetchPendingApprovalPayments(
+
         showLoader: Boolean = true,
+
+        screenType: SquadUserType,
+
+        memberId: String? = null,
+
         completion: (Boolean, String?) -> Unit
+
     ) {
 
-        val squadID = squadID
-        if (squadID == null) {
+        val squadID = squad.value?.squadID ?: run {
+
             completion(false, "Squad not found")
+
             return
+
         }
 
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
-            AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
-                message = SquadStrings.networkError
-            )
-            completion(false, "No internet connection")
+
+            completion(false, "No internet")
+
             return
+
         }
 
         if (showLoader) LoaderManager.shared.showLoader()
 
-        manager.fetchPendingApprovalPayments(squadID) { payments, error ->
+        manager.fetchPendingApprovals(
 
-            if (showLoader) LoaderManager.shared.hideLoader()
+            squadID = squadID,
+
+            screenType = screenType,
+
+            memberId = memberId
+
+        ) { list, error ->
+
+            LoaderManager.shared.hideLoader()
 
             if (error != null) {
 
-                handleFetchError(error) {
-                    fetchPendingApprovalPayments(showLoader, completion)
-                }
-
                 completion(false, error)
-                return@fetchPendingApprovalPayments
+
+                return@fetchPendingApprovals
+
             }
 
-            _pendingApprovalPayments.value = payments?.toMutableList() ?: mutableListOf()
-
+            setPendingApprovalPayments( list ?: emptyList())
             completion(true, null)
+
         }
+
     }
 
     fun updateMembers(

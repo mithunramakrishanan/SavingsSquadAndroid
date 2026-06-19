@@ -18,13 +18,28 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    flavorDimensions += "environment"
+
+    productFlavors {
+
+        create("dev") {
+            dimension = "environment"
+            applicationId = "com.app.savingssquad.dev"
+        }
+
+        create("prod") {
+            dimension = "environment"
+            applicationId = "com.app.savingssquad"
+        }
+    }
+
     buildTypes {
+        debug {
+            versionNameSuffix = "-dev"
+        }
+
         release {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
         }
     }
 

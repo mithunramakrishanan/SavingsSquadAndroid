@@ -650,6 +650,7 @@ private fun saveSquadData(
                             payment = listOf(newPayment)
                         ) { success, error ->
                             if (success) {
+                                loaderManager.hideLoader()
                                 println("✅ Payment added successfully!")
                             } else {
                                 println("❌ Error adding payment: $error")

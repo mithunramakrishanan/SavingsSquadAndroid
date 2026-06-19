@@ -401,39 +401,76 @@ class FirestoreManager private constructor() {
     }
 
 
-    fun fetchPendingApprovalPayments(
+    fun fetchPendingApprovals(
+
         squadID: String,
+
+        screenType: SquadUserType,
+
+        memberId: String?,
+
         completion: (List<PaymentsDetails>?, String?) -> Unit
+
     ) {
-        db.collection("squads")
+
+        var query = db.collection("squads")
+
             .document(squadID)
+
             .collection("payments")
-            .whereEqualTo(
-                "paymentApproveStatus",
-                PaymentApproveStatus.REQUESTED
-            )
+
+            .whereEqualTo("paymentApproveStatus", "REQUESTED")
+
+        if (screenType == SquadUserType.SQUAD_MANAGER) {
+
+            query = query.whereEqualTo("paymentType", "PAYMENT_CREDIT")
+
+        } else {
+
+            query = query.whereEqualTo("paymentType", "PAYMENT_DEBIT")
+
+        }
+
+        if (memberId != null) {
+
+            query = query.whereEqualTo("memberId", memberId)
+
+        }
+
+        query.orderBy("recordDate", Query.Direction.DESCENDING)
+
             .get()
+
             .addOnSuccessListener { snapshot ->
 
-                if (snapshot == null || snapshot.isEmpty) {
-                    completion(emptyList(), null)
-                    return@addOnSuccessListener
-                }
+                val list = snapshot.documents.mapNotNull { doc ->
 
-                try {
-                    val payments = snapshot.documents.mapNotNull { doc ->
-                        doc.toObject(PaymentsDetails::class.java)
+                    try {
+
+                        doc.toObject(PaymentsDetails::class.java)?.copy(
+
+                            id = doc.id
+
+                        )
+
+                    } catch (e: Exception) {
+
+                        null
+
                     }
 
-                    completion(payments, null)
-
-                } catch (e: Exception) {
-                    completion(null, "❌ Decode error: ${e.localizedMessage}")
                 }
+
+                completion(list, null)
+
             }
+
             .addOnFailureListener { e ->
-                completion(null, "❌ Fetch failed: ${e.localizedMessage}")
+
+                completion(null, e.message)
+
             }
+
     }
 
     // MARK: - 🔹 Update Member UPI BeneId
@@ -2183,5 +2220,54 @@ class FirestoreManager private constructor() {
         } catch (e: Exception) {
             completion(false, e.localizedMessage)
         }
+    }
+
+    fun updateUPIID(
+        squadId: String,
+        memberId: String? = null,
+        name: String,
+        vpa: String,
+        completion: (Result<String>) -> Unit
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+
+            LoaderManager.shared.hideLoader()
+
+            completion(
+                Result.failure(
+                    Exception("No Internet Connection")
+                )
+            )
+            return
+        }
+
+        val db = FirebaseFirestore.getInstance()
+
+        val documentRef = if (!memberId.isNullOrEmpty()) {
+
+            db.collection("squads")
+                .document(squadId)
+                .collection("members")
+                .document(memberId)
+
+        } else {
+
+            db.collection("squads")
+                .document(squadId)
+        }
+
+        documentRef.set(
+            mapOf(
+                "upiID" to vpa
+            ),
+            SetOptions.merge()
+        )
+            .addOnSuccessListener {
+                completion(Result.success(vpa))
+            }
+            .addOnFailureListener { error ->
+                completion(Result.failure(error))
+            }
     }
 }

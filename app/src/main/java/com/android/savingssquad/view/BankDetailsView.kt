@@ -265,11 +265,21 @@ private fun saveAccountToFirestore(
         member!!.id
     }
     loaderManager.showLoader()
-    FirebaseFunctionsManager.shared.updateUPIIds(squadId = squadID, memberId = memberID, name = accountHoldername, upiId = upiID, completion = { success, message, error ->
+    FirestoreManager.shared.updateUPIID(
 
+        squadId = squadID,
+
+        memberId = memberID,
+
+        name = accountHoldername,
+
+        vpa = upiID
+
+    ) { result ->
         loaderManager.hideLoader()
+        result.onSuccess {
 
-        if (success) {
+            Log.d("UPI", "✅ UPI Updated: $it")
 
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
@@ -287,11 +297,16 @@ private fun saveAccountToFirestore(
 
                 }
             )
+
         }
 
+        result.onFailure {
 
+            Log.e("UPI", "❌ ${it.localizedMessage}")
 
-    })
+        }
+
+    }
 
 
 

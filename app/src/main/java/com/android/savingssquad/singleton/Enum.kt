@@ -3,7 +3,6 @@ package com.android.savingssquad.singleton
 import androidx.annotation.Keep
 import androidx.compose.ui.graphics.Color
 import com.android.savingssquad.model.PaymentsDetails
-import kotlinx.serialization.Serializable
 
 
 import com.google.firebase.firestore.PropertyName
@@ -88,9 +87,9 @@ enum class PaidStatus(
 
     NOT_PAID("NOT_PAID"),
 
-    @PropertyName("IN_VERIFICATION")
+    @PropertyName("INVERIFICATION")
 
-    IN_VERIFICATION("IN_VERIFICATION");
+    INVERIFICATION("INVERIFICATION");
 
     companion object {
 
