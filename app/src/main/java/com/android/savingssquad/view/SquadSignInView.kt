@@ -32,6 +32,8 @@ import com.google.firebase.auth.PhoneAuthProvider
 import android.app.Activity
 import android.content.Context
 import androidx.compose.foundation.border
+import androidx.compose.material.icons.filled.NorthEast
+import androidx.compose.material3.Icon
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -300,21 +302,6 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                     }
                 }
 
-                // 🔹 Secondary action (Sign up link)
-                TextButton(
-                    onClick = {
-                        navController.navigate(AppDestination.SIGN_UP.route)
-                    },
-                    contentPadding = PaddingValues(0.dp) // keeps it looking like text, not a big button
-                ) {
-                    Text(
-                        text = SquadStrings.addSquad,
-                        style = AppFont.ibmPlexSans(14, FontWeight.Medium),
-                        color = Color(0xFF007AFF),
-                        textDecoration = TextDecoration.Underline
-                    )
-                }
-
                 // 🔹 Error message
                 errorMessage?.let {
                     Text(
@@ -324,11 +311,54 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                     )
                 }
 
-                // 🔹 Security note
+                // 🔹 Secondary action (Sign up link)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .clickable {
+                            navController.navigate(AppDestination.SIGN_UP.route)
+                        },
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+
+                        Text(
+                            text = SquadStrings.addSquad,
+                            style = AppFont.ibmPlexSans(15, FontWeight.SemiBold),
+                            color = AppColors.successAccent
+                        )
+
+                        Icon(
+                            imageVector = Icons.Default.NorthEast,
+                            contentDescription = null,
+                            tint = AppColors.successAccent.copy(alpha = 0.8f),
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .width(150.dp)
+                            .height(1.dp)
+                            .background(AppColors.successAccent.copy(alpha = 0.25f))
+                    )
+                }
+
                 Text(
                     text = SquadStrings.informationSafe,
-                    style = AppFont.ibmPlexSans(12, FontWeight.Normal),
-                    color = AppColors.successAccent
+                    style = AppFont.ibmPlexSans(11, FontWeight.Medium),
+                    color = AppColors.secondaryText.copy(alpha = 0.8f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .padding(top = 10.dp)
+                        .padding(horizontal = 30.dp)
                 )
             }
 

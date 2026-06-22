@@ -4,6 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -39,12 +42,15 @@ import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import java.util.concurrent.TimeUnit
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.android.savingssquad.SquadSubscription.SubscriptionFirebaseManager
 import com.android.savingssquad.SquadSubscription.SubscriptionModel
@@ -127,13 +133,32 @@ fun SquadSignUpView(
             )
 
             // Description
-            Text(
-                text = SquadStrings.signUpDescription,
-                style = AppFont.ibmPlexSans(15, androidx.compose.ui.text.font.FontWeight.Normal),
-                color = AppColors.successAccent,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 30.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 30.dp)
+                    .background(
+                        color = AppColors.successAccent.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = AppColors.successAccent.copy(alpha = 0.25f),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .padding(horizontal = 18.dp, vertical = 14.dp)
+            ) {
+                Text(
+                    text = SquadStrings.signUpDescription,
+                    style = AppFont.ibmPlexSans(
+                        15,
+                        androidx.compose.ui.text.font.FontWeight.Medium
+                    ),
+                    color = AppColors.headerText,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 21.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             // Form (scrollable)
             Column(
@@ -283,27 +308,76 @@ fun SquadSignUpView(
                 .fillMaxWidth()
                 .padding(20.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        checked = isTermsAccepted,
-                        onCheckedChange = {
-                            // Always open terms on checkbox tap
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            AppColors.successAccent.copy(alpha = 0.06f)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (isTermsAccepted)
+                                AppColors.successAccent.copy(alpha = 0.30f)
+                            else
+                                AppColors.border.copy(alpha = 0.60f),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .clickable {
 
                             if (!isTermsAccepted) {
                                 navController.navigate(AppDestination.OPEN_TERMS_CONDITIONS.route)
-                            }
-                            else {
+                            } else {
                                 isTermsAccepted = false
                             }
-                        },
-                        colors = CheckboxDefaults.colors(checkedColor = AppColors.successAccent)
-                    )
+                        }
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
 
-                 Text(
-                        text = SquadStrings.agreeToTerms,
-                        style = AppFont.ibmPlexSans(14, androidx.compose.ui.text.font.FontWeight.Normal),
-                        color = AppColors.successAccent
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+
+                        Icon(
+                            imageVector = if (isTermsAccepted)
+                                Icons.Filled.CheckCircle
+                            else
+                                Icons.Outlined.RadioButtonUnchecked,
+                            contentDescription = null,
+                            tint = if (isTermsAccepted)
+                                AppColors.successAccent
+                            else
+                                AppColors.secondaryText.copy(alpha = 0.5f),
+                            modifier = Modifier.size(22.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+
+                            Text(
+                                text = "By continuing, I agree to the",
+                                style = AppFont.ibmPlexSans(
+                                    13,
+                                    androidx.compose.ui.text.font.FontWeight.Normal
+                                ),
+                                color = AppColors.secondaryText
+                            )
+
+                            Text(
+                                text = "Terms & Conditions",
+                                style = AppFont.ibmPlexSans(
+                                    14,
+                                    androidx.compose.ui.text.font.FontWeight.SemiBold
+                                ),
+                                color = AppColors.successAccent
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
