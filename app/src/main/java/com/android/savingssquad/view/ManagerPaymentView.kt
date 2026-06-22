@@ -55,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.model.EMIConfiguration
 import com.android.savingssquad.viewmodel.LoaderManager
 import com.android.savingssquad.singleton.AppColors
@@ -214,18 +215,25 @@ fun ManagerPaymentView(
                             val emi = emiSelectedType
 
                             if (member != null && emi != null) {
-                                makeLoanPayment(
-                                    squadViewModel = squadViewModel,
-                                    selectedMember = member,
-                                    selectedLoan = emi,
-                                    context = appContext,
-                                    activity = activity,
-                                    handler = {
-                                        loanSelectedMember = null
-                                        emiSelectedType = null
-                                        squadViewModel.setIsPendingLoanAvailable(false)
-                            }
-                                )
+
+                                if (SubscriptionManager.shared.canUseLoan()) {
+                                    makeLoanPayment(
+                                        squadViewModel = squadViewModel,
+                                        selectedMember = member,
+                                        selectedLoan = emi,
+                                        context = appContext,
+                                        activity = activity,
+                                        handler = {
+                                            loanSelectedMember = null
+                                            emiSelectedType = null
+                                            squadViewModel.setIsPendingLoanAvailable(false)
+                                        }
+                                    )
+
+                                }
+                                else {
+                                    squadViewModel.setShowUpgradePlan(true)
+                                }
                             }
                         }
                     )
@@ -541,9 +549,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
                 memberId = newPayment.memberId,
                 amount = amountInt,
                 description = "Amount $amountStr debited for $notes"
-            ) {
-
-            }
+            )
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,

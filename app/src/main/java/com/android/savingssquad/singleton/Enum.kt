@@ -340,3 +340,25 @@ enum class AmountEditType {
     others
 
 }
+
+enum class Plan(val value: String) {
+    FREE("FREE"),
+    BASIC("BASIC"),
+    BUSINESS("BUSINESS");
+
+    companion object {
+        fun from(value: String?): Plan {
+            return when (value?.uppercase()) {
+                "BASIC" -> BASIC
+                "BUSINESS" -> BUSINESS
+                else -> FREE
+            }
+        }
+    }
+}
+
+enum class PaymentFilter(val displayName: String) {
+    ALL("All"),
+    CREDIT("Credit"),
+    DEBIT("Debit")
+}

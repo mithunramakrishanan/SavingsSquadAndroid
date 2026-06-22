@@ -21,6 +21,9 @@ import com.android.savingssquad.viewmodel.SquadViewModel
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import com.android.savingssquad.SquadSubscription.SubscriptionManager
+import com.android.savingssquad.SquadSubscription.UpgradePlanScreen
+import com.android.savingssquad.SquadSubscription.UpgradeSuccessScreen
 
 @Composable
 fun ManagerTabView(
@@ -32,6 +35,8 @@ fun ManagerTabView(
 
     // 🔹 Shared State
     val showPayment by squadViewModel.showPayment.collectAsState()
+    val showUpgradePlan by squadViewModel.showUpgradePlan.collectAsState()
+    val showUpgradeSuccess by squadViewModel.showUpgradeSuccess.collectAsState()
     val paymentOrderId by squadViewModel.paymentOrderId.collectAsState()
     val squadState by squadViewModel.squad.collectAsState()
     val squad = squadState
@@ -118,6 +123,18 @@ fun ManagerTabView(
                     squadViewModel.setShowPayment(false)
                 }
             )
+        }
+
+        if (showUpgradePlan && squad != null) {
+            UpgradePlanScreen(squadViewModel = squadViewModel, onDismiss = {
+                squadViewModel.setShowUpgradePlan(false)
+            })
+        }
+
+        if (showUpgradeSuccess && squad != null) {
+            UpgradeSuccessScreen(plan = SubscriptionManager.shared.subscription.plan) {
+                squadViewModel.setShowUpgradeSuccess(false)
+            }
         }
     }
 

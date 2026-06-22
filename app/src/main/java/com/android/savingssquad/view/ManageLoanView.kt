@@ -285,9 +285,27 @@ private fun handleAddEditEMI(
                 memberId = "",
                 amount = 0,
                 description = desc
-            ) {
-                Log.d("ManageLoan", "EMI Config updated successfully")
-                onCompleted()
+            ) { success, error ->
+
+                if (success) {
+
+                    println("✅ Activity created")
+
+                    AlertManager.shared.showAlert(
+                        title = SquadStrings.appName,
+                        message = desc,
+                        primaryButtonTitle = "OK",
+                        primaryAction = {}
+                    )
+
+                    onCompleted()
+
+                } else {
+
+                    println("❌ Error: $error")
+
+                }
+
             }
         } else {
             Log.e("ManageLoan", "❌ Failed to add/edit EMI: $error")

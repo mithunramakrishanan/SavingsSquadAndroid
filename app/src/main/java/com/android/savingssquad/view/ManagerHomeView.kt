@@ -1,96 +1,49 @@
 package com.android.savingssquad.view
 
-import android.app.Activity
 import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.*
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.PersonAdd
-import androidx.compose.material.icons.outlined.ThumbUp
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.compose.material3.Surface
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.input.pointer.pointerInput
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
-import com.android.savingssquad.singleton.ShadowStyle
 import com.android.savingssquad.singleton.appShadow
 
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import com.android.savingssquad.model.Installment
-import com.android.savingssquad.model.Login
 import com.android.savingssquad.singleton.SquadUserType
-import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.yourapp.utils.CommonFunctions
-import kotlinx.coroutines.delay
 import com.android.savingssquad.viewmodel.LoaderManager
-import com.google.firebase.FirebaseException
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.PhoneAuthCredential
-import com.google.firebase.auth.PhoneAuthProvider
 import java.util.Date
-import java.util.concurrent.TimeUnit
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.savingssquad.R
+import com.android.savingssquad.SquadSubscription.BillingHelper
+import com.android.savingssquad.SquadSubscription.SubscriptionManager
+import com.android.savingssquad.SquadSubscription.TrialBadgeView
 import com.android.savingssquad.model.Squad
-import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.viewmodel.AppDestination
-import kotlinx.coroutines.withContext
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun ManagerHomeView(
@@ -197,6 +150,12 @@ fun ManagerHomeView(
                 }
             }
         }
+
+        val squadID = UserDefaultsManager.getLogin()?.squadID ?: return@LaunchedEffect
+        SubscriptionManager.shared.refreshFromServer(
+            squadID = squadID,
+            getActivePlan = { BillingHelper.getCurrentPlan() }
+        ) { _, _ -> }
     }
     // 🔹 Main Layout
     Box(
@@ -233,6 +192,12 @@ fun ManagerHomeView(
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
+
+                TrialBadgeView(
+                    onClick = {
+                        squadViewModel.setShowUpgradePlan(true)
+                    }
+                )
 
                 // 🔹 Scrollable content
                 LazyColumn(
@@ -303,7 +268,9 @@ fun ManagerHomeView(
                         ) {
                             ManagerTwoButtons(
                                 addMemberAction = { squadViewModel.setShowAddMemberPopup(true) },
-                                acceptAmountAction = { openVerifyPayment = true }
+                                acceptAmountAction = { openVerifyPayment = true },
+                                verifyCount = squadViewModel.squad.collectAsState().value?.verifyAmountCount
+                                    ?: 0
                             )
                         }
                     }
@@ -344,7 +311,15 @@ fun ManagerHomeView(
                                 totalReceived = gf.totalLoanAmountReceived.currencyFormattedWithCommas(),
                                 pending = (gf.totalLoanAmountSent - gf.totalLoanAmountReceived).currencyFormattedWithCommas(),
                                 interestEarned = gf.totalInterestAmountReceived.currencyFormattedWithCommas(),
-                                onClick = { openLoanDetails = true }
+                                onClick = {
+
+                                    if (SubscriptionManager.shared.canUseLoan()) {
+                                        openLoanDetails = true
+                                    }
+                                    else {
+                                        squadViewModel.setShowUpgradePlan(true)
+                                    }
+                                }
                             )
                         }
 
@@ -428,7 +403,9 @@ fun ManagerHeaderView(
                 width = 0.5.dp,
                 color = AppColors.border,
                 shape = RoundedCornerShape(20.dp)
-            )
+            ).clickable {
+                onAccountSummaryClick()
+            }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -455,9 +432,7 @@ fun ManagerHeaderView(
             text = squad.currentAvailableAmount.currencyFormattedWithCommas(),
             style = AppFont.ibmPlexSans(26, FontWeight.Bold),
             color = AppColors.headerText,
-            modifier = Modifier
-                .clickable { onAccountSummaryClick() }
-                .padding(start = 8.dp)
+            modifier = Modifier.padding(start = 8.dp)
         )
     }
 }
@@ -465,14 +440,16 @@ fun ManagerHeaderView(
 @Composable
 fun ManagerTwoButtons(
     addMemberAction: () -> Unit,
-    acceptAmountAction: () -> Unit
+    acceptAmountAction: () -> Unit,
+    verifyCount: Int
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 6.dp) // 🔹 Left–right margin
+            .padding(horizontal = 6.dp)
     ) {
+
         TwoButtonGradient(
             icon = Icons.Filled.PersonAdd,
             title = "Add Member",
@@ -481,13 +458,40 @@ fun ManagerTwoButtons(
             modifier = Modifier.weight(1f)
         )
 
-        TwoButtonGradient(
-            icon = Icons.Default.VerifiedUser,
-            title = "Verify Payment",
-            gradientColors = listOf(AppColors.secondaryAccent, AppColors.warningAccent),
-            onClick = acceptAmountAction,
+        // 🔥 Verify Payment with Badge
+        Box(
             modifier = Modifier.weight(1f)
-        )
+        ) {
+            TwoButtonGradient(
+                icon = Icons.Default.VerifiedUser,
+                title = "Verify Payment",
+                gradientColors = listOf(
+                    AppColors.secondaryAccent,
+                    AppColors.warningAccent
+                ),
+                onClick = acceptAmountAction,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            if (verifyCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .offset(x = (-6).dp, y = (-6).dp)
+                        .align(Alignment.TopEnd)
+                        .background(Color.Red, CircleShape)
+                        .border(2.dp, Color.White, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = verifyCount.toString(),
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
     }
 }
 

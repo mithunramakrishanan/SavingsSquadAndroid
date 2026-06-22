@@ -527,13 +527,13 @@ fun MemberTwoButtons(
             .fillMaxWidth()
             .padding(horizontal = 16.dp) // 🔹 Left–right margin
     ) {
-        TwoButtonGradient(
-            icon = Icons.Filled.AddCircle,
-            title = "Request Cash",
-            gradientColors = listOf(AppColors.primaryButton, AppColors.successAccent),
-            onClick = requestCashAction,
-            modifier = Modifier.weight(1f)
-        )
+//        TwoButtonGradient(
+//            icon = Icons.Filled.AddCircle,
+//            title = "Request Cash",
+//            gradientColors = listOf(AppColors.primaryButton, AppColors.successAccent),
+//            onClick = requestCashAction,
+//            modifier = Modifier.weight(1f)
+//        )
 
         TwoButtonGradient(
             icon = Icons.Default.VerifiedUser,
@@ -569,25 +569,27 @@ fun TwoButtonGradient(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, end = 20.dp),
+                .padding(start = 12.dp, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
+
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = AppColors.primaryButtonText,
-                modifier = Modifier
-                    .size(25.dp)
-                    .padding(end = 6.dp)
+                modifier = Modifier.size(22.dp)
             )
+
+            Spacer(modifier = Modifier.width(6.dp))
 
             Text(
                 text = title,
                 style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
                 color = AppColors.primaryButtonText,
-                maxLines = 1, // ✅ Single line
-                overflow = TextOverflow.Ellipsis // ✅ Truncate if text too long
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

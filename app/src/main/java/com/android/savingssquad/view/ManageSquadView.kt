@@ -1,16 +1,26 @@
 package com.android.savingssquad.view
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalFocusManager
@@ -18,13 +28,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.viewmodel.LoaderManager
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
+import com.android.savingssquad.singleton.SquadActivityType
 import kotlinx.coroutines.launch
 import java.util.Date
 import com.android.savingssquad.singleton.SquadStrings
@@ -45,6 +59,7 @@ fun ManageSquadView(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    var totalSquadAmount by remember { mutableStateOf(0) }
     // collect squad from viewmodel (if present)
     val squadState by squadViewModel.squad.collectAsStateWithLifecycle()
 
@@ -77,6 +92,7 @@ fun ManageSquadView(
 
             originalSquadDuration.value = gf.totalDuration
             originalSquadAmount.value = gf.monthlyContribution
+            totalSquadAmount = gf.currentAvailableAmount
         }
     }
 
@@ -239,6 +255,57 @@ fun ManageSquadView(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            SquadAmountQuickEditView(
+                squadViewModel = squadViewModel,
+                onSave = { newValue, reason ->
+                    println("Amount: $newValue")
+                    println("Reason: $reason")
+
+                    println("Updated amount: $newValue")
+
+                    // 🔹 Show loader
+                    LoaderManager.shared.showLoader()
+
+                    val squadId = squadViewModel.squad.value?.squadID ?: ""
+
+                    squadViewModel.updateSquadTotalAmount(
+                        squadId = squadId,
+                        amount = newValue
+                    ) { success, error ->
+
+                        if (success) {
+
+                            squadViewModel.createSquadActivity(
+                                activityType = SquadActivityType.OTHER_ACTIVITY,
+                                userName = "SQUAD MANAGER",
+                                memberId = "",
+                                amount = newValue,
+                                description = "Squad manager updated squad amount from $totalSquadAmount to $newValue for $reason"
+                            ) { _, _ ->
+
+                                totalSquadAmount = newValue
+
+                                LoaderManager.shared.hideLoader()
+
+                                // 🔹 Show Alert
+                                AlertManager.shared.showAlert(
+                                    title = SquadStrings.appName,
+                                    message = "Updated squad amount: $totalSquadAmount → $newValue",
+                                    primaryButtonTitle = "OK",
+                                    primaryAction = { }
+                                )
+                            }
+
+                        } else {
+
+                            LoaderManager.shared.hideLoader()
+
+                            println("Error updating squad: $error")
+                        }
+                    }
+                }
+            )
         }
 
         SSAlert()
@@ -314,9 +381,7 @@ private fun saveChanges(
                         memberId = "",
                         amount = 0,
                         description = description
-                    ) {
-                        onSuccess()
-                    }
+                    )
                 } else {
                     println("❌ Error updating contributions: $message")
                 }
@@ -390,5 +455,182 @@ private fun validateSquadDuration(
         onInvalid(required, gf.totalDuration)   // Pass info to reset UI or show popup
     } else {
         onValid()
+    }
+}
+
+@Composable
+fun SquadAmountQuickEditView(
+    squadViewModel: SquadViewModel,
+    onSave: ((Int, String) -> Unit)? = null
+) {
+
+    var isEditing by remember { mutableStateOf(false) }
+    var tempAmount by remember { mutableStateOf("") }
+    var reason by remember { mutableStateOf("") }
+    var reasonError by remember { mutableStateOf("") }
+
+    val squad = squadViewModel.squad.collectAsState().value
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .background(Color.White, RoundedCornerShape(18.dp))
+            .border(
+                width = 1.dp,
+                color = Color(0x22000000),
+                shape = RoundedCornerShape(18.dp)
+            )
+            .padding(18.dp)
+    ) {
+
+        // 🔹 HEADER
+        Row(verticalAlignment = Alignment.CenterVertically) {
+
+            Column(modifier = Modifier.weight(1f)) {
+
+                Text(
+                    text = "Squad",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF0D1117)
+                )
+
+                Text(
+                    text = "Current available balance",
+                    fontSize = 12.sp,
+                    color = Color(0xFF6B7280)
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.CreditCard,
+                contentDescription = null,
+                tint = Color(0xFF1D9E75)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 🔹 FIELD + BUTTON
+        Row(verticalAlignment = Alignment.CenterVertically) {
+
+            TextField(
+                value = if (isEditing)
+                    tempAmount
+                else
+                    (squad?.currentAvailableAmount?.toString() ?: "0"),
+
+                onValueChange = { tempAmount = it },
+                enabled = isEditing,
+                textStyle = TextStyle(
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                ),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier
+                    .weight(1f)
+                    .background(
+                        color = if (isEditing)
+                            Color(0x141D9E75)
+                        else
+                            Color(0xFFF5F6F8),
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    .padding(2.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Button(
+                onClick = {
+
+                    if (isEditing) {
+
+                        // 🔴 VALIDATION
+                        reasonError = if (reason.trim().isEmpty()) {
+                            "Reason is required"
+                        } else ""
+
+                        if (reasonError.isNotEmpty()) return@Button
+
+                        val newValue = tempAmount.toIntOrNull()
+                            ?: (squad?.currentAvailableAmount ?: 0)
+
+                        squadViewModel.squad.value?.currentAvailableAmount = newValue
+
+                        onSave?.invoke(newValue, reason)
+
+                        reason = ""
+                    } else {
+                        tempAmount = squad?.currentAvailableAmount?.toString() ?: "0"
+                    }
+
+                    isEditing = !isEditing
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isEditing) Color(0xFF1D9E75) else Color(0xFF0D1117)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = if (isEditing) "Save" else "Edit",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // 🔹 REASON FIELD (ONLY IN EDIT MODE)
+        if (isEditing) {
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            TextField(
+                value = reason,
+                onValueChange = {
+                    reason = it
+                    reasonError = ""
+                },
+                placeholder = { Text("Enter reason for update") },
+                isError = reasonError.isNotEmpty(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFF5F6F8), RoundedCornerShape(12.dp)),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    errorIndicatorColor = Color.Red
+                )
+            )
+
+            if (reasonError.isNotEmpty()) {
+                Text(
+                    text = reasonError,
+                    color = Color.Red,
+                    fontSize = 11.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // 🔹 INFO TEXT
+        Text(
+            text = "Any update is securely recorded and visible to all squad members for transparency.",
+            fontSize = 11.sp,
+            color = Color(0xFF9CA3AF)
+        )
     }
 }

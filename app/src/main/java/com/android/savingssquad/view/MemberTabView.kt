@@ -61,6 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import com.android.savingssquad.SquadSubscription.UpgradePlanScreen
 import com.android.savingssquad.singleton.AppFont
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -74,6 +75,7 @@ fun MemberTabView(
 
     // Shared State from ViewModel
     val showPayment by squadViewModel.showPayment.collectAsState()
+    val showUpgradePlan by squadViewModel.showUpgradePlan.collectAsState()
     val paymentOrderId by squadViewModel.paymentOrderId.collectAsState()
     val squadState by squadViewModel.squad.collectAsState()
     val squad = squadState
@@ -154,6 +156,12 @@ fun MemberTabView(
                     squadViewModel.setShowPayment(false)
                 }
             )
+        }
+
+        if (showUpgradePlan && squad != null) {
+            UpgradePlanScreen(squadViewModel = squadViewModel, onDismiss = {
+                squadViewModel.setShowUpgradePlan(false)
+            })
         }
     }
 

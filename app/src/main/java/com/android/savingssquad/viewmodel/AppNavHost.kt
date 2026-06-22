@@ -19,6 +19,7 @@ import androidx.navigation.compose.composable
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.platform.LocalContext
+import com.android.savingssquad.SquadSubscription.RestorePurchasesScreen
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalAnimationApi::class)
@@ -134,6 +135,10 @@ fun AppNavHost(
             TermsAndConditionsView(navController)
         }
 
+        composable(AppDestination.OPEN_RESTORE_PURCHASE.route) {
+            RestorePurchasesScreen(navController,squadViewModel)
+        }
+
         composable(AppDestination.PAYMENT_CONFIRMATION.route) {
 
             val context = LocalContext.current
@@ -177,6 +182,8 @@ sealed class AppDestination(val route: String) {
     object OPEN_TERMS_CONDITIONS: AppDestination("open_terms_conditions")
 
     object PAYMENT_CONFIRMATION : AppDestination("payment_confirmation")
+
+    object OPEN_RESTORE_PURCHASE : AppDestination("open_restore_purchase")
 
 }
 

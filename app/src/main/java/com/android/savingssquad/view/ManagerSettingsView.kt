@@ -80,7 +80,7 @@ fun ManagerSettingsView(
     var navigateToManualEntry by remember { mutableStateOf(false) }
     var navigateToBankDetails by remember { mutableStateOf(false) }
     var navigateToManageLoan by remember { mutableStateOf(false) }
-
+    var navigateToRestorePurchase by remember { mutableStateOf(false) }
 
 
     LaunchedEffect(navigateToManageSquad) {
@@ -111,6 +111,12 @@ fun ManagerSettingsView(
         }
     }
 
+    LaunchedEffect(navigateToRestorePurchase) {
+        if (navigateToRestorePurchase) {
+            navController.navigate(AppDestination.OPEN_RESTORE_PURCHASE.route)
+            navigateToRestorePurchase = false
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -167,6 +173,13 @@ fun ManagerSettingsView(
                     caption = "Update UPI for seamless transactions"
                 ) {
                     navigateToBankDetails = true
+                }
+
+                ActionButton(
+                    title = SquadStrings.restorePurchases,
+                    caption = "Switched devices or reinstalled? Get your plan back instantly"
+                ) {
+                    navigateToRestorePurchase = true
                 }
             }
 

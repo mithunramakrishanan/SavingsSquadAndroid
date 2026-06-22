@@ -21,6 +21,7 @@ import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentEntryType
+import com.android.savingssquad.singleton.PaymentFilter
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.PayoutStatus
@@ -176,25 +177,20 @@ class FirestoreManager private constructor() {
             }
     }
 
-    fun updateSquadDebitCredit(
+    fun updateSquadTotalAmount(
         squadId: String,
         amount: Int,
-        paymentType: PaymentType,
         completion: (Boolean, String?) -> Unit
     ) {
         val squadRef = FirebaseFirestore.getInstance()
             .collection("squads")
             .document(squadId)
 
-        val updateData = if (paymentType == PaymentType.PAYMENT_DEBIT) {
+        val updateData =
             mapOf(
-                "currentDebitAmount" to FieldValue.increment(amount.toLong())
-            )
-        } else {
-            mapOf(
-                "currentCreditAmount" to FieldValue.increment(amount.toLong())
-            )
-        }
+                "currentAvailableAmount" to amount)
+
+
 
         squadRef.update(updateData)
             .addOnSuccessListener {
@@ -202,24 +198,21 @@ class FirestoreManager private constructor() {
                 squadRef.get()
                     .addOnSuccessListener { snapshot ->
 
-                        val squad = snapshot.toObject(Squad::class.java)
-
-                        println("✅ currentDebitAmount: ${squad?.currentDebitAmount}")
-                        println("✅ currentCreditAmount: ${squad?.currentCreditAmount}")
+                        println("✅ updateSquadTotalAmount")
 
                         completion(true, null)
                     }
                     .addOnFailureListener { e ->
                         completion(
                             false,
-                            "❌ Failed to fetch updated squad: ${e.localizedMessage}"
+                            "❌ Failed to fetch updateSquadTotalAmount squad: ${e.localizedMessage}"
                         )
                     }
             }
             .addOnFailureListener { e ->
                 completion(
                     false,
-                    "❌ Failed to update: ${e.localizedMessage}"
+                    "❌ Failed to updateSquadTotalAmount: ${e.localizedMessage}"
                 )
             }
     }
@@ -339,14 +332,13 @@ class FirestoreManager private constructor() {
 
                 val existingPayment = snapshot.toObject(PaymentsDetails::class.java)
 
-                // 🔥 IMPORTANT: check same status
                 if (existingPayment?.paymentApproveStatus?.value == status.value) {
                     completion(false, existingPayment, "ℹ️ Already in ${status.value} status")
                     return@addOnSuccessListener
                 }
 
-                var paymentStatus: PaymentStatus
-                var paymentResponseMessage = ""
+                val paymentStatus: PaymentStatus
+                val paymentResponseMessage: String
 
                 if (status == PaymentApproveStatus.ACCEPTED) {
                     paymentStatus = PaymentStatus.SUCCESS
@@ -368,6 +360,14 @@ class FirestoreManager private constructor() {
                 paymentRef.update(updateData)
                     .addOnSuccessListener {
 
+                        // 🔥 ALWAYS DECREMENT (NO CONDITION)
+                        db.collection("squads")
+                            .document(squadID)
+                            .update(
+                                "verifyAmountCount",
+                                com.google.firebase.firestore.FieldValue.increment(-1)
+                            )
+
                         paymentRef.get()
                             .addOnSuccessListener { updatedSnapshot ->
 
@@ -387,7 +387,11 @@ class FirestoreManager private constructor() {
                                 }
                             }
                             .addOnFailureListener { e ->
-                                completion(false, null, "❌ Failed to fetch updated payment: ${e.localizedMessage}")
+                                completion(
+                                    false,
+                                    null,
+                                    "❌ Failed to fetch updated payment: ${e.localizedMessage}"
+                                )
                             }
                     }
                     .addOnFailureListener { e ->
@@ -402,75 +406,62 @@ class FirestoreManager private constructor() {
 
 
     fun fetchPendingApprovals(
-
         squadID: String,
-
         screenType: SquadUserType,
-
         memberId: String?,
-
         completion: (List<PaymentsDetails>?, String?) -> Unit
-
     ) {
 
-        var query = db.collection("squads")
-
+        val query = db.collection("squads")
             .document(squadID)
-
             .collection("payments")
-
             .whereEqualTo("paymentApproveStatus", "REQUESTED")
 
-        if (screenType == SquadUserType.SQUAD_MANAGER) {
+            .let {
+                if (screenType == SquadUserType.SQUAD_MANAGER) {
+                    it.whereEqualTo("paymentType", "PAYMENT_CREDIT")
+                } else {
+                    it.whereEqualTo("paymentType", "PAYMENT_DEBIT")
+                }
+            }
+            .let {
+                if (memberId != null) {
+                    it.whereEqualTo("memberId", memberId)
+                } else it
+            }
+            .orderBy("recordDate", Query.Direction.DESCENDING)
 
-            query = query.whereEqualTo("paymentType", "PAYMENT_CREDIT")
-
-        } else {
-
-            query = query.whereEqualTo("paymentType", "PAYMENT_DEBIT")
-
-        }
-
-        if (memberId != null) {
-
-            query = query.whereEqualTo("memberId", memberId)
-
-        }
-
-        query.orderBy("recordDate", Query.Direction.DESCENDING)
-
-            .get()
-
+        query.get()
             .addOnSuccessListener { snapshot ->
 
                 val list = snapshot.documents.mapNotNull { doc ->
-
                     try {
-
                         doc.toObject(PaymentsDetails::class.java)?.copy(
-
                             id = doc.id
-
                         )
-
                     } catch (e: Exception) {
-
                         null
-
                     }
+                }
 
+                // 🔥 SAFE SYNC verifyAmountCount (ONLY MANAGER + CREDIT)
+                if (screenType == SquadUserType.SQUAD_MANAGER) {
+
+                    val verifyCount = list.size
+
+                    db.collection("squads")
+                        .document(squadID)
+                        .update("verifyAmountCount", verifyCount)
+                        .addOnFailureListener {
+                            println("⚠️ verifyAmountCount sync failed: ${it.message}")
+                        }
                 }
 
                 completion(list, null)
-
             }
-
             .addOnFailureListener { e ->
-
                 completion(null, e.message)
-
             }
-
     }
 
     // MARK: - 🔹 Update Member UPI BeneId
@@ -786,28 +777,43 @@ class FirestoreManager private constructor() {
         payments: List<PaymentsDetails>,
         completion: (Boolean, String?) -> Unit
     ) {
+
         val batch = db.batch()
+        val squadRef = db.collection("squads").document(squadID)
+
+        var requestedCountIncrement = 0
 
         for (payment in payments) {
-            val paymentID = payment.id
-            if (paymentID == null) {
-                completion(false, "❌ One or more payments are missing an ID.")
-                return
-            }
 
-            val docRef = db.collection("squads")
-                .document(squadID)
+            val paymentID = payment.id
+                ?: return completion(false, "❌ One or more payments are missing an ID.")
+
+            val docRef = squadRef
                 .collection("payments")
                 .document(paymentID)
 
             try {
                 batch.set(docRef, payment.toMap(), SetOptions.merge())
             } catch (e: Exception) {
-                completion(false, "❌ Error encoding payment: ${e.localizedMessage}")
-                return
+                return completion(false, "❌ Error encoding payment: ${e.localizedMessage}")
+            }
+
+            // 🔥 Count REQUESTED payments
+            if (payment.paymentApproveStatus == PaymentApproveStatus.REQUESTED) {
+                requestedCountIncrement++
             }
         }
 
+        // 🔥 Update squad verifyAmountCount only if needed
+        if (requestedCountIncrement > 0) {
+            batch.update(
+                squadRef,
+                "verifyAmountCount",
+                FieldValue.increment(requestedCountIncrement.toLong())
+            )
+        }
+
+        // 🔥 Commit batch
         batch.commit()
             .addOnSuccessListener {
                 completion(true, null)
@@ -821,6 +827,7 @@ class FirestoreManager private constructor() {
     fun fetchPayments(
         squadID: String,
         memberId: String? = null,
+        filterType: PaymentFilter = PaymentFilter.ALL,
         lastDocument: DocumentSnapshot? = null,
         limit: Int,
         completion: (List<PaymentsDetails>?, DocumentSnapshot?, String?) -> Unit
@@ -835,6 +842,16 @@ class FirestoreManager private constructor() {
 
         if (!memberId.isNullOrEmpty()) {
             query = query.whereEqualTo("memberId", memberId)
+        }
+
+        if (filterType == PaymentFilter.CREDIT) {
+
+            query = query.whereEqualTo("paymentType", "PAYMENT_CREDIT")
+
+        } else if (filterType == PaymentFilter.DEBIT) {
+
+            query = query.whereEqualTo("paymentType", "PAYMENT_DEBIT")
+
         }
 
         if (lastDocument != null) {
@@ -894,24 +911,39 @@ class FirestoreManager private constructor() {
         member: Member,
         completion: (Boolean, String?) -> Unit
     ) {
+
         val membersRef = db.collection("squads")
             .document(squadID)
             .collection("members")
 
+        val squadRef = db.collection("squads").document(squadID)
+
         val memberID = member.id
+
         if (memberID == null) {
             completion(false, "Error adding member: Member ID is null")
             return
         }
 
         try {
+
+            // 1️⃣ Add member
             membersRef.document(memberID).set(member)
                 .addOnSuccessListener {
-                    completion(true, null)
+
+                    // 2️⃣ Increment totalMembers safely (ATOMIC)
+                    squadRef.update("totalMembers", com.google.firebase.firestore.FieldValue.increment(1))
+                        .addOnSuccessListener {
+                            completion(true, null)
+                        }
+                        .addOnFailureListener { e ->
+                            completion(false, "Member added but counter update failed: ${e.localizedMessage}")
+                        }
                 }
                 .addOnFailureListener { e ->
                     completion(false, "Error adding member: ${e.localizedMessage}")
                 }
+
         } catch (e: Exception) {
             completion(false, "Error adding member: ${e.localizedMessage}")
         }

@@ -38,6 +38,10 @@ activity = "1.11.0"
 constraintlayout = "2.2.1"
 firebaseAppcheckKtx = "19.0.1"
 firebaseMessagingKtx = "25.0.2"
+foundation = "1.11.3"
+billingKtx = "9.1.0"
+runtime = "1.11.3"
+material3 = "1.4.0"
 
 [libraries]
 easyupipayment = { module = "dev.shreyaspatil.EasyUpiPayment:EasyUpiPayment", version.ref = "easyupipayment" }
@@ -90,6 +94,10 @@ androidx-activity = { group = "androidx.activity", name = "activity", version.re
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 firebase-appcheck-ktx = { group = "com.google.firebase", name = "firebase-appcheck-ktx", version.ref = "firebaseAppcheckKtx" }
 firebase-messaging-ktx = { group = "com.google.firebase", name = "firebase-messaging-ktx", version.ref = "firebaseMessagingKtx" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
+billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billingKtx" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

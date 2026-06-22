@@ -28,6 +28,7 @@ import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
+import com.android.savingssquad.singleton.PaymentFilter
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.SquadStrings
@@ -264,6 +265,15 @@ class SquadViewModel : ViewModel() {
     private val _editAmountType = MutableStateFlow<AmountEditType?>(null)
     val editAmountType: StateFlow<AmountEditType?> = _editAmountType
     fun setEditAmountType(value: AmountEditType?) { _editAmountType.value = value }
+
+
+    private val _showUpgradePlan = MutableStateFlow(false)
+    val showUpgradePlan: StateFlow<Boolean> = _showUpgradePlan
+    fun setShowUpgradePlan(value: Boolean) { _showUpgradePlan.value = value }
+
+    private val _showUpgradeSuccess = MutableStateFlow(false)
+    val showUpgradeSuccess: StateFlow<Boolean> = _showUpgradeSuccess
+    fun setShowUpgradeSuccess(value: Boolean) { _showUpgradeSuccess.value = value }
 
     init {
         val login = UserDefaultsManager.getLogin()
@@ -553,10 +563,9 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-    fun updateSquadDebitCredit(
+    fun updateSquadTotalAmount(
         squadId: String,
         amount: Int,
-        paymentType: PaymentType,
         completion: (Boolean, String?) -> Unit
     ) {
 
@@ -576,10 +585,9 @@ class SquadViewModel : ViewModel() {
 
         LoaderManager.shared.showLoader()
 
-        manager.updateSquadDebitCredit(
+        manager.updateSquadTotalAmount(
             squadId = squadId,
             amount = amount,
-            paymentType = paymentType
         ) { success, errorMessage ->
 
             LoaderManager.shared.hideLoader()
@@ -591,19 +599,8 @@ class SquadViewModel : ViewModel() {
                 _squad.value?.let { currentSquad ->
 
                     val updatedSquad = currentSquad.copy(
-                        currentDebitAmount =
-                            if (paymentType == PaymentType.PAYMENT_DEBIT)
-                                currentSquad.currentDebitAmount + amount
-                            else
-                                currentSquad.currentDebitAmount,
-
-                        currentCreditAmount =
-                            if (paymentType == PaymentType.PAYMENT_CREDIT)
-                                currentSquad.currentCreditAmount + amount
-                            else
-                                currentSquad.currentCreditAmount
+                        currentAvailableAmount = amount
                     )
-
                     _squad.value = updatedSquad
                 }
 
@@ -612,7 +609,7 @@ class SquadViewModel : ViewModel() {
             } else {
 
                 val errorMsg =
-                    errorMessage ?: "Unknown error while updating debit/credit"
+                    errorMessage ?: "Unknown error while updating updateSquadTotalAmount"
 
                 println("❌ $errorMsg")
 
@@ -850,7 +847,7 @@ class SquadViewModel : ViewModel() {
                         memberId = "",
                         amount = 0,
                         description = "Added a new member ${member.name} to the squad"
-                    ) {}
+                    )
                 } else {
                     handleFetchError(message ?: "Unknown error") {
                         createContributionWhenMemberCreate(member)
@@ -1593,8 +1590,11 @@ class SquadViewModel : ViewModel() {
                 transactionRef = "TXN_${firstPayment.id ?: UUID.randomUUID().toString()}",
                 completion = { initiated ->
                     println("Initiated: $initiated")
-                    UserDefaultsManager.savePendingPayment(firstPayment)
-                    completion(true, "UPI_OPENED")
+                    if (initiated) {
+
+                        UserDefaultsManager.savePendingPayment(firstPayment)
+                        completion(true, "UPI_OPENED")
+                    }
                 },
                 onReturn = { status ->
                     when (status) {
@@ -1796,8 +1796,8 @@ class SquadViewModel : ViewModel() {
             PaymentType.PAYMENT_DEBIT -> {
                 if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
                     updates["totalLoanAmountSent"] = FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
-                    updates["currentDebitAmount"] = FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
                 }
+                updates["currentDebitAmount"] = FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
                 updates["currentAvailableAmount"] = FieldValue.increment((-payment.amount).toLong())
             }
         }
@@ -2193,14 +2193,13 @@ class SquadViewModel : ViewModel() {
 
                             AmountEditType.contribution -> {
 
+
                                 createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_EDIT,
                                     userName = "SQUAD MANAGER",
                                     memberId = memberID,
                                     amount = amount,
-                                    description = "Manager updated member contribution ${currentMember.value?.totalContributionPaid ?: 0} to $amount"                                ) {
-
-                                }
+                                    description = "Manager updated member contribution ${currentMember.value?.totalContributionPaid ?: 0} to $amount")
 
                                 member.totalContributionPaid = amount
                             }
@@ -2212,9 +2211,7 @@ class SquadViewModel : ViewModel() {
                                     userName = "SQUAD MANAGER",
                                     memberId = memberID,
                                     amount = amount,
-                                    description = "Manager updated member loan borrowed ${currentMember.value?.totalLoanBorrowed ?: 0} to $amount"                                ) {
-
-                                }
+                                    description = "Manager updated member loan borrowed ${currentMember.value?.totalLoanBorrowed ?: 0} to $amount")
 
                                 member.totalLoanBorrowed = amount
                             }
@@ -2226,9 +2223,7 @@ class SquadViewModel : ViewModel() {
                                     userName = "SQUAD MANAGER",
                                     memberId = memberID,
                                     amount = amount,
-                                    description = "Manager updated member loan paid ${currentMember.value?.totalLoanPaid ?: 0} to $amount"                                ) {
-
-                                }
+                                    description = "Manager updated member loan paid ${currentMember.value?.totalLoanPaid ?: 0} to $amount")
 
                                 member.totalLoanPaid = amount
                             }
@@ -2240,9 +2235,7 @@ class SquadViewModel : ViewModel() {
                                     userName = "SQUAD MANAGER",
                                     memberId = memberID,
                                     amount = amount,
-                                    description = "Manager updated member pain interest ${currentMember.value?.totalInterestPaid ?: 0} to $amount"                                ) {
-
-                                }
+                                    description = "Manager updated member pain interest ${currentMember.value?.totalInterestPaid ?: 0} to $amount")
 
                                 member.totalInterestPaid = amount
                             }
@@ -2281,6 +2274,7 @@ class SquadViewModel : ViewModel() {
     fun fetchPayments(
         showLoader: Boolean,
         memberId: String? = null,
+        filterType : PaymentFilter = PaymentFilter.ALL,
         completion: (Boolean, String?) -> Unit
     ) {
 
@@ -2297,6 +2291,7 @@ class SquadViewModel : ViewModel() {
         manager.fetchPayments(
             squadID = squadID,
             memberId = memberId,
+            filterType = filterType,
             lastDocument = null,
             limit = paymentsPageSize
         ) { payments, lastDoc, error ->
@@ -2333,7 +2328,7 @@ class SquadViewModel : ViewModel() {
         paymentsIsLoadingMore = false
     }
 
-    fun loadMorePayments(memberId: String? = null) {
+    fun loadMorePayments(memberId: String? = null, filter: PaymentFilter) {
 
         if (paymentsIsLoadingMore) return
         if (!paymentsHasMoreData) return
@@ -2344,6 +2339,7 @@ class SquadViewModel : ViewModel() {
         manager.fetchPayments(
             squadID = squadID,
             memberId = memberId,
+            filter,
             lastDocument = last,
             limit = paymentsPageSize
         ) { payments, newLastDoc, _ ->
@@ -2366,14 +2362,15 @@ class SquadViewModel : ViewModel() {
 
     fun loadMorePaymentsIfNeeded(
         currentPayment: PaymentsDetails,
-        memberId: String? = null
+        filterType: PaymentFilter = PaymentFilter.ALL,
+        memberId: String? = null,
     ) {
 
         val last = squadPayments.value.lastOrNull() ?: return
 
         if (currentPayment.id != last.id) return
 
-        loadMorePayments(memberId)
+        loadMorePayments(memberId,filterType)
     }
 
     fun observePayments() {
@@ -2842,13 +2839,14 @@ class SquadViewModel : ViewModel() {
     fun createSquadActivity(
         activityType: SquadActivityType,
         userName: String,
-        memberId : String,
+        memberId: String,
         amount: Int,
         description: String,
-        alertOK: (() -> Unit)? = null
+        completion: ((Boolean, String?) -> Unit)? = null
     ) {
         val squad = _squad.value ?: run {
             println("❌ No squad found!")
+            completion?.invoke(false, "No squad found")
             return
         }
 
@@ -2863,24 +2861,14 @@ class SquadViewModel : ViewModel() {
             description = description
         )
 
-        if (UserDefaultsManager.getLogin()?.squadID != null) {
-            addSquadActivity(true, activity) { success, error ->
-                if (success) {
-                    println("✅ Activity added successfully!")
-                    AlertManager.shared.showAlert(
-                        title = SquadStrings.appName,
-                        message = description,
-                        primaryButtonTitle = SquadStrings.ok,
-                        primaryAction = alertOK ?: {}
-                    )
-                } else {
-                    handleFetchError(error ?: "Unknown error") {
-                        createSquadActivity(activityType, userName, memberId ,amount, description, alertOK)
-                    }
-                }
+        addSquadActivity(true, activity) { success, error ->
+            if (success) {
+                println("✅ Activity added successfully!")
+                completion?.invoke(true, null)
+            } else {
+                println("❌ Failed to add activity: $error")
+                completion?.invoke(false, error)
             }
-        } else {
-            println("❌ No squad found!")
         }
     }
 

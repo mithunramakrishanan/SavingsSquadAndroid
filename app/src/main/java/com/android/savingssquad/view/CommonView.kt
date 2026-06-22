@@ -94,6 +94,7 @@ import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
 import com.android.savingssquad.R
+import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.color
@@ -1508,12 +1509,55 @@ fun AddMemberPopup(
         onUpdateDebounceJob(newJob)
     }
 
+    fun handlePhoneNameChange(
+        newValue: String,
+        setError: (String) -> Unit,
+        squadMembers: List<Member>,   // list from ViewModel
+        coroutineScope: CoroutineScope,
+        debounceJob: Job?,
+        onUpdateDebounceJob: (Job?) -> Unit
+    ) {
+        // Clear error immediately (like Swift)
+        setError("")
+
+        // Cancel previous debounce job
+        debounceJob?.cancel()
+
+        // Create new debounce job
+        val newJob = coroutineScope.launch {
+            delay(500)
+
+            val cleanedName = CommonFunctions.cleanUpPhoneNumber(newValue)
+
+            val exists = squadMembers
+                .map { it.phoneNumber.trim().lowercase() }
+                .contains(cleanedName.trim().lowercase())
+
+            if (exists) {
+                setError("Mobile name already exists")
+            }
+        }
+
+        // Update external reference
+        onUpdateDebounceJob(newJob)
+    }
+
     // ----------------- Handle Add Member -----------------
     fun handleAddMember() {
         if (!validateFields()) return
 
         if (otpVerified) {
-            // ✅ OTP verified, add member
+
+            val squad = squadViewModel.squad.value ?: return
+
+            val currentCount = squad.totalMembers
+
+            if (!SubscriptionManager.shared.canAddMember(currentCount)) {
+                LoaderManager.shared.hideLoader()
+                squadViewModel.setShowUpgradePlan(true)
+                return
+            }
+
             val name = CommonFunctions.cleanUpName(memberNameState.value)
             val phone = CommonFunctions.cleanUpPhoneNumber(phoneNumberState.value)
             LoaderManager.shared.showLoader()
@@ -1639,6 +1683,17 @@ fun AddMemberPopup(
                     error = phoneError
                 )
 
+                LaunchedEffect(phoneNumberState.value) {
+                    handlePhoneNameChange(
+                        newValue = phoneNumberState.value,
+                        setError = { phoneError = it },
+                        squadMembers = squadViewModel.squadMembers.value,
+                        coroutineScope = coroutineScope,
+                        debounceJob = debounceJob,
+                        onUpdateDebounceJob = { debounceJob = it }
+                    )
+                }
+
                 // OTP field
                 if (isOTPSent) {
                     // Animated appearance like SwiftUI transition
@@ -1671,7 +1726,7 @@ fun AddMemberPopup(
             // Button
             SSButton(
                 title = if (otpVerified) "Add Member" else "Send OTP",
-                isDisabled = (otpProcessStarted || sendOTPLoading) || memberNameError.isNotEmpty() || verifyOTPLoading,
+                isDisabled = (otpProcessStarted || sendOTPLoading) || phoneError.isNotEmpty() || memberNameError.isNotEmpty() || verifyOTPLoading,
                 action = { handleAddMember() }
             )
 

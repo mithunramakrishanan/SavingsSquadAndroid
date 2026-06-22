@@ -343,7 +343,7 @@ fun ManualEntryView(
                                             memberId = newPayment.memberId,
                                             amount = squadLocal.monthlyContribution,
                                             description = "Updated $contributionSelectedMemberName contribution for $contributionSelectedMonthYear"
-                                        ) {
+                                        ) { success, error ->
                                             coroutineScope.launch(Dispatchers.Main) {
                                                 contributionSelectedMemberName = ""
                                                 contributionSelectedMonthYear = ""
@@ -496,7 +496,7 @@ fun ManualEntryView(
                                                 memberId = "",
                                                 amount = total,
                                                 description = "Updated EMI and Interest to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber ${total.currencyFormattedWithCommas()}"
-                                            ) {
+                                            ) { success, error ->
                                                 coroutineScope.launch(Dispatchers.Main) {
                                                     emiSelectedMemberName = ""
                                                     emiSelectedMonthYear = ""
@@ -736,7 +736,7 @@ private fun handleOtherPayment(
                     memberId = newPayment.memberId,
                     amount = amount,
                     description = "Updated amount $amountStr - $notes"
-                ) {
+                ) { success, error ->
                     action()
                 }
             } else {

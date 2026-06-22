@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
+import com.android.savingssquad.SquadSubscription.BillingHelper
 import com.android.savingssquad.model.Login
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.singleton.AppColors
@@ -35,7 +36,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         UPIPaymentManager.shared.register(this)
         handleNotification(intent) // 🔥 IMPORTANT (cold start)
-
+        BillingHelper.init(this)
         setContent {
             SavingsSquadRoot()
         }
