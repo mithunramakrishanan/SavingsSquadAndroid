@@ -43,6 +43,7 @@ import com.android.savingssquad.singleton.UPIPaymentStatus
 import com.google.firebase.firestore.*
 import com.google.firebase.Timestamp
 import com.yourapp.utils.CommonFunctions
+import com.yourapp.utils.IDGenerator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -644,7 +645,7 @@ class SquadViewModel : ViewModel() {
         if (showLoader) LoaderManager.shared.showLoader()
 
         val newMember = Member(
-            id = CommonFunctions.generateMemberID(),
+            id = IDGenerator.generateMemberID(),
             name = name,
             profileImage = "",
             mailID = "",
@@ -738,7 +739,8 @@ class SquadViewModel : ViewModel() {
 
                         if (fetchedMember != null) {
                             // ✅ Update LiveData / StateFlow
-                            _currentMember.value = fetchedMember
+                            setCurrentMember(fetchedMember)
+
                             completion(true, fetchedMember, null)
                         } else {
                             val errorMsg = error ?: "❌ Failed to fetch member"
@@ -1041,7 +1043,7 @@ class SquadViewModel : ViewModel() {
         if (showLoader) LoaderManager.shared.showLoader()
 
         viewModelScope.launch(Dispatchers.IO) {
-            manager.addSquadActivity(squadID, activity) { success, error ->
+            manager.addSquadActivity(squad.value?.squadID ?: "", activity) { success, error ->
                 // ✅ Switch safely to main thread inside callback
                 viewModelScope.launch(Dispatchers.Main) {
                     if (showLoader) LoaderManager.shared.hideLoader()
@@ -1620,7 +1622,12 @@ class SquadViewModel : ViewModel() {
             return
         }
 
-        manager.savePayments(squadID, payment) { success, error ->
+        if (firstPayment?.paymentSubType == PaymentSubType.OTHERS_AMOUNT) {
+            firstPayment.paymentApproveStatus = PaymentApproveStatus.ACCEPTED
+            firstPayment.paymentStatus = PaymentStatus.SUCCESS
+            firstPayment.paymentUpdatedDate = Date().asTimestamp
+        }
+        manager.savePayments(squadID, firstPayment) { success, error ->
             if (showLoader) LoaderManager.shared.hideLoader()
 
             if (!success) {

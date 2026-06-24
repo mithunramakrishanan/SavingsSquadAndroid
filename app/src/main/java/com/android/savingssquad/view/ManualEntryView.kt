@@ -332,7 +332,7 @@ fun ManualEntryView(
                                             activity = activity,
                                             context = appContext,
                                             squadID = squadLocal.squadID,
-                                            payment = listOf(newPayment)
+                                            payment = newPayment
                                         ) { pSuccess, pError ->
                                             // no-op logging
                                         }

@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.viewmodel.AppDestination
@@ -320,10 +321,6 @@ fun MemberProfileView(
                 showPopup = remember { mutableStateOf(showEditAmountPopup) },
                 onDismiss = { squadViewModel.setShowEditAmountPopup(false) }
             ) {
-                UpdateMemberPopup(
-                    squadViewModel = squadViewModel,
-                    showPopup = remember { mutableStateOf(showEditAmountPopup) }
-                )
 
                 EditAmountPopup(
 
@@ -384,62 +381,108 @@ fun MemberProfileHeaderView(
     squadViewModel: SquadViewModel,
     navController: NavController
 ) {
-    Row(
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .padding(top = 8.dp)
             .clip(RoundedCornerShape(15.dp))
             .appShadow(AppShadows.card, RoundedCornerShape(15.dp))
             .background(AppColors.surface)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            // Avatar
-            Box(
-                modifier = Modifier
-                    .size(70.dp)
-                    .clip(CircleShape)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(AppColors.primaryButton.copy(alpha = 0.3f), AppColors.primaryButton.copy(alpha = 0.1f))
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = member.name.takeIf { it.isNotEmpty() }?.first().toString(),
-                    style = AppFont.ibmPlexSans(28, FontWeight.Bold),
-                    color = AppColors.primaryButton
-                )
-            }
-
-            Text(
-                text = member.name,
-                style = AppFont.ibmPlexSans(20, FontWeight.SemiBold),
-                color = AppColors.headerText
+            .border(
+                width = 1.dp,
+                color = AppColors.border,
+                shape = RoundedCornerShape(15.dp)
             )
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
 
+        Box(
+            modifier = Modifier
+                .size(70.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            AppColors.primaryButton.copy(alpha = 0.3f),
+                            AppColors.primaryButton.copy(alpha = 0.1f)
+                        )
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
-                text = "ID: ${member.id ?: "-"}",
-                style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                color = AppColors.secondaryText
+                text = member.name.firstOrNull()?.uppercase() ?: "",
+                style = AppFont.ibmPlexSans(
+                    size = 28,
+                    weight = FontWeight.Bold
+                ),
+                color = AppColors.primaryButton
             )
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        // MARK: - Name
 
-        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = Icons.Default.Phone, contentDescription = null, tint = AppColors.secondaryText.copy(alpha = 0.7f), modifier = Modifier.size(14.dp))
+        Text(
+            text = member.name,
+            style = AppFont.ibmPlexSans(
+                size = 20,
+                weight = FontWeight.SemiBold
+            ),
+            color = AppColors.headerText,
+            textAlign = TextAlign.Center
+        )
+
+        // MARK: - Member ID
+
+        SSBadge(
+            title = "Member ID",
+            value = member.id ?: "-",
+            icon = "👤",
+            style = BadgeStyle.INFO
+        )
+
+        // MARK: - Phone Number
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+
+            Icon(
+                imageVector = Icons.Default.Phone,
+                contentDescription = null,
+                tint = AppColors.secondaryText.copy(alpha = 0.7f),
+                modifier = Modifier.size(14.dp)
+            )
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            Text(
+                text = member.phoneNumber,
+                style = AppFont.ibmPlexSans(
+                    size = 14,
+                    weight = FontWeight.Normal
+                ),
+                color = AppColors.secondaryText
+            )
+
+            if (screenType == SquadUserType.SQUAD_MEMBER) {
+
                 Spacer(modifier = Modifier.width(6.dp))
-                Text(text = member.phoneNumber, style = AppFont.ibmPlexSans(14, FontWeight.Normal), color = AppColors.secondaryText, modifier = Modifier.widthIn(max = 140.dp))
-                if (screenType == SquadUserType.SQUAD_MEMBER) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    IconButton(onClick = { squadViewModel.setShowUpdateMemberPopup(true) }) {
-                        Icon(imageVector = Icons.Default.Edit, contentDescription = "edit", tint = AppColors.primaryButton)
+
+                IconButton(
+                    onClick = {
+                        squadViewModel.setShowUpdateMemberPopup(true)
                     }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit Member",
+                        tint = AppColors.primaryButton
+                    )
                 }
             }
         }

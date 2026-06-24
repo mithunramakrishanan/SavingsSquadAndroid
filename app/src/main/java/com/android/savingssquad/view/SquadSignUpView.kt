@@ -50,6 +50,7 @@ import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.android.savingssquad.SquadSubscription.SubscriptionFirebaseManager
@@ -58,6 +59,7 @@ import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
 
 import com.google.firebase.auth.*
+import com.yourapp.utils.IDGenerator
 
 import kotlinx.coroutines.launch
 
@@ -479,16 +481,9 @@ fun SquadSignUpView(
                                 squadStartAmount = squadStartAmount,
                                 activity = activity,
                                 context = appContext,
+                                navController = navController,
                                 onComplete = {
                                     isButtonLoading = false
-
-                                    AlertManager.shared.showAlert(
-                                        title = SquadStrings.appName,
-                                        message = SquadStrings.squadCreatedSuccessfully,
-                                        primaryButtonTitle = SquadStrings.ok,
-                                        primaryAction = {navController.popBackStack()}
-                                    )
-
 
                                 },
                                 onError = { err ->
@@ -600,12 +595,13 @@ private fun saveSquadData(
     squadStartAmount: String,
     activity: Activity,
     context: Context,
+    navController: NavController,
     onComplete: () -> Unit,
     onError: (String) -> Unit
 ) {
     loaderManager.showLoader()
 
-    val squadID = System.currentTimeMillis().toString()
+    val squadID = IDGenerator.generateSquadID()
     val squadStartDate = java.util.Date()
     val monthsInt = totalMonths.toIntOrNull() ?: 12
     val squadAmountInt = squadAmount.toIntOrNull() ?: 0
@@ -690,6 +686,7 @@ private fun saveSquadData(
                         primaryButtonTitle = "Login",
                         primaryAction = {
 
+                            navController.popBackStack()
                         }
                     )
 

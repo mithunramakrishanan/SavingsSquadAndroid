@@ -63,9 +63,15 @@ class MainActivity : ComponentActivity() {
             Log.d("NOTI", "payment = $payment")
             Log.d("NOTI", "notificationType = $notificationType")
 
-            UserDefaultsManager.saveIsFromnotification(true)
-
+            if (notificationType == "REQUESTED") {
+                UserDefaultsManager.saveIsFromnotification(true)
+            }
+            else {
+                UserDefaultsManager.saveIsFromnotification(false)
+            }
             if (navigate == SquadUserType.SQUAD_MANAGER.value) {
+
+                UserDefaultsManager.saveSquadManagerLogged(true)
 
                 val login = Login(
                     squadID = payment.squadId,
@@ -80,7 +86,7 @@ class MainActivity : ComponentActivity() {
                 UserDefaultsManager.saveLogin(login)
             }
             else {
-
+                UserDefaultsManager.saveSquadManagerLogged(false)
                 val login = Login(
                     squadID = payment.squadId,
                     squadName = "",

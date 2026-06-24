@@ -90,6 +90,7 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
@@ -2532,4 +2533,118 @@ fun ShimmerLoader() {
             .padding(horizontal = 16.dp)
             .background(Color.Gray.copy(alpha = 0.2f), shape = RoundedCornerShape(12.dp))
     )
+}
+
+@Composable
+fun SSBadge(
+    title: String,
+    value: String,
+    icon: String? = null,
+    style: BadgeStyle = BadgeStyle.PRIMARY
+) {
+    val colors = getBadgeColors(style)
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .background(
+                color = colors.background,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = colors.border,
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    ) {
+
+        icon?.let {
+            Text(
+                text = it,
+                style = AppFont.ibmPlexSans(
+                    size = 12,
+                    weight = FontWeight.SemiBold
+                )
+            )
+
+            Spacer(modifier = Modifier.width(4.dp))
+        }
+
+        Text(
+            text = title,
+            style = AppFont.ibmPlexSans(
+                size = 10,
+                weight = FontWeight.Medium
+            ),
+            color = AppColors.secondaryText
+        )
+
+        Spacer(modifier = Modifier.width(4.dp))
+
+        Text(
+            text = value,
+            style = AppFont.ibmPlexSans(
+                size = 12,
+                weight = FontWeight.Bold
+            ),
+            color = colors.text
+        )
+    }
+}
+
+enum class BadgeStyle {
+    PRIMARY,
+    SECONDARY,
+    SUCCESS,
+    WARNING,
+    ERROR,
+    INFO
+}
+
+data class BadgeColors(
+    val text: Color,
+    val background: Color,
+    val border: Color
+)
+
+fun getBadgeColors(style: BadgeStyle): BadgeColors {
+    return when (style) {
+
+        BadgeStyle.PRIMARY -> BadgeColors(
+            text = AppColors.primaryBrand,
+            background = AppColors.primaryBackground,
+            border = AppColors.primaryBrand.copy(alpha = 0.3f)
+        )
+
+        BadgeStyle.SECONDARY -> BadgeColors(
+            text = AppColors.secondaryAccent,
+            background = AppColors.secondaryBackground,
+            border = AppColors.secondaryAccent.copy(alpha = 0.3f)
+        )
+
+        BadgeStyle.SUCCESS -> BadgeColors(
+            text = AppColors.successAccent,
+            background = AppColors.successAccent.copy(alpha = 0.1f),
+            border = AppColors.successAccent.copy(alpha = 0.3f)
+        )
+
+        BadgeStyle.WARNING -> BadgeColors(
+            text = AppColors.warningAccent,
+            background = AppColors.warningAccent.copy(alpha = 0.1f),
+            border = AppColors.warningAccent.copy(alpha = 0.3f)
+        )
+
+        BadgeStyle.ERROR -> BadgeColors(
+            text = AppColors.errorAccent,
+            background = AppColors.errorAccent.copy(alpha = 0.1f),
+            border = AppColors.errorAccent.copy(alpha = 0.3f)
+        )
+
+        BadgeStyle.INFO -> BadgeColors(
+            text = AppColors.infoAccent,
+            background = AppColors.infoAccent.copy(alpha = 0.1f),
+            border = AppColors.infoAccent.copy(alpha = 0.3f)
+        )
+    }
 }

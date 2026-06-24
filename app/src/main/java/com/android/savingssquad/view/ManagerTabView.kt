@@ -24,6 +24,7 @@ import androidx.navigation.NavHostController
 import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.SquadSubscription.UpgradePlanScreen
 import com.android.savingssquad.SquadSubscription.UpgradeSuccessScreen
+import com.android.savingssquad.viewmodel.SSToast
 
 @Composable
 fun ManagerTabView(
@@ -108,7 +109,7 @@ fun ManagerTabView(
         // ✅ Global Overlays
         SSAlert()
         SSLoaderView()
-
+        SSToast()
         // ✅ Payment overlay
         if (showPayment && squad != null) {
             RazorpayPaymentView (

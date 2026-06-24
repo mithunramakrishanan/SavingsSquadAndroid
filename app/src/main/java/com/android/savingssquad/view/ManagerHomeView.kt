@@ -199,7 +199,6 @@ fun ManagerHomeView(
                     }
                 )
 
-                // 🔹 Scrollable content
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
@@ -227,6 +226,20 @@ fun ManagerHomeView(
                                 totalMonths = gf.totalDuration,
                                 monthlyContribution = gf.monthlyContribution.currencyFormattedWithCommas(),
                                 onClick = { openManagerSquad = true }
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            SSBadge(
+                                title = "Squad ID",
+                                value = squadViewModel.squad.value?.squadID ?: "",
+                                icon = "🏆",
+                                style = BadgeStyle.PRIMARY
                             )
                         }
                     }

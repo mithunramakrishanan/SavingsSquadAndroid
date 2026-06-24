@@ -183,10 +183,6 @@ object CommonFunctions {
         return "LN$dateStr"
     }
 
-    fun generateMemberID(): String {
-        return "MB${Random.nextInt(1000, 9999)}"
-    }
-
     fun generateBankAccountID(): String {
         return "BNK${Random.nextInt(1000, 9999)}"
     }
@@ -327,5 +323,32 @@ object CommonFunctions {
         } catch (e: Exception) {
             null
         }
+    }
+}
+
+object IDGenerator {
+
+    fun generateMemberID(): String {
+        return "MBR-${randomCode(6)}"
+    }
+
+    fun generateSquadID(): String {
+        return "SQD-${randomCode(6)}-${randomSuffix()}"
+    }
+
+    // MARK: - Core
+
+    private fun randomCode(length: Int): String {
+        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return (1..length)
+            .map { chars.random() }
+            .joinToString("")
+    }
+
+    private fun randomSuffix(): String {
+        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return (1..2)
+            .map { chars.random() }
+            .joinToString("")
     }
 }

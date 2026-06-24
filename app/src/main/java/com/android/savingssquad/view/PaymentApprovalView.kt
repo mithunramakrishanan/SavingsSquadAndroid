@@ -85,6 +85,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.savingssquad.singleton.PaymentApproveStatus
+import com.android.savingssquad.singleton.PaymentSubType
+import com.android.savingssquad.viewmodel.SSToast
+import com.android.savingssquad.viewmodel.ToastManager
+import com.android.savingssquad.viewmodel.ToastType
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -239,6 +243,14 @@ fun PaymentApprovalView(
 
                                     if (success) {
 
+                                        ToastManager.show(
+
+                                            message = "Payment Status Updated",
+
+                                            type = ToastType.SUCCESS
+
+                                        )
+
                                         val memberId =
                                             if (screenType == SquadUserType.SQUAD_MEMBER)
                                                 squadViewModel.currentMember.value?.id
@@ -273,6 +285,14 @@ fun PaymentApprovalView(
 
                                     if (success) {
 
+                                        ToastManager.show(
+
+                                            message = "Payment Status Updated",
+
+                                            type = ToastType.SUCCESS
+
+                                        )
+
                                         val memberId =
                                             if (screenType == SquadUserType.SQUAD_MEMBER)
                                                 squadViewModel.currentMember.value?.id
@@ -306,6 +326,7 @@ fun PaymentApprovalView(
 
         SSAlert()
         SSLoaderView()
+        SSToast()
     }
 }
 
@@ -345,7 +366,7 @@ fun PaymentApprovalRow(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = approval.paymentSubType.value,
+                    text = getPaymentLabel(approval.paymentSubType),
                     style = AppFont.ibmPlexSans(
                         13,
                         FontWeight.Normal
@@ -470,5 +491,18 @@ fun PaymentApprovalRow(
                 )
             )
         }
+    }
+}
+
+fun getPaymentLabel(type: PaymentSubType): String {
+    return when (type) {
+
+        PaymentSubType.CONTRIBUTION_AMOUNT -> "Contribution"
+
+        PaymentSubType.LOAN_AMOUNT  -> "Loan"
+
+        PaymentSubType.EMI_AMOUNT  -> "EMI"
+
+        else -> "Payment"
     }
 }

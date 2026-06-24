@@ -11,7 +11,6 @@ import com.android.savingssquad.model.Login
 import com.android.savingssquad.model.PaymentsDetails
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import com.yourapp.utils.CommonFunctions
@@ -23,20 +22,12 @@ import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentFilter
 import com.android.savingssquad.singleton.PaymentStatus
-import com.android.savingssquad.singleton.PaymentType
-import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.asTimestamp
-import com.google.android.gms.tasks.Task
-import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Firebase
-import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
-import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.firestore
 import com.google.firebase.messaging.FirebaseMessaging
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -80,7 +71,7 @@ class FirestoreManager private constructor() {
             .get()
             .addOnSuccessListener { snapshot ->
                 if (snapshot == null || snapshot.isEmpty) {
-                    completion(null, "No login records found for this user.")
+                    completion(null, "You are not associated with any squads.")
                     return@addOnSuccessListener
                 }
 
@@ -774,7 +765,7 @@ class FirestoreManager private constructor() {
     // MARK: - 🔹 Save Multiple Payments (Batch)
     fun savePayments(
         squadID: String,
-        payments: List<PaymentsDetails>,
+        payment: PaymentsDetails?,
         completion: (Boolean, String?) -> Unit
     ) {
 
@@ -783,9 +774,7 @@ class FirestoreManager private constructor() {
 
         var requestedCountIncrement = 0
 
-        for (payment in payments) {
-
-            val paymentID = payment.id
+            val paymentID = payment?.id
                 ?: return completion(false, "❌ One or more payments are missing an ID.")
 
             val docRef = squadRef
@@ -802,7 +791,7 @@ class FirestoreManager private constructor() {
             if (payment.paymentApproveStatus == PaymentApproveStatus.REQUESTED) {
                 requestedCountIncrement++
             }
-        }
+
 
         // 🔥 Update squad verifyAmountCount only if needed
         if (requestedCountIncrement > 0) {

@@ -63,6 +63,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.android.savingssquad.SquadSubscription.UpgradePlanScreen
 import com.android.savingssquad.singleton.AppFont
+import com.android.savingssquad.viewmodel.SSToast
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -141,6 +142,7 @@ fun MemberTabView(
         // Global Components
         SSAlert()
         SSLoaderView()
+        SSToast()
 
         // -------- PAYMENT OVERLAY ----------
         if (showPayment && squad != null) {

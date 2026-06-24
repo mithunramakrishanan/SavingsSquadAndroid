@@ -145,18 +145,31 @@ fun MemberHomeView(
                     ) {
                         val remainingMonths = squadViewModel.remainingMonths.collectAsState().value
 
-                        squad?.let { fund ->
-                            val completed = fund.totalDuration - remainingMonths
-                            val total = fund.totalDuration
-                            val monthlyContribution = fund.monthlyContribution.currencyFormattedWithCommas()
 
-                            ProgressCircleView(
-                                completedMonths = completed,
-                                totalMonths = total,
-                                monthlyContribution = monthlyContribution,
-                                onClick = {  }
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            squad?.let { fund ->
+                                val completed = fund.totalDuration - remainingMonths
+                                val total = fund.totalDuration
+                                val monthlyContribution = fund.monthlyContribution.currencyFormattedWithCommas()
+
+                                ProgressCircleView(
+                                    completedMonths = completed,
+                                    totalMonths = total,
+                                    monthlyContribution = monthlyContribution,
+                                    onClick = { }
+                                )
+                            } ?: CircularProgressIndicator()
+
+                            SSBadge(
+                                title = "Member ID",
+                                value = squadViewModel.selectedUser.collectAsState().value?.squadUserId ?: "-",
+                                icon = "👤",
+                                style = BadgeStyle.INFO
                             )
-                        } ?: CircularProgressIndicator()
+                        }
 
                         Column(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
