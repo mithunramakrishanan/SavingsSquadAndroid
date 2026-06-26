@@ -44,6 +44,7 @@ import com.android.savingssquad.model.Squad
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.viewmodel.AppDestination
 import androidx.compose.runtime.collectAsState
+import com.android.savingssquad.viewmodel.SSToast
 
 @Composable
 fun ManagerHomeView(
@@ -54,9 +55,6 @@ fun ManagerHomeView(
     val context = LocalContext.current
 
     // 🔹 Navigation states
-    var openNotificationView by remember { mutableStateOf(false) }
-    var openPaymentHistoryView by remember { mutableStateOf(false) }
-    var openSquadRulesView by remember { mutableStateOf(false) }
     var openDuesScreen by remember { mutableStateOf(false) }
     var openVerifyPayment by remember { mutableStateOf(false) }
     var openManagerSquad by remember { mutableStateOf(false) }
@@ -105,27 +103,6 @@ fun ManagerHomeView(
         }
     }
 
-    LaunchedEffect(openNotificationView) {
-        if (openNotificationView) {
-            navController.navigate(AppDestination.OPEN_ACTIITY.route)
-            openNotificationView = false
-        }
-    }
-
-    LaunchedEffect(openPaymentHistoryView) {
-        if (openPaymentHistoryView) {
-            navController.navigate(AppDestination.OPEN_PAYMENT_HISTORY.route)
-            openPaymentHistoryView = false
-        }
-    }
-
-    LaunchedEffect(openSquadRulesView) {
-        if (openSquadRulesView) {
-            navController.navigate(AppDestination.OPEN_GROUP_RULES.route)
-            openSquadRulesView = false
-        }
-    }
-
     LaunchedEffect(openDuesScreen) {
         if (openDuesScreen) {
             navController.navigate(AppDestination.OPEN_DUES_SCREEN.route)
@@ -160,9 +137,12 @@ fun ManagerHomeView(
     // 🔹 Main Layout
     Box(
         modifier = Modifier
+
             .fillMaxSize()
-            .background(AppColors.background)
-    ) {
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
         if (squad != null) {
@@ -170,7 +150,8 @@ fun ManagerHomeView(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(top = 10.dp)
-            ) {
+            )
+            {
                 // 🔹 Top Navigation Bar
                 SSNavigationBar(
                     title = "Manager Dashboard",
@@ -249,7 +230,7 @@ fun ManagerHomeView(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 10.dp),
+                                .padding(vertical = 7.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             ManagerHeaderView(squad = squad!!, squadViewModel = squadViewModel, onAccountSummaryClick = {
@@ -276,7 +257,7 @@ fun ManagerHomeView(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 10.dp),
+                                .padding(vertical = 5.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             ManagerTwoButtons(
@@ -342,13 +323,6 @@ fun ManagerHomeView(
             }
         }
 
-        // 🔹 Floating Button
-        FloatingSquadButton(
-            onSquadActivity = { openNotificationView = true },
-            onPaymentHistory = { openPaymentHistoryView = true },
-            onSquadRules = { openSquadRulesView = true }
-        )
-
         // 🔹 Popups
         val showAddMemberPopup = squadViewModel.showAddMemberPopup.collectAsStateWithLifecycle()
 
@@ -403,6 +377,7 @@ fun ManagerHeaderView(
     squadViewModel: SquadViewModel,
     onAccountSummaryClick: () -> Unit = {}
 ) {
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -414,39 +389,78 @@ fun ManagerHeaderView(
             )
             .border(
                 width = 0.5.dp,
-                color = AppColors.border,
+                color = AppColors.border.copy(alpha = 0.4f),
                 shape = RoundedCornerShape(20.dp)
-            ).clickable {
-                onAccountSummaryClick()
-            }
-            .padding(16.dp),
+            )
+            .clickable { onAccountSummaryClick() }
+            .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 🔹 Greeting + Label
+
+        // ================= LEFT SECTION =================
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+
             Text(
                 text = "Hi, ${squad.squadName}",
-                style = AppFont.ibmPlexSans(22, FontWeight.SemiBold),
-                color = AppColors.headerText
+                style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
+                color = AppColors.headerText,
+                maxLines = 1
             )
 
-            Text(
-                text = "Your available balance",
-                style = AppFont.ibmPlexSans(18, FontWeight.Normal),
-                color = AppColors.secondaryText
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+
+                Text(
+                    text = "Available balance",
+                    style = AppFont.ibmPlexSans(12, FontWeight.Medium),
+                    color = AppColors.secondaryText
+                )
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // subtle dot indicator (iOS feel)
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .background(
+                            AppColors.secondaryText.copy(alpha = 0.4f),
+                            CircleShape
+                        )
+                )
+            }
         }
 
-        // 🔹 Balance Amount (clickable)
-        Text(
-            text = squad.currentAvailableAmount.currencyFormattedWithCommas(),
-            style = AppFont.ibmPlexSans(26, FontWeight.Bold),
-            color = AppColors.headerText,
-            modifier = Modifier.padding(start = 8.dp)
-        )
+        // ================= RIGHT BALANCE (iOS HERO BLOCK) =================
+        Column(
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+
+            // small label chip
+            Box(
+                modifier = Modifier
+                    .background(
+                        AppColors.secondaryText.copy(alpha = 0.08f),
+                        RoundedCornerShape(10.dp)
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = "Balance",
+                    style = AppFont.ibmPlexSans(11, FontWeight.Medium),
+                    color = AppColors.secondaryText
+                )
+            }
+
+            Text(
+                text = squad.currentAvailableAmount.currencyFormattedWithCommas(),
+                style = AppFont.ibmPlexSans(22, FontWeight.Bold),
+                color = AppColors.primaryButton,
+                maxLines = 1
+            )
+        }
     }
 }
 
@@ -456,25 +470,31 @@ fun ManagerTwoButtons(
     acceptAmountAction: () -> Unit,
     verifyCount: Int
 ) {
+
     Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 6.dp)
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
+        // ================= ADD MEMBER =================
         TwoButtonGradient(
             icon = Icons.Filled.PersonAdd,
             title = "Add Member",
-            gradientColors = listOf(AppColors.primaryButton, AppColors.successAccent),
+            gradientColors = listOf(
+                AppColors.primaryButton,
+                AppColors.successAccent.copy(alpha = 0.95f)
+            ),
             onClick = addMemberAction,
             modifier = Modifier.weight(1f)
         )
 
-        // 🔥 Verify Payment with Badge
+        // ================= VERIFY PAYMENT =================
         Box(
             modifier = Modifier.weight(1f)
         ) {
+
             TwoButtonGradient(
                 icon = Icons.Default.VerifiedUser,
                 title = "Verify Payment",
@@ -486,20 +506,23 @@ fun ManagerTwoButtons(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // ================= BADGE (iOS STYLE FLOAT) =================
             if (verifyCount > 0) {
+
                 Box(
                     modifier = Modifier
-                        .size(26.dp)
-                        .offset(x = (-6).dp, y = (-6).dp)
+                        .size(22.dp) // iOS compact badge
+                        .offset(x = (-6).dp, y = (-8).dp)
                         .align(Alignment.TopEnd)
                         .background(Color.Red, CircleShape)
                         .border(2.dp, Color.White, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
+
                     Text(
                         text = verifyCount.toString(),
                         color = Color.White,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -520,77 +543,135 @@ fun getDrawableId(name: String): Int {
 fun TotalMemberContributionCard(
     totalMembers: Int,
     totalContribution: String,
-    subDetails: List<Pair<String, String>>, // (icon, text)
+    subDetails: List<Pair<String, String>>,
     onClick: (() -> Unit)? = null
 ) {
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .appShadow(AppShadows.card, RoundedCornerShape(16.dp))
+            .appShadow(
+                AppShadows.card,
+                RoundedCornerShape(16.dp)
+            )
             .background(
                 color = AppColors.surface,
                 shape = RoundedCornerShape(16.dp)
             )
             .then(
                 if (onClick != null)
-                    Modifier.clickable(onClick = onClick)
+                    Modifier.clickable { onClick() }
                 else Modifier
             )
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalAlignment = Alignment.Start
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
 
-        // 🔹 Total Members
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        // ================= HEADER =================
+        Row(verticalAlignment = Alignment.CenterVertically) {
+
             Text(
-                text = "Total Members",
-                style = AppFont.ibmPlexSans(14, FontWeight.Normal),
-                color = AppColors.secondaryText
-            )
-            Text(
-                text = totalMembers.toString(),
-                style = AppFont.ibmPlexSans(22, FontWeight.SemiBold),
+                text = "Overview",
+                style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
                 color = AppColors.headerText
             )
-        }
 
-        // 🔹 Total Contribution
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = "Contribution Received",
-                style = AppFont.ibmPlexSans(14, FontWeight.Normal),
-                color = AppColors.secondaryText
-            )
-            Text(
-                text = totalContribution,
-                style = AppFont.ibmPlexSans(22, FontWeight.SemiBold),
-                color = AppColors.primaryButton
-            )
-        }
+            Spacer(modifier = Modifier.weight(1f))
 
-        // 🔹 Optional Sub Details
-        if (subDetails.isNotEmpty()) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                horizontalAlignment = Alignment.Start,
-                modifier = Modifier.padding(top = 4.dp)
+            // 🔥 unified iOS-style icon chip
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .background(
+                        AppColors.secondaryText.copy(alpha = 0.10f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
             ) {
+                Icon(
+                    imageVector = Icons.Filled.Person,
+                    contentDescription = null,
+                    tint = AppColors.secondaryText.copy(alpha = 0.7f),
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+        }
+
+        // ================= MAIN STATS =================
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+
+                Text(
+                    text = "Members",
+                    style = AppFont.ibmPlexSans(12, FontWeight.Medium),
+                    color = AppColors.secondaryText
+                )
+
+                Text(
+                    text = totalMembers.toString(),
+                    style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
+                    color = AppColors.headerText
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+
+                Text(
+                    text = "Contribution",
+                    style = AppFont.ibmPlexSans(12, FontWeight.Medium),
+                    color = AppColors.secondaryText
+                )
+
+                Text(
+                    text = totalContribution,
+                    style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
+                    color = AppColors.primaryButton
+                )
+            }
+        }
+
+        // ================= SUB DETAILS =================
+        if (subDetails.isNotEmpty()) {
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+
                 subDetails.forEach { detail ->
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(
-                            painter = rememberVectorPainter(Icons.Default.CreditCard),
-                            contentDescription = null,
-                            tint = AppColors.secondaryText,
-                            modifier = Modifier.size(12.dp)
-                        )
+
+                        // 🔥 unified icon chip (same system everywhere)
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .background(
+                                    AppColors.secondaryText.copy(alpha = 0.10f),
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Info,
+                                contentDescription = null,
+                                tint = AppColors.secondaryText.copy(alpha = 0.7f),
+                                modifier = Modifier.size(10.dp)
+                            )
+                        }
+
                         Text(
                             text = detail.second,
-                            style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                            color = AppColors.secondaryText
+                            style = AppFont.ibmPlexSans(11, FontWeight.Medium),
+                            color = AppColors.secondaryText,
+                            maxLines = 1
                         )
                     }
                 }
@@ -607,42 +688,69 @@ fun LoanSummaryCard(
     interestEarned: String,
     onClick: () -> Unit
 ) {
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .appShadow(AppShadows.card, RoundedCornerShape(16.dp))
+            .appShadow(AppShadows.card, RoundedCornerShape(18.dp))
             .background(
                 color = AppColors.surface,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(18.dp)
             )
             .clickable { onClick() }
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-        horizontalAlignment = Alignment.Start
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // 🔹 Header
-        Text(
-            text = "Loan Summary",
-            style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
-            color = AppColors.headerText
-        )
 
-        // 🔹 2x2 Grid (Left–Right aligned)
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // ================= HEADER (iOS FIXED) =================
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Text(
+                text = "Loan Summary",
+                style = AppFont.ibmPlexSans(15, FontWeight.SemiBold),
+                color = AppColors.headerText
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // 🔥 FIXED: replaces "chart.bar.fill"
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .background(
+                        color = AppColors.secondaryText.copy(alpha = 0.08f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.InsertChart, // ✅ Android equivalent
+                    contentDescription = null,
+                    tint = AppColors.secondaryText.copy(alpha = 0.65f),
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+
+        // ================= GRID =================
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                LoanStatView(
-                    title = "Total Sent",
+                LoanStatViewIOS(
+                    title = "Sent",
                     value = totalSent,
                     icon = Icons.Filled.ArrowUpward,
                     color = AppColors.errorAccent,
                     modifier = Modifier.weight(1f)
                 )
 
-                LoanStatView(
-                    title = "Total Received",
+                LoanStatViewIOS(
+                    title = "Received",
                     value = totalReceived,
                     icon = Icons.Filled.ArrowDownward,
                     color = AppColors.successAccent,
@@ -652,9 +760,9 @@ fun LoanSummaryCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                LoanStatView(
+                LoanStatViewIOS(
                     title = "Pending",
                     value = pending,
                     icon = Icons.Filled.HourglassEmpty,
@@ -662,8 +770,8 @@ fun LoanSummaryCard(
                     modifier = Modifier.weight(1f)
                 )
 
-                LoanStatView(
-                    title = "Interest Earned",
+                LoanStatViewIOS(
+                    title = "Interest",
                     value = interestEarned,
                     icon = Icons.Filled.AccountBalance,
                     color = AppColors.infoAccent,
@@ -675,44 +783,54 @@ fun LoanSummaryCard(
 }
 
 @Composable
-fun LoanStatView(
+fun LoanStatViewIOS(
     title: String,
     value: String,
     icon: ImageVector,
     color: Color,
     modifier: Modifier = Modifier
 ) {
+
     Column(
-        modifier = modifier, // ✅ allows use of Modifier.weight(1f)
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        horizontalAlignment = Alignment.Start
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        // 🔹 Title + Icon Row
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(16.dp) // ⬆️ slightly bigger for balance
-            )
+
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .background(
+                        color = color.copy(alpha = 0.12f),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
 
             Text(
                 text = title,
-                style = AppFont.ibmPlexSans(13, FontWeight.Medium),
-                color = AppColors.secondaryText
+                style = AppFont.ibmPlexSans(12, FontWeight.Medium),
+                color = AppColors.secondaryText,
+                maxLines = 1
             )
         }
 
-        // 🔹 Value text
         Text(
             text = value,
             style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
             color = AppColors.headerText,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis // ✅ avoids text overflow in narrow layouts
+            maxLines = 1
         )
     }
 }

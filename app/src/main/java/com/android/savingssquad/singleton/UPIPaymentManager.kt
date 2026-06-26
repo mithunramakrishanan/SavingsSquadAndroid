@@ -13,6 +13,8 @@ import androidx.appcompat.app.AppCompatActivity
 import com.android.savingssquad.viewmodel.AlertManager
 import androidx.core.net.toUri
 import android.util.Log
+import com.android.savingssquad.viewmodel.ToastManager
+import com.android.savingssquad.viewmodel.ToastType
 
 // MARK: - UPI Payment Status
 enum class UPIPaymentStatus {
@@ -105,13 +107,7 @@ class UPIPaymentManager private constructor() {
 
         if (installedApps.isEmpty()) {
             Log.e(TAG, "No UPI apps installed")
-
-            AlertManager.shared.showAlert(
-                title = "No UPI App Found",
-                message = "Please install GPay, PhonePe, or Paytm to make payments.",
-                type = AlertType.ERROR
-            )
-
+            ToastManager.show(title = "No UPI App Found", message =  "Please install GPay, PhonePe, or Paytm to make payments.", type = ToastType.ERROR)
             completion?.invoke(false)
             onReturn?.invoke(UPIPaymentStatus.CANCELLED)
             return

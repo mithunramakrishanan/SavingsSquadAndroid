@@ -49,6 +49,9 @@ import com.android.savingssquad.viewmodel.AlertManager
 import com.google.firebase.Timestamp
 import com.yourapp.utils.CommonFunctions
 import com.android.savingssquad.singleton.UPIPaymentStatus
+import com.android.savingssquad.viewmodel.SSToast
+import com.android.savingssquad.viewmodel.ToastManager
+import com.android.savingssquad.viewmodel.ToastType
 
 // MemberPaymentScreen.kt
 @RequiresApi(Build.VERSION_CODES.O)
@@ -129,7 +132,9 @@ fun MemberPaymentView(
 
                         } else {
                             availableContributionMonths = emptyList()
-                            AlertManager.shared.showAlert(title = SquadStrings.appName, message = "No outstanding dues for ${currentMember?.name ?: ""}", primaryButtonTitle = SquadStrings.ok, primaryAction = {})
+
+                            ToastManager.show(title = SquadStrings.appName, message = "No outstanding dues for ${currentMember?.name ?: ""}", type = ToastType.SUCCESS)
+
                         }
                     }
 
@@ -163,10 +168,18 @@ fun MemberPaymentView(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp))
+        {
             SSNavigationBar(title = SquadStrings.payment, navController = navController, showBackButton = false)
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -199,7 +212,9 @@ fun MemberPaymentView(
 
                                 } else {
                                     availableContributionMonths = emptyList()
-                                    AlertManager.shared.showAlert(title = SquadStrings.appName, message = "No outstanding dues for ${currentMember?.name ?: ""}", primaryButtonTitle = SquadStrings.ok, primaryAction = {})
+
+                                    ToastManager.show(title = SquadStrings.appName, message =  "No outstanding dues for ${currentMember?.name ?: ""}", type = ToastType.SUCCESS)
+
                                 }
                             }
                         },
@@ -267,18 +282,6 @@ fun MemberPaymentView(
                                         if (error == "UPI_OPENED") {
                                             contributionSelectedMonthYear = ""
                                         }
-
-//                                        LoaderManager.shared.hideLoader()
-//                                        AlertManager.shared.showAlert(
-//                                            title = SquadStrings.appName,
-//                                            message = "Payment updated. Pending admin verification.",
-//                                            primaryButtonTitle = "OK",
-//                                            primaryAction = {
-//
-//                                                contributionSelectedMonthYear = ""
-//                                            }
-//                                        )
-
                                     } else {
                                         println("❌ Error adding payment: $error")
                                     }
@@ -409,18 +412,6 @@ fun MemberPaymentView(
                                             selectedInstallment = null
                                             emiSelectedMonthYear = ""
                                         }
-
-//                                        LoaderManager.shared.hideLoader()
-//                                        AlertManager.shared.showAlert(
-//                                            title = SquadStrings.appName,
-//                                            message = "Payment updated. Pending admin verification.",
-//                                            primaryButtonTitle = "OK",
-//                                            primaryAction = {
-//                                                selectedInstallment = null
-//                                                emiSelectedMonthYear = ""
-//                                            }
-//                                        )
-
                                     } else {
                                         println("❌ Error adding payment: $error")
                                     }
@@ -466,32 +457,8 @@ fun MemberPaymentView(
             }
 
             Spacer(modifier = Modifier.height(20.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // LOGOUT BUTTON
-                LogoutButton {
-                    AlertManager.shared.showAlert(
-                        title = SquadStrings.appName,
-                        message = "Are you sure you want to logout?",
-                        primaryButtonTitle = "LOGOUT",
-                        primaryAction = {
-                            logoutUser(navController,squadViewModel)
-                        },
-                        secondaryButtonTitle = "NO"
-                    )
-                }
-            }
-
-
         }
-
         val isShowContributionMonthList = squadViewModel.showContributionMonthPopup.collectAsStateWithLifecycle()
-
 
         if (isShowContributionMonthList.value) {
             OverlayBackgroundView(

@@ -80,6 +80,9 @@ import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
+import com.android.savingssquad.viewmodel.SSToast
+import com.android.savingssquad.viewmodel.ToastManager
+import com.android.savingssquad.viewmodel.ToastType
 import com.google.api.Context
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.CoroutineScope
@@ -161,7 +164,14 @@ fun ManualEntryView(
     }
 
     // ===== UI =====
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
         Column(
@@ -169,7 +179,8 @@ fun ManualEntryView(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(vertical = 16.dp)
-        ) {
+        )
+        {
 
             SSNavigationBar(
                 title = SquadStrings.manualEntry,
@@ -216,20 +227,15 @@ fun ManualEntryView(
                             error = contributionSelectedMonthYearError,
                             onDropdownTap = {
                                 if (contributionSelectedMemberName.isEmpty()) {
-                                    AlertManager.shared.showAlert(
-                                        title = SquadStrings.appName,
-                                        message = "Please select a member",
-                                        primaryButtonTitle = SquadStrings.ok,
-                                        primaryAction = {}
-                                    )
+                                    ToastManager.show(title = SquadStrings.appName, message =  "Please select a member", type = ToastType.ERROR)
+
+
                                 } else {
                                     if (availableContributionMonths.isEmpty()) {
-                                        AlertManager.shared.showAlert(
-                                            title = SquadStrings.appName,
-                                            message = "No outstanding dues for $contributionSelectedMemberName",
-                                            primaryButtonTitle = SquadStrings.ok,
-                                            primaryAction = {}
-                                        )
+
+                                        ToastManager.show(title = SquadStrings.appName, message =  "No outstanding dues for $contributionSelectedMemberName", type = ToastType.SUCCESS)
+
+
                                     } else {
                                         squadViewModel.setShowContributionMonthPopup(true)
                                     }
@@ -332,7 +338,7 @@ fun ManualEntryView(
                                             activity = activity,
                                             context = appContext,
                                             squadID = squadLocal.squadID,
-                                            payment = newPayment
+                                            payment = listOf(newPayment)
                                         ) { pSuccess, pError ->
                                             // no-op logging
                                         }
@@ -555,9 +561,6 @@ fun ManualEntryView(
 
             Spacer(modifier = Modifier.height(30.dp))
         }
-
-        SSAlert()
-        SSLoaderView()
 
         val isShowContributionMemberList = squadViewModel.showContributionMemberPopup.collectAsStateWithLifecycle()
 

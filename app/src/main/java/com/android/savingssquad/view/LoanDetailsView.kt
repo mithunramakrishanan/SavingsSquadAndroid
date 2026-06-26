@@ -58,6 +58,7 @@ import com.android.savingssquad.singleton.asTimestamp
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AlertManager
+import com.android.savingssquad.viewmodel.SSToast
 import com.yourapp.utils.CommonFunctions
 import java.util.Calendar
 
@@ -116,109 +117,119 @@ fun LoanDetailsView(
         }
     }
 
-    // ==== UI BODY ====
-    AppBackgroundGradient()
+    Box(
+        modifier = Modifier
 
-    Column(modifier = Modifier.fillMaxSize()) {
+            .fillMaxSize()
 
-        // NAV BAR
-        SSNavigationBar(SquadStrings.loanDetails,navController)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
+        AppBackgroundGradient()
+        Column(modifier = Modifier.fillMaxSize()) {
 
-        Spacer(modifier = Modifier.height(16.dp))
+            // NAV BAR
+            SSNavigationBar(SquadStrings.loanDetails,navController)
 
-        // FILTER SECTION
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (screenType != SquadUserType.SQUAD_MEMBER) {
-                DropdownMenuPicker(
-                    label = "Member",
-                    selected = selectedMember,
-                    items = memberList,
-                    modifier = Modifier.weight(1f)
-                ) { selectedMember = it }
-            }
+            Spacer(modifier = Modifier.height(16.dp))
 
-            DropdownMenuPicker(
-                label = "Status",
-                selected = selectedStatus?.value ?: "All",
-                items = listOf("All", "Pending", "Paid", "Overdue"),
-                modifier = Modifier.weight(1f)
+            // FILTER SECTION
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                selectedStatus = when (it.lowercase()) {
-                    "pending" -> EMIStatus.PENDING
-                    "paid" -> EMIStatus.PAID
-                    "overdue" -> EMIStatus.OVERDUE
-                    else -> null
+                if (screenType != SquadUserType.SQUAD_MEMBER) {
+                    DropdownMenuPicker(
+                        label = "Member",
+                        selected = selectedMember,
+                        items = memberList,
+                        modifier = Modifier.weight(1f)
+                    ) { selectedMember = it }
+                }
+
+                DropdownMenuPicker(
+                    label = "Status",
+                    selected = selectedStatus?.value ?: "All",
+                    items = listOf("All", "Pending", "Paid", "Overdue"),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    selectedStatus = when (it.lowercase()) {
+                        "pending" -> EMIStatus.PENDING
+                        "paid" -> EMIStatus.PAID
+                        "overdue" -> EMIStatus.OVERDUE
+                        else -> null
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ===== LOAN LIST =====
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+
+                when {
+                    // 🔵 Loading State
+                    squadLoans == null -> {
+                        item {
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No loans yet",
+                                    color = AppColors.secondaryText,
+                                    modifier = Modifier.padding(top = 20.dp),
+                                    style = AppFont.ibmPlexSans(14, FontWeight.Normal)
+                                )
+                            }
+                        }
+                    }
+
+                    // 🔴 Empty State
+                    filteredLoans.isEmpty() -> {
+                        item {
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No loans yet",
+                                    color = AppColors.secondaryText,
+                                    modifier = Modifier.padding(top = 20.dp),
+                                    style = AppFont.ibmPlexSans(14, FontWeight.Normal)
+                                )
+                            }
+                        }
+                    }
+
+                    // 🟢 Loan List
+                    else -> {
+                        items(
+                            items = filteredLoans,
+                            key = { it.id ?: it.hashCode().toString() }   // Safe key
+                        ) { loan ->
+                            LoanCard(loan = loan)
+                        }
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // ===== LOAN LIST =====
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-
-            when {
-                // 🔵 Loading State
-                squadLoans == null -> {
-                    item {
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "No loans yet",
-                                color = AppColors.secondaryText,
-                                modifier = Modifier.padding(top = 20.dp),
-                                style = AppFont.ibmPlexSans(14, FontWeight.Normal)
-                            )
-                        }
-                    }
-                }
-
-                // 🔴 Empty State
-                filteredLoans.isEmpty() -> {
-                    item {
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "No loans yet",
-                                color = AppColors.secondaryText,
-                                modifier = Modifier.padding(top = 20.dp),
-                                style = AppFont.ibmPlexSans(14, FontWeight.Normal)
-                            )
-                        }
-                    }
-                }
-
-                // 🟢 Loan List
-                else -> {
-                    items(
-                        items = filteredLoans,
-                        key = { it.id ?: it.hashCode().toString() }   // Safe key
-                    ) { loan ->
-                        LoanCard(loan = loan)
-                    }
-                }
-            }
-        }
     }
+
+
 }
 
 @Composable

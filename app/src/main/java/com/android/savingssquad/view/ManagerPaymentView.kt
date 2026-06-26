@@ -89,6 +89,9 @@ import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.FirebaseFunctionsManager
+import com.android.savingssquad.viewmodel.SSToast
+import com.android.savingssquad.viewmodel.ToastManager
+import com.android.savingssquad.viewmodel.ToastType
 import com.google.firebase.Timestamp
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.flow.forEach
@@ -132,8 +135,14 @@ fun ManagerPaymentView(
                 paymentNotesError.isEmpty()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
 
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
         LazyColumn(
@@ -142,7 +151,8 @@ fun ManagerPaymentView(
                 .padding(vertical = 16.dp),
             contentPadding = PaddingValues(bottom = 40.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        )
+        {
 
             // Navigation Bar
             item {
@@ -444,16 +454,6 @@ private fun makeLoanPayment(
                         handler()
                     }
 
-
-//                    LoaderManager.shared.hideLoader()
-//                    AlertManager.shared.showAlert(
-//                        title = SquadStrings.appName,
-//                        message = "Payment updated. Pending member verification.",
-//                        primaryButtonTitle = "OK",
-//                        primaryAction = {
-//                        }
-//                    )
-
                 } else {
                     println("❌ Error adding payment: $error")
                 }
@@ -482,12 +482,8 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
     val availableAmount = squadViewModel.squad.value?.currentAvailableAmount ?: 0
     val amountInt = amountStr.toIntOrNull() ?: 0
     if (availableAmount < amountInt) {
-        AlertManager.shared.showAlert(
-            title = SquadStrings.appName,
-            message = "Fund not available",
-            primaryButtonTitle = SquadStrings.ok,
-            primaryAction = {}
-        )
+
+        ToastManager.show(title = SquadStrings.appName, message = "Fund not available", type = ToastType.ERROR)
         return
     }
     LoaderManager.shared.showLoader()
@@ -551,13 +547,8 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
                 description = "Amount $amountStr debited for $notes"
             )
             LoaderManager.shared.hideLoader()
-            AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
-                message = "Payment updated",
-                primaryButtonTitle = "OK",
-                primaryAction = {
-                }
-            )
+
+            ToastManager.show(title = SquadStrings.appName, message = "Payment updated", type = ToastType.SUCCESS)
         } else {
             println("❌ Error adding payment: $error")
         }

@@ -9,13 +9,18 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDp
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -25,6 +30,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,8 +46,7 @@ import androidx.compose.material.icons.automirrored.rounded.List
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.CreditCard
-import androidx.compose.material.icons.rounded.List
-import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,7 +69,6 @@ import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.singleton.ShadowStyle
 import com.android.savingssquad.singleton.appShadow
 
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -86,14 +90,18 @@ import com.google.firebase.auth.PhoneAuthProvider
 import java.util.Date
 import java.util.concurrent.TimeUnit
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
-import androidx.navigation.compose.rememberNavController
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.android.savingssquad.R
 import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.model.Member
@@ -208,18 +216,23 @@ fun SSButton(
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         color = if (isDisabled) AppColors.disabledButton else AppColors.primaryButton,
-        shape = RoundedCornerShape(12.dp),
-        shadowElevation = 0.dp
+        shape = RoundedCornerShape(18.dp),
+        shadowElevation = 0.dp,
+        onClick = {
+            if (!isDisabled && !isButtonLoading) {
+                action()
+            }
+        },
+        enabled = !isDisabled && !isButtonLoading
     ) {
         Box(
             modifier = Modifier
-                .heightIn(min = 48.dp)
+                .height(44.dp)
                 .appShadow(
                     if (isDisabled) ShadowStyle(Color.Transparent, 0.dp, 0.dp, 0.dp)
                     else AppShadows.elevated,
-                    RoundedCornerShape(12.dp)
-                )
-                .clickable(enabled = !isDisabled) { if (!isDisabled) action() },
+                    RoundedCornerShape(18.dp)
+                ),
             contentAlignment = Alignment.Center
         ) {
             if (isButtonLoading) {
@@ -239,6 +252,57 @@ fun SSButton(
     }
 }
 
+@Composable
+fun SSCancelButton(
+    title: String,
+    modifier: Modifier = Modifier,
+    isButtonLoading: Boolean = false,
+    isDisabled: Boolean = false,
+    action: () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = if (isDisabled) AppColors.surface.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.95f),
+        shadowElevation = 0.dp,
+        onClick = {
+            if (!isDisabled && !isButtonLoading) {
+                action()
+            }
+        },
+        enabled = !isDisabled && !isButtonLoading
+    ) {
+        Box(
+            modifier = Modifier
+                .height(44.dp)
+                .border(
+                    1.dp,
+                    AppColors.headerText.copy(alpha = if (isDisabled) 0.3f else 0.8f),
+                    RoundedCornerShape(14.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isButtonLoading) {
+                CircularProgressIndicator(
+                    color = AppColors.headerText,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(20.dp)
+                )
+            } else {
+                Text(
+                    text = title,
+                    style = AppFont.ibmPlexSans(15, FontWeight.SemiBold),
+                    color = if (isDisabled)
+                        AppColors.secondaryText.copy(alpha = 0.5f)
+                    else AppColors.headerText
+                )
+            }
+        }
+    }
+}
+
 // ---------- SSTextField ----------
 @Composable
 fun SSTextField(
@@ -247,7 +311,7 @@ fun SSTextField(
     textState: MutableState<String>,
     keyboardType: KeyboardType = KeyboardType.Text,
     isSecure: Boolean = false,
-    disabled: Boolean = false, // Text editing disabled
+    disabled: Boolean = false,
     showDropdown: Boolean = false,
     isLoading: Boolean = false,
     dropdownIcon: ImageVector = Icons.Default.ArrowDropDown,
@@ -255,112 +319,156 @@ fun SSTextField(
     onDropdownTap: (() -> Unit)? = null,
     error: String = ""
 ) {
+
     val focusRequester = remember { FocusRequester() }
     var isFocused by remember { mutableStateOf(false) }
+
+    val borderColor by animateColorAsState(
+        targetValue = when {
+            error.isNotEmpty() -> AppColors.errorAccent
+            isFocused -> AppColors.primaryButton
+            else -> AppColors.border
+        },
+        label = ""
+    )
+
+    val borderWidth by animateDpAsState(
+        targetValue = if (isFocused) 1.8.dp else 1.dp,
+        label = ""
+    )
+
+    val bgColor = when {
+        disabled -> Color(0xFFF6F8F9)
+        else -> AppColors.textFieldBackground
+    }
+
+    val iconTint by animateColorAsState(
+        when {
+            disabled -> AppColors.secondaryText.copy(alpha = 0.45f)
+            isFocused -> AppColors.primaryButton
+            else -> AppColors.secondaryText
+        },
+        label = ""
+    )
 
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .height(52.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.White)
+                .appShadow(AppShadows.card, RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(16.dp))
+                .background(bgColor)
                 .border(
-                    width = 1.5.dp,
-                    color = when {
-                        error.isNotEmpty() -> AppColors.errorAccent
-                        isFocused -> AppColors.primaryButton
-                        else -> AppColors.border
-                    },
-                    shape = RoundedCornerShape(12.dp)
+                    width = borderWidth,
+                    color = borderColor,
+                    shape = RoundedCornerShape(16.dp)
                 )
         ) {
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(58.dp)
             ) {
-                Spacer(modifier = Modifier.width(12.dp))
+
+                Spacer(modifier = Modifier.width(14.dp))
 
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (disabled) AppColors.secondaryText.copy(alpha = 0.6f) else AppColors.headerText,
-                    modifier = Modifier.size(20.dp)
+                    tint = iconTint,
+                    modifier = Modifier.size(22.dp)
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
-                // Text field area
-                Box(modifier = Modifier.weight(1f)) {
-                    BasicTextField(
-                        value = textState.value,
-                        onValueChange = { newText ->
-                            if (!disabled) textState.value = newText
-                        },
-                        singleLine = true,
-                        textStyle = AppFont.ibmPlexSans(15, FontWeight.Normal).copy(
-                            color = if (disabled) AppColors.secondaryText else AppColors.headerText
-                        ),
-                        cursorBrush = SolidColor(AppColors.primaryButton),
-                        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                        enabled = !disabled, // Prevent typing
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 14.dp)
-                            .focusRequester(focusRequester)
-                            .onFocusChanged { isFocused = it.isFocused && !disabled }
-                    )
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.CenterStart
+                ) {
 
+                    // ✅ PREMIUM PLACEHOLDER (always inside)
                     if (textState.value.isEmpty()) {
                         Text(
                             text = placeholder,
                             style = AppFont.ibmPlexSans(15, FontWeight.Normal),
-                            color = AppColors.placeholderText,
-                            modifier = Modifier.align(Alignment.CenterStart).padding(start = 4.dp)
+                            color = if (disabled)
+                                AppColors.placeholderText.copy(alpha = 0.6f)
+                            else
+                                AppColors.placeholderText
                         )
                     }
+
+                    BasicTextField(
+                        value = textState.value,
+                        onValueChange = {
+                            if (!disabled) textState.value = it
+                        },
+                        singleLine = true,
+                        enabled = !disabled,
+                        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                        cursorBrush = SolidColor(AppColors.primaryButton),
+                        textStyle = AppFont.ibmPlexSans(
+                            15,
+                            FontWeight.Medium
+                        ).copy(
+                            color = if (disabled)
+                                AppColors.secondaryText.copy(alpha = 0.7f)
+                            else
+                                AppColors.headerText
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester)
+                            .onFocusChanged {
+                                isFocused = it.isFocused && !disabled
+                            }
+                    )
                 }
 
-                // Dropdown icon clickable **always works**
+                // 🔽 Dropdown / Loader
                 if (showDropdown) {
 
                     if (isLoading) {
 
                         CircularProgressIndicator(
-                            strokeWidth = 2.dp,
                             modifier = Modifier
-                                .size(22.dp)
                                 .padding(end = 12.dp)
+                                .size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = AppColors.loaderColor
                         )
-                    }
-                    else {
+
+                    } else {
 
                         Icon(
                             imageVector = dropdownIcon,
-                            contentDescription = "dropdown",
+                            contentDescription = null,
                             tint = dropdownColor,
                             modifier = Modifier
-                                .size(40.dp)
-                                .padding(end = 12.dp)
-                                .clickable { onDropdownTap?.invoke() } // ✅ Works even if text is disabled
+                                .size(34.dp)
+                                .clickable { onDropdownTap?.invoke() }
                         )
                     }
-
-
                 }
+
+                Spacer(modifier = Modifier.width(10.dp))
             }
         }
 
-        if (error.isNotEmpty()) {
+        // ❌ ERROR TEXT
+        AnimatedVisibility(error.isNotEmpty()) {
             Text(
                 text = error,
                 style = AppFont.ibmPlexSans(12, FontWeight.Normal),
                 color = AppColors.errorAccent,
-                modifier = Modifier.padding(start = 25.dp, top = 2.dp)
+                modifier = Modifier.padding(start = 24.dp)
             )
         }
     }
@@ -532,7 +640,6 @@ fun SingleSelectionPopupView(
 }
 
 // ---------- SSTextView ----------
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SSTextView(
     placeholder: String,
@@ -543,6 +650,20 @@ fun SSTextView(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
+    val borderColor by animateColorAsState(
+        targetValue = when {
+            error.isNotEmpty() -> AppColors.errorAccent
+            isFocused -> AppColors.primaryButton
+            else -> Color.Transparent
+        },
+        label = "borderColor"
+    )
+
+    val elevationAlpha by animateFloatAsState(
+        targetValue = if (isFocused) 0.14f else 0.06f,
+        label = "elevation"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth(),
@@ -552,12 +673,22 @@ fun SSTextView(
         Box(
             modifier = Modifier
                 .padding(horizontal = 20.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .appShadow(AppShadows.card)
+                .clip(RoundedCornerShape(16.dp))
                 .background(AppColors.surface)
+                .border(
+                    width = if (isFocused || error.isNotEmpty()) 1.2.dp else 0.dp,
+                    color = borderColor,
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .shadow(
+                    elevation = 10.dp,
+                    shape = RoundedCornerShape(16.dp),
+                    ambientColor = AppColors.primaryButton.copy(alpha = elevationAlpha),
+                    spotColor = AppColors.primaryButton.copy(alpha = elevationAlpha)
+                )
+                .padding(4.dp)
         ) {
 
-            // ========= MULTILINE TEXT FIELD =========
             BasicTextField(
                 value = text,
                 onValueChange = {
@@ -568,15 +699,18 @@ fun SSTextView(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 120.dp)
+                    .heightIn(min = 140.dp)
                     .padding(16.dp)
                     .onFocusChanged { isFocused = it.isFocused },
                 textStyle = AppFont.ibmPlexSans(15, FontWeight.Normal)
-                    .copy(color = AppColors.headerText),
+                    .copy(
+                        color = AppColors.headerText,
+                        lineHeight = 22.sp
+                    ),
                 cursorBrush = SolidColor(AppColors.primaryButton)
             )
 
-            // ========= PLACEHOLDER =========
+            // Floating placeholder effect
             if (text.isEmpty()) {
                 Text(
                     text = placeholder,
@@ -584,102 +718,23 @@ fun SSTextView(
                     style = AppFont.ibmPlexSans(15, FontWeight.Normal),
                     modifier = Modifier
                         .padding(start = 20.dp, top = 20.dp)
+                        .alpha(if (isFocused) 0.6f else 1f)
                 )
             }
-
-            // ========= BORDER STROKE =========
-            val borderColor =
-                if (error.isNotEmpty()) AppColors.errorAccent
-                else if (isFocused) AppColors.primaryButton
-                else AppColors.border
-
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .border(
-                        width = 1.5.dp,
-                        color = borderColor,
-                        shape = RoundedCornerShape(14.dp)
-                    )
-            )
         }
 
-        // ========= ERROR LABEL =========
-        if (error.isNotEmpty()) {
+        // Error text (premium style)
+        AnimatedVisibility(visible = error.isNotEmpty()) {
             Text(
                 text = error,
                 color = AppColors.errorAccent,
-                style = AppFont.ibmPlexSans(12, FontWeight.Normal),
-                modifier = Modifier.padding(start = 25.dp)
+                style = AppFont.ibmPlexSans(12, FontWeight.Medium),
+                modifier = Modifier.padding(start = 26.dp, top = 2.dp)
             )
         }
-
-        // ========= CHAR COUNTER =========
-        if (maxCharacters != null) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Spacer(Modifier.weight(1f))
-                Text(
-                    "${text.length}/$maxCharacters",
-                    style = AppFont.ibmPlexSans(12, FontWeight.Normal),
-                    color = AppColors.secondaryText,
-                    modifier = Modifier.padding(end = 25.dp)
-                )
-            }
-        }
     }
 }
 
-// ---------- SSCancelButton ----------
-@Composable
-fun SSCancelButton(
-    title: String,
-    modifier: Modifier = Modifier,
-    isButtonLoading: Boolean = false,
-    isDisabled: Boolean = false,
-    action: () -> Unit
-) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .appShadow(
-                    if (isDisabled) ShadowStyle(Color.Transparent, 0.dp, 0.dp, 0.dp)
-                    else AppShadows.card,
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .background(Color.Transparent)
-                .border(
-                    width = 1.dp,
-                    color = AppColors.headerText,
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .clickable(enabled = !isDisabled) {
-                    if (!isDisabled) action()
-                }
-                .fillMaxWidth()
-                .heightIn(min = 48.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isButtonLoading) {
-                CircularProgressIndicator(
-                    color = AppColors.headerText,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(20.dp)
-                )
-            } else {
-                Text(
-                    text = title,
-                    style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
-                    color = AppColors.headerText
-                )
-            }
-        }
-    }
-}
 
 // ---------- AppBackgroundGradient ----------
 @Composable
@@ -726,73 +781,94 @@ fun ProgressCircleView(
     monthlyContribution: String,
     onClick: (() -> Unit)? = null
 ) {
-    // 🔹 Calculate target progress
-    val targetProgress = remember(completedMonths, totalMonths) {
-        if (totalMonths <= 0) 0f else (completedMonths.toFloat() / totalMonths.toFloat()).coerceIn(0f, 1f)
+
+    val progress = remember(completedMonths, totalMonths) {
+        if (totalMonths <= 0) 0f
+        else (completedMonths.toFloat() / totalMonths.toFloat()).coerceIn(0f, 1f)
     }
 
-    // 🔹 Animate like SwiftUI's `.easeOut(duration: 1.0)`
     val animatedProgress by animateFloatAsState(
-        targetValue = targetProgress,
-        animationSpec = tween(durationMillis = 1000, easing = LinearOutSlowInEasing)
+        targetValue = progress,
+        animationSpec = tween(
+            durationMillis = 1000,
+            easing = FastOutSlowInEasing
+        )
     )
 
-    // 🔹 Outer Box (with shadow & optional click)
     Box(
         modifier = Modifier
             .size(180.dp)
-            .clip(CircleShape)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .appShadow(AppShadows.card), // Matches .appShadow(AppShadows.card)
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
         contentAlignment = Alignment.Center
     ) {
-        // 🔸 Background Circle (14dp stroke)
+
+        // ================= OUTER GLOW LAYER =================
         Canvas(modifier = Modifier.size(160.dp)) {
             drawCircle(
-                color = AppColors.primaryButton.copy(alpha = 0.2f),
-                style = Stroke(width = 14.dp.toPx(), cap = StrokeCap.Round)
+                color = Color.White.copy(alpha = 0.65f),
+                style = Stroke(width = 18.dp.toPx(), cap = StrokeCap.Round)
             )
         }
 
-        // 🔸 Foreground Gradient Arc (rounded, thick, rotated like SwiftUI)
-        Canvas(modifier = Modifier.size(160.dp)) {
-            val stroke = Stroke(width = 14.dp.toPx(), cap = StrokeCap.Round)
-            val sweepAngle = animatedProgress * 360f
-            rotate(-90f) { // matches SwiftUI's .rotationEffect(.degrees(-90))
+        // ================= BASE TRACK =================
+        Canvas(modifier = Modifier.size(150.dp)) {
+            drawCircle(
+                color = AppColors.secondaryText.copy(alpha = 0.10f),
+                style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
+            )
+        }
+
+        // ================= PROGRESS RING =================
+        Canvas(modifier = Modifier.size(150.dp)) {
+
+            val stroke = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
+            val sweep = animatedProgress * 360f
+
+            rotate(-90f) {
                 drawArc(
-                    brush = Brush.linearGradient(
-                        colors = listOf(AppColors.primaryButton, AppColors.successAccent),
-                        start = Offset(0f, 0f),
-                        end = Offset(size.width, size.height)
+                    brush = Brush.sweepGradient(
+                        colors = listOf(
+                            AppColors.primaryButton,
+                            AppColors.successAccent,
+                            AppColors.primaryButton.copy(alpha = 0.7f)
+                        )
                     ),
                     startAngle = 0f,
-                    sweepAngle = sweepAngle,
+                    sweepAngle = sweep,
                     useCenter = false,
                     style = stroke
                 )
             }
         }
 
-        // 🔸 Center Labels
+        // ================= CENTER CONTENT =================
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+
             Text(
-                text = "$completedMonths / $totalMonths",
-                style = AppFont.ibmPlexSans(20, FontWeight.SemiBold),
+                text = "$completedMonths/$totalMonths",
+                style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
                 color = AppColors.headerText
             )
+
             Text(
-                text = "Months Complete",
-                style = AppFont.ibmPlexSans(14, FontWeight.Normal),
+                text = "Months",
+                style = AppFont.ibmPlexSans(12, FontWeight.Medium),
                 color = AppColors.secondaryText
             )
+
+            HorizontalDivider(
+                modifier = Modifier.width(40.dp),
+                thickness = 1.dp,
+                color = AppColors.border.copy(alpha = 0.4f)
+            )
+
             Text(
                 text = monthlyContribution,
-                style = AppFont.ibmPlexSans(18, FontWeight.Medium),
-                color = AppColors.primaryButton,
-                modifier = Modifier.padding(top = 2.dp)
+                style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+                color = AppColors.primaryButton
             )
         }
     }
@@ -938,232 +1014,199 @@ fun LoginListPopup(
 ) {
     if (!isVisible) return
 
-    val context = LocalContext.current
     val inPreview = LocalInspectionMode.current
-    var selectedRole by remember { mutableStateOf(SquadUserType.SQUAD_MANAGER.roleDescription) }
 
-    val managers = remember(users) { users.filter { it.role == SquadUserType.SQUAD_MANAGER } }
-    val members = remember(users) { users.filter { it.role == SquadUserType.SQUAD_MEMBER } }
-    val filteredUsers = if (selectedRole == SquadUserType.SQUAD_MANAGER.roleDescription) managers else members
+    var selectedRole by remember {
+        mutableStateOf(SquadUserType.SQUAD_MANAGER.roleDescription)
+    }
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+    val managers = remember(users) {
+        users.filter { it.role == SquadUserType.SQUAD_MANAGER }
+    }
+
+    val members = remember(users) {
+        users.filter { it.role == SquadUserType.SQUAD_MEMBER }
+    }
+
+    val filteredUsers =
+        if (selectedRole == SquadUserType.SQUAD_MANAGER.roleDescription)
+            managers else members
+
+    // 🔹 BACKDROP (iOS style)
+    Box(
         modifier = Modifier
-            .width(330.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(AppColors.background)
-            .appShadow(AppShadows.elevated, RoundedCornerShape(20.dp))
-            .padding(20.dp)
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.35f))
+            .clickable { onDismiss() }
     ) {
-        // 🔹 Title
-        Text(
-            text = SquadStrings.selectSquad,
-            style = AppFont.ibmPlexSans(20, FontWeight.Bold),
-            color = AppColors.headerText
-        )
 
-        Spacer(modifier = Modifier.height(10.dp))
+        // 🔹 MODAL CARD
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .width(340.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(AppColors.background)
+                .appShadow(AppShadows.elevated, RoundedCornerShape(24.dp))
+                .padding(20.dp)
+        ) {
 
-        // 🔹 Segmented Picker
-        ModernSegmentedPickerView(
-            segments = listOf(
-                SquadUserType.SQUAD_MANAGER.roleDescription,
-                SquadUserType.SQUAD_MEMBER.roleDescription
-            ),
-            selectedSegment = selectedRole,
-            onSegmentSelected = {
-                selectedRole = if (it == SquadUserType.SQUAD_MANAGER.roleDescription)
-                    SquadUserType.SQUAD_MANAGER.roleDescription
-                else
-                    SquadUserType.SQUAD_MEMBER.roleDescription
-            }
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // 🔹 User List
-        if (filteredUsers.isEmpty()) {
+            // 🔹 TITLE
             Text(
-                text = "No ${selectedRole}s available",
-                style = AppFont.ibmPlexSans(14, FontWeight.Medium),
-                color = AppColors.secondaryText,
-                modifier = Modifier.padding(vertical = 10.dp)
+                text = SquadStrings.selectSquad,
+                style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                color = AppColors.headerText
             )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .heightIn(max = 220.dp)
-                    .padding(vertical = 5.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(filteredUsers) { user ->
-                    UserSelectionCard(
-                        user = user,
-                        onSelect = {
-                            onUserSelected(user)
-                            if (!inPreview) {
-                                UserDefaultsManager.saveLogin(user)
-                                UserDefaultsManager.saveIsLoggedIn(true)
 
-                                if (user.role == SquadUserType.SQUAD_MANAGER) {
-                                    UserDefaultsManager.saveSquadManagerLogged(true)
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 🔹 SEGMENTED CONTROL
+            ModernSegmentedPickerView(
+                segments = listOf(
+                    SquadUserType.SQUAD_MANAGER.roleDescription,
+                    SquadUserType.SQUAD_MEMBER.roleDescription
+                ),
+                selectedSegment = selectedRole,
+                onSegmentSelected = { selectedRole = it }
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 🔹 USERS
+            if (filteredUsers.isEmpty()) {
+
+                Text(
+                    text = "No ${selectedRole}s available",
+                    style = AppFont.ibmPlexSans(14, FontWeight.Medium),
+                    color = AppColors.secondaryText,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+
+            } else {
+
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 260.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+
+                    items(filteredUsers) { user ->
+
+                        UserSelectionCard(
+                            user = user,
+                            onSelect = {
+
+                                onUserSelected(user)
+
+                                if (!inPreview) {
+
+                                    UserDefaultsManager.saveLogin(user)
+                                    UserDefaultsManager.saveIsLoggedIn(true)
+
+                                    val isManager =
+                                        user.role == SquadUserType.SQUAD_MANAGER
+
+                                    UserDefaultsManager.saveSquadManagerLogged(isManager)
 
                                     FirestoreManager.shared.updateFCMTokenBasedOnRole(
-
                                         squadID = user.squadID,
-
                                         memberID = user.squadUserId,
+                                        isManager = isManager
+                                    ) { _, _ -> }
 
-                                        isManager = true
+                                    val route = if (isManager)
+                                        AppDestination.MANAGER_HOME.route
+                                    else
+                                        AppDestination.MEMBER_HOME.route
 
-                                    ) { success, error ->
-
-                                        if (success) {
-
-                                            println("FCM token updated successfully")
-
-                                        } else {
-
-                                            println(error)
-
+                                    navController.navigate(route) {
+                                        popUpTo(AppDestination.SIGN_IN.route) {
+                                            inclusive = true
                                         }
-
-                                    }
-
-                                    navController.navigate(AppDestination.MANAGER_HOME.route) {
-                                        popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
                                         launchSingleTop = true
                                     }
                                 }
-                                else {
-                                    UserDefaultsManager.saveSquadManagerLogged(false)
 
-                                    FirestoreManager.shared.updateFCMTokenBasedOnRole(
-
-                                        squadID = user.squadID,
-
-                                        memberID = user.squadUserId,
-
-                                        isManager = false
-
-                                    ) { success, error ->
-
-                                        if (success) {
-
-                                            println("FCM token updated successfully")
-
-                                        } else {
-
-                                            println(error)
-
-                                        }
-
-                                    }
-
-                                    navController.navigate(AppDestination.MEMBER_HOME.route) {
-                                        popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
-                                        launchSingleTop = true
-                                    }
-                                }
+                                onDismiss()
                             }
-                            onDismiss()
-                        }
-                    )
+                        )
+                    }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-        // 🔹 Cancel Button
-        SSCancelButton(
-            title = SquadStrings.cancel,
-            isButtonLoading = false,
-            isDisabled = false
-        ) {
-            onDismiss()
+            // 🔹 CANCEL
+            SSCancelButton(
+                title = SquadStrings.cancel,
+                isButtonLoading = false,
+                isDisabled = false
+            ) {
+                onDismiss()
+            }
         }
     }
 }
 
-
-@Preview(showBackground = true, backgroundColor = 0xFFF6F6F6)
-@Composable
-fun LoginListPopupPreview() {
-    // 🌿 Provide a Material theme for fonts, colors, etc.
-    MaterialTheme {
-        val showPopup = remember { mutableStateOf(true) }
-        val selectedUser = remember { mutableStateOf<Login?>(null) }
-
-        // 🧩 Mock user data for preview
-        val mockUsers = listOf(
-            Login(
-                id = "1",
-                squadID = "GF001",
-                squadName = "Daily Saver",
-                squadUsername = "Mithun",
-                phoneNumber = "9876543210",
-                role = SquadUserType.SQUAD_MANAGER
-            ),
-            Login(
-                id = "2",
-                squadID = "GF002",
-                squadName = "Smart Investors",
-                squadUsername = "Ravi",
-                phoneNumber = "9876501234",
-                role = SquadUserType.SQUAD_MEMBER
-            )
-        )
-
-        // ✅ Call composable with fake data
-//        LoginListPopup(
-//            navController = rememberNavController(),
-//            showPopup = showPopup,
-//            selectedUser = selectedUser,
-//            users = mockUsers
-//        )
-    }
-}
 
 @Composable
 fun UserSelectionCard(
     user: Login,
     onSelect: () -> Unit
 ) {
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = AppColors.surface,
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = AppColors.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onSelect() }
-            .appShadow(AppShadows.card, RoundedCornerShape(14.dp))
-            .padding(horizontal = 2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp)
+
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            user.squadName?.let {
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+
                 Text(
-                    text = it,
+                    text = user.squadName ?: "",
                     style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
                     color = AppColors.headerText
                 )
+
+                Text(
+                    text =
+                        if (user.role == SquadUserType.SQUAD_MANAGER)
+                            "Manager since ${
+                                CommonFunctions.dateToString(
+                                    user.userCreatedDate?.toDate() ?: Date()
+                                )
+                            }"
+                        else
+                            "Member since ${
+                                CommonFunctions.dateToString(
+                                    user.userCreatedDate?.toDate() ?: Date()
+                                )
+                            }",
+                    style = AppFont.ibmPlexSans(13),
+                    color = AppColors.secondaryText
+                )
             }
 
-            val dateText = if (user.role == SquadUserType.SQUAD_MANAGER)
-                "Manager since ${CommonFunctions.dateToString(user.userCreatedDate?.toDate() ?: Date())}"
-            else
-                "Member since ${CommonFunctions.dateToString(user.userCreatedDate?.toDate() ?: Date())}"
-
-            Text(
-                text = dateText,
-                style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                color = AppColors.secondaryText
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = AppColors.secondaryText.copy(alpha = 0.6f)
             )
         }
     }
 }
-
 @Composable
 fun SectionView(
     title: String,
@@ -1210,7 +1253,7 @@ fun ModernSegmentedPickerView(
     selectedSegment: String,
     onSegmentSelected: (String) -> Unit
 ) {
-    val transition = remember { androidx.compose.animation.core.MutableTransitionState(selectedSegment) }
+    val transition = updateTransition(selectedSegment, label = "segment")
 
     Row(
         modifier = Modifier
@@ -1218,34 +1261,56 @@ fun ModernSegmentedPickerView(
             .padding(horizontal = 16.dp)
             .appShadow(AppShadows.card)
             .background(
-                color = AppColors.surface,
-                shape = RoundedCornerShape(15.dp)
+                AppColors.secondaryText.copy(alpha = 0.08f),
+                RoundedCornerShape(14.dp)
+            )
+            .border(
+                0.8.dp,
+                AppColors.border.copy(alpha = 0.4f),
+                RoundedCornerShape(14.dp)
             )
             .padding(4.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
+
         segments.forEach { segment ->
+
             val isSelected = segment == selectedSegment
 
             Box(
                 modifier = Modifier
                     .weight(1f)
+                    .height(38.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        if (isSelected) AppColors.primaryButton.copy(alpha = 0.15f)
-                        else Color.Transparent
-                    )
-                    .clickable {
-                        onSegmentSelected(segment)
-                    }
-                    .animateContentSize(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
-                    .padding(vertical = 10.dp),
+                    .clickable { onSegmentSelected(segment) },
                 contentAlignment = Alignment.Center
             ) {
+
+                // ================= SLIDING PILL =================
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        AppColors.primaryButton,
+                                        AppColors.successAccent.copy(alpha = 0.85f)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                    )
+                }
+
+                // ================= LABEL =================
                 Text(
                     text = segment,
-                    style = AppFont.ibmPlexSans(14, FontWeight.Medium),
-                    color = if (isSelected) AppColors.headerText else AppColors.secondaryText
+                    style = AppFont.ibmPlexSans(13, FontWeight.Medium),
+                    color = if (isSelected)
+                        AppColors.primaryButtonText
+                    else
+                        AppColors.secondaryText
                 )
             }
         }
@@ -1253,86 +1318,93 @@ fun ModernSegmentedPickerView(
 }
 
 @Composable
-fun DuesCardView(
+fun AllCaughUPView(
     title: String,
     subtitle: String,
     icon: ImageVector = Icons.Default.CreditCard,
     iconColor: Color = AppColors.primaryButton,
-    gradientColors: List<Color> = listOf(AppColors.surface, AppColors.background),
     showChevron: Boolean = true,
     onTap: (() -> Unit)? = null
 ) {
-    // 🔹 Outer padding for horizontal spacing between multiple cards
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 6.dp) // ✅ Added here
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        val modifier = Modifier
+
+        val cardModifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(18.dp))
             .appShadow(AppShadows.card)
             .background(
                 brush = Brush.linearGradient(
-                    colors = gradientColors,
+                    colors = listOf(
+                        AppColors.surface,
+                        AppColors.surface.copy(alpha = 0.92f)
+                    ),
                     start = Offset(0f, 0f),
                     end = Offset(1000f, 1000f)
                 )
             )
-            .clickable(enabled = onTap != null) { onTap?.invoke() }
-            .padding(16.dp)
+            .then(
+                if (onTap != null) {
+                    Modifier.clickable { onTap.invoke() }
+                } else Modifier
+            )
+            .padding(18.dp)
 
         Row(
-            modifier = modifier,
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = cardModifier,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // 🔸 Icon Circle
+
+            // 🔹 ICON (iOS style circle)
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(50.dp)
                     .clip(CircleShape)
-                    .background(iconColor.copy(alpha = 0.12f)),
+                    .background(iconColor.copy(alpha = 0.14f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = iconColor,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            // 🔸 Title & Subtitle
+            Spacer(modifier = Modifier.width(14.dp))
+
+            // 🔹 TEXT BLOCK
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
+
                 Text(
                     text = title,
                     style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
                     color = AppColors.headerText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    maxLines = 1
                 )
+
                 Text(
                     text = subtitle,
-                    style = AppFont.ibmPlexSans(13, FontWeight.Normal),
+                    style = AppFont.ibmPlexSans(13, FontWeight.Medium),
                     color = AppColors.secondaryText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    maxLines = 2
                 )
             }
 
-            // 🔸 Chevron
+            // 🔹 CHEVRON
             if (showChevron) {
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = AppColors.secondaryText.copy(alpha = 0.7f),
-                    modifier = Modifier
-                        .size(16.dp)
-                        .padding(end = 4.dp)
+                    tint = AppColors.secondaryText.copy(alpha = 0.6f),
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }
@@ -2091,148 +2163,6 @@ fun computedStatus(installment: Installment, today: Date): EMIStatus {
 }
 
 
-@Composable
-fun FloatingSquadButton(
-    onSquadActivity: () -> Unit,
-    onPaymentHistory: () -> Unit,
-    onSquadRules: () -> Unit
-) {
-    var showMenu by remember { mutableStateOf(false) }
-
-    val menuItems = listOf(
-        MenuItem(Icons.AutoMirrored.Rounded.List, "Squad Activity", onSquadActivity),
-        MenuItem(Icons.Rounded.CreditCard, "Payment History", onPaymentHistory),
-        MenuItem(Icons.AutoMirrored.Rounded.MenuBook, "Squad Rules", onSquadRules)
-    )
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Dimmed background when menu open
-        if (showMenu) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.2f))
-                    .clickable { showMenu = false }
-            )
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 12.dp, end = 20.dp),
-            verticalArrangement = Arrangement.Bottom,
-            horizontalAlignment = Alignment.End
-        ) {
-            // 🟢 Menu items
-            AnimatedVisibility(
-                visible = showMenu,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
-                exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 })
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalAlignment = Alignment.End,
-                    modifier = Modifier.offset(y = (-80).dp)
-                ) {
-                    menuItems.forEachIndexed { index, item ->
-                        FloatingMenuButton(
-                            icon = item.icon,
-                            title = item.title,
-                            onClick = {
-                                item.action()
-                                showMenu = false
-                            },
-                            animationDelay = index * 50L
-                        )
-                    }
-                }
-            }
-
-            // 🔵 Main Floating Action Button
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(AppColors.primaryBrand)
-                    .shadow(
-                        elevation = 6.dp,
-                        shape = CircleShape,
-                        ambientColor = Color.Black.copy(alpha = 0.25f)
-                    )
-                    .clickable {
-                        showMenu = !showMenu
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(
-                        if (showMenu) R.drawable.squad_activity_unselected
-                        else R.drawable.squad_activity_selected
-                    ),
-                    contentDescription = null,
-                    tint = AppColors.primaryButtonText,
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FloatingMenuButton(
-    icon: ImageVector,
-    title: String,
-    onClick: () -> Unit,
-    animationDelay: Long = 0L
-) {
-    LaunchedEffect(Unit) { delay(animationDelay) }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.clickable { onClick() }
-    ) {
-        // Text chip
-        Box(
-            modifier = Modifier
-                .shadow(
-                    elevation = 4.dp,
-                    shape = RoundedCornerShape(12.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.15f)
-                )
-                .background(AppColors.primaryBrand, RoundedCornerShape(12.dp))
-                .padding(horizontal = 14.dp, vertical = 8.dp)
-        ) {
-            Text(
-                text = title,
-                color = AppColors.primaryButtonText,
-                style = AppFont.ibmPlexSans(14, FontWeight.SemiBold)
-            )
-        }
-
-        // Icon Circle
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .shadow(
-                    elevation = 4.dp,
-                    shape = CircleShape,
-                    ambientColor = Color.Black.copy(alpha = 0.15f)
-                )
-                .background(AppColors.primaryBrand),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon, // your helper for mapping systemName → resource
-                contentDescription = null,
-                tint = AppColors.primaryButtonText,
-                modifier = Modifier.size(28.dp)
-            )
-        }
-    }
-}
-
 private data class MenuItem(
     val icon: ImageVector,
     val title: String,
@@ -2646,5 +2576,74 @@ fun getBadgeColors(style: BadgeStyle): BadgeColors {
             background = AppColors.infoAccent.copy(alpha = 0.1f),
             border = AppColors.infoAccent.copy(alpha = 0.3f)
         )
+    }
+}
+
+@Composable
+fun RemindAllButton(
+    count: Int,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = AppColors.primaryButton
+        ),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+    ) {
+
+        Icon(
+            imageVector = Icons.Default.NotificationsActive,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(16.dp)
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Text(
+            text = "Remind All",
+            style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
+            color = Color.White
+        )
+
+        if (count > 0) {
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Box(
+                modifier = Modifier
+                    .background(Color.White, CircleShape)
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = "$count",
+                    style = AppFont.ibmPlexSans(12, FontWeight.Bold),
+                    color = AppColors.primaryButton
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SetSystemBars() {
+    val view = LocalView.current
+
+    SideEffect {
+        val window = (view.context as Activity).window
+
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        val controller = WindowInsetsControllerCompat(window, view)
+
+        // IMPORTANT: THIS controls white vs dark icon behavior
+        controller.isAppearanceLightStatusBars = false
+
+        // This is required for full transparency behavior on some OEMs
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
     }
 }

@@ -60,7 +60,10 @@ import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.FirestoreManager
 import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.viewmodel.SSToast
 import com.android.savingssquad.viewmodel.SquadViewModel
+import com.android.savingssquad.viewmodel.ToastManager
+import com.android.savingssquad.viewmodel.ToastType
 import com.google.firebase.auth.PhoneAuthOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -93,9 +96,14 @@ fun PaymentConfirmationView(
         return
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
 
-        // ================= BACKGROUND =================
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
         Column(
@@ -103,7 +111,8 @@ fun PaymentConfirmationView(
                 .fillMaxSize()
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        )
+        {
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -222,10 +231,9 @@ fun PaymentConfirmationView(
                             UserDefaultsManager.clearPendingPayment()
                             navController.popBackStack()
                         } else {
-                            AlertManager.shared.showAlert(
-                                title = SquadStrings.appName,
-                                message = error ?: "Something went wrong"
-                            )
+
+                            ToastManager.show(title = SquadStrings.appName, message =  error ?: "Something went wrong", type = ToastType.ERROR)
+
                         }
                     }
                 }
@@ -260,9 +268,6 @@ fun PaymentConfirmationView(
 
             Spacer(modifier = Modifier.weight(1f))
         }
-
-        SSLoaderView()
-        SSAlert()
     }
 }
 

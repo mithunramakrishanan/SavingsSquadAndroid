@@ -4,15 +4,19 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +54,7 @@ import com.android.savingssquad.viewmodel.SquadViewModel
 import com.yourapp.utils.CommonFunctions
 import java.util.Date
 import androidx.compose.runtime.collectAsState
+import com.android.savingssquad.viewmodel.SSToast
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -93,112 +98,123 @@ fun AccountSummaryView(
         reloadPayments()
     }
 
-    AppBackgroundGradient()
+    Box(
+        modifier = Modifier
 
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
+            .fillMaxSize()
 
-        SSNavigationBar(
-            title = SquadStrings.accountSummary,
-            navController = navController
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
+        AppBackgroundGradient()
+        Column(
+            modifier = Modifier.fillMaxSize()
         )
+        {
 
-        Spacer(modifier = Modifier.height(12.dp))
+            SSNavigationBar(
+                title = SquadStrings.accountSummary,
+                navController = navController
+            )
 
-        AccountsSummaryHeaderView(
-            squadViewModel = squadViewModel
-        )
+            Spacer(modifier = Modifier.height(12.dp))
 
-        Spacer(modifier = Modifier.height(12.dp))
+            AccountsSummaryHeaderView(
+                squadViewModel = squadViewModel
+            )
 
-        PaymentFilterSegmentedControl(
-            selectedFilter = selectedFilter
-        ) { filter ->
+            Spacer(modifier = Modifier.height(12.dp))
 
-            selectedFilter = filter
+            PaymentFilterSegmentedControl(
+                selectedFilter = selectedFilter
+            ) { filter ->
 
-            reloadPayments()
-        }
+                selectedFilter = filter
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // MARK: - Empty State
-        if (
-            payments.value.isEmpty() &&
-            !squadViewModel.paymentsIsLoadingMore
-        ) {
-
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-
-                Icon(
-                    imageVector = Icons.Default.CreditCard,
-                    contentDescription = null,
-                    modifier = Modifier.size(72.dp),
-                    tint = Color.Gray.copy(alpha = 0.6f)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = SquadStrings.noPaymentsYet,
-                    style = AppFont.ibmPlexSans(
-                        15,
-                        FontWeight.Medium
-                    ),
-                    color = AppColors.secondaryText
-                )
+                reloadPayments()
             }
-        }
 
-        // MARK: - List
-        else {
+            Spacer(modifier = Modifier.height(8.dp))
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(
-                    top = 8.dp,
-                    bottom = 20.dp
-                )
+            // MARK: - Empty State
+            if (
+                payments.value.isEmpty() &&
+                !squadViewModel.paymentsIsLoadingMore
             ) {
 
-                items(
-                    items = payments.value,
-                    key = { it.id ?: "" }
-                ) { payment ->
-
-                    AccountsSummaryCellView(
-                        payment = payment
-                    )
-
-                    // MARK: - Pagination
-                    LaunchedEffect(payment.id) {
-
-                        squadViewModel.loadMorePaymentsIfNeeded(
-                            currentPayment = payment,
-                            filterType = selectedFilter
-                        )
-                    }
-                }
-
-                // MARK: - Pagination Loader
-                if (
-                    squadViewModel.paymentsIsLoadingMore &&
-                    payments.value.isNotEmpty()
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
 
-                    item {
-                        ShimmerLoader()
+                    Icon(
+                        imageVector = Icons.Default.CreditCard,
+                        contentDescription = null,
+                        modifier = Modifier.size(72.dp),
+                        tint = Color.Gray.copy(alpha = 0.6f)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = SquadStrings.noPaymentsYet,
+                        style = AppFont.ibmPlexSans(
+                            15,
+                            FontWeight.Medium
+                        ),
+                        color = AppColors.secondaryText
+                    )
+                }
+            }
+
+            // MARK: - List
+            else {
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(
+                        top = 8.dp,
+                        bottom = 20.dp
+                    )
+                ) {
+
+                    items(
+                        items = payments.value,
+                        key = { it.id ?: "" }
+                    ) { payment ->
+
+                        AccountsSummaryCellView(
+                            payment = payment
+                        )
+
+                        // MARK: - Pagination
+                        LaunchedEffect(payment.id) {
+
+                            squadViewModel.loadMorePaymentsIfNeeded(
+                                currentPayment = payment,
+                                filterType = selectedFilter
+                            )
+                        }
+                    }
+
+                    // MARK: - Pagination Loader
+                    if (
+                        squadViewModel.paymentsIsLoadingMore &&
+                        payments.value.isNotEmpty()
+                    ) {
+
+                        item {
+                            ShimmerLoader()
+                        }
                     }
                 }
             }
         }
     }
+
+
 }
 
 @Composable
@@ -206,25 +222,53 @@ fun PaymentFilterSegmentedControl(
     selectedFilter: PaymentFilter,
     onFilterSelected: (PaymentFilter) -> Unit
 ) {
-    Row(
+
+    val filters = PaymentFilter.values()
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        PaymentFilter.values().forEach { filter ->
-
-            val isSelected = filter == selectedFilter
-
-            Text(
-                text = filter.name,
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onFilterSelected(filter) }
-                    .padding(10.dp),
-                textAlign = TextAlign.Center,
-                color = if (isSelected) Color.White else AppColors.secondaryText
+            .padding(horizontal = 16.dp)
+            .background(
+                color = AppColors.secondaryText.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(14.dp)
             )
+            .padding(4.dp)
+    ) {
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+
+            filters.forEach { filter ->
+
+                val isSelected = filter == selectedFilter
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (isSelected) AppColors.primaryButton
+                            else Color.Transparent
+                        )
+                        .clickable { onFilterSelected(filter) }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+
+                    Text(
+                        text = filter.name.lowercase()
+                            .replaceFirstChar { it.uppercase() },
+                        style = AppFont.ibmPlexSans(13, FontWeight.Medium),
+                        color = if (isSelected)
+                            AppColors.primaryButtonText
+                        else
+                            AppColors.secondaryText
+                    )
+                }
+            }
         }
     }
 }

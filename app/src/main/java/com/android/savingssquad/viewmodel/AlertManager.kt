@@ -23,6 +23,7 @@ class AlertManager private constructor() {
     var secondaryAction: (() -> Unit)? = null
     var alertType: AlertType = AlertType.INFO
 
+    @JvmOverloads
     fun showAlert(
         title: String,
         message: String,

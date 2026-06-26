@@ -56,12 +56,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import com.android.savingssquad.R
+import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.SquadSubscription.UpgradePlanScreen
+import com.android.savingssquad.SquadSubscription.UpgradeSuccessScreen
 import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.viewmodel.SSToast
 
@@ -81,20 +85,28 @@ fun MemberTabView(
     val squadState by squadViewModel.squad.collectAsState()
     val squad = squadState
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
 
-        // Background Gradient
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
+
         AppBackgroundGradient()
 
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
 
-            // --------- TAB CONTENT AREA (TAKES REMAINING HEIGHT) ----------
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
             ) {
                 when (selectedTab) {
+
                     0 -> MemberHomeView(
                         selectedTab = selectedTab,
                         onChangeTab = { selectedTab = it },
@@ -102,124 +114,162 @@ fun MemberTabView(
                         squadViewModel = squadViewModel
                     )
                     1 -> MemberPaymentView(navController, squadViewModel = squadViewModel)
+
+                    2 -> SquadSettingsView(
+                        navController = navController,
+                        squadViewModel = squadViewModel
+                    )
                 }
             }
 
-            // --------- CUSTOM TAB BAR ----------
-            Row(
+            // MARK: Premium Bottom Tab Bar
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(70.dp)
-                    .shadow(
-                        elevation = 4.dp,
-                        spotColor = AppColors.primaryButton,
-                        ambientColor = AppColors.primaryButton
-                    )
-                    .background(AppColors.surface)
-                    .padding(top = 6.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 0.dp)
+                    .padding(bottom = 0.dp)
             ) {
-                TabBarItem(
-                    iconName = "home_icon",
-                    title = "Home",
-                    index = 0,
-                    selectedTab = selectedTab,
-                    onClick = { selectedTab = 0 }
-                )
 
-                TabBarItem(
-                    iconName = "pay_icon",
-                    title = "Pay",
-                    index = 1,
-                    selectedTab = selectedTab,
-                    isCenter = true,
-                    onClick = { selectedTab = 1 }
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 10.dp,
+                            shape = RoundedCornerShape(24.dp),
+                            clip = false
+                        )
+                        .background(
+                            color = Color.White,
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                        .padding(vertical = 12.dp),
+                ) {
+
+                    TabBarItem(
+                        iconName = "home_icon",
+                        title = "Home",
+                        index = 0,
+                        selectedTab = selectedTab,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        selectedTab = 0
+                    }
+
+                    Spacer(
+                        modifier = Modifier.width(60.dp)
+                    )
+
+                    TabBarItem(
+                        iconName = "settings_icon",
+                        title = "Account",
+                        index = 2,
+                        selectedTab = selectedTab,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        selectedTab = 2
+                    }
+                }
+
+                // Floating Pay Button
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = (-18).dp)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember {
+                                MutableInteractionSource()
+                            }
+                        ) {
+                            selectedTab = 1
+                        }
+                ) {
+
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
+
+                        // Glow
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .background(
+                                    brush = Brush.radialGradient(
+                                        colors = listOf(
+                                            AppColors.primaryButton.copy(alpha = 0.35f),
+                                            Color.Transparent
+                                        )
+                                    ),
+                                    shape = CircleShape
+                                )
+                                .blur(6.dp)
+                        )
+
+                        // Main Circle Button
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .shadow(
+                                    elevation = 12.dp,
+                                    shape = CircleShape
+                                )
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            AppColors.primaryButton,
+                                            AppColors.successAccent
+                                        )
+                                    ),
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+
+                            Image(
+                                painter = painterResource(R.drawable.pay_icon),
+                                contentDescription = "Pay",
+                                modifier = Modifier.size(58.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(
+                        modifier = Modifier.height(2.dp)
+                    )
+
+                    Text(
+                        text = "Pay",
+                        style = AppFont.ibmPlexSans(
+                            size = 12,
+                            weight = FontWeight.SemiBold
+                        ),
+                        color = if (selectedTab == 1)
+                            AppColors.headerText
+                        else
+                            AppColors.secondaryText
+                    )
+                }
             }
         }
-
-        // Global Components
-        SSAlert()
-        SSLoaderView()
-        SSToast()
-
-        // -------- PAYMENT OVERLAY ----------
         if (showPayment && squad != null) {
             RazorpayPaymentView(
                 orderId = paymentOrderId,
-                squadId = squad.squadID,
-                onSuccess = { orderId ->
-                    println("✅ Payment Success: $orderId")
+                squadId = squad!!.squadID,
+                onSuccess = {
                     squadViewModel.setShowPayment(false)
                 },
-                onFailure = { error ->
-                    println("❌ Payment Failed: $error")
+                onFailure = {
                     squadViewModel.setShowPayment(false)
                 }
             )
         }
-
-        if (showUpgradePlan && squad != null) {
-            UpgradePlanScreen(squadViewModel = squadViewModel, onDismiss = {
-                squadViewModel.setShowUpgradePlan(false)
-            })
-        }
     }
 
-    // -------- INITIAL DATA FETCH (ONCE) --------
     LaunchedEffect(Unit) {
         squadViewModel.fetchSquadByID(showLoader = true) { success, _, _ ->
             if (success) {
                 squadViewModel.fetchEMIConfigurations(showLoader = true) { _, _ -> }
             }
         }
-    }
-}
-
-@Composable
-fun TabBarItem(
-    iconName: String,
-    title: String,
-    index: Int,
-    selectedTab: Int,
-    isCenter: Boolean = false,
-    onClick: () -> Unit
-) {
-    val selected = index == selectedTab
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier
-            .padding(horizontal = 8.dp)
-            .clickable(
-                indication = null,       // 🔥 No ripple – matches SwiftUI
-                interactionSource = remember { MutableInteractionSource() }
-            ) { onClick() }
-            .padding(
-                top = if (isCenter) 0.dp else 2.dp,
-                bottom = if (isCenter) 0.dp else 4.dp
-            )
-    ) {
-
-        // ICON
-        AppIconView(
-            name = iconName,
-            tint = if (selected) AppColors.primaryButton else AppColors.secondaryText,
-            size = if (isCenter) 40.dp else 22.dp   // 🔥 Matches SwiftUI center pulse
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // TEXT
-        Text(
-            text = title,
-            style = AppFont.ibmPlexSans(
-                size = 12,
-                weight = FontWeight.Medium
-            ),
-            color = if (selected) AppColors.primaryButton else AppColors.secondaryText
-        )
     }
 }

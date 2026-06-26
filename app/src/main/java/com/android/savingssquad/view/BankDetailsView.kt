@@ -80,6 +80,9 @@ import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.FirebaseFunctionsManager
 import com.android.savingssquad.viewmodel.FirestoreManager
+import com.android.savingssquad.viewmodel.SSToast
+import com.android.savingssquad.viewmodel.ToastManager
+import com.android.savingssquad.viewmodel.ToastType
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.Dispatchers
 import java.util.Calendar
@@ -124,8 +127,13 @@ fun BankDetailsView(
     }
 
     Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
+        modifier = Modifier
+
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
         Column(
@@ -133,7 +141,8 @@ fun BankDetailsView(
                 .fillMaxSize()
                 .padding(vertical = 16.dp),
             verticalArrangement = Arrangement.Top
-        ) {
+        )
+        {
 
             SSNavigationBar(
                 title = if (screenType == SquadUserType.SQUAD_MANAGER)
@@ -197,8 +206,6 @@ fun BankDetailsView(
                 Spacer(Modifier.height(40.dp))
             }
         }
-        SSAlert()
-        SSLoaderView()
     }
 }
 
@@ -281,23 +288,16 @@ private fun saveAccountToFirestore(
 
             Log.d("UPI", "✅ UPI Updated: $it")
 
-            AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
-                message = "UPI Updated",
-                primaryButtonTitle = "OK",
-                primaryAction = {
 
-                    if (screenType == SquadUserType.SQUAD_MANAGER) {
+            ToastManager.show(title = SquadStrings.appName, message =  "UPI Updated", type = ToastType.SUCCESS)
 
-                        squadViewModel.squad.value!!.upiID = upiID
-                    }
-                    else {
-                        squadViewModel.currentMember.value!!.upiID = upiID
-                    }
+            if (screenType == SquadUserType.SQUAD_MANAGER) {
 
-                }
-            )
-
+                squadViewModel.squad.value!!.upiID = upiID
+            }
+            else {
+                squadViewModel.currentMember.value!!.upiID = upiID
+            }
         }
 
         result.onFailure {
@@ -307,81 +307,4 @@ private fun saveAccountToFirestore(
         }
 
     }
-
-
-
-
-    /*fun handleResult(result: Result<BeneficiaryResult>, type: SquadUserType) {
-        loaderManager.hideLoader()
-
-        if (result.isSuccess) {
-            AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
-                message = "UPI Updated",
-                primaryButtonTitle = "OK",
-                primaryAction = {
-
-                    if (type == SquadUserType.SQUAD_MANAGER) {
-
-                        squadViewModel.squad.value!!.upiID = upiID
-                    }
-                    else {
-                        squadViewModel.currentMember.value!!.upiID = upiID
-                    }
-
-                }
-            )
-        } else {
-            val error = result.exceptionOrNull()?.localizedMessage ?: "Error"
-            AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
-                message = error,
-                primaryButtonTitle = "OK",
-                primaryAction = {}
-            )
-        }
-    }
-
-    when (screenType) {
-
-        SquadUserType.SQUAD_MANAGER -> {
-            loaderManager.showLoader()
-
-            FirebaseFunctionsManager.shared.verifyAndSaveUPIBeneficiary(
-                squadId = squadID,
-                memberId = "",
-                name = accountHoldername,
-                vpa = upiID,
-                email = "",
-                phone = "",
-                address = "",
-                city = "",
-                countryCode = "+91",
-                postalCode = ""
-            ) { result ->
-                handleResult(result,SquadUserType.SQUAD_MANAGER )
-            }
-        }
-
-        else -> {
-            val member = squadViewModel.currentMember.value ?: return
-
-            loaderManager.showLoader()
-
-            FirebaseFunctionsManager.shared.verifyAndSaveUPIBeneficiary(
-                squadId = squadID,
-                memberId = member.id!!,
-                name = member.name,
-                vpa = upiID,
-                email = "",
-                phone = member.phoneNumber,
-                address = "",
-                city = "",
-                countryCode = "+91",
-                postalCode = ""
-            ) { result ->
-                handleResult(result,SquadUserType.SQUAD_MEMBER )
-            }
-        }
-    } */
 }

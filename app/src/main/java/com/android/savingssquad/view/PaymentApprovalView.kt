@@ -75,6 +75,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Schedule
@@ -83,6 +84,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentSubType
@@ -143,11 +145,18 @@ fun PaymentApprovalView(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
 
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize())
+        {
 
             SSNavigationBar(
                 title = "Verify Payments",
@@ -158,37 +167,38 @@ fun PaymentApprovalView(
 
             // Manager only dropdown (UI only, NOT filtering)
             if (screenType == SquadUserType.SQUAD_MANAGER) {
-                DropdownMenuPicker(
-                    label = "",
-                    selected = selectedUser,
-                    items = userList
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp) // 🔥 LEFT + RIGHT SPACE ADDED
                 ) {
-                    selectedUser = it
 
-                    val memberId = if (it == "All") null else {
-                        squadMembers.firstOrNull { m -> m.name == it }?.id
-                    }
+                    DropdownMenuPicker(
+                        label = "",
+                        selected = selectedUser,
+                        items = userList
+                    ) { selected ->
 
-                    squadViewModel.fetchPendingApprovalPayments(
+                        selectedUser = selected
 
-                        showLoader = true,
-
-                        screenType = screenType,
-
-                        memberId = memberId
-
-                    ) { success, error ->
-
-                        if (!success) {
-
-                            println("Error: $error")
-
+                        val memberId = if (selected == "All") null else {
+                            squadMembers.firstOrNull { m -> m.name == selected }?.id
                         }
 
+                        squadViewModel.fetchPendingApprovalPayments(
+                            showLoader = true,
+                            screenType = screenType,
+                            memberId = memberId
+                        ) { success, error ->
+                            if (!success) {
+                                println("Error: $error")
+                            }
+                        }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
             }
 
             if (pendingApprovals.isEmpty()) {
@@ -323,10 +333,6 @@ fun PaymentApprovalView(
                 }
             }
         }
-
-        SSAlert()
-        SSLoaderView()
-        SSToast()
     }
 }
 
@@ -338,158 +344,153 @@ fun PaymentApprovalRow(
     onReject: () -> Unit
 ) {
 
+    val hasDescription = approval.description.isNotEmpty()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(AppColors.surface)
-            .padding(16.dp)
+            .padding(horizontal = 16.dp)
+            .appShadow(AppShadows.card)
+            .background(
+                AppColors.surface,
+                RoundedCornerShape(18.dp)
+            )
+            .border(
+                0.5.dp,
+                AppColors.border.copy(alpha = 0.4f),
+                RoundedCornerShape(18.dp)
+            )
+            .padding(18.dp)
     ) {
 
+        // ================= HEADER =================
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
 
                 Text(
                     text = approval.memberName,
-                    style = AppFont.ibmPlexSans(
-                        16,
-                        FontWeight.SemiBold
-                    ),
+                    style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
                     color = AppColors.headerText
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(Modifier.height(4.dp))
 
                 Text(
                     text = getPaymentLabel(approval.paymentSubType),
-                    style = AppFont.ibmPlexSans(
-                        13,
-                        FontWeight.Normal
-                    ),
+                    style = AppFont.ibmPlexSans(13, FontWeight.Medium),
                     color = AppColors.secondaryText
                 )
             }
 
-            Text(
-                text = "₹${approval.amount}",
-                style = AppFont.ibmPlexSans(
-                    18,
-                    FontWeight.Bold
-                ),
-                color = AppColors.primaryBrand
-            )
+            // ================= PREMIUM AMOUNT CHIP =================
+            Box(
+                modifier = Modifier
+                    .background(
+                        AppColors.primaryBrand.copy(alpha = 0.12f),
+                        RoundedCornerShape(20.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "₹${approval.amount}",
+                    style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+                    color = AppColors.primaryBrand
+                )
+            }
         }
 
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 12.dp)
-        )
+        // ================= DESCRIPTION =================
+        if (hasDescription) {
 
-        if (approval.description.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
 
             Text(
                 text = "Description",
-                style = AppFont.ibmPlexSans(
-                    12,
-                    FontWeight.Medium
-                ),
+                style = AppFont.ibmPlexSans(12, FontWeight.Medium),
                 color = AppColors.secondaryText
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(Modifier.height(4.dp))
 
             Text(
                 text = approval.description,
-                style = AppFont.ibmPlexSans(
-                    14,
-                    FontWeight.Normal
-                ),
-                color = AppColors.headerText
+                style = AppFont.ibmPlexSans(14),
+                color = AppColors.headerText,
+                lineHeight = 20.sp
             )
-
-            Spacer(modifier = Modifier.height(12.dp))
         }
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Spacer(Modifier.height(14.dp))
 
-            Icon(
-                imageVector = Icons.Default.Schedule,
-                contentDescription = null,
-                tint = Color(0xFFFF9800)
+        // ================= STATUS CHIP =================
+        Row(verticalAlignment = Alignment.CenterVertically) {
+
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(Color(0xFFFFB300), CircleShape)
             )
 
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(Modifier.width(8.dp))
 
             Text(
                 text = "Pending Verification",
-                style = AppFont.ibmPlexSans(
-                    12,
-                    FontWeight.Medium
-                ),
+                style = AppFont.ibmPlexSans(12, FontWeight.Medium),
                 color = Color(0xFFFF9800)
             )
         }
 
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 12.dp)
-        )
+        Spacer(Modifier.height(16.dp))
 
-        Button(
-            onClick = onApprove,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = AppColors.successAccent
-            ),
-            shape = RoundedCornerShape(10.dp)
-        ) {
+        // ================= ACTION BUTTONS =================
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
 
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = null
-            )
+            Button(
+                onClick = onApprove,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppColors.successAccent
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
 
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Text(
-                text = "Amount Received",
-                style = AppFont.ibmPlexSans(
-                    15,
-                    FontWeight.SemiBold
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null
                 )
-            )
-        }
 
-        Spacer(modifier = Modifier.height(10.dp))
+                Spacer(Modifier.width(8.dp))
 
-        Button(
-            onClick = onReject,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Red
-            ),
-            shape = RoundedCornerShape(10.dp)
-        ) {
-
-            Icon(
-                imageVector = Icons.Default.Cancel,
-                contentDescription = null
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Text(
-                text = "Amount Not Received",
-                style = AppFont.ibmPlexSans(
-                    15,
-                    FontWeight.SemiBold
+                Text(
+                    text = "Amount Received",
+                    style = AppFont.ibmPlexSans(15, FontWeight.SemiBold)
                 )
-            )
+            }
+
+            Button(
+                onClick = onReject,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppColors.errorAccent
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+
+                Icon(
+                    imageVector = Icons.Default.Cancel,
+                    contentDescription = null
+                )
+
+                Spacer(Modifier.width(8.dp))
+
+                Text(
+                    text = "Amount Not Received",
+                    style = AppFont.ibmPlexSans(15, FontWeight.SemiBold)
+                )
+            }
         }
     }
 }

@@ -67,6 +67,7 @@ import com.android.savingssquad.singleton.asTimestamp
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AlertManager
+import com.android.savingssquad.viewmodel.SSToast
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.flow.map
 import java.util.Calendar
@@ -124,11 +125,18 @@ fun VerifyPaymentsViewOld(
     LaunchedEffect(true) {
         squadViewModel.fetchPayments(showLoader = true) { _, _ -> }
     }
+    Box(
+        modifier = Modifier
 
-    Box(modifier = Modifier.fillMaxSize()) {
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize())
+        {
 
             // NAV BAR
             SSNavigationBar(SquadStrings.verifyPayments, navController)
@@ -195,9 +203,6 @@ fun VerifyPaymentsViewOld(
                 }
             }
         }
-
-        SSAlert()
-        SSLoaderView()
     }
 
 

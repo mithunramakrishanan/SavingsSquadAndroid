@@ -72,6 +72,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.viewmodel.AppDestination
+import com.android.savingssquad.viewmodel.SSToast
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
@@ -125,10 +126,18 @@ fun MemberProfileView(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
-        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(20.dp))
+        {
             SSNavigationBar(title = if (screenType == SquadUserType.SQUAD_MANAGER) SquadStrings.memberProfile else SquadStrings.yourProfile,navController)
 
             member?.let { safeMember ->
@@ -362,11 +371,6 @@ fun MemberProfileView(
 
                 }
             }
-        }
-
-        // Loader
-        if (loaderManager.isLoading) {
-            SSLoaderView()
         }
     }
 }

@@ -57,6 +57,7 @@ import com.android.savingssquad.SquadSubscription.SubscriptionFirebaseManager
 import com.android.savingssquad.SquadSubscription.SubscriptionModel
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
+import com.android.savingssquad.viewmodel.SSToast
 
 import com.google.firebase.auth.*
 import com.yourapp.utils.IDGenerator
@@ -118,7 +119,14 @@ fun SquadSignUpView(
             }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
         Column(
@@ -126,7 +134,8 @@ fun SquadSignUpView(
                 .fillMaxSize()
                 .padding(top = 0.dp),
             horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        )
+        {
             // Header
             SSNavigationBar(
                 title = SquadStrings.signUp,
@@ -499,8 +508,6 @@ fun SquadSignUpView(
             }
         }
 
-        SSAlert()
-        SSLoaderView()
     }
 }
 

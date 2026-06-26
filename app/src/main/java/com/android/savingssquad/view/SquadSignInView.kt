@@ -54,7 +54,10 @@ import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.FirestoreManager
 import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.viewmodel.SSToast
 import com.android.savingssquad.viewmodel.SquadViewModel
+import com.android.savingssquad.viewmodel.ToastManager
+import com.android.savingssquad.viewmodel.ToastType
 import com.google.firebase.auth.PhoneAuthOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -72,17 +75,23 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isButtonLoading by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // 🌈 Background gradient (your AppBackgroundGradient component)
-        AppBackgroundGradient()
+    Box(
+        modifier = Modifier
 
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
+        AppBackgroundGradient()
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        )
+        {
             // 🔹 App Icon + Welcome text
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -163,10 +172,9 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                         if (isOTPSent) {
 
                             if (verificationID.value.isEmpty()) {
-                                AlertManager.shared.showAlert(
-                                    title = SquadStrings.appName,
-                                    message = SquadStrings.invalidOTP
-                                )
+
+                                ToastManager.show(title = SquadStrings.appName, message = SquadStrings.invalidOTP, type = ToastType.ERROR)
+
                                 return@launch
                             }
 
@@ -277,10 +285,10 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                         } else {
                             // ---- SEND OTP FLOW ----
                             if (phoneNumber.value.isEmpty()) {
-                                AlertManager.shared.showAlert(
-                                    title = SquadStrings.appName,
-                                    message = SquadStrings.enterPhoneNumber
-                                )
+
+                                ToastManager.show(title = SquadStrings.appName, message =  SquadStrings.enterPhoneNumber, type = ToastType.ERROR)
+
+
                                 return@launch
                             }
 
@@ -364,10 +372,6 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
 
             Spacer(modifier = Modifier.height(40.dp))
         }
-
-        SSAlert()
-        SSLoaderView()
-
         val showPopup = squadViewModel.showPopup.collectAsState()
         val selectedUser = squadViewModel.selectedUser.collectAsState()
 

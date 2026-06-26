@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.SavingsSquad" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.SavingsSquad" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+
+        <!-- Make system bars transparent -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+
+        <!-- Allow drawing behind system bars -->
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+
+    </style>
+
 </resources>

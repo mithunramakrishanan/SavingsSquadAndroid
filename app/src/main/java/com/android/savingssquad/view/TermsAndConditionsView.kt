@@ -57,30 +57,46 @@ import kotlinx.coroutines.launch
 fun TermsAndConditionsView(
     navController: NavController
 ) {
-    Column(
+
+    Box(
         modifier = Modifier
+
             .fillMaxSize()
-            .background(AppColors.primaryBackground)
-    ) {
 
-        // 🔹 Top Bar
-        SSNavigationBar(SquadStrings.termsConditions, navController)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
+        AppBackgroundGradient()
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 🔹 Content Card
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .appShadow(AppShadows.card, RoundedCornerShape(20.dp))
-                .background(Color.White)
+                .background(AppColors.primaryBackground)
+        )
+        {
 
-        ) {
-            TermsContent(navController)
+            // 🔹 Top Bar
+            SSNavigationBar(SquadStrings.termsConditions, navController)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 🔹 Content Card
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .appShadow(AppShadows.card, RoundedCornerShape(20.dp))
+                    .background(Color.White)
+
+            ) {
+                TermsContent(navController)
+            }
         }
+
     }
+
+
 }
 
 @Composable

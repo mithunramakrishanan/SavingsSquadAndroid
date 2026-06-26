@@ -90,6 +90,7 @@ import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.viewmodel.AppDestination
+import com.android.savingssquad.viewmodel.SSToast
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -167,7 +168,14 @@ fun ContributionDetailsView(
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
         Column(

@@ -1,11 +1,11 @@
 [versions]
 # Build Tools
 accompanistNavigationAnimation = "0.36.0"
-agp = "9.0.1"
+agp = "8.9.3"
 checkout = "1.6.41"
 composeBomVersion = "2024.10.00"
 easyupipayment = "3.0.3"
-kotlin = "2.2.10"
+kotlin = "2.0.0"
 
 # AndroidX
 coreKtx = "1.12.0"
@@ -39,10 +39,14 @@ constraintlayout = "2.2.1"
 firebaseAppcheckKtx = "19.0.1"
 firebaseMessagingKtx = "25.0.2"
 foundation = "1.11.3"
-billingKtx = "9.1.0"
+billingKtx = "7.1.1"
 runtime = "1.11.3"
 material3 = "1.4.0"
 cameraCamera2Pipe = "1.6.1"
+animationCore = "1.11.3"
+uiGraphics = "1.11.3"
+roomKtx = "2.8.4"
+uiText = "1.11.3"
 
 [libraries]
 easyupipayment = { module = "dev.shreyaspatil.EasyUpiPayment:EasyUpiPayment", version.ref = "easyupipayment" }
@@ -100,6 +104,10 @@ billing-ktx = { group = "com.android.billingclient", name = "billing-ktx", versi
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 androidx-camera-camera2-pipe = { group = "androidx.camera", name = "camera-camera2-pipe", version.ref = "cameraCamera2Pipe" }
+androidx-compose-animation-core = { group = "androidx.compose.animation", name = "animation-core", version.ref = "animationCore" }
+androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref = "uiGraphics" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
+androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

@@ -44,6 +44,9 @@ import java.util.Date
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.asTimestamp
 import com.android.savingssquad.viewmodel.AlertManager
+import com.android.savingssquad.viewmodel.SSToast
+import com.android.savingssquad.viewmodel.ToastManager
+import com.android.savingssquad.viewmodel.ToastType
 import com.yourapp.utils.CommonFunctions
 import java.util.Calendar
 
@@ -108,7 +111,14 @@ fun ManageSquadView(
         onDismiss?.invoke() ?: navController.popBackStack()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
         Column(
@@ -287,14 +297,7 @@ fun ManageSquadView(
                                 totalSquadAmount = newValue
 
                                 LoaderManager.shared.hideLoader()
-
-                                // 🔹 Show Alert
-                                AlertManager.shared.showAlert(
-                                    title = SquadStrings.appName,
-                                    message = "Updated squad amount: $totalSquadAmount → $newValue",
-                                    primaryButtonTitle = "OK",
-                                    primaryAction = { }
-                                )
+                                ToastManager.show(SquadStrings.appName, message = "Updated squad amount: $totalSquadAmount → $newValue" , type = ToastType.SUCCESS)
                             }
 
                         } else {
@@ -307,9 +310,6 @@ fun ManageSquadView(
                 }
             )
         }
-
-        SSAlert()
-        SSLoaderView()
     }
 }
 

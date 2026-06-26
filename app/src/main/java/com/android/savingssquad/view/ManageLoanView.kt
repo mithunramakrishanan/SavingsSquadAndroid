@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -51,6 +52,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -90,10 +92,12 @@ import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.FirebaseFunctionsManager
+import com.android.savingssquad.viewmodel.SSToast
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.Dispatchers
 import java.util.Calendar
 import java.util.UUID
+import kotlin.math.pow
 
 @Composable
 fun ManageLoanView(
@@ -108,8 +112,12 @@ fun ManageLoanView(
 
     Box(
         modifier = Modifier
+
             .fillMaxSize()
-    ) {
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
         Column(
@@ -117,7 +125,8 @@ fun ManageLoanView(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(vertical = 16.dp)
-        ) {
+        )
+        {
 
             SSNavigationBar(
                 title = SquadStrings.manageLoanDetails,
@@ -187,10 +196,6 @@ fun ManageLoanView(
                 }
             }
         }
-
-        SSAlert()
-        SSLoaderView()
-
         val showEMIPopup = squadViewModel.showEMIConfigPopup.collectAsStateWithLifecycle()
 
         if (showEMIPopup.value) {
@@ -315,20 +320,15 @@ private fun handleAddEditEMI(
 
 @Composable
 fun AddEMIPopup(
-    emi: EMIConfiguration?,                   // null → add, non-null → edit
+    emi: EMIConfiguration?,
     onSave: (Int, Int, Double) -> Unit,
     onCancel: () -> Unit
 ) {
-    // ------------------------------
-    // TEXT STATES
-    // ------------------------------
+
     val amountState = remember { mutableStateOf("") }
     val monthsState = remember { mutableStateOf("") }
     val rateState = remember { mutableStateOf("") }
 
-    // ------------------------------
-    // PREFILL FOR EDIT MODE
-    // ------------------------------
     LaunchedEffect(emi) {
         emi?.let {
             amountState.value = it.loanAmount.toString()
@@ -337,76 +337,100 @@ fun AddEMIPopup(
         }
     }
 
-    // ------------------------------
-    // VALIDATION
-    // ------------------------------
-    val isValid = amountState.value.isNotEmpty()
-            && monthsState.value.isNotEmpty()
-            && rateState.value.isNotEmpty()
+    val isValid =
+        amountState.value.isNotEmpty() &&
+                monthsState.value.isNotEmpty() &&
+                rateState.value.isNotEmpty()
 
-    // ------------------------------
-    // LIVE EMI CALCULATION
-    // ------------------------------
     val calculatedEMI = remember(
         amountState.value,
         monthsState.value,
         rateState.value
     ) {
-        try {
-            val amount = amountState.value.toDouble()
-            val m = monthsState.value.toInt()
-            val r = rateState.value.toDouble()
+        runCatching {
 
-            val monthlyRate = (r / 100) / 12
-            val numerator = amount * monthlyRate * Math.pow(1 + monthlyRate, m.toDouble())
-            val denominator = Math.pow(1 + monthlyRate, m.toDouble()) - 1
+            val principal = amountState.value.toDouble()
+            val tenure = monthsState.value.toInt()
+            val annualRate = rateState.value.toDouble()
 
-            if (denominator != 0.0) {
-                val emiValue = (numerator / denominator)
-                val totalPayment = emiValue * m
-                val totalInterest = totalPayment - amount
-                emiValue to totalInterest
-            } else null
-        } catch (e: Exception) {
-            null
-        }
+            require(principal > 0 && tenure > 0 && annualRate >= 0)
+
+            val monthlyRate = annualRate / (12 * 100)
+
+            // No interest case
+            if (monthlyRate == 0.0) {
+                val emi = principal / tenure
+                return@runCatching emi.round(2) to 0.0
+            }
+
+            val r = monthlyRate
+            val n = tenure.toDouble()
+
+            val factor = (1 + r).pow(n)
+
+            val emi = (principal * r * factor) / (factor - 1)
+
+            val totalPayment = emi * n
+            val totalInterest = totalPayment - principal
+
+            emi.round(2) to totalInterest.round(2)
+
+        }.getOrNull()
     }
 
-    // ------------------------------
-    // POPUP BACKGROUND
-    // ------------------------------
+    // MARK: - Backdrop
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.25f)),
+            .background(Color.Black.copy(alpha = 0.45f))
+            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) {
+                onCancel()
+            },
         contentAlignment = Alignment.Center
     ) {
 
+        // MARK: - Card
         Column(
             modifier = Modifier
                 .padding(horizontal = 20.dp)
-                .shadow(
-                    elevation = 8.dp,
-                    shape = RoundedCornerShape(18.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.15f),
-                    spotColor = Color.Black.copy(alpha = 0.15f)
+                .widthIn(max = 420.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            AppColors.surface.copy(alpha = 0.98f),
+                            AppColors.surface.copy(alpha = 0.92f)
+                        )
+                    )
                 )
-                .background(AppColors.surface, RoundedCornerShape(18.dp))
-                .padding(vertical = 20.dp, horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .shadow(
+                    elevation = 24.dp,
+                    shape = RoundedCornerShape(24.dp),
+                    ambientColor = Color.Black.copy(alpha = 0.2f),
+                    spotColor = Color.Black.copy(alpha = 0.25f)
+                )
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
 
-            // ------------------------------
-            // TITLE
-            Text(
-                text = if (emi == null) "Add EMI Configuration" else "Edit EMI Configuration",
-                style = AppFont.ibmPlexSans(18, FontWeight.SemiBold).copy(
-                    color = AppColors.headerText
-                )
+            // MARK: Drag handle (modern modal feel)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .width(44.dp)
+                    .height(5.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.Gray.copy(alpha = 0.3f))
             )
 
-            // ------------------------------
-            // INPUT FIELDS
+            // MARK: Title
+            Text(
+                text = if (emi == null) "Add EMI Plan" else "Edit EMI Plan",
+                style = AppFont.ibmPlexSans(20, FontWeight.SemiBold),
+                color = AppColors.headerText
+            )
+
+            // MARK: Inputs
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
 
                 SSTextField(
@@ -418,7 +442,7 @@ fun AddEMIPopup(
 
                 SSTextField(
                     icon = Icons.Default.CalendarMonth,
-                    placeholder = "Months",
+                    placeholder = "Tenure (Months)",
                     textState = monthsState,
                     keyboardType = KeyboardType.Number
                 )
@@ -431,49 +455,53 @@ fun AddEMIPopup(
                 )
             }
 
-            // ------------------------------
-            // EMI PREVIEW (Live Update)
+            // MARK: EMI Preview Card (Premium highlight)
             calculatedEMI?.let { (emiValue, interestValue) ->
+
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.65f))
+                        .padding(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
 
                     Text(
-                        text = "Estimated EMI: ₹${String.format("%.2f", emiValue)} per month",
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center,
-                        style = AppFont.ibmPlexSans(14, FontWeight.Medium)
-                            .copy(color = AppColors.secondaryText)
+                        text = "Estimated EMI",
+                        style = AppFont.ibmPlexSans(13, FontWeight.Medium),
+                        color = AppColors.secondaryText
                     )
 
                     Text(
-                        text = "Total Interest: ₹${String.format("%.2f", interestValue)}",
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center,
-                        style = AppFont.ibmPlexSans(14, FontWeight.Medium)
-                            .copy(color = AppColors.secondaryText)
+                        text = "₹ ${"%.0f".format(emiValue)} / month",
+                        style = AppFont.ibmPlexSans(18, FontWeight.Bold),
+                        color = AppColors.headerText
+                    )
+
+                    Text(
+                        text = "Total Interest: ₹ ${"%.0f".format(interestValue)}",
+                        style = AppFont.ibmPlexSans(13, FontWeight.Medium),
+                        color = AppColors.secondaryText
                     )
                 }
             }
 
-            // ------------------------------
-            // ACTION BUTTONS
+            // MARK: Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
 
-                // Cancel
                 SSCancelButton(
-                    title = SquadStrings.cancel,
+                    title = "Cancel",
                     modifier = Modifier.weight(1f),
-                    action = { onCancel() }
+                    action = onCancel
                 )
 
-                // Save
                 SSButton(
-                    title = "Save",
+                    title = if (emi == null) "Save EMI" else "Update EMI",
                     isDisabled = !isValid,
                     modifier = Modifier.weight(1f),
                     action = {
@@ -562,4 +590,9 @@ fun EMIListRow(
             }
         }
     }
+}
+
+fun Double.round(decimals: Int): Double {
+    val factor = 10.0.pow(decimals)
+    return kotlin.math.round(this * factor) / factor
 }

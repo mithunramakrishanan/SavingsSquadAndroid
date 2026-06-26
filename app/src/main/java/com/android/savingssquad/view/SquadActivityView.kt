@@ -2,9 +2,11 @@ package com.android.savingssquad.view
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
@@ -16,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.android.savingssquad.viewmodel.SquadViewModel
@@ -32,6 +35,7 @@ import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.yourapp.utils.CommonFunctions
 import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.viewmodel.SSToast
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -99,189 +103,259 @@ fun SquadActivityView(
         ) { _, _ -> }
     }
 
-    AppBackgroundGradient()
+    Box(
+        modifier = Modifier
 
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
+            .fillMaxSize()
 
-        SSNavigationBar(
-            SquadStrings.squadActivities,
-            navController
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
+        AppBackgroundGradient()
+        Column(
+            modifier = Modifier.fillMaxSize()
         )
+        {
 
-        Spacer(modifier = Modifier.height(16.dp))
+            SSNavigationBar(
+                SquadStrings.squadActivities,
+                navController
+            )
 
-        // User Filter
-        if (screenType != SquadUserType.SQUAD_MEMBER) {
+            Spacer(modifier = Modifier.height(16.dp))
 
-            DropdownMenuPicker(
-                label = "",
-                selected = selectedUser,
-                items = userList,
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .fillMaxWidth()
-            ) { selected ->
+            // User Filter
+            if (screenType != SquadUserType.SQUAD_MEMBER) {
 
-                selectedUser = selected
+                DropdownMenuPicker(
+                    label = "",
+                    selected = selectedUser,
+                    items = userList,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .fillMaxWidth()
+                ) { selected ->
 
-                selectedMemberId =
-                    if (selected == "All") {
-                        null
-                    } else {
-                        squadMembers.firstOrNull {
-                            it.name == selected
-                        }?.id
+                    selectedUser = selected
+
+                    selectedMemberId =
+                        if (selected == "All") {
+                            null
+                        } else {
+                            squadMembers.firstOrNull {
+                                it.name == selected
+                            }?.id
+                        }
+
+                    squadViewModel.resetActivitiesPagination()
+
+                    squadViewModel.fetchSquadActivities(
+                        squadID = squadViewModel.squad.value?.squadID ?: return@DropdownMenuPicker,
+                        memberId = selectedMemberId,
+                        showLoader = true
+                    ) { _, _ -> }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (squadActivities.isEmpty()) {
+
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = null,
+                            modifier = Modifier.size(72.dp),
+                            tint = Color.Gray.copy(alpha = 0.6f)
+                        )
+
+                        Spacer(
+                            modifier = Modifier.height(12.dp)
+                        )
+
+                        Text(
+                            text = "No activities found",
+                            style = AppFont.ibmPlexSans(
+                                15,
+                                FontWeight.Medium
+                            ),
+                            color = AppColors.secondaryText
+                        )
+                    }
+                }
+
+            } else {
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        bottom = 20.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(
+                        12.dp
+                    )
+                ) {
+
+                    items(
+                        items = squadActivities,
+                        key = { it.id ?: "" }
+                    ) { activity ->
+
+                        ActivityCardComposable(
+                            activity = activity
+                        )
+
+                        LaunchedEffect(activity.id) {
+
+                            squadViewModel
+                                .loadMoreActivitiesIfNeeded(
+                                    currentActivity = activity,
+                                    squadID = squadViewModel.squad.value?.squadID
+                                        ?: return@LaunchedEffect,
+                                    memberId = selectedMemberId
+                                )
+                        }
                     }
 
-                squadViewModel.resetActivitiesPagination()
+                    if (
+                        squadViewModel.isLoadingMoreActivities &&
+                        squadActivities.isNotEmpty()
+                    ) {
 
-                squadViewModel.fetchSquadActivities(
-                    squadID = squadViewModel.squad.value?.squadID ?: return@DropdownMenuPicker,
-                    memberId = selectedMemberId,
-                    showLoader = true
-                ) { _, _ -> }
+                        item {
+                            ShimmerLoader()
+                        }
+                    }
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (squadActivities.isEmpty()) {
-
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-
-                    Icon(
-                        imageVector = Icons.Default.History,
-                        contentDescription = null,
-                        modifier = Modifier.size(72.dp),
-                        tint = Color.Gray.copy(alpha = 0.6f)
-                    )
-
-                    Spacer(
-                        modifier = Modifier.height(12.dp)
-                    )
-
-                    Text(
-                        text = "No activities found",
-                        style = AppFont.ibmPlexSans(
-                            15,
-                            FontWeight.Medium
-                        ),
-                        color = AppColors.secondaryText
-                    )
-                }
-            }
-
-        } else {
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    bottom = 20.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(
-                    12.dp
-                )
-            ) {
-
-                items(
-                    items = squadActivities,
-                    key = { it.id ?: "" }
-                ) { activity ->
-
-                    ActivityCardComposable(
-                        activity = activity
-                    )
-
-                    LaunchedEffect(activity.id) {
-
-                        squadViewModel
-                            .loadMoreActivitiesIfNeeded(
-                                currentActivity = activity,
-                                squadID = squadViewModel.squad.value?.squadID
-                                    ?: return@LaunchedEffect,
-                                memberId = selectedMemberId
-                            )
-                    }
-                }
-
-                if (
-                    squadViewModel.isLoadingMoreActivities &&
-                    squadActivities.isNotEmpty()
-                ) {
-
-                    item {
-                        ShimmerLoader()
-                    }
-                }
-            }
-        }
     }
+
 }
 
 @Composable
 fun ActivityCardComposable(activity: SquadActivity) {
-    Column(
+
+    val hasAmount =
+        activity.activityType == SquadActivityType.AMOUNT_CREDIT ||
+                activity.activityType == SquadActivityType.AMOUNT_DEBIT
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .appShadow(AppShadows.card)
             .background(
                 color = AppColors.surface,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(18.dp)
             )
-            .padding(16.dp)
+            .border(
+                width = 0.5.dp,
+                color = AppColors.border.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(18.dp)
+            )
+            .padding(18.dp),
+        verticalAlignment = Alignment.Top
     ) {
 
-        // Header Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+        // ================= TIMELINE =================
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(top = 6.dp)
         ) {
 
-            Text(
-                text = activity.userName,
-                style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
-                color = AppColors.headerText
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .background(
+                        AppColors.primaryBrand.copy(alpha = 0.35f),
+                        CircleShape
+                    )
             )
 
-            Text(
-                text = CommonFunctions.dateToString(activity.date?.toDate() ?: Date()),
-                style = AppFont.ibmPlexSans(12),
-                color = AppColors.secondaryText
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(if (hasAmount) 60.dp else 30.dp) // 🔥 FIX HERE
+                    .background(AppColors.border.copy(alpha = 0.4f))
             )
         }
 
-        Spacer(Modifier.height(6.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
-        // Description
-        Text(
-            text = activity.description,
-            style = AppFont.ibmPlexSans(14),
-            color = AppColors.secondaryText
-        )
+        // ================= CONTENT =================
+        Column(modifier = Modifier.weight(1f)) {
 
-        // Amount (credit/debit)
-        if (activity.activityType == SquadActivityType.AMOUNT_CREDIT ||
-            activity.activityType == SquadActivityType.AMOUNT_DEBIT
-        ) {
-            Spacer(Modifier.height(4.dp))
+            // HEADER
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+
+                Text(
+                    text = activity.userName,
+                    style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+                    color = AppColors.headerText
+                )
+
+                Text(
+                    text = CommonFunctions.dateToString(
+                        activity.date?.toDate() ?: Date()
+                    ),
+                    style = AppFont.ibmPlexSans(11),
+                    color = AppColors.secondaryText.copy(alpha = 0.8f)
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // DESCRIPTION
             Text(
-                text = activity.amount.currencyFormattedWithCommas(),
-                style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
-                color = if (activity.activityType == SquadActivityType.AMOUNT_CREDIT)
-                    AppColors.successAccent
-                else
-                    AppColors.errorAccent
+                text = activity.description,
+                style = AppFont.ibmPlexSans(14),
+                color = AppColors.secondaryText,
+                lineHeight = 20.sp
             )
+
+            // ================= AMOUNT (ONLY IF EXISTS) =================
+            if (hasAmount) {
+
+                Spacer(Modifier.height(10.dp))
+
+                val isCredit = activity.activityType == SquadActivityType.AMOUNT_CREDIT
+
+                Text(
+                    text = (if (isCredit) "+ " else "- ") +
+                            activity.amount.currencyFormattedWithCommas(),
+                    style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
+                    color = if (isCredit)
+                        AppColors.successAccent
+                    else
+                        AppColors.errorAccent,
+                    modifier = Modifier
+                        .background(
+                            color = if (isCredit)
+                                AppColors.successAccent.copy(alpha = 0.12f)
+                            else
+                                AppColors.errorAccent.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+            } else {
+
+                // 🔥 REMOVE EMPTY SPACE COMPLETELY
+                Spacer(modifier = Modifier.height(4.dp))
+            }
         }
     }
 }

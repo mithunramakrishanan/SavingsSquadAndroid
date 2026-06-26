@@ -21,6 +21,7 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.UserDefaultsManager
+import com.android.savingssquad.viewmodel.SSToast
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -68,128 +69,136 @@ fun PaymentHistoryView(
             }
         }
     }
+    Box(
+        modifier = Modifier
 
-    AppBackgroundGradient()
+            .fillMaxSize()
 
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-
-        // NAV BAR (same as iOS SSNavigationBar)
-        SSNavigationBar(
-            title = "Payment History",
-            navController = navController
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
+        AppBackgroundGradient()
+        Column(
+            modifier = Modifier.fillMaxSize()
         )
+        {
 
-        Spacer(modifier = Modifier.height(12.dp))
+            // NAV BAR (same as iOS SSNavigationBar)
+            SSNavigationBar(
+                title = "Payment History",
+                navController = navController
+            )
 
-        // MARK: - USER PICKER (Manager only)
-        if (screenType != SquadUserType.SQUAD_MEMBER) {
+            Spacer(modifier = Modifier.height(12.dp))
 
-            DropdownMenuPicker(
-                label = "",
-                selected = selectedUser,
-                items = userList,
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .fillMaxWidth()
-            ) { selected ->
+            // MARK: - USER PICKER (Manager only)
+            if (screenType != SquadUserType.SQUAD_MEMBER) {
 
-                selectedUser = selected
+                DropdownMenuPicker(
+                    label = "",
+                    selected = selectedUser,
+                    items = userList,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .fillMaxWidth()
+                ) { selected ->
 
-                selectedMemberId =
-                    members.value.firstOrNull {
-                        it.name == selected
-                    }?.id
+                    selectedUser = selected
 
-                squadViewModel.resetPaymentsPagination()
+                    selectedMemberId =
+                        members.value.firstOrNull {
+                            it.name == selected
+                        }?.id
 
-                squadViewModel.fetchPayments(
-                    showLoader = true,
-                    memberId = selectedMemberId
-                ) { _, error ->
-                    if (error != null) {
-                        println("❌ $error")
+                    squadViewModel.resetPaymentsPagination()
+
+                    squadViewModel.fetchPayments(
+                        showLoader = true,
+                        memberId = selectedMemberId
+                    ) { _, error ->
+                        if (error != null) {
+                            println("❌ $error")
+                        }
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // MARK: - EMPTY STATE (iOS style)
-        if (payments.value.isEmpty()) {
+            // MARK: - EMPTY STATE (iOS style)
+            if (payments.value.isEmpty()) {
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
 
-                Icon(
-                    imageVector = Icons.Default.CreditCard,
-                    contentDescription = null,
-                    modifier = Modifier.size(72.dp),
-                    tint = Color.Gray.copy(alpha = 0.6f)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = if (screenType == SquadUserType.SQUAD_MEMBER)
-                        "No payments yet"
-                    else
-                        "No transactions yet",
-                    style = AppFont.ibmPlexSans(
-                        15,
-                        FontWeight.Medium
-                    ),
-                    color = AppColors.secondaryText
-                )
-            }
-        }
-
-        // MARK: - LIST
-        else {
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 20.dp)
-            ) {
-
-                items(
-                    items = payments.value,
-                    key = { it.id ?: "" }
-                ) { payment ->
-
-                    PaymentRow(
-                        payment = payment,
-                        showPaymentStatusRow = true,
-                        showPayoutStatusRow = false,
-                        squadViewModel = squadViewModel
+                    Icon(
+                        imageVector = Icons.Default.CreditCard,
+                        contentDescription = null,
+                        modifier = Modifier.size(72.dp),
+                        tint = Color.Gray.copy(alpha = 0.6f)
                     )
 
-                    // MARK: - Pagination trigger (iOS onAppear equivalent)
-                    LaunchedEffect(payment.id) {
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                        squadViewModel.loadMorePaymentsIfNeeded(
-                            currentPayment = payment,
-                            memberId = selectedMemberId
-                        )
-                    }
+                    Text(
+                        text = if (screenType == SquadUserType.SQUAD_MEMBER)
+                            "No payments yet"
+                        else
+                            "No transactions yet",
+                        style = AppFont.ibmPlexSans(
+                            15,
+                            FontWeight.Medium
+                        ),
+                        color = AppColors.secondaryText
+                    )
                 }
+            }
 
-                // MARK: - Loader (pagination)
-                if (squadViewModel.paymentsIsLoadingMore) {
+            // MARK: - LIST
+            else {
 
-                    item {
-                        ShimmerLoader()
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(bottom = 20.dp)
+                ) {
+
+                    items(
+                        items = payments.value,
+                        key = { it.id ?: "" }
+                    ) { payment ->
+
+                        PaymentRow(
+                            payment = payment,
+                            showPaymentStatusRow = true,
+                            showPayoutStatusRow = false,
+                            squadViewModel = squadViewModel
+                        )
+
+                        // MARK: - Pagination trigger (iOS onAppear equivalent)
+                        LaunchedEffect(payment.id) {
+
+                            squadViewModel.loadMorePaymentsIfNeeded(
+                                currentPayment = payment,
+                                memberId = selectedMemberId
+                            )
+                        }
+                    }
+
+                    // MARK: - Loader (pagination)
+                    if (squadViewModel.paymentsIsLoadingMore) {
+
+                        item {
+                            ShimmerLoader()
+                        }
                     }
                 }
             }
         }
-    }
+        }
 }
 

@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.android.savingssquad.SquadSubscription.BillingHelper
@@ -26,6 +27,7 @@ import com.android.savingssquad.singleton.UPIPaymentManager
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.AppNavHost
 import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.viewmodel.SSToast
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.google.gson.Gson
 
@@ -34,6 +36,7 @@ class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         UPIPaymentManager.shared.register(this)
         handleNotification(intent) // 🔥 IMPORTANT (cold start)
         BillingHelper.init(this)
@@ -162,6 +165,10 @@ fun SavingsSquadRoot() {
                 }
             )
         }
+
+        SSAlert()
+        SSLoaderView()
+        SSToast()
     }
 
 }

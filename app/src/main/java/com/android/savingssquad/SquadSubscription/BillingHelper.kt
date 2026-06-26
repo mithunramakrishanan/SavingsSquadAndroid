@@ -29,7 +29,7 @@ object BillingHelper {
             .enablePendingPurchases(
                 PendingPurchasesParams.newBuilder()
                     .enableOneTimeProducts()
-                    .build()
+                    .build(),
             )
             .build()
 
@@ -59,7 +59,7 @@ object BillingHelper {
             billingClient.queryPurchasesAsync(params) { result, purchases ->
 
                 if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                    cont.resume(Plan.FREE, null)
+                    cont.resume(Plan.FREE) { }
                     return@queryPurchasesAsync
                 }
 
@@ -71,7 +71,7 @@ object BillingHelper {
 
                     when {
                         purchase.products.contains(BUSINESS_PRODUCT_ID) -> {
-                            cont.resume(Plan.BUSINESS, null)
+                            cont.resume(Plan.BUSINESS) { }
                             return@queryPurchasesAsync
                         }
 
@@ -81,7 +81,7 @@ object BillingHelper {
                     }
                 }
 
-                cont.resume(plan, null)
+                cont.resume(plan) { }
             }
         }
     }
@@ -104,7 +104,7 @@ object BillingHelper {
         billingClient.queryProductDetailsAsync(params) { result, list ->
 
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                callback(list.productDetailsList.firstOrNull())
+                callback(list.firstOrNull())
             } else {
                 callback(null)
             }

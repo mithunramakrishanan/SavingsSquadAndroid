@@ -280,11 +280,7 @@ fun UpgradePlanScreen(
                         enableLoanAddon = enableLoanAddon,
                         onLoading = { isLoading = it },
                         onError = { error ->
-                            AlertManager.shared.showAlert(
-                                title = SquadStrings.appName,
-                                message = error,
-                                primaryButtonTitle = "OK"
-                            ) {}
+
                         }
                     ) */
                 },
@@ -295,9 +291,6 @@ fun UpgradePlanScreen(
             }
 
             Spacer(Modifier.height(24.dp))
-
-            SSAlert()
-            SSLoaderView()
         }
     }
 }

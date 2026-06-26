@@ -1,104 +1,62 @@
 package com.android.savingssquad.view
 
+import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavHostController
-import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.CurrencyRupee
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.QrCode2
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.android.savingssquad.R
-import com.android.savingssquad.model.BeneficiaryResult
 import com.android.savingssquad.model.ContributionDetail
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.viewmodel.LoaderManager
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
-import java.util.Date
-import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
-import com.android.savingssquad.model.Member
-import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.ReminderRequest
-import com.android.savingssquad.model.unpaidMonths
-import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.NotificationService
-import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaidStatus
-import com.android.savingssquad.singleton.PaymentEntryType
+import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
-import com.android.savingssquad.singleton.appShadow
-import com.android.savingssquad.singleton.asTimestamp
-import com.android.savingssquad.singleton.currencyFormattedWithCommas
-import com.android.savingssquad.singleton.displayText
-import com.android.savingssquad.viewmodel.AlertManager
-import com.android.savingssquad.viewmodel.AppDestination
-import com.android.savingssquad.viewmodel.FirebaseFunctionsManager
+import com.android.savingssquad.viewmodel.SSToast
+import com.android.savingssquad.viewmodel.ToastManager
+import com.android.savingssquad.viewmodel.ToastType
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.ZoneId
-import java.util.Calendar
 
 
 /*
@@ -121,6 +79,7 @@ NotificationService.shared.sendMemberReminder(
 )
  */
 
+@SuppressLint("UnrememberedMutableState")
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun DuesScreenView(
@@ -138,6 +97,12 @@ fun DuesScreenView(
     var selectedSegment by remember { mutableStateOf("Contribution") }
     var isLoading by remember { mutableStateOf(true) }
 
+    var contributionRemaindCount by mutableStateOf(0)
+    var installmentRemaindCount by mutableStateOf(0)
+
+    var contributionRemaindIds by mutableStateOf(listOf<String>())
+    var installmentRemaindIds by mutableStateOf(listOf<String>())
+
     val screenType =
         if (UserDefaultsManager.getSquadManagerLogged())
             SquadUserType.SQUAD_MANAGER
@@ -149,11 +114,11 @@ fun DuesScreenView(
         // Payments
         squadViewModel.fetchPayments(showLoader = true) { success, _ ->
             payments = getCurrentMonthPayments(squadViewModel.squadPayments.value)
-                .filter { it.paymentStatus == PaymentStatus.SUCCESS }
+                .filter { it.paymentStatus == PaymentStatus.SUCCESS && it.paymentApproveStatus == PaymentApproveStatus.ACCEPTED }
 
             if (screenType == SquadUserType.SQUAD_MEMBER) {
                 val id = squadViewModel.currentMember.value?.id
-                payments = payments.filter { it.memberId == id }
+                payments = payments.filter { it.memberId == id && it.paymentApproveStatus == PaymentApproveStatus.ACCEPTED }
             }
         }
 
@@ -167,23 +132,44 @@ fun DuesScreenView(
                 currentOverDueContribution = contributions
                 currentOverDueInstallments = installments
                 isLoading = false
+
+
+                contributionRemaindIds = currentOverDueContribution
+                    .map { it.memberID }
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                    .sorted()
+
+                contributionRemaindCount = contributionRemaindIds.size
+
+
+                installmentRemaindIds = currentOverDueInstallments
+                    .map { it.memberID }
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                    .sorted()
+
+                installmentRemaindCount = installmentRemaindIds.size
+
             }
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Background gradient (AppBackgroundGradient equivalent)
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color(0xFFF8F9FB), Color(0xFFFFFFFF))
-                    )
-                )
-        )
 
-        Column(modifier = Modifier.fillMaxSize().padding(vertical = 16.dp)) {
+
+    Box(
+        modifier = Modifier
+
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
+        AppBackgroundGradient()
+
+        Column(modifier = Modifier
+            .fillMaxSize()
+            .padding(vertical = 16.dp)) {
             // Top nav
             SSNavigationBar(title = SquadStrings.currentOverDues, navController = navController, showBackButton = true)
 
@@ -193,19 +179,15 @@ fun DuesScreenView(
 
                 // manager or default
                 if (currentOverDueContribution.isEmpty() && currentOverDueInstallments.isEmpty()) {
-                    DuesCardView(
+                    AllCaughUPView(
                         title = "All Due’s Paid",
                         subtitle = "Squad all caught up!",
                         icon = Icons.Default.CheckCircle,
                         iconColor = Color(0xFF4CAF50),
-                        gradientColors = listOf(
-                            Color(0xFF4CAF50).copy(alpha = 0.08f),
-                            Color(0xFF4CAF50).copy(alpha = 0.15f)
-                        ),
                         showChevron = false
                     )
 
-                    if (payments.size == 0) {
+                    if (payments.size != 0) {
 
                         SectionView(title = "Recent Payments") {
                             LazyColumn(
@@ -242,23 +224,84 @@ fun DuesScreenView(
                     // Content
                     if (selectedSegment == "Contribution") {
                         if (currentOverDueContribution.isEmpty()) {
-                            DuesCardView(
+                            AllCaughUPView(
                                 title = "All Contributions Paid",
                                 subtitle = "Squad all caught up!",
                                 icon = Icons.Default.CheckCircle,
                                 iconColor = Color(0xFF4CAF50),
-                                gradientColors = listOf(
-                                    Color(0xFF4CAF50).copy(alpha = 0.08f),
-                                    Color(0xFF4CAF50).copy(alpha = 0.15f)
-                                ),
                                 showChevron = false
                             )
                         } else {
                             SectionView(title = "$selectedSegment Dues") {
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    RemindAllButton(contributionRemaindCount) {
+
+                                        NotificationService.shared.sendMemberReminder(
+
+                                            request = ReminderRequest(
+
+                                                squadId = squadViewModel.squad.value?.squadID
+                                                    ?: "",
+
+                                                memberIds = contributionRemaindIds,
+
+                                                title = "Contribution Reminder",
+
+                                                message = "Please complete the Contribution Due(s)",
+
+                                                data = mapOf(
+
+                                                    "screen" to "PAYMENT"
+
+                                                )
+
+                                            ),
+
+                                            onSuccess = { response ->
+                                                LoaderManager.shared.hideLoader()
+                                                ToastManager.show(
+                                                    title = "Reminder Sent",
+                                                    message = "Notification sent to ${response.sentTo} member(s)",
+                                                    type = ToastType.SUCCESS
+                                                )
+                                            },
+
+                                            onError = { error ->
+                                                LoaderManager.shared.hideLoader()
+                                                ToastManager.show(
+                                                    title = "Failed",
+                                                    message = error.localizedMessage ?: "Unable to send reminder.",
+                                                    type = ToastType.ERROR
+                                                )
+                                            }
+
+                                        )
+
+                                    }
+                                }
+
                                 LazyColumn(
                                     modifier = Modifier.fillMaxWidth(),
+
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    contentPadding = PaddingValues(vertical = 8.dp)
+
+                                    contentPadding = PaddingValues(
+
+                                        start = 16.dp,
+
+                                        end = 16.dp,
+
+                                        top = 8.dp,
+
+                                        bottom = 8.dp
+
+                                    )
                                 ) {
                                     items(currentOverDueContribution) { contribution ->
                                         contribution.dueDate?.let {
@@ -272,7 +315,7 @@ fun DuesScreenView(
                                                 status = if (contribution.paidStatus == PaidStatus.PAID) "PAID" else "PENDING",
                                                 memberName = contribution.memberName,
                                                 onRemind = {
-
+                                                    LoaderManager.shared.showLoader()
                                                     NotificationService.shared.sendMemberReminder(
 
                                                         request = ReminderRequest(
@@ -295,15 +338,21 @@ fun DuesScreenView(
                                                         ),
 
                                                         onSuccess = { response ->
-
-                                                            Log.d("REMINDER", "Sent to ${response.sentTo}")
-
+                                                            LoaderManager.shared.hideLoader()
+                                                            ToastManager.show(
+                                                                title = "Reminder Sent",
+                                                                message = "Notification sent to ${contribution.memberName}",
+                                                                type = ToastType.SUCCESS
+                                                            )
                                                         },
 
                                                         onError = { error ->
-
-                                                            Log.e("REMINDER", "Failed", error)
-
+                                                            LoaderManager.shared.hideLoader()
+                                                            ToastManager.show(
+                                                                title = "Failed",
+                                                                message = error.localizedMessage ?: "Unable to send reminder.",
+                                                                type = ToastType.ERROR
+                                                            )
                                                         }
 
                                                     )
@@ -320,24 +369,84 @@ fun DuesScreenView(
                     else {
                         if (currentOverDueInstallments.isEmpty()) {
 
-                            DuesCardView(
+                            AllCaughUPView(
                                 title = "All EMI's Paid",
                                 subtitle = "Squad all caught up!",
                                 icon = Icons.Default.CheckCircle,
                                 iconColor = Color(0xFF4CAF50),
-                                gradientColors = listOf(
-                                    Color(0xFF4CAF50).copy(alpha = 0.08f),
-                                    Color(0xFF4CAF50).copy(alpha = 0.15f)
-                                ),
                                 showChevron = false
                             )
                         }
                         else {
                             SectionView(title = "$selectedSegment Dues") {
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    RemindAllButton(installmentRemaindCount) {
+
+                                        NotificationService.shared.sendMemberReminder(
+
+                                            request = ReminderRequest(
+
+                                                squadId = squadViewModel.squad.value?.squadID
+                                                    ?: "",
+
+                                                memberIds = installmentRemaindIds,
+
+                                                title = "EMI Reminder",
+
+                                                message = "Please complete the EMI Due(s)",
+
+                                                data = mapOf(
+
+                                                    "screen" to "PAYMENT"
+
+                                                )
+
+                                            ),
+
+                                            onSuccess = { response ->
+                                                LoaderManager.shared.hideLoader()
+                                                ToastManager.show(
+                                                    title = "Reminder Sent",
+                                                    message = "Notification sent to ${response.sentTo} member(s)",
+                                                    type = ToastType.SUCCESS
+                                                )
+                                            },
+
+                                            onError = { error ->
+                                                LoaderManager.shared.hideLoader()
+                                                ToastManager.show(
+                                                    title = "Failed",
+                                                    message = error.localizedMessage ?: "Unable to send reminder.",
+                                                    type = ToastType.ERROR
+                                                )
+                                            }
+
+                                        )
+                                    }
+                                }
+
                                 LazyColumn(
                                     modifier = Modifier.fillMaxWidth(),
+
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    contentPadding = PaddingValues(vertical = 8.dp)
+
+                                    contentPadding = PaddingValues(
+
+                                        start = 16.dp,
+
+                                        end = 16.dp,
+
+                                        top = 8.dp,
+
+                                        bottom = 8.dp
+
+                                    )
                                 ) {
                                     items(currentOverDueInstallments) { installment ->
                                         installment. dueDate?.let {
@@ -352,12 +461,12 @@ fun DuesScreenView(
                                                 memberName = installment.memberName,
                                                 onRemind = {
 
+                                                    LoaderManager.shared.showLoader()
                                                     NotificationService.shared.sendMemberReminder(
 
                                                         request = ReminderRequest(
 
-                                                            squadId = squadViewModel.squad.value?.squadID
-                                                                ?: "",
+                                                            squadId = squadViewModel.squad.value?.squadID ?: "",
 
                                                             memberIds = listOf(installment.memberID),
 
@@ -366,25 +475,27 @@ fun DuesScreenView(
                                                             message = "Please complete the ${installment.installmentNumber} of ${installment.loanNumber}",
 
                                                             data = mapOf(
-
                                                                 "screen" to "PAYMENT"
-
                                                             )
-
                                                         ),
 
                                                         onSuccess = { response ->
-
-                                                            Log.d("REMINDER", "Sent to ${response.sentTo}")
-
+                                                            LoaderManager.shared.hideLoader()
+                                                            ToastManager.show(
+                                                                title = "Reminder Sent",
+                                                                message = "Notification sent to ${installment.memberName}",
+                                                                type = ToastType.SUCCESS
+                                                            )
                                                         },
 
                                                         onError = { error ->
-
-                                                            Log.e("REMINDER", "Failed", error)
-
+                                                            LoaderManager.shared.hideLoader()
+                                                            ToastManager.show(
+                                                                title = "Failed",
+                                                                message = error.localizedMessage ?: "Unable to send reminder.",
+                                                                type = ToastType.ERROR
+                                                            )
                                                         }
-
                                                     )
 
                                                 }
@@ -399,19 +510,15 @@ fun DuesScreenView(
             }
             else {
 
-                DuesCardView(
+                AllCaughUPView(
                     title = "All Due’s Paid",
                     subtitle = "Squad all caught up!",
                     icon = Icons.Default.CheckCircle,
                     iconColor = Color(0xFF4CAF50),
-                    gradientColors = listOf(
-                        Color(0xFF4CAF50).copy(alpha = 0.08f),
-                        Color(0xFF4CAF50).copy(alpha = 0.15f)
-                    ),
                     showChevron = false
                 )
 
-                if (payments.size == 0) {
+                if (payments.size != 0) {
 
                     SectionView(title = "Recent Payments") {
                         LazyColumn(
@@ -442,6 +549,10 @@ fun DuesScreenView(
     }
 }
 
+private fun uniqueMemberIDs(list: List<String>): Set<String> {
+    return list.filter { it.isNotBlank() }.toSet()
+}
+
 @Composable
 fun PaymentDetailRow(
     title: String,
@@ -452,90 +563,142 @@ fun PaymentDetailRow(
     onRemind: (() -> Unit)? = null
 ) {
 
-    val isPending = status == "PENDING" || status == "FAILED"
+    val isPending = status == "PENDING"
     val statusColor = if (isPending) Color.Red else Color(0xFF2FB55F)
 
     Row(
         modifier = Modifier
+
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .shadow(6.dp, RoundedCornerShape(16.dp))
-            .background(AppColors.surface, RoundedCornerShape(16.dp))
+
+            .padding(vertical = 6.dp)
+
+            .shadow(
+
+                elevation = 6.dp,
+
+                shape = RoundedCornerShape(16.dp)
+
+            )
+
+            .background(
+
+                color = AppColors.surface,
+
+                shape = RoundedCornerShape(16.dp)
+
+            )
+
             .padding(14.dp),
+
         verticalAlignment = Alignment.Top
     ) {
 
-        // 🔵 modern indicator dot (instead of stripe)
+        // 🔹 Status Dot
         Box(
             modifier = Modifier
-                .size(10.dp)
+                .size(8.dp)
                 .background(statusColor, CircleShape)
         )
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(14.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
 
-            // TOP ROW
-            Row(verticalAlignment = Alignment.Top) {
+            // MARK: Top Section
+            Row(
+                verticalAlignment = Alignment.Top
+            ) {
 
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
 
                     Text(
                         text = memberName,
-                        style = AppFont.ibmPlexSans(16, FontWeight.SemiBold)
-                            .copy(color = AppColors.headerText)
+                        style = AppFont.ibmPlexSans(
+                            16,
+                            FontWeight.SemiBold
+                        ).copy(
+                            color = AppColors.headerText
+                        ),
+                        maxLines = 1
                     )
 
                     Spacer(modifier = Modifier.height(2.dp))
 
                     Text(
                         text = title,
-                        style = AppFont.ibmPlexSans(13, FontWeight.Normal)
-                            .copy(color = AppColors.secondaryText),
+                        style = AppFont.ibmPlexSans(
+                            13,
+                            FontWeight.Normal
+                        ).copy(
+                            color = AppColors.secondaryText
+                        ),
                         maxLines = 1
                     )
                 }
 
-                Column(horizontalAlignment = Alignment.End) {
+                Column(
+                    horizontalAlignment = Alignment.End
+                ) {
 
-                    // 🔹 SMALL STATUS PILL
+                    // 🔹 Status Badge
                     Text(
                         text = status,
-                        style = AppFont.ibmPlexSans(9, FontWeight.SemiBold),
+                        style = AppFont.ibmPlexSans(
+                            9,
+                            FontWeight.SemiBold
+                        ),
                         color = statusColor.copy(alpha = 0.9f),
                         modifier = Modifier
                             .background(
                                 statusColor.copy(alpha = 0.10f),
                                 RoundedCornerShape(50)
                             )
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                            .padding(
+                                horizontal = 8.dp,
+                                vertical = 3.dp
+                            )
                     )
 
                     Spacer(modifier = Modifier.height(6.dp))
 
-                    // 🔥 PROMINENT REMIND BUTTON
+                    // 🔔 Remind Button
                     if (isPending && onRemind != null) {
-                        Button(
-                            onClick = onRemind,
-                            shape = RoundedCornerShape(50),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AppColors.primaryButton
-                            ),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(AppColors.primaryButton)
+                                .clickable {
+                                    onRemind()
+                                }
+                                .padding(
+                                    horizontal = 12.dp,
+                                    vertical = 6.dp
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+
                             Icon(
                                 imageVector = Icons.Default.Notifications,
                                 contentDescription = null,
-                                modifier = Modifier.size(14.dp)
+                                tint = Color.White,
+                                modifier = Modifier.size(10.dp)
                             )
 
                             Spacer(modifier = Modifier.width(4.dp))
 
                             Text(
                                 text = "Remind",
-                                style = AppFont.ibmPlexSans(11, FontWeight.SemiBold)
+                                style = AppFont.ibmPlexSans(
+                                    11,
+                                    FontWeight.SemiBold
+                                ),
+                                color = Color.White
                             )
                         }
                     }
@@ -544,24 +707,58 @@ fun PaymentDetailRow(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // BOTTOM ROW
+            // MARK: Bottom Section
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
 
-                Text(
-                    text = amount,
-                    style = AppFont.ibmPlexSans(13, FontWeight.SemiBold)
-                        .copy(color = AppColors.headerText)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
 
-                Spacer(modifier = Modifier.width(16.dp))
+                    Icon(
+                        imageVector = Icons.Default.CurrencyRupee,
+                        contentDescription = null,
+                        tint = AppColors.headerText,
+                        modifier = Modifier.size(14.dp)
+                    )
 
-                Text(
-                    text = date,
-                    style = AppFont.ibmPlexSans(12, FontWeight.Normal)
-                        .copy(color = AppColors.secondaryText)
-                )
+                    Text(
+                        text = amount,
+                        style = AppFont.ibmPlexSans(
+                            13,
+                            FontWeight.Medium
+                        ).copy(
+                            color = AppColors.headerText
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = null,
+                        tint = AppColors.secondaryText,
+                        modifier = Modifier.size(13.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    Text(
+                        text = date,
+                        style = AppFont.ibmPlexSans(
+                            12,
+                            FontWeight.Normal
+                        ).copy(
+                            color = AppColors.secondaryText
+                        )
+                    )
+                }
             }
         }
     }

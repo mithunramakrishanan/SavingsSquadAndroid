@@ -56,6 +56,7 @@ import java.util.Calendar
 import androidx.compose.foundation.lazy.items
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.viewmodel.AppDestination
+import com.android.savingssquad.viewmodel.SSToast
 
 
 @Composable
@@ -77,9 +78,12 @@ fun MembersListView(
 
     Box(
         modifier = Modifier
+
             .fillMaxSize()
-            .background(AppColors.background)
-    ) {
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
         AppBackgroundGradient()
 
         Column(
@@ -87,7 +91,8 @@ fun MembersListView(
                 .fillMaxSize()
                 .padding(horizontal = 4.dp),
             verticalArrangement = Arrangement.Top
-        ) {
+        )
+        {
 
             SSNavigationBar(
                 title = SquadStrings.squadMembersTitle,
@@ -124,9 +129,6 @@ fun MembersListView(
                 )
             }
         }
-
-        SSAlert()
-        SSLoaderView()
 
     }
 

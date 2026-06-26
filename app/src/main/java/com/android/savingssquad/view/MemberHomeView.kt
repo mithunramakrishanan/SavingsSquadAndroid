@@ -2,17 +2,14 @@ package com.android.savingssquad.view
 
 import android.os.Build
 import android.util.Log
-import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.SwipeRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
@@ -20,7 +17,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,31 +26,18 @@ import com.android.savingssquad.singleton.*
 import com.yourapp.utils.CommonFunctions
 import com.android.savingssquad.viewmodel.LoaderManager
 import com.android.savingssquad.viewmodel.SquadViewModel
-import com.android.savingssquad.model.Installment
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.navigation.NavController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.compose.composable
-import kotlinx.coroutines.flow.count
-import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.VerifiedUser
-import androidx.compose.material.icons.outlined.AddCircle
-import androidx.compose.material.icons.outlined.CreditCard
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.savingssquad.R
 import com.android.savingssquad.viewmodel.AppDestination
+import com.android.savingssquad.viewmodel.SSToast
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -97,14 +80,14 @@ fun MemberHomeView(
 
     Box(
         modifier = Modifier
+
             .fillMaxSize()
-            .background(AppColors.background)
-    ) {
-        // --------------------------
-        // ✅ Main Content
-        // --------------------------
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
+        AppBackgroundGradient()
         if (squad != null) {
-            AppBackgroundGradient()
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -234,15 +217,11 @@ fun MemberHomeView(
                                 .padding(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.Center
                         ) {
-                            DuesCardView(
+                            AllCaughUPView(
                                 title = "All Due’s Paid",
                                 subtitle = "Squad all caught up!",
                                 icon = Icons.Default.CheckCircle,
                                 iconColor = Color(0xFF4CAF50),
-                                gradientColors = listOf(
-                                    Color(0xFF4CAF50).copy(alpha = 0.08f),
-                                    Color(0xFF4CAF50).copy(alpha = 0.15f)
-                                ),
                                 showChevron = false
                             )
                         }
@@ -295,18 +274,7 @@ fun MemberHomeView(
                     }
                 }
             }
-
-            // 🔹 Floating Buttons
-            FloatingSquadButton(
-                onSquadActivity = { navController.navigate(AppDestination.OPEN_ACTIITY.route) },
-                onPaymentHistory = { navController.navigate(AppDestination.OPEN_PAYMENT_HISTORY.route) },
-                onSquadRules = { navController.navigate(AppDestination.OPEN_GROUP_RULES.route) }
-            )
         }
-
-        // ------------------------------
-        // 🔹 Overlay Popup
-        // ------------------------------
         if (showPopup) {
             OverlayBackgroundView(
                 showPopup = remember { mutableStateOf(showPopup) },
@@ -534,13 +502,15 @@ fun MemberTwoButtons(
     requestCashAction: () -> Unit,
     approveCashAction: () -> Unit
 ) {
+
     Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp) // 🔹 Left–right margin
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-//        TwoButtonGradient(
+
+        //        TwoButtonGradient(
 //            icon = Icons.Filled.AddCircle,
 //            title = "Request Cash",
 //            gradientColors = listOf(AppColors.primaryButton, AppColors.successAccent),
@@ -548,10 +518,14 @@ fun MemberTwoButtons(
 //            modifier = Modifier.weight(1f)
 //        )
 
+        // ================= VERIFY PAYMENT (PRIMARY ACTION) =================
         TwoButtonGradient(
             icon = Icons.Default.VerifiedUser,
             title = "Verify Payment",
-            gradientColors = listOf(AppColors.secondaryAccent, AppColors.warningAccent),
+            gradientColors = listOf(
+                AppColors.secondaryAccent,
+                AppColors.warningAccent
+            ),
             onClick = approveCashAction,
             modifier = Modifier.weight(1f)
         )
@@ -566,23 +540,25 @@ fun TwoButtonGradient(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+
     Button(
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         contentPadding = PaddingValues(0.dp),
         modifier = modifier
-            .height(56.dp)
+            .height(56.dp) // iOS standard action button height
             .appShadow(AppShadows.card, RoundedCornerShape(18.dp))
             .background(
                 brush = Brush.horizontalGradient(gradientColors),
                 shape = RoundedCornerShape(18.dp)
             )
     ) {
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, end = 12.dp),
+                .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -590,19 +566,17 @@ fun TwoButtonGradient(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = AppColors.primaryButtonText,
-                modifier = Modifier.size(22.dp)
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
             )
 
             Spacer(modifier = Modifier.width(6.dp))
 
             Text(
                 text = title,
-                style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
-                color = AppColors.primaryButtonText,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis
+                style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
+                color = Color.White,
+                maxLines = 1
             )
         }
     }
