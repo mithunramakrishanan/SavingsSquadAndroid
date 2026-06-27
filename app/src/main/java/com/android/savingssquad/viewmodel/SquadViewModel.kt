@@ -18,16 +18,19 @@ import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.SquadRule
 import com.android.savingssquad.model.Installment
+import com.android.savingssquad.model.ReminderRequest
 import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.model.pendingInstallments
 import com.android.savingssquad.model.pendingLoans
 import com.android.savingssquad.singleton.AlertType
 import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.NotificationService
 import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
+import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentFilter
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.RecordStatus
@@ -1622,7 +1625,7 @@ class SquadViewModel : ViewModel() {
             return
         }
 
-        if (firstPayment?.paymentSubType == PaymentSubType.OTHERS_AMOUNT) {
+        if (firstPayment?.paymentSubType == PaymentSubType.OTHERS_AMOUNT || firstPayment?.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
             firstPayment.paymentApproveStatus = PaymentApproveStatus.ACCEPTED
             firstPayment.paymentStatus = PaymentStatus.SUCCESS
             firstPayment.paymentUpdatedDate = Date().asTimestamp
@@ -1678,8 +1681,66 @@ class SquadViewModel : ViewModel() {
                     }
                 }
 
-                if (payment.paymentSubType == PaymentSubType.OTHERS_AMOUNT) {
+                if (payment.paymentSubType == PaymentSubType.OTHERS_AMOUNT || payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
                     updatePaymentCalculations(listOf(payment), PaymentApproveStatus.ACCEPTED)
+
+                    if (payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
+
+                        val message = when (payment.paymentSubType) {
+                            PaymentSubType.CONTRIBUTION_AMOUNT ->
+                                "Squad Manager updated your contribution for ${payment.transferReferenceId}"
+
+                            PaymentSubType.EMI_AMOUNT ->
+                                "Squad Manager updated your EMI for ${payment.transferReferenceId}"
+
+                            else -> ""
+                        }
+
+                        if (message.isNotEmpty()) {
+
+                            NotificationService.shared.sendMemberReminder(
+
+                                request = ReminderRequest(
+
+                                    squadId = squad.value?.squadID
+                                        ?: "",
+
+                                    memberIds = listOf(payment.memberId) ,
+
+                                    title = "Payment Updated",
+
+                                    message = message,
+
+                                    data = mapOf(
+
+                                        "screen" to "PAYMENT"
+
+                                    )
+
+                                ),
+
+                                onSuccess = { response ->
+                                    LoaderManager.shared.hideLoader()
+                                    ToastManager.show(
+                                        title = "Reminder Sent",
+                                        message = "Notification sent to ${response.sentTo} member(s)",
+                                        type = ToastType.SUCCESS
+                                    )
+                                },
+
+                                onError = { error ->
+                                    LoaderManager.shared.hideLoader()
+                                    ToastManager.show(
+                                        title = "Failed",
+                                        message = error.localizedMessage ?: "Unable to send reminder.",
+                                        type = ToastType.ERROR
+                                    )
+                                }
+
+                            )
+
+                        }
+                    }
                 }
             }
 
