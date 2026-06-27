@@ -253,14 +253,6 @@ fun ManagerTabView(
             }
         }
     }
-
-    LaunchedEffect(Unit) {
-        squadViewModel.fetchSquadByID(showLoader = true) { success, _, _ ->
-            if (success) {
-                squadViewModel.fetchEMIConfigurations(showLoader = true) { _, _ -> }
-            }
-        }
-    }
 }
 
 @Composable

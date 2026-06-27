@@ -357,18 +357,6 @@ fun ManagerHomeView(
             }
         }
     }
-
-    // 🔹 Fetch initial data
-    LaunchedEffect(Unit) {
-        squadViewModel.fetchSquadByID(showLoader = false) { success, _, _ ->
-            if (success) {
-                squadViewModel.fetchEMIConfigurations(showLoader = false) { _, _ ->
-                    loaderManager.hideLoader()
-
-                }
-            }
-        }
-    }
 }
 
 @Composable
