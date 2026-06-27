@@ -35,6 +35,9 @@ import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.SquadSubscription.UpgradePlanScreen
 import com.android.savingssquad.SquadSubscription.UpgradeSuccessScreen
 import com.android.savingssquad.singleton.AppFont
+import com.android.savingssquad.singleton.SquadUserType
+import com.android.savingssquad.singleton.UserDefaultsManager
+import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.SSToast
 
 @Composable
@@ -51,6 +54,14 @@ fun ManagerTabView(
     val showUpgradeSuccess by squadViewModel.showUpgradeSuccess.collectAsState()
     val paymentOrderId by squadViewModel.paymentOrderId.collectAsState()
     val squad by squadViewModel.squad.collectAsState()
+
+    LaunchedEffect(Unit) {
+
+        squadViewModel.fetchSquadByID(showLoader = true) { success, _, _ ->
+            LoaderManager.shared.hideLoader()
+            println(if (success) "✅ Squad re-fetched on update" else "❌ Re-fetch failed")
+        }
+    }
 
     Box(
         modifier = Modifier

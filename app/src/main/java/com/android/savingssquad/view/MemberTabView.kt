@@ -85,6 +85,15 @@ fun MemberTabView(
     val squadState by squadViewModel.squad.collectAsState()
     val squad = squadState
 
+
+    LaunchedEffect(Unit) {
+
+        squadViewModel.fetchSquadByID(showLoader = true) { success, _, _ ->
+            LoaderManager.shared.hideLoader()
+            println(if (success) "✅ Squad re-fetched on update" else "❌ Re-fetch failed")
+        }
+    }
+
     Box(
         modifier = Modifier
 

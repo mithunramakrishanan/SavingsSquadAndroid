@@ -354,6 +354,9 @@ fun ManualEntryView(
                                                 contributionSelectedMemberName = ""
                                                 contributionSelectedMonthYear = ""
                                                 loaderManager.hideLoader()
+
+                                                ToastManager.show(title = SquadStrings.appName, message = "Updated ${contributionSelectedMemberName} contribution for ${contributionSelectedMonthYear}",
+                                                    ToastType.SUCCESS)
                                             }
                                         }
                                     } else {
@@ -496,17 +499,22 @@ fun ManualEntryView(
                                             }
 
                                             val total = (selectedInstallment?.installmentAmount ?: 0) + (selectedInstallment?.interestAmount ?: 0)
+                                            val description = "Updated EMI and Interest to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber ${total.currencyFormattedWithCommas()}"
+
                                             squadViewModel.createSquadActivity(
                                                 activityType = SquadActivityType.AMOUNT_CREDIT,
                                                 userName = "SQUAD MANAGER",
                                                 memberId = "",
                                                 amount = total,
-                                                description = "Updated EMI and Interest to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber ${total.currencyFormattedWithCommas()}"
+                                                description =description
                                             ) { success, error ->
                                                 coroutineScope.launch(Dispatchers.Main) {
                                                     emiSelectedMemberName = ""
                                                     emiSelectedMonthYear = ""
                                                     loaderManager.hideLoader()
+
+                                                    ToastManager.show(title = SquadStrings.appName, message = description,
+                                                        ToastType.SUCCESS)
                                                 }
                                             }
                                         } else {
@@ -546,9 +554,11 @@ fun ManualEntryView(
 
                                 if (validateFields()) {
                                     handleOtherPayment(squadViewModel = squadViewModel, loaderManager = loaderManager,  amountStr = paymentAmount.value, notes = paymentNotes , activity = activity, context = appContext,  action = {
-
+                                        LoaderManager.shared.hideLoader()
                                         paymentAmount.value = ""
                                         paymentNotes = ""
+                                        ToastManager.show(title = SquadStrings.appName, message = "Updated amount" ,
+                                            ToastType.SUCCESS)
                                     })
 
                                 }
@@ -725,7 +735,7 @@ private fun handleOtherPayment(
         squadViewModel.savePayments(
             activity = activity,
             context = context,
-            showLoader = false,
+            showLoader = true,
             squadID = squad.squadID,
             payment = listOf(newPayment)
         ) { success, error ->
