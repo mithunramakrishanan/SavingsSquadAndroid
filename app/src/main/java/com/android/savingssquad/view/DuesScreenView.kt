@@ -97,11 +97,8 @@ fun DuesScreenView(
     var selectedSegment by remember { mutableStateOf("Contribution") }
     var isLoading by remember { mutableStateOf(true) }
 
-    var contributionRemaindCount by mutableStateOf(0)
-    var installmentRemaindCount by mutableStateOf(0)
-
-    var contributionRemaindIds by mutableStateOf(listOf<String>())
-    var installmentRemaindIds by mutableStateOf(listOf<String>())
+    var contributionRemaindIds by remember { mutableStateOf(listOf<String>())}
+    var installmentRemaindIds by remember { mutableStateOf(listOf<String>()) }
 
     val screenType =
         if (UserDefaultsManager.getSquadManagerLogged())
@@ -140,7 +137,6 @@ fun DuesScreenView(
                     .distinct()
                     .sorted()
 
-                contributionRemaindCount = contributionRemaindIds.size
 
 
                 installmentRemaindIds = currentOverDueInstallments
@@ -148,8 +144,6 @@ fun DuesScreenView(
                     .filter { it.isNotBlank() }
                     .distinct()
                     .sorted()
-
-                installmentRemaindCount = installmentRemaindIds.size
 
             }
         }
@@ -240,7 +234,10 @@ fun DuesScreenView(
                                         .padding(vertical = 4.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    RemindAllButton(contributionRemaindCount) {
+
+                                    RemindAllButton(contributionRemaindIds.size) {
+
+                                        LoaderManager.shared.showLoader()
 
                                         NotificationService.shared.sendMemberReminder(
 
@@ -386,7 +383,9 @@ fun DuesScreenView(
                                         .padding(vertical = 4.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    RemindAllButton(installmentRemaindCount) {
+                                    RemindAllButton(installmentRemaindIds.size) {
+
+                                        LoaderManager.shared.showLoader()
 
                                         NotificationService.shared.sendMemberReminder(
 

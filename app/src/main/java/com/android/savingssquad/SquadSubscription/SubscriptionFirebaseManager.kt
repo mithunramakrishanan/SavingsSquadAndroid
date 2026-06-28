@@ -21,9 +21,9 @@ class SubscriptionFirebaseManager private constructor() {
     ) {
 
         val data = hashMapOf(
-            "trialDays" to 90,
+            "trialDays" to 30,
 
-            "free_maxMembers" to 25,
+            "free_maxMembers" to 10,
             "free_contribution" to true,
             "free_loan" to true,
 
@@ -36,7 +36,7 @@ class SubscriptionFirebaseManager private constructor() {
             "biz_loan" to true,
 
             "free_price" to "₹0",
-            "basic_price" to "₹99/month",
+            "basic_price" to "119/month",
             "biz_price" to "₹299/month",
 
             "addon_loan_price" to "₹49/month",
@@ -77,9 +77,9 @@ class SubscriptionFirebaseManager private constructor() {
                     return@addOnSuccessListener
                 }
 
-                config.trialDays = (data["trialDays"] as? Long)?.toInt() ?: 90
+                config.trialDays = (data["trialDays"] as? Long)?.toInt() ?: 30
 
-                config.free_maxMembers = (data["free_maxMembers"] as? Long)?.toInt() ?: 25
+                config.free_maxMembers = (data["free_maxMembers"] as? Long)?.toInt() ?: 10
                 config.basic_maxMembers = (data["basic_maxMembers"] as? Long)?.toInt() ?: 50
                 config.biz_maxMembers = (data["biz_maxMembers"] as? Long)?.toInt() ?: 200
 

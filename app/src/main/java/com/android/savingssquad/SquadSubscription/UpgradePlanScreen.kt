@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,6 +53,8 @@ import com.android.savingssquad.view.SSLoaderView
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.SquadViewModel
+import com.android.savingssquad.viewmodel.ToastManager
+import com.android.savingssquad.viewmodel.ToastType
 import kotlinx.coroutines.launch
 
 @Composable
@@ -71,6 +74,12 @@ fun UpgradePlanScreen(
 
     val cfg = viewModel.remoteConfig
 
+    val memberCount = squadViewModel.squad.value?.totalMembers ?: 0
+    val forceUpgrade = viewModel.shouldForceUpgrade(memberCount)
+    if (forceUpgrade) {
+        selectedPlan = Plan.BASIC
+    }
+
     LaunchedEffect(Unit) {
         selectedPlan = viewModel.subscription.plan
         enableLoanAddon = viewModel.subscription.loanAddon
@@ -83,18 +92,22 @@ fun UpgradePlanScreen(
     ) {
 
         // MARK: TOP BAR
+        // MARK: TOP BAR
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
             horizontalArrangement = Arrangement.Start
         ) {
-            IconButton(onClick = onDismiss) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = null,
-                    tint = AppColors.headerText
-                )
+
+            if (!forceUpgrade) {
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = null,
+                        tint = AppColors.headerText
+                    )
+                }
             }
         }
 
@@ -156,6 +169,7 @@ fun UpgradePlanScreen(
                 price = "₹0",
                 isSelected = selectedPlan == Plan.FREE,
                 isExpanded = expandedPlan == Plan.FREE,
+                enabled = !forceUpgrade,   // Disable when force upgrade is required
                 included = listOf(
                     "Up to 10 Members",
                     "Contribution Tracking",
@@ -166,7 +180,9 @@ fun UpgradePlanScreen(
                 excluded = listOf("Loan Management"),
                 onClick = {
                     selectedPlan = Plan.FREE
-                    expandedPlan = if (expandedPlan == Plan.FREE) null else Plan.FREE
+                    expandedPlan =
+                        if (expandedPlan == Plan.FREE) null
+                        else Plan.FREE
                 }
             )
 
@@ -254,7 +270,7 @@ fun UpgradePlanScreen(
 
                     val squadID = squadViewModel.squad.value?.squadID ?: return@Button
 
-                    SubscriptionFirebaseManager.shared.updateSubscription(
+                   /* SubscriptionFirebaseManager.shared.updateSubscription(
                         squadID = squadID,
                         plan = selectedPlan,
                         loanAddon = enableLoanAddon
@@ -271,18 +287,34 @@ fun UpgradePlanScreen(
                             }
 
                         }
-                    }
+                    } */
 
-                    /*BillingHelper.startPurchaseFlow(
+                    BillingHelper.startPurchaseFlow(
+
                         activity = activity,
-                        squadID = squadID,
+
                         selectedPlan = selectedPlan,
+
                         enableLoanAddon = enableLoanAddon,
+
+                        squadID = squadID,
+
                         onLoading = { isLoading = it },
+
                         onError = { error ->
 
+                            ToastManager.show(title = SquadStrings.appName, message = error, type = ToastType.ERROR)
+                        },
+
+                        onSuccess = {
+
+                            squadViewModel.setShowUpgradePlan(false)
+
+                            squadViewModel.setShowUpgradeSuccess(true)
+
                         }
-                    ) */
+
+                    )
                 },
                 enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth()
@@ -302,6 +334,7 @@ fun PlanCard(
     price: String,
     isSelected: Boolean,
     isExpanded: Boolean,
+    enabled: Boolean = true,
     included: List<String>,
     excluded: List<String>,
     onClick: () -> Unit
@@ -309,18 +342,37 @@ fun PlanCard(
 
     Column(
         modifier = Modifier
+
             .fillMaxWidth()
+
+            .alpha(if (enabled) 1f else 0.45f)
+
             .padding(vertical = 8.dp)
+
             .background(
+
                 if (isSelected) AppColors.primaryBackground else AppColors.surface,
+
                 RoundedCornerShape(18.dp)
+
             )
+
             .border(
+
                 1.dp,
+
                 if (isSelected) AppColors.primaryBrand else AppColors.border,
+
                 RoundedCornerShape(18.dp)
+
             )
-            .clickable { onClick() }
+
+            .clickable(enabled = enabled) {
+
+                onClick()
+
+            }
+
             .padding(14.dp)
     ) {
 

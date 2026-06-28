@@ -2950,62 +2950,129 @@ class SquadViewModel : ViewModel() {
         val dueContributions = mutableListOf<ContributionDetail>()
         val dueInstallments = mutableListOf<Installment>()
 
-        membersRef.get().addOnSuccessListener { snapshot ->
-            val members = snapshot.documents
-            val latch = CountDownLatch(members.size)
+        membersRef.get()
+            .addOnSuccessListener { snapshot ->
 
-            for (memberDoc in members) {
-                val memberID = memberDoc.id
-                val contribRef = membersRef.document(memberID).collection("contributions")
-                val loansRef = membersRef.document(memberID).collection("loans")
+                val members = snapshot.documents
 
-                contribRef.get().addOnSuccessListener { contribSnap ->
-                    val formatter = SimpleDateFormat("MMM yyyy", Locale.ENGLISH)
-                    for (doc in contribSnap.documents) {
-                        val contribution = doc.toObject(ContributionDetail::class.java)
-                        contribution?.let {
-                            val dueDate = formatter.parse(it.monthYear)
-                            if (it.paidStatus == PaidStatus.NOT_PAID && dueDate != null && dueDate.before(Date())) {
-                                dueContributions.add(it)
-                            }
-                        }
-                    }
-                    latch.countDown()
+                if (members.isEmpty()) {
+                    completion(emptyList(), emptyList())
+                    return@addOnSuccessListener
                 }
 
-                loansRef.get().addOnSuccessListener { loanSnap ->
-                    for (loanDoc in loanSnap.documents) {
-                        val loan = loanDoc.toObject(MemberLoan::class.java)
-                        loan?.let {
-                            val calendar = Calendar.getInstance()
-                            val current = calendar.get(Calendar.MONTH) + calendar.get(Calendar.YEAR) * 12
+                // Two Firestore requests per member:
+                // 1. contributions
+                // 2. loans
+                val latch = CountDownLatch(members.size * 2)
 
-                            for (inst in it.installments) {
-                                val due = inst.dueDate?.toDate()
-                                if (inst.status == EMIStatus.PENDING && due != null) {
-                                    val dueCal = Calendar.getInstance().apply { time = due }
-                                    val dueKey = dueCal.get(Calendar.MONTH) + dueCal.get(Calendar.YEAR) * 12
-                                    if (dueKey <= current) {
-                                        dueInstallments.add(inst)
+                val formatter = SimpleDateFormat("MMM yyyy", Locale.ENGLISH)
+
+                for (memberDoc in members) {
+
+                    val memberID = memberDoc.id
+
+                    val contribRef =
+                        membersRef.document(memberID).collection("contributions")
+
+                    val loansRef =
+                        membersRef.document(memberID).collection("loans")
+
+                    // ---------------- Contributions ----------------
+
+                    contribRef.get()
+                        .addOnSuccessListener { contribSnap ->
+
+                            for (doc in contribSnap.documents) {
+
+                                doc.toObject(ContributionDetail::class.java)?.let { contribution ->
+
+                                    val dueDate = try {
+                                        formatter.parse(contribution.monthYear)
+                                    } catch (e: Exception) {
+                                        null
+                                    }
+
+                                    if (
+                                        contribution.paidStatus == PaidStatus.NOT_PAID &&
+                                        dueDate != null &&
+                                        dueDate.before(Date())
+                                    ) {
+                                        synchronized(dueContributions) {
+                                            dueContributions.add(contribution)
+                                        }
                                     }
                                 }
                             }
-                        }
-                    }
-                    latch.countDown()
-                }
-            }
 
-            Thread {
-                latch.await()
-                Handler(Looper.getMainLooper()).post {
-                    completion(dueContributions, dueInstallments)
+                            latch.countDown()
+                        }
+                        .addOnFailureListener {
+                            latch.countDown()
+                        }
+
+                    // ---------------- Loans ----------------
+
+                    loansRef.get()
+                        .addOnSuccessListener { loanSnap ->
+
+                            val currentCal = Calendar.getInstance()
+                            val currentKey =
+                                currentCal.get(Calendar.YEAR) * 12 +
+                                        currentCal.get(Calendar.MONTH)
+
+                            for (loanDoc in loanSnap.documents) {
+
+                                loanDoc.toObject(MemberLoan::class.java)?.let { loan ->
+
+                                    for (installment in loan.installments) {
+
+                                        val dueDate = installment.dueDate?.toDate()
+
+                                        if (
+                                            installment.status == EMIStatus.PENDING &&
+                                            dueDate != null
+                                        ) {
+
+                                            val dueCal = Calendar.getInstance().apply {
+                                                time = dueDate
+                                            }
+
+                                            val dueKey =
+                                                dueCal.get(Calendar.YEAR) * 12 +
+                                                        dueCal.get(Calendar.MONTH)
+
+                                            if (dueKey <= currentKey) {
+                                                synchronized(dueInstallments) {
+                                                    dueInstallments.add(installment)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            latch.countDown()
+                        }
+                        .addOnFailureListener {
+                            latch.countDown()
+                        }
                 }
-            }.start()
-        }.addOnFailureListener {
-            println("❌ Error fetching members: ${it.localizedMessage}")
-            completion(emptyList(), emptyList())
-        }
+
+                Thread {
+                    latch.await()
+
+                    Handler(Looper.getMainLooper()).post {
+                        completion(
+                            dueContributions.toList(),
+                            dueInstallments.toList()
+                        )
+                    }
+                }.start()
+            }
+            .addOnFailureListener {
+                println("❌ Error fetching members: ${it.localizedMessage}")
+                completion(emptyList(), emptyList())
+            }
     }
 
     fun handleCashFreeResponse(sessionId: String?, orderId: String?, error: Exception? , completion: () -> Unit) {

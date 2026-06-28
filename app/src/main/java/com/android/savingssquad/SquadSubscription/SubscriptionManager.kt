@@ -173,4 +173,19 @@ class SubscriptionManager private constructor() : ViewModel() {
             }
         }
     }
+
+    fun shouldForceUpgrade(
+        memberCount: Int
+    ): Boolean {
+
+        val subscription = subscription ?: return false
+
+        if (isTrialActive()) {
+            return false
+        }
+
+        val maxMembers = remoteConfig.maxMembers(subscription.plan)
+
+        return memberCount > maxMembers
+    }
 }

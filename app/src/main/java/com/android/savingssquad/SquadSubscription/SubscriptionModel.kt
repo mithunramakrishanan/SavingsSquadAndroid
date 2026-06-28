@@ -35,7 +35,7 @@ data class RemoteConfig(
     var trialDays: Int = 30,
 
     // MARK: - FREE PLAN
-    var free_maxMembers: Int = 25,
+    var free_maxMembers: Int = 10,
     var free_contribution: Boolean = true,
     var free_loan: Boolean = false,
     var free_price: String = "₹0/month",
@@ -45,7 +45,7 @@ data class RemoteConfig(
     var basic_maxMembers: Int = 50,
     var basic_contribution: Boolean = true,
     var basic_loan: Boolean = false,
-    var basic_price: String = "₹99/month",
+    var basic_price: String = "₹119/month",
     var basic_tagline: String = "For growing squads that need more capacity",
 
     // MARK: - BUSINESS PLAN

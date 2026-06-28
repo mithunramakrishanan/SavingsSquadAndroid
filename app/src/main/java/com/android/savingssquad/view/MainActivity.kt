@@ -58,6 +58,10 @@ class MainActivity : ComponentActivity() {
 
             val navigate = intent.getStringExtra("navigate")
             val notificationType = intent.getStringExtra("notificationType")
+
+            if (notificationType == "REMAINDER") {
+                return
+            }
             val gson = Gson()
             val paymentJson = intent.getStringExtra("payment_data") ?: return
             val payment = gson.fromJson(paymentJson, PaymentsDetails::class.java)

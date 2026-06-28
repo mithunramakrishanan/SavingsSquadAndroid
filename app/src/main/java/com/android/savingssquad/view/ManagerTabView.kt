@@ -249,10 +249,49 @@ fun ManagerTabView(
         }
 
         if (showUpgradePlan) {
-            UpgradePlanScreen(
-                squadViewModel = squadViewModel
+
+            Box(
+
+                modifier = Modifier
+
+                    .fillMaxSize()
+
             ) {
-                squadViewModel.setShowUpgradePlan(false)
+
+                // 👇 THIS blocks background clicks
+
+                Box(
+
+                    modifier = Modifier
+
+                        .fillMaxSize()
+
+                        .background(Color.Black.copy(alpha = 0.5f))
+
+                        .clickable(
+
+                            indication = null,
+
+                            interactionSource = remember { MutableInteractionSource() }
+
+                        ) {
+
+                            // consume clicks (do nothing)
+
+                        }
+
+                )
+
+                UpgradePlanScreen(
+
+                    squadViewModel = squadViewModel
+
+                ) {
+
+                    squadViewModel.setShowUpgradePlan(false)
+
+                }
+
             }
         }
 

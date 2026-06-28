@@ -132,7 +132,15 @@ fun ManagerHomeView(
         SubscriptionManager.shared.refreshFromServer(
             squadID = squadID,
             getActivePlan = { BillingHelper.getCurrentPlan() }
-        ) { _, _ -> }
+        ) { _, _ ->
+
+            val memberCount = squadViewModel.squad.value?.totalMembers ?: 0
+
+            if (SubscriptionManager.shared.shouldForceUpgrade(memberCount)) {
+                squadViewModel.setShowUpgradePlan(true)
+            }
+
+        }
     }
     // 🔹 Main Layout
     Box(
