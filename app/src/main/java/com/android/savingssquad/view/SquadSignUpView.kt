@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.android.savingssquad.SquadSubscription.RemoteConfig
 import com.android.savingssquad.SquadSubscription.SubscriptionFirebaseManager
 import com.android.savingssquad.SquadSubscription.SubscriptionModel
 import com.android.savingssquad.viewmodel.AlertManager
@@ -817,18 +818,8 @@ private fun saveSquadData(
         // MARK: 5. CONFIG
         enter()
 
-        SubscriptionFirebaseManager.shared.createDefaultConfig(
-            squadID = squadID
-        ) { _, _ ->
-            leave()
-        }
-
-        // MARK: 6. SUBSCRIPTION
-        enter()
-
-        SubscriptionFirebaseManager.shared.createDefaultSubscription(
+        SubscriptionFirebaseManager.shared.createDefaultSubscriptionData(
             squadID = squadID,
-            subDefault = SubscriptionModel()
         ) { _, _ ->
             leave()
         }

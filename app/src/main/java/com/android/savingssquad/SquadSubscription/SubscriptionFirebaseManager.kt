@@ -1,6 +1,5 @@
 package com.android.savingssquad.SquadSubscription
 
-import com.android.savingssquad.singleton.Plan
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -15,40 +14,39 @@ class SubscriptionFirebaseManager private constructor() {
     private val db = FirebaseFirestore.getInstance()
 
     // MARK: - CREATE DEFAULT CONFIG
-    fun createDefaultConfig(
+    fun createDefaultSubscriptionData(
         squadID: String,
         completion: (Boolean, String?) -> Unit
     ) {
 
-        val data = hashMapOf(
-            "trialDays" to 30,
-
-            "free_maxMembers" to 10,
-            "free_contribution" to true,
-            "free_loan" to true,
-
-            "basic_maxMembers" to 50,
-            "basic_contribution" to true,
-            "basic_loan" to true,
-
-            "biz_maxMembers" to 200,
-            "biz_contribution" to true,
-            "biz_loan" to true,
-
-            "free_price" to "₹0",
-            "basic_price" to "119/month",
-            "biz_price" to "₹299/month",
-
-            "addon_loan_price" to "₹49/month",
-
-            "updatedAt" to Timestamp.now()
-        )
+        val config = RemoteConfig()
 
         db.collection("squads")
             .document(squadID)
             .collection("config")
             .document("subscriptionSettings")
-            .set(data)
+            .set(config)
+            .continueWithTask {
+
+                val (start, end) = createTrialDates(config.trialDays)
+
+                val subscription = SubscriptionModel(
+                    plan = SubscriptionModel.Plan.FREE,
+                    loanAddon = false,
+                    isTrialActive = true,
+                    trialStartDate = start,
+                    trialEndDate = end,
+                    trialDays = config.trialDays,
+                    createdAt = Timestamp.now(),
+                    updatedAt = Timestamp.now()
+                )
+
+                db.collection("squads")
+                    .document(squadID)
+                    .collection("subscription")
+                    .document("current")
+                    .set(subscription)
+            }
             .addOnSuccessListener {
                 completion(true, null)
             }
@@ -60,7 +58,7 @@ class SubscriptionFirebaseManager private constructor() {
     // MARK: - FETCH REMOTE CONFIG
     fun fetchRemoteConfig(
         squadID: String,
-        completion: (RemoteConfig) -> Unit
+        completion: (RemoteConfig?, String?) -> Unit
     ) {
 
         db.collection("squads")
@@ -70,61 +68,29 @@ class SubscriptionFirebaseManager private constructor() {
             .get()
             .addOnSuccessListener { snapshot ->
 
-                val config = RemoteConfig()
-
-                val data = snapshot.data ?: run {
-                    completion(config)
+                if (!snapshot.exists()) {
+                    completion(null, "RemoteConfig not found.")
                     return@addOnSuccessListener
                 }
 
-                config.trialDays = (data["trialDays"] as? Long)?.toInt() ?: 30
+                try {
+                    val config = snapshot.toObject(RemoteConfig::class.java)
 
-                config.free_maxMembers = (data["free_maxMembers"] as? Long)?.toInt() ?: 10
-                config.basic_maxMembers = (data["basic_maxMembers"] as? Long)?.toInt() ?: 50
-                config.biz_maxMembers = (data["biz_maxMembers"] as? Long)?.toInt() ?: 200
+                    if (config != null) {
+                        completion(config, null)
+                    } else {
+                        completion(null, "Failed to decode RemoteConfig.")
+                    }
 
-                completion(config)
+                } catch (e: Exception) {
+                    completion(null, e.localizedMessage ?: "Decoding error")
+                }
             }
             .addOnFailureListener {
-                completion(RemoteConfig())
+                completion(null, it.localizedMessage ?: "Unknown error")
             }
     }
 
-    // MARK: - CREATE DEFAULT SUBSCRIPTION
-    fun createDefaultSubscription(
-        squadID: String,
-        subDefault: SubscriptionModel,
-        completion: (Boolean, String?) -> Unit
-    ) {
-
-        fetchRemoteConfig(squadID) { config ->
-
-            val (start, end) = createTrialDates(config.trialDays)
-
-            val data = hashMapOf(
-                "plan" to Plan.FREE.value,
-                "loanAddon" to false,
-                "isTrialActive" to true,
-                "trialStartDate" to start,
-                "trialEndDate" to end,
-                "trialDays" to config.trialDays,
-                "createdAt" to Timestamp.now(),
-                "updatedAt" to Timestamp.now()
-            )
-
-            db.collection("squads")
-                .document(squadID)
-                .collection("subscription")
-                .document("current")
-                .set(data)
-                .addOnSuccessListener {
-                    completion(true, null)
-                }
-                .addOnFailureListener {
-                    completion(false, it.localizedMessage)
-                }
-        }
-    }
 
     // MARK: - FETCH SUBSCRIPTION
     fun fetchSubscription(
@@ -139,14 +105,18 @@ class SubscriptionFirebaseManager private constructor() {
             .get()
             .addOnSuccessListener { snapshot ->
 
-                val data = snapshot.data
-
-                if (data == null) {
-                    completion(null, "No subscription found")
+                if (!snapshot.exists()) {
+                    completion(null, "Subscription not found.")
                     return@addOnSuccessListener
                 }
 
-                completion(mapSubscription(data), null)
+                val subscription = snapshot.toObject(SubscriptionModel::class.java)
+
+                if (subscription != null) {
+                    completion(subscription, null)
+                } else {
+                    completion(null, "Failed to decode subscription.")
+                }
             }
             .addOnFailureListener {
                 completion(null, it.localizedMessage)
@@ -156,12 +126,12 @@ class SubscriptionFirebaseManager private constructor() {
     // MARK: - UPDATE SUBSCRIPTION
     fun updateSubscription(
         squadID: String,
-        plan: Plan,
+        plan: SubscriptionModel.Plan,
         loanAddon: Boolean,
         completion: (Boolean, String?) -> Unit
     ) {
 
-        val effectiveLoan = if (plan == Plan.BUSINESS) true else loanAddon
+        val effectiveLoan = if (plan == SubscriptionModel.Plan.BUSINESS) true else loanAddon
 
         val data = hashMapOf(
             "plan" to plan.value,
@@ -219,21 +189,4 @@ class SubscriptionFirebaseManager private constructor() {
         return Pair(start, end)
     }
 
-    // MARK: - MAPPING
-    private fun mapSubscription(data: Map<String, Any>): SubscriptionModel {
-
-        return SubscriptionModel(
-            plan = Plan.from(data["plan"] as? String),
-
-            loanAddon = data["loanAddon"] as? Boolean ?: false,
-            isTrialActive = data["isTrialActive"] as? Boolean ?: true,
-
-            trialStartDate = data["trialStartDate"] as? Timestamp ?: Timestamp.now(),
-            trialEndDate = data["trialEndDate"] as? Timestamp ?: Timestamp.now(),
-            trialDays = (data["trialDays"] as? Long)?.toInt() ?: 30,
-
-            createdAt = data["createdAt"] as? Timestamp ?: Timestamp.now(),
-            updatedAt = data["updatedAt"] as? Timestamp ?: Timestamp.now()
-        )
-    }
 }

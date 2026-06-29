@@ -28,6 +28,7 @@ import com.android.savingssquad.viewmodel.LoaderManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.android.savingssquad.R
@@ -295,9 +296,15 @@ fun ManagerTabView(
             }
         }
 
-        if (showUpgradeSuccess) {
+        val sub by SubscriptionManager.shared.subscription.collectAsState()
+
+        if (showUpgradeSuccess && sub != null) {
+
+            val plan = sub?.plan ?: return
+
             UpgradeSuccessScreen(
-                plan = SubscriptionManager.shared.subscription.plan
+                plan = plan,
+                viewModel = SubscriptionManager.shared
             ) {
                 squadViewModel.setShowUpgradeSuccess(false)
             }

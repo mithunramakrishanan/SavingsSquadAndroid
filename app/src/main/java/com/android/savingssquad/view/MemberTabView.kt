@@ -64,7 +64,6 @@ import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.android.savingssquad.R
 import com.android.savingssquad.SquadSubscription.SubscriptionManager
-import com.android.savingssquad.SquadSubscription.UpgradeSuccessScreen
 import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.viewmodel.SSToast
 

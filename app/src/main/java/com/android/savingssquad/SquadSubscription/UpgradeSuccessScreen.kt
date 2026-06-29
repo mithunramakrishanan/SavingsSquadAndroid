@@ -20,26 +20,43 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.savingssquad.singleton.AppColors
-import com.android.savingssquad.singleton.Plan
+
+fun SubscriptionModel.Plan.label(): String {
+
+    return when (this) {
+
+        SubscriptionModel.Plan.FREE -> "Free"
+
+        SubscriptionModel.Plan.BASIC -> "Basic"
+
+        SubscriptionModel.Plan.BUSINESS -> "Business"
+
+    }
+
+}
 
 @Composable
 fun UpgradeSuccessScreen(
-    plan: Plan,
-    remoteConfig: RemoteConfig = SubscriptionManager.shared.remoteConfig,
+    plan: SubscriptionModel.Plan,
+    viewModel: SubscriptionManager = SubscriptionManager.shared,
     onDone: () -> Unit
 ) {
 
+    val remoteConfig by viewModel.remoteConfig.collectAsState()
+
     val features = remoteConfig.features(plan)
     val maxMembers = remoteConfig.maxMembers(plan)
-    val price = remoteConfig.price(plan)
+    val price = remoteConfig.priceText(plan)
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(plan) {
         kotlinx.coroutines.delay(2500)
         onDone()
     }
@@ -56,7 +73,7 @@ fun UpgradeSuccessScreen(
             verticalArrangement = Arrangement.Center
         ) {
 
-            // ✅ Success Animation (Lottie placeholder)
+            // SUCCESS ICON
             Box(
                 modifier = Modifier
                     .size(120.dp)
@@ -84,7 +101,7 @@ fun UpgradeSuccessScreen(
             )
 
             Text(
-                text = "You are now on $plan plan",
+                text = "You are now on ${plan.label()} plan",
                 fontSize = 14.sp,
                 color = AppColors.secondaryText
             )
@@ -96,15 +113,20 @@ fun UpgradeSuccessScreen(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.padding(horizontal = 20.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
 
-                    FeatureRow("Max Members", "$maxMembers")
+                Column(modifier = Modifier.padding(16.dp)) {
 
-                    FeatureRow("Contribution", if (features.contribution) "Enabled" else "Disabled")
+                    FeatureRow("Max Members", maxMembers.toString())
 
-                    FeatureRow("Loan Access", if (features.loan) "Enabled" else "Disabled")
+                    FeatureRow(
+                        "Contribution",
+                        if (features.contribution) "Enabled" else "Disabled"
+                    )
+
+                    FeatureRow(
+                        "Loan Access",
+                        if (features.loan) "Enabled" else "Disabled"
+                    )
 
                     FeatureRow("Price", price)
                 }

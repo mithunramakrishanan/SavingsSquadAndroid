@@ -10,7 +10,6 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.QueryPurchasesParams
-import com.android.savingssquad.singleton.Plan
 import kotlinx.coroutines.suspendCancellableCoroutine
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
@@ -19,7 +18,11 @@ import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import android.util.Log
+import com.android.billingclient.api.PurchasesResponseListener
+import kotlinx.coroutines.time.withTimeoutOrNull
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
+import kotlin.time.Duration.Companion.milliseconds
 
 @SuppressLint("StaticFieldLeak")
 object BillingHelper : PurchasesUpdatedListener {
@@ -28,7 +31,7 @@ object BillingHelper : PurchasesUpdatedListener {
     private var currentActivity: Activity? = null
 
     private var pendingSquadId: String? = null
-    private var pendingPlan: Plan? = null
+    private var pendingPlan: SubscriptionModel.Plan? = null
     private var pendingLoanAddon = false
 
     private val pendingProducts = mutableListOf<String>()
@@ -132,7 +135,7 @@ object BillingHelper : PurchasesUpdatedListener {
     fun startPurchaseFlow(
         activity: Activity,
         squadID: String,
-        selectedPlan: Plan,
+        selectedPlan: SubscriptionModel.Plan,
         enableLoanAddon: Boolean,
         onLoading: (Boolean) -> Unit,
         onError: (String) -> Unit,
@@ -177,14 +180,14 @@ object BillingHelper : PurchasesUpdatedListener {
     // PURCHASE FLOW
     // ─────────────────────────────────────────────
 
-    private fun buildProductList(selectedPlan: Plan, enableLoanAddon: Boolean): List<String> {
+    private fun buildProductList(selectedPlan: SubscriptionModel.Plan, enableLoanAddon: Boolean): List<String> {
         return when (selectedPlan) {
-            Plan.BASIC -> buildList {
+            SubscriptionModel.Plan.BASIC -> buildList {
                 add(BASIC_PRODUCT_ID)
                 if (enableLoanAddon) add(LOAN_ADDON_PRODUCT_ID)
             }
-            Plan.BUSINESS -> listOf(BUSINESS_PRODUCT_ID)
-            Plan.FREE -> emptyList()
+            SubscriptionModel.Plan.BUSINESS -> listOf(BUSINESS_PRODUCT_ID)
+            SubscriptionModel.Plan.FREE -> emptyList()
         }
     }
 
@@ -434,60 +437,74 @@ object BillingHelper : PurchasesUpdatedListener {
     // GET CURRENT PLAN
     // ─────────────────────────────────────────────
 
-    suspend fun getCurrentPlan(): Plan {
-        val client = billingClient ?: return Plan.FREE
+    suspend fun getCurrentPlan(): SubscriptionModel.Plan {
 
-        return suspendCancellableCoroutine { cont ->
-            val params = QueryPurchasesParams.newBuilder()
-                .setProductType(BillingClient.ProductType.SUBS)
-                .build()
+        val client = billingClient ?: return SubscriptionModel.Plan.FREE
 
-            fun query() {
-                client.queryPurchasesAsync(params) { result, purchases ->
-                    if (!cont.isActive) return@queryPurchasesAsync
+        return withTimeoutOrNull(5000.milliseconds) { // 🔥 prevents infinite hang
+
+            suspendCancellableCoroutine { cont ->
+
+                val params = QueryPurchasesParams.newBuilder()
+                    .setProductType(BillingClient.ProductType.SUBS)
+                    .build()
+
+                val listener = PurchasesResponseListener { result, purchases ->
+
+                    if (!cont.isActive) return@PurchasesResponseListener
 
                     if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                        cont.resume(Plan.FREE)
-                        return@queryPurchasesAsync
+                        cont.resume(SubscriptionModel.Plan.FREE)
+                        return@PurchasesResponseListener
                     }
 
-                    var plan = Plan.FREE
+                    var plan = SubscriptionModel.Plan.FREE
 
                     for (purchase in purchases) {
-                        if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) continue
+
+                        if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED)
+                            continue
 
                         when {
                             purchase.products.contains(BUSINESS_PRODUCT_ID) -> {
-                                cont.resume(Plan.BUSINESS)
-                                return@queryPurchasesAsync
+                                cont.resume(SubscriptionModel.Plan.BUSINESS)
+                                return@PurchasesResponseListener
                             }
+
                             purchase.products.contains(BASIC_PRODUCT_ID) -> {
-                                plan = Plan.BASIC
+                                plan = SubscriptionModel.Plan.BASIC
                             }
                         }
                     }
 
                     cont.resume(plan)
                 }
+
+                try {
+                    client.queryPurchasesAsync(params, listener)
+                } catch (e: Exception) {
+                    if (cont.isActive) {
+                        cont.resume(SubscriptionModel.Plan.FREE)
+                    }
+                }
+
+                cont.invokeOnCancellation {
+                    // no-op (safe cleanup if needed)
+                }
             }
 
-            if (isConnected) {
-                query()
-            } else {
-                connectBillingClient(onConnected = { query() })
-            }
-        }
+        } ?: SubscriptionModel.Plan.FREE
     }
 
     // ─────────────────────────────────────────────
     // HELPERS
     // ─────────────────────────────────────────────
 
-    fun getProductId(plan: Plan): String {
+    fun getProductId(plan: SubscriptionModel.Plan): String {
         return when (plan) {
-            Plan.BASIC -> BASIC_PRODUCT_ID
-            Plan.BUSINESS -> BUSINESS_PRODUCT_ID
-            Plan.FREE -> ""
+            SubscriptionModel.Plan.BASIC -> BASIC_PRODUCT_ID
+            SubscriptionModel.Plan.BUSINESS -> BUSINESS_PRODUCT_ID
+            SubscriptionModel.Plan.FREE -> ""
         }
     }
 

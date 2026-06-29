@@ -129,17 +129,21 @@ fun ManagerHomeView(
         }
 
         val squadID = UserDefaultsManager.getLogin()?.squadID ?: return@LaunchedEffect
+
         SubscriptionManager.shared.refreshFromServer(
             squadID = squadID,
-            getActivePlan = { BillingHelper.getCurrentPlan() }
-        ) { _, _ ->
+        ) { success, error ->
+
+            if (!success) {
+                Log.e("Subscription", error ?: "Unknown error")
+                return@refreshFromServer
+            }
 
             val memberCount = squadViewModel.squad.value?.totalMembers ?: 0
 
             if (SubscriptionManager.shared.shouldForceUpgrade(memberCount)) {
                 squadViewModel.setShowUpgradePlan(true)
             }
-
         }
     }
     // 🔹 Main Layout

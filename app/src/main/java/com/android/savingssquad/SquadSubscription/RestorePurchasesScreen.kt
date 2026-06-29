@@ -30,6 +30,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.android.savingssquad.singleton.AppColors
-import com.android.savingssquad.singleton.Plan
 import com.android.savingssquad.viewmodel.SquadViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -64,7 +64,7 @@ fun RestorePurchasesScreen(
     var resultSuccess by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf("") }
 
-    val sub = viewModel.subscription
+    val sub by viewModel.subscription.collectAsState()
 
     Column(
         modifier = Modifier
@@ -145,7 +145,9 @@ fun RestorePurchasesScreen(
             Spacer(Modifier.height(16.dp))
 
             // CURRENT PLAN CARD
-            CurrentPlanCard(sub, viewModel)
+            sub?.let {
+                CurrentPlanCard(it, viewModel)
+            }
 
             Spacer(Modifier.height(12.dp))
 
@@ -185,7 +187,7 @@ fun RestorePurchasesScreen(
 
                         resultMessage =
                             if (success)
-                                "Your ${viewModel.subscription.plan} plan has been restored."
+                                "Your ${viewModel.subscription.value?.plan} plan has been restored."
                             else
                                 error ?: "Something went wrong"
 
@@ -266,9 +268,9 @@ fun CurrentPlanCard(
             modifier = Modifier
                 .background(
                     when (sub.plan) {
-                        Plan.FREE -> AppColors.secondaryText
-                        Plan.BASIC -> AppColors.infoAccent
-                        Plan.BUSINESS -> AppColors.primaryBrand
+                        SubscriptionModel.Plan.FREE -> AppColors.secondaryText
+                        SubscriptionModel.Plan.BASIC -> AppColors.infoAccent
+                        SubscriptionModel.Plan.BUSINESS -> AppColors.primaryBrand
                     },
                     RoundedCornerShape(8.dp)
                 )

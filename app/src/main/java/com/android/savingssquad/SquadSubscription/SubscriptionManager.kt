@@ -3,9 +3,14 @@ package com.android.savingssquad.SquadSubscription
 import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.android.savingssquad.singleton.Plan
 import kotlinx.coroutines.launch
 import com.google.firebase.Timestamp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.resumeWithException
 
 class SubscriptionManager private constructor() : ViewModel() {
 
@@ -13,57 +18,66 @@ class SubscriptionManager private constructor() : ViewModel() {
         val shared: SubscriptionManager by lazy { SubscriptionManager() }
     }
 
-    var subscription: SubscriptionModel = SubscriptionModel()
-        private set
+    private val _subscription = MutableStateFlow<SubscriptionModel?>(null)
+    val subscription = _subscription.asStateFlow()
 
-    var remoteConfig: RemoteConfig = RemoteConfig()
-        private set
+    private val _isSubscriptionLoaded = MutableStateFlow(false)
+    val isSubscriptionLoaded = _isSubscriptionLoaded.asStateFlow()
 
-    var trialDaysTotal: Int = 30
+    private val _remoteConfig = MutableStateFlow(RemoteConfig())
+    val remoteConfig = _remoteConfig.asStateFlow()
+
+    var trialDaysTotal: Int = 45
         private set
 
     // MARK: - TRIAL
     fun isTrialActive(): Boolean {
+        val sub = _subscription.value ?: return false
+
         val now = System.currentTimeMillis()
-        val end = subscription.trialEndDate.toDate().time
-        return subscription.isTrialActive && now < end
+        val end = sub.trialEndDate.toDate().time
+
+        return sub.isTrialActive && now < end
     }
 
     fun trialDaysRemaining(): Int {
-        if (!isTrialActive()) return 0
+        val sub = _subscription.value ?: return 0
 
-        val diff = subscription.trialEndDate.toDate().time - System.currentTimeMillis()
-        return (diff / (1000 * 60 * 60 * 24)).toInt().coerceAtLeast(0)
-    }
+        if (!sub.isTrialActive) return 0
 
-    // MARK: - FEATURES
-    fun isFeatureBlocked(feature: String): Boolean {
-        if (isTrialActive()) return false
+        val diff = sub.trialEndDate.toDate().time - System.currentTimeMillis()
 
-        return when (feature) {
-            "loan" -> !(subscription.features.loan || subscription.loanAddon)
-            else -> false
-        }
+        return (diff / (1000 * 60 * 60 * 24))
+            .toInt()
+            .coerceAtLeast(0)
     }
 
     fun canAddMember(currentCount: Int): Boolean {
+
+        val sub = _subscription.value ?: return false
+        val config = _remoteConfig.value
+
         if (isTrialActive()) {
-            return currentCount < remoteConfig.biz_maxMembers
+            return currentCount < config.biz_maxMembers
         }
-        return currentCount < remoteConfig.maxMembers(subscription.plan)
+
+        return currentCount < config.maxMembers(sub.plan)
     }
 
-    fun canUseContribution(): Boolean {
-        return isTrialActive() || subscription.features.contribution
-    }
 
     fun canUseLoan(): Boolean {
-        return isTrialActive() || subscription.features.loan || subscription.loanAddon
+        val sub = _subscription.value ?: return false
+        val config = remoteConfig
+
+        // If still loading, be safe → block access
+        if (!isSubscriptionLoaded.value) return false
+
+        // Trial override
+        if (isTrialActive()) return true
+
+        return sub.features.loan || sub.loanAddon
     }
 
-    fun isPlan(plan: Plan): Boolean {
-        return subscription.plan == plan
-    }
 
     // MARK: - LOAD SUBSCRIPTION
     fun loadSubscription(
@@ -71,42 +85,45 @@ class SubscriptionManager private constructor() : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
 
-        SubscriptionFirebaseManager.shared.fetchRemoteConfig(squadID) { config ->
+        _isSubscriptionLoaded.value = false
 
-            remoteConfig = config
+        SubscriptionFirebaseManager.shared.fetchRemoteConfig(squadID) { config, error ->
 
-            SubscriptionFirebaseManager.shared.fetchSubscription(
-                squadID
-            ) { model, error ->
+            if (config == null) {
+                completion(false, error ?: "Config missing")
+                return@fetchRemoteConfig
+            }
+
+            _remoteConfig.value = config
+
+            SubscriptionFirebaseManager.shared.fetchSubscription(squadID) { model, error ->
 
                 if (model == null) {
                     completion(false, error)
                     return@fetchSubscription
                 }
 
-                var updated = model
+                val features = config.features(model.plan)
 
-                val features = config.features(updated.plan)
-
-                updated = updated.copy(
-                    maxMembers = config.maxMembers(updated.plan),
+                val updated = model.copy(
+                    maxMembers = config.maxMembers(model.plan),
                     features = SubscriptionModel.Features(
                         contribution = features.contribution,
                         loan = features.loan
                     )
                 )
 
-                // auto deactivate trial
-                if (updated.isTrialActive &&
-                    System.currentTimeMillis() >= updated.trialEndDate.toDate().time
-                ) {
-                    updated = updated.copy(isTrialActive = false)
+                // auto-trial deactivate
+                val now = System.currentTimeMillis()
+                val end = updated.trialEndDate.toDate().time
 
+                if (updated.isTrialActive && now >= end) {
                     SubscriptionFirebaseManager.shared.deactivateTrial(squadID) { _, _ -> }
                 }
 
-                subscription = updated
+                _subscription.value = updated
                 trialDaysTotal = updated.trialDays
+                _isSubscriptionLoaded.value = true
 
                 completion(true, null)
             }
@@ -116,35 +133,41 @@ class SubscriptionManager private constructor() : ViewModel() {
     // MARK: - REFRESH (Store-style sync equivalent)
     fun refreshFromServer(
         squadID: String,
-        getActivePlan: suspend () -> Plan,
         completion: (Boolean, String?) -> Unit
     ) {
-
         viewModelScope.launch {
+
             try {
 
-                val activePlan = getActivePlan()
-
-                val loanAddon = if (activePlan == Plan.BUSINESS) {
-                    false
-                } else {
-                    subscription.loanAddon
+                val activePlan = withContext(Dispatchers.IO) {
+                    BillingHelper.getCurrentPlan()
                 }
+
+                val loanAddon =
+                    if (activePlan == SubscriptionModel.Plan.BUSINESS) {
+                        false
+                    } else {
+                        subscription.value?.loanAddon ?: false
+                    }
 
                 SubscriptionFirebaseManager.shared.updateSubscription(
                     squadID,
                     activePlan,
                     loanAddon
                 ) { success, error ->
-                    if (success) {
-                        loadSubscription(squadID, completion)
-                    } else {
-                        completion(false, error)
+
+                    if (!success) {
+                        completion(false, error ?: "Update failed")
+                        return@updateSubscription
+                    }
+
+                    loadSubscription(squadID) { ok, err ->
+                        completion(ok, err)
                     }
                 }
 
             } catch (e: Exception) {
-                completion(false, e.localizedMessage)
+                completion(false, e.localizedMessage ?: "Unexpected error")
             }
         }
     }
@@ -162,9 +185,6 @@ class SubscriptionManager private constructor() : ViewModel() {
 
                 refreshFromServer(
                     squadID,
-                    getActivePlan = {
-                        BillingHelper.getCurrentPlan()
-                    },
                     completion = completion
                 )
 
@@ -174,17 +194,15 @@ class SubscriptionManager private constructor() : ViewModel() {
         }
     }
 
-    fun shouldForceUpgrade(
-        memberCount: Int
-    ): Boolean {
+    fun shouldForceUpgrade(memberCount: Int): Boolean {
 
-        val subscription = subscription ?: return false
+        val sub = _subscription.value ?: return false
+        val config = _remoteConfig.value
 
-        if (isTrialActive()) {
-            return false
-        }
+        if (isTrialActive()) return false
+        if (sub.plan != SubscriptionModel.Plan.FREE) return false
 
-        val maxMembers = remoteConfig.maxMembers(subscription.plan)
+        val maxMembers = config.maxMembers(sub.plan)
 
         return memberCount > maxMembers
     }

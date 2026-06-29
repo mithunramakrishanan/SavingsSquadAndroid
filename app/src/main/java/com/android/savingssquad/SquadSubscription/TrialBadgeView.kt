@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,13 +30,19 @@ import com.android.savingssquad.singleton.AppColors
 
 @Composable
 fun TrialBadgeView(
-    subscriptionManager: SubscriptionManager = SubscriptionManager.shared,
+    viewModel: SubscriptionManager = SubscriptionManager.shared,
     onClick: () -> Unit
 ) {
 
-    val isActive = subscriptionManager.isTrialActive()
+    val sub by viewModel.subscription.collectAsState()
+
+    val isActive = sub?.let {
+        viewModel.isTrialActive()
+    } ?: false
 
     if (!isActive) return
+
+    val daysLeft = viewModel.trialDaysRemaining()
 
     Row(
         modifier = Modifier
@@ -49,7 +57,7 @@ fun TrialBadgeView(
                 AppColors.successAccent.copy(alpha = 0.25f),
                 RoundedCornerShape(14.dp)
             )
-            .clickable { onClick() }   // ✅ ADD THIS
+            .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -74,7 +82,6 @@ fun TrialBadgeView(
 
         Spacer(modifier = Modifier.width(10.dp))
 
-        // TEXT
         Column(modifier = Modifier.weight(1f)) {
 
             Text(
@@ -85,14 +92,13 @@ fun TrialBadgeView(
             )
 
             Text(
-                text = "${subscriptionManager.trialDaysRemaining()} of ${subscriptionManager.trialDaysTotal} days left • Full access",
+                text = "$daysLeft of ${viewModel.trialDaysTotal} days left • Full access",
                 fontSize = 10.sp,
                 color = AppColors.secondaryText,
                 maxLines = 1
             )
         }
 
-        // PILL
         Box(
             modifier = Modifier
                 .background(
@@ -102,7 +108,7 @@ fun TrialBadgeView(
                 .padding(horizontal = 8.dp, vertical = 3.dp)
         ) {
             Text(
-                text = "${subscriptionManager.trialDaysRemaining()}d",
+                text = "${daysLeft}d",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
