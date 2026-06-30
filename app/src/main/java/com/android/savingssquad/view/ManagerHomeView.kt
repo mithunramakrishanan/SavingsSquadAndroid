@@ -44,7 +44,9 @@ import com.android.savingssquad.model.Squad
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.viewmodel.AppDestination
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.draw.clip
 import com.android.savingssquad.viewmodel.SSToast
+import kotlinx.coroutines.selects.select
 
 @Composable
 fun ManagerHomeView(
@@ -261,6 +263,20 @@ fun ManagerHomeView(
                             CheckDuesButton {
                                 openDuesScreen = true
                             }
+                        }
+                    }
+
+                    if (squad?.upiID.isNullOrBlank()) {
+
+                        item {
+
+                            UpdateUPIHintCard(onClick = {
+
+                                navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
+
+                            }, SquadUserType.SQUAD_MANAGER)
+
+                            Spacer(modifier = Modifier.height(12.dp))
                         }
                     }
 
@@ -851,6 +867,78 @@ fun CheckDuesButton(onClick: () -> Unit) {
             style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
             textDecoration = TextDecoration.Underline,
             textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+fun UpdateUPIHintCard(
+    onClick: () -> Unit,
+    selectedUserType : SquadUserType
+
+) {
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(AppColors.warningAccent.copy(alpha = 0.12f))
+            .border(
+                1.dp,
+                AppColors.warningAccent.copy(alpha = 0.25f),
+                RoundedCornerShape(18.dp)
+            )
+            .clickable { onClick() }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .background(
+                    AppColors.warningAccent.copy(alpha = 0.18f),
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.AccountBalanceWallet,
+                contentDescription = null,
+                tint = AppColors.warningAccent,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+
+            Text(
+                text = "Add your UPI ID",
+                style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+                color = AppColors.headerText
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = if (selectedUserType == SquadUserType.SQUAD_MANAGER)
+                    "Members can't send contributions until your UPI ID is added."
+                else
+                    "Complete your payment setup to contribute securely and effortlessly." ,
+                style = AppFont.ibmPlexSans(13),
+                color = AppColors.secondaryText
+            )
+        }
+
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = AppColors.warningAccent
         )
     }
 }

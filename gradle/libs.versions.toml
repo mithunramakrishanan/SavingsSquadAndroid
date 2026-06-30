@@ -47,6 +47,7 @@ animationCore = "1.11.3"
 uiGraphics = "1.11.3"
 roomKtx = "2.8.4"
 uiText = "1.11.3"
+datastoreCore = "1.2.1"
 
 [libraries]
 easyupipayment = { module = "dev.shreyaspatil.EasyUpiPayment:EasyUpiPayment", version.ref = "easyupipayment" }
@@ -108,6 +109,7 @@ androidx-compose-animation-core = { group = "androidx.compose.animation", name =
 androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref = "uiGraphics" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
 androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
+androidx-datastore-core = { group = "androidx.datastore", name = "datastore-core", version.ref = "datastoreCore" }
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

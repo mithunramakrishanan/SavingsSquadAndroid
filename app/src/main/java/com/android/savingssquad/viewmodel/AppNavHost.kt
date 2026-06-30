@@ -139,6 +139,10 @@ fun AppNavHost(
             RestorePurchasesScreen(navController,squadViewModel)
         }
 
+        composable(AppDestination.OPEN_CONTACT_US.route) {
+            ContactUsView(navController)
+        }
+
         composable(AppDestination.PAYMENT_CONFIRMATION.route) {
 
             val context = LocalContext.current
@@ -172,6 +176,7 @@ sealed class AppDestination(val route: String) {
     object OPEN_ACTIITY : AppDestination("open_activity")
     object OPEN_PAYMENT_HISTORY : AppDestination("open_payment_history")
     object OPEN_GROUP_RULES : AppDestination("open_group_rules")
+    object OPEN_CONTACT_US : AppDestination("open_contact_us")
 
     object OPEN_MANUAL_ENTRY : AppDestination("open_manual_entry")
     object OPEN_BANK_DETAILS : AppDestination("open_bank_details")

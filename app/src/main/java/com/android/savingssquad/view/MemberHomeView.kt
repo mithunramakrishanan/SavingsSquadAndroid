@@ -187,6 +187,20 @@ fun MemberHomeView(
                     )
                 }
 
+                if (squadViewModel.currentMember.value?.upiID.isNullOrBlank()) {
+
+                    item {
+
+                        UpdateUPIHintCard(onClick = {
+
+                            navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
+
+                        }, SquadUserType.SQUAD_MEMBER)
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+
                 // 🔹 Reminder Section
                 if (remainders.isNotEmpty()) {
                     item {

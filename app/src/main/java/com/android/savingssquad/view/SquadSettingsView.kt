@@ -13,15 +13,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.SupportAgent
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -48,77 +54,60 @@ import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.FirestoreManager
 import com.android.savingssquad.viewmodel.SSToast
 
+sealed class SquadSettingsEvent {
+    data object ManageSquad : SquadSettingsEvent()
+    data object ManualEntry : SquadSettingsEvent()
+    data object BankDetails : SquadSettingsEvent()
+    data object ManageLoan : SquadSettingsEvent()
+    data object RestorePurchase : SquadSettingsEvent()
+    data object Activity : SquadSettingsEvent()
+    data object PaymentHistory : SquadSettingsEvent()
+    data object ChitRules : SquadSettingsEvent()
+    data object ContactUs : SquadSettingsEvent()
+}
+
 @Composable
 fun SquadSettingsView(
     navController: NavController,
     squadViewModel: SquadViewModel
 ) {
 
-    var navigateToManageSquad by remember { mutableStateOf(false) }
-    var navigateToManualEntry by remember { mutableStateOf(false) }
-    var navigateToBankDetails by remember { mutableStateOf(false) }
-    var navigateToManageLoan by remember { mutableStateOf(false) }
-    var navigateToRestorePurchase by remember { mutableStateOf(false) }
+    var navigationEvent by remember { mutableStateOf<SquadSettingsEvent?>(null) }
 
-    var navigateToActivity by remember { mutableStateOf(false) }
-    var navigateToPaymentHistory by remember { mutableStateOf(false) }
-    var navigateToChitRules by remember { mutableStateOf(false) }
+    LaunchedEffect(navigationEvent) {
+        when (navigationEvent) {
 
+            is SquadSettingsEvent.ManageSquad ->
+                navController.navigate(AppDestination.MANAGE_SQUAD.route)
 
-    LaunchedEffect(navigateToManageSquad) {
-        if (navigateToManageSquad) {
-            navController.navigate(AppDestination.MANAGE_SQUAD.route)
-            navigateToManageSquad = false
+            is SquadSettingsEvent.ManualEntry ->
+                navController.navigate(AppDestination.OPEN_MANUAL_ENTRY.route)
+
+            is SquadSettingsEvent.BankDetails ->
+                navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
+
+            is SquadSettingsEvent.ManageLoan ->
+                navController.navigate(AppDestination.OPEN_MANAGE_LOAN.route)
+
+            is SquadSettingsEvent.RestorePurchase ->
+                navController.navigate(AppDestination.OPEN_RESTORE_PURCHASE.route)
+
+            is SquadSettingsEvent.Activity ->
+                navController.navigate(AppDestination.OPEN_ACTIITY.route)
+
+            is SquadSettingsEvent.PaymentHistory ->
+                navController.navigate(AppDestination.OPEN_PAYMENT_HISTORY.route)
+
+            is SquadSettingsEvent.ChitRules ->
+                navController.navigate(AppDestination.OPEN_GROUP_RULES.route)
+
+            is SquadSettingsEvent.ContactUs ->
+                navController.navigate(AppDestination.OPEN_CONTACT_US.route)
+
+            null -> Unit
         }
-    }
 
-    LaunchedEffect(navigateToManualEntry) {
-        if (navigateToManualEntry) {
-            navController.navigate(AppDestination.OPEN_MANUAL_ENTRY.route)
-            navigateToManualEntry = false
-        }
-    }
-
-    LaunchedEffect(navigateToBankDetails) {
-        if (navigateToBankDetails) {
-            navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
-            navigateToBankDetails = false
-        }
-    }
-
-    LaunchedEffect(navigateToManageLoan) {
-        if (navigateToManageLoan) {
-            navController.navigate(AppDestination.OPEN_MANAGE_LOAN.route)
-            navigateToManageLoan = false
-        }
-    }
-
-    LaunchedEffect(navigateToRestorePurchase) {
-        if (navigateToRestorePurchase) {
-            navController.navigate(AppDestination.OPEN_RESTORE_PURCHASE.route)
-            navigateToRestorePurchase = false
-        }
-    }
-
-    LaunchedEffect(navigateToPaymentHistory) {
-        if (navigateToPaymentHistory) {
-            navController.navigate(AppDestination.OPEN_PAYMENT_HISTORY.route)
-            navigateToPaymentHistory = false
-        }
-    }
-
-    LaunchedEffect(navigateToActivity) {
-        if (navigateToActivity) {
-            navController.navigate(AppDestination.OPEN_ACTIITY.route)
-            navigateToActivity = false
-        }
-    }
-
-    LaunchedEffect(navigateToChitRules) {
-        if (navigateToChitRules) {
-            navController.navigate(AppDestination.OPEN_GROUP_RULES.route)
-            navigateToChitRules = false
-        }
+        navigationEvent = null
     }
 
     Box(
@@ -147,16 +136,17 @@ fun SquadSettingsView(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 🚀 Quick Action Buttons
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier
-                    .fillMaxSize()
+                    .weight(1f)   // ✅ IMPORTANT FIX
                     .padding(horizontal = 16.dp)
                     .padding(top = 12.dp)
-            ) {
+                    .padding(bottom = 10.dp)
+            )
+            {
 
                 if (UserDefaultsManager.getSquadManagerLogged()) {
 
@@ -167,7 +157,7 @@ fun SquadSettingsView(
                             icon = Icons.Default.Groups,
                             color = Color(0xFF3B82F6)
                         ) {
-                            navigateToManageSquad = true
+                            navigationEvent = SquadSettingsEvent.ManageSquad
                         }
                     }
 
@@ -178,7 +168,8 @@ fun SquadSettingsView(
                             icon = Icons.Default.CreditCard,
                             color = Color(0xFF10B981)
                         ) {
-                            navigateToManageLoan = true
+                            navigationEvent = SquadSettingsEvent.ManageLoan
+
                         }
                     }
 
@@ -189,7 +180,7 @@ fun SquadSettingsView(
                             icon = Icons.Default.EditNote,
                             color = Color(0xFFF59E0B)
                         ) {
-                            navigateToManualEntry = true
+                            navigationEvent = SquadSettingsEvent.ManualEntry
                         }
                     }
                 }
@@ -201,7 +192,7 @@ fun SquadSettingsView(
                         icon = Icons.Default.AccountBalance,
                         color = Color(0xFF8B5CF6)
                     ) {
-                        navigateToBankDetails = true
+                        navigationEvent = SquadSettingsEvent.BankDetails
                     }
                 }
 
@@ -212,7 +203,7 @@ fun SquadSettingsView(
                         icon = Icons.AutoMirrored.Filled.TrendingUp,
                         color = Color(0xFFEC4899)
                     ) {
-                        navigateToActivity = true
+                        navigationEvent = SquadSettingsEvent.Activity
                     }
                 }
 
@@ -223,7 +214,7 @@ fun SquadSettingsView(
                         icon = Icons.Default.History,
                         color = Color(0xFF6366F1)
                     ) {
-                        navigateToPaymentHistory = true
+                        navigationEvent = SquadSettingsEvent.PaymentHistory
                     }
                 }
 
@@ -234,7 +225,7 @@ fun SquadSettingsView(
                         icon = Icons.AutoMirrored.Filled.Rule,
                         color = Color(0xFF14B8A6)
                     ) {
-                        navigateToChitRules = true
+                        navigationEvent = SquadSettingsEvent.ChitRules
                     }
                 }
 
@@ -247,7 +238,7 @@ fun SquadSettingsView(
                             icon = Icons.Default.Restore,
                             color = Color.Gray
                         ) {
-                            navigateToRestorePurchase = true
+                            navigationEvent = SquadSettingsEvent.RestorePurchase
                         }
                     }
 
@@ -273,7 +264,20 @@ fun SquadSettingsView(
                     }
                 }
             }
-            Spacer(modifier = Modifier.weight(1f))
+
+            ContactUsButton(
+
+                onClick = {
+
+                    navigationEvent = SquadSettingsEvent.ContactUs
+
+                },
+
+                modifier = Modifier.padding(bottom = 20.dp)
+
+            )
+
+
         }
     }
 }
@@ -293,10 +297,6 @@ fun SettingsDashboardCard(
             .heightIn(min = 80.dp)
             .clip(RoundedCornerShape(22.dp))
             .background(AppColors.surface)
-            .appShadow(
-                AppShadows.card,
-                RoundedCornerShape(22.dp)
-            )
             .border(
                 width = 0.8.dp,
                 color = AppColors.border.copy(alpha = 0.18f),
@@ -369,6 +369,80 @@ fun SettingsDashboardCard(
                     color = AppColors.secondaryText,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ContactUsButton(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center
+    ) {
+
+        Card(
+            modifier = Modifier
+                .widthIn(max = 320.dp)
+                .clickable { onClick() }
+                .appShadow(
+                    style = AppShadows.card,
+                    shape = RoundedCornerShape(14.dp)
+                ),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(Color.White)
+        ) {
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .background(
+                            AppColors.primaryBackground,
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Message,
+                        contentDescription = null,
+                        tint = AppColors.primaryBrand,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Contact Us",
+                        style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
+                        color = AppColors.headerText
+                    )
+
+                    Text(
+                        "We’re here to help you",
+                        style = AppFont.ibmPlexSans(11),
+                        color = AppColors.secondaryText,
+                        maxLines = 1
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = AppColors.secondaryText,
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }
