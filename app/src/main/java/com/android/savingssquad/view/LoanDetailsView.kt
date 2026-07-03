@@ -103,16 +103,18 @@ fun LoanDetailsView(
     }
 
     // ===== LOAD LOANS =====
-    LaunchedEffect(screenType, currentMember?.id, squadLoans) {
+    LaunchedEffect(Unit) {
         val squadID = squad.value?.squadID ?: return@LaunchedEffect
 
         if (screenType == SquadUserType.SQUAD_MEMBER && currentMember?.id != null) {
             squadViewModel.fetchMemberLoans(true, currentMember!!.id!!) { success, _ ->
                 squadLoans = squadViewModel.memberLoans.value
+                LoaderManager.shared.hideLoader()
             }
         } else {
             squadViewModel.fetchAllLoansInSquad(true, squadID) { success, loans, _ ->
                 if (success) squadLoans = loans
+                LoaderManager.shared.hideLoader()
             }
         }
     }

@@ -110,7 +110,8 @@ fun ManagerPaymentView(
     var loanSelectedMemberNameError by remember { mutableStateOf("") }
     var showAllEMIs by remember { mutableStateOf(false) }
 
-    val isPendingLoanAvailable by remember { derivedStateOf { squadViewModel.isPendingLoanAvailable } }
+    val isPendingLoanAvailable by squadViewModel.isPendingLoanAvailable.collectAsStateWithLifecycle()
+
 
     val paymentAmount = remember { mutableStateOf("") }
 
@@ -186,135 +187,193 @@ fun ManagerPaymentView(
                     }
                 }
 
-                // EMI list
-                items(
-                    if (showAllEMIs) squadViewModel.emiConfigurations.value
-                    else squadViewModel.emiConfigurations.value.take(2),
-                    key = { it.id!! }
-                ) { emi ->
-                    PaymentEMIListRow(
-                        emi = emi,
-                        isSelected = emiSelectedType?.id == emi.id,
-                        onClick = { emiSelectedType = if (emiSelectedType?.id == emi.id) null else emi }
-                    )
-                }
+                if (isPendingLoanAvailable) {
 
-                // Show More / Show Less
-                if (squadViewModel.emiConfigurations.value.size > 2) {
                     item {
-                        TextButton(onClick = { showAllEMIs = !showAllEMIs }) {
-                            Text(
-                                text = if (showAllEMIs) "Show Less" else "Show More",
-                                style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
-                                color = AppColors.infoAccent
+
+                        Column(
+
+                            modifier = Modifier
+
+                                .fillMaxWidth()
+
+                                .padding(top = 16.dp),
+
+                            horizontalAlignment = Alignment.CenterHorizontally,
+
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+
+                        )
+                        {
+
+                            Icon(
+
+                                imageVector = Icons.Filled.Warning,
+
+                                contentDescription = null,
+
+                                modifier = Modifier.size(50.dp),
+
+                                tint = AppColors.errorAccent
+
                             )
+
+                            Text(
+
+                                text = "${loanSelectedMember?.name ?: "Member"} already has a pending loan.",
+
+                                style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+
+                                color = AppColors.errorAccent,
+
+                                textAlign = TextAlign.Center,
+
+                                modifier = Modifier.padding(horizontal = 16.dp)
+
+                            )
+
+                        }
+
+                    }
+
+
+                }
+                else {
+
+                    // EMI list
+                    items(
+                        if (showAllEMIs) squadViewModel.emiConfigurations.value
+                        else squadViewModel.emiConfigurations.value.take(2),
+                        key = { it.id!! }
+                    )
+                    { emi ->
+                        PaymentEMIListRow(
+                            emi = emi,
+                            isSelected = emiSelectedType?.id == emi.id,
+                            onClick = { emiSelectedType = if (emiSelectedType?.id == emi.id) null else emi }
+                        )
+                    }
+
+                    // Show More / Show Less
+                    if (squadViewModel.emiConfigurations.value.size > 2) {
+                        item {
+                            TextButton(onClick = { showAllEMIs = !showAllEMIs }) {
+                                Text(
+                                    text = if (showAllEMIs) "Show Less" else "Show More",
+                                    style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
+                                    color = AppColors.infoAccent
+                                )
+                            }
                         }
                     }
-                }
 
-                // Payment Button
-                item {
-                    val buttonEnabled = (loanSelectedMember?.upiID?.isNotEmpty() == true) && emiSelectedType != null
-                    SSButton(
-                        title = if (emiSelectedType != null && loanSelectedMember != null)
-                            "Pay ₹${emiSelectedType!!.loanAmount} to ${loanSelectedMember!!.name}'s UPI"
-                        else "Pay",
-                        isDisabled = !buttonEnabled,
-                        action = {
-                            val member = loanSelectedMember
-                            val emi = emiSelectedType
+                    // Payment Button
+                    item {
+                        val buttonEnabled = (loanSelectedMember?.upiID?.isNotEmpty() == true) && emiSelectedType != null
+                        SSButton(
+                            title = if (emiSelectedType != null && loanSelectedMember != null)
+                                "Pay ₹${emiSelectedType!!.loanAmount} to ${loanSelectedMember!!.name}'s UPI"
+                            else "Pay",
+                            isDisabled = !buttonEnabled,
+                            action = {
+                                val member = loanSelectedMember
+                                val emi = emiSelectedType
 
-                            if (member != null && emi != null) {
+                                if (member != null && emi != null) {
 
-                                if (SubscriptionManager.shared.canUseLoan()) {
-                                    makeLoanPayment(
-                                        squadViewModel = squadViewModel,
-                                        selectedMember = member,
-                                        selectedLoan = emi,
-                                        context = appContext,
-                                        activity = activity,
-                                        handler = {
-                                            loanSelectedMember = null
-                                            emiSelectedType = null
-                                            squadViewModel.setIsPendingLoanAvailable(false)
-                                        }
+                                    if (SubscriptionManager.shared.canUseLoan()) {
+                                        makeLoanPayment(
+                                            squadViewModel = squadViewModel,
+                                            selectedMember = member,
+                                            selectedLoan = emi,
+                                            context = appContext,
+                                            activity = activity,
+                                            handler = {
+                                                loanSelectedMember = null
+                                                emiSelectedType = null
+                                                squadViewModel.setIsPendingLoanAvailable(false)
+                                            }
+                                        )
+
+                                    }
+                                    else {
+                                        squadViewModel.setShowUpgradePlan(true)
+                                    }
+                                }
+                            }
+                        )
+                    }
+
+                    item {
+
+                        if (loanSelectedMember != null) {
+
+                            if (loanSelectedMember!!.upiID.trim().isEmpty()) {
+
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                ) {
+
+                                    Text(
+                                        text = "UPI ID not available",
+                                        style = AppFont.ibmPlexSans(13, FontWeight.Medium),
+                                        color = AppColors.errorAccent
                                     )
 
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    Text(
+                                        text = "Please ask the member to add their UPI ID before proceeding with the payment.",
+                                        style = AppFont.ibmPlexSans(12, FontWeight.Normal),
+                                        color = AppColors.secondaryText,
+                                        textAlign = TextAlign.Center
+                                    )
                                 }
-                                else {
-                                    squadViewModel.setShowUpgradePlan(true)
+
+                            } else {
+
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp)
+                                ) {
+
+                                    Text(
+                                        text = "Payment will be sent to",
+                                        style = AppFont.ibmPlexSans(12, FontWeight.Normal),
+                                        color = AppColors.secondaryText
+                                    )
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    Text(
+                                        text = loanSelectedMember!!.upiID,
+                                        style = AppFont.ibmPlexSans(14, FontWeight.Medium),
+                                        color = AppColors.successAccent,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    Text(
+                                        text = "Please verify the UPI ID before completing the transfer.",
+                                        style = AppFont.ibmPlexSans(11, FontWeight.Normal),
+                                        color = AppColors.secondaryText,
+                                        textAlign = TextAlign.Center
+                                    )
                                 }
-                            }
-                        }
-                    )
-                }
-
-                item {
-
-                    if (loanSelectedMember != null) {
-
-                        if (loanSelectedMember!!.upiID.trim().isEmpty()) {
-
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
-                            ) {
-
-                                Text(
-                                    text = "UPI ID not available",
-                                    style = AppFont.ibmPlexSans(13, FontWeight.Medium),
-                                    color = AppColors.errorAccent
-                                )
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                Text(
-                                    text = "Please ask the member to add their UPI ID before proceeding with the payment.",
-                                    style = AppFont.ibmPlexSans(12, FontWeight.Normal),
-                                    color = AppColors.secondaryText,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-
-                        } else {
-
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
-                            ) {
-
-                                Text(
-                                    text = "Payment will be sent to",
-                                    style = AppFont.ibmPlexSans(12, FontWeight.Normal),
-                                    color = AppColors.secondaryText
-                                )
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                Text(
-                                    text = loanSelectedMember!!.upiID,
-                                    style = AppFont.ibmPlexSans(14, FontWeight.Medium),
-                                    color = AppColors.successAccent,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                Text(
-                                    text = "Please verify the UPI ID before completing the transfer.",
-                                    style = AppFont.ibmPlexSans(11, FontWeight.Normal),
-                                    color = AppColors.secondaryText,
-                                    textAlign = TextAlign.Center
-                                )
                             }
                         }
                     }
                 }
+
+
+
 
             } else {
                 // Other Payments
@@ -351,7 +410,7 @@ fun ManagerPaymentView(
                                     handleOtherPayment(squadViewModel = squadViewModel, amountStr = paymentAmount.value, notes = paymentNotes, context = appContext, activity = activity)
 
                                 }
-                                
+
                             }
                         }
                     }
@@ -408,72 +467,48 @@ private fun makeLoanPayment(
         memberName = selectedMember.name
     )
 
-    squadViewModel.addOrUpdateMemberLoan(
+    val newPayment = PaymentsDetails(
+        id = CommonFunctions.generatePaymentID(squadId = squadViewModel.squad.value?.squadID ?: ""),
+        paymentUpdatedDate = Timestamp.now(),
+        memberId = selectedMember.id ?: "",
+        memberName = selectedMember.name,
+        paymentPhone = selectedMember.phoneNumber,
+        paymentEmail = selectedMember.mailID ?: "",
+        userType = SquadUserType.SQUAD_MANAGER,
+        amount = selectedLoan.loanAmount,
+        paymentStatus = PaymentStatus.INVERIFICATION,
+        paymentApproveStatus = PaymentApproveStatus.REQUESTED,
+        intrestAmount = 0,
+        paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
+        paymentType = PaymentType.PAYMENT_DEBIT,
+        paymentSubType = PaymentSubType.LOAN_AMOUNT,
+        description = "Loan disbursement",
+        squadId = squadViewModel.squad.value?.squadID ?: "",
+        order_id = newLoan.id ?: "",
+        contributionId = "",
+        loanId = newLoan.id ?: "",
+        installmentId = "",
+        paymentResponseMessage = "Pending member verification.",
+        transferReferenceId = "Loan disbursement to " + selectedMember.name,
+        upiID = selectedMember.upiID,
+        selectedEMIConfig = selectedLoan
+    )
+    squadViewModel.savePayments(
+        activity = activity,
+        context = context,
         showLoader = true,
-        memberID = selectedMember.id ?: "",
-        loan = newLoan
+        squadID = squadViewModel.squad.value?.squadID ?: "",
+        payment = listOf(newPayment)
     ) { success, error ->
         if (success) {
-            LoaderManager.shared.hideLoader()
-            val newPayment = PaymentsDetails(
-                id = CommonFunctions.generatePaymentID(squadId = squadViewModel.squad.value?.squadID ?: ""),
-                paymentUpdatedDate = Timestamp.now(),
-                memberId = selectedMember.id ?: "",
-                memberName = selectedMember.name,
-                paymentPhone = selectedMember.phoneNumber,
-                paymentEmail = selectedMember.mailID ?: "",
-                userType = SquadUserType.SQUAD_MANAGER,
-                amount = selectedLoan.loanAmount,
-                paymentStatus = PaymentStatus.INVERIFICATION,
-                paymentApproveStatus = PaymentApproveStatus.REQUESTED,
-                intrestAmount = 0,
-                paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
-                paymentType = PaymentType.PAYMENT_DEBIT,
-                paymentSubType = PaymentSubType.LOAN_AMOUNT,
-                description = "Loan disbursement",
-                squadId = squadViewModel.squad.value?.squadID ?: "",
-                order_id = newLoan.id ?: "",
-                contributionId = "",
-                loanId = newLoan.id ?: "",
-                installmentId = "",
-                paymentResponseMessage = "Pending member verification.",
-                transferReferenceId = "Loan disbursement to " + selectedMember.name,
-                upiID = selectedMember.upiID
-            )
-            squadViewModel.savePayments(
-                activity = activity,
-                context = context,
-                showLoader = true,
-                squadID = squadViewModel.squad.value?.squadID ?: "",
-                payment = listOf(newPayment)
-            ) { success, error ->
-                if (success) {
-                    println("✅ Payment added successfully!")
+            println("✅ Payment added successfully!")
 
-                    if (error == "UPI_OPENED") {
-                        handler()
-                    }
-
-                } else {
-                    println("❌ Error adding payment: $error")
-                }
+            if (error == "UPI_OPENED") {
+                handler()
             }
 
-            /*FirebaseFunctionsManager.shared.processRazorPayPayment(
-                squadId = squadViewModel.squad.value?.squadID ?: "",
-                action = RazorpayPaymentAction.New(payment = newPayment)
-            ) { sessionId, orderId, error ->
-
-                squadViewModel.handleCashFreeResponse(
-                    sessionId, orderId, error,
-                    completion = {
-                        LoaderManager.shared.hideLoader()
-                        handler()
-                    }
-                )
-            } */
         } else {
-            println("❌ Error: ${error ?: "Unknown error"}")
+            println("❌ Error adding payment: $error")
         }
     }
 }

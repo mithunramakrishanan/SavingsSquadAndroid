@@ -79,7 +79,8 @@ fun AccountSummaryView(
 
         squadViewModel.fetchPayments(
             showLoader = true,
-            filterType = selectedFilter
+            filterType = selectedFilter,
+            showRejected = false
         ) { _, error ->
 
             if (error != null) {

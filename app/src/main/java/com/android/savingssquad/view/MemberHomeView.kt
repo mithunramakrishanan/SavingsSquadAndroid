@@ -31,9 +31,18 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.navigation.NavController
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.ui.draw.scale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.savingssquad.R
 import com.android.savingssquad.viewmodel.AppDestination
@@ -391,79 +400,79 @@ fun RemainderCardView(
 ) {
     val isOverdue = dueDate.before(Date())
     val formattedDate =
-        SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH).format(dueDate)
+        SimpleDateFormat("dd MMM", Locale.ENGLISH).format(dueDate)
 
-    // 🔹 Dynamic width logic
+    // 🔹 Dynamic width logic — trimmed for a compact card
     val cardWidth = when (title.uppercase()) {
-        "CONTRIBUTION" -> 200.dp
-        "EMI" -> 150.dp
-        else -> 200.dp   // fallback
+        "CONTRIBUTION" -> 168.dp
+        "EMI" -> 132.dp
+        else -> 168.dp
     }
+
+    val statusColor = if (isOverdue) AppColors.errorAccent else AppColors.warningAccent
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
+        label = "reminderCardScale"
+    )
 
     Column(
         modifier = Modifier
-            .width(cardWidth)            // 👈 Dynamic width applied here
-            .padding(horizontal = 5.dp)
-            .shadow(
-                elevation = 6.dp,
-                shape = RoundedCornerShape(16.dp),
-                clip = false
+            .width(cardWidth)
+            .padding(horizontal = 4.dp)
+            .scale(scale)
+            .appShadow(
+                style = AppShadows.card,
+                shape = RoundedCornerShape(14.dp)
             )
-            .background(AppColors.surface, RoundedCornerShape(16.dp))
-            .border(1.dp, AppColors.border, RoundedCornerShape(16.dp))
-            .clickable { onTap() }
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(AppColors.surface)
+            .border(1.dp, AppColors.border.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+            .clickable(
+                indication = null,
+                interactionSource = interactionSource
+            ) { onTap() }
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
 
-        // 🔹 Title + Badge Row
+        // 🔹 Status dot + Title
         Row(verticalAlignment = Alignment.CenterVertically) {
+
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(statusColor)
+            )
+
+            Spacer(modifier = Modifier.width(6.dp))
+
             Text(
                 text = title,
-                style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
+                style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
                 color = AppColors.headerText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
-
-            Text(
-                text = if (isOverdue) "Overdue" else "Upcoming",
-                style = AppFont.ibmPlexSans(10, FontWeight.Bold),
-                color = AppColors.primaryButtonText,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(if (isOverdue) AppColors.errorAccent else AppColors.warningAccent)
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            )
         }
 
-        // 🔹 Subtitle
-        Text(
-            text = subtitle,
-            style = AppFont.ibmPlexSans(12, FontWeight.Normal),
-            color = AppColors.secondaryText,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 4.dp),
-            color = AppColors.border.copy(alpha = 0.4f)
-        )
-
-        // 🔹 Amount
+        // 🔹 Amount — the hero element, kept tight to the title
         Text(
             text = "₹$amount",
-            style = AppFont.ibmPlexSans(16, FontWeight.Bold),
+            style = AppFont.ibmPlexSans(17, FontWeight.Bold),
             color = AppColors.headerText
         )
 
-        // 🔹 Due Date
+        // 🔹 Status + Due date, single compact line
         Text(
-            text = "Due: $formattedDate",
+            text = "${if (isOverdue) "Overdue" else "Due"} · $formattedDate",
             style = AppFont.ibmPlexSans(11, FontWeight.Medium),
-            color = AppColors.secondaryText
+            color = statusColor
         )
     }
 }
@@ -511,90 +520,6 @@ fun MemberHeaderView(
     }
 }
 
-@Composable
-fun MemberTwoButtons(
-    requestCashAction: () -> Unit,
-    approveCashAction: () -> Unit
-) {
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-
-        //        TwoButtonGradient(
-//            icon = Icons.Filled.AddCircle,
-//            title = "Request Cash",
-//            gradientColors = listOf(AppColors.primaryButton, AppColors.successAccent),
-//            onClick = requestCashAction,
-//            modifier = Modifier.weight(1f)
-//        )
-
-        // ================= VERIFY PAYMENT (PRIMARY ACTION) =================
-        TwoButtonGradient(
-            icon = Icons.Default.VerifiedUser,
-            title = "Verify Payment",
-            gradientColors = listOf(
-                AppColors.secondaryAccent,
-                AppColors.warningAccent
-            ),
-            onClick = approveCashAction,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-fun TwoButtonGradient(
-    icon: ImageVector,
-    title: String,
-    gradientColors: List<Color>,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-
-    Button(
-        onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-        contentPadding = PaddingValues(0.dp),
-        modifier = modifier
-            .height(56.dp) // iOS standard action button height
-            .appShadow(AppShadows.card, RoundedCornerShape(18.dp))
-            .background(
-                brush = Brush.horizontalGradient(gradientColors),
-                shape = RoundedCornerShape(18.dp)
-            )
-    ) {
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
-
-            Spacer(modifier = Modifier.width(6.dp))
-
-            Text(
-                text = title,
-                style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
-                color = Color.White,
-                maxLines = 1
-            )
-        }
-    }
-}
 
 @Composable
 fun MemberDashBoardCard(

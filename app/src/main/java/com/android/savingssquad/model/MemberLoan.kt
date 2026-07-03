@@ -186,7 +186,8 @@ data class EMIConfiguration(
 
     @get:PropertyName("recordDate") @set:PropertyName("recordDate")
     var recordDate: Timestamp? = Timestamp.now()
-) {
+)
+{
     constructor() : this(
         id = null,
         loanAmount = 0,

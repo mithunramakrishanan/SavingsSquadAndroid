@@ -30,8 +30,6 @@ class UPIPaymentManager private constructor() {
             Triple("Google Pay",  "com.google.android.apps.nbu.paisa.user", "intent"),
             Triple("PhonePe",     "com.phonepe.app",                        "phonepe://pay"),
             Triple("Paytm",       "net.one97.paytm",                        "paytmmp://pay"),
-            Triple("BHIM",        "in.org.npci.upiapp",                     "bhim://pay"),
-            Triple("Amazon Pay",  "in.amazon.mshop.android.shopping",       "amazonpay://pay"),
             Triple("CRED",        "com.dreamplug.androidapp",               "credpay://upi/pay")
         )
     }
@@ -178,7 +176,7 @@ class UPIPaymentManager private constructor() {
         return if (base == "intent") {
             "intent://pay?$query#Intent;scheme=upi;package=$packageName;end"
         } else {
-            Uri.parse(base).buildUpon()
+            base.toUri().buildUpon()
                 .appendQueryParameter("pa", upiID)
                 .appendQueryParameter("pn", name)
                 .appendQueryParameter("tr", transactionRef)

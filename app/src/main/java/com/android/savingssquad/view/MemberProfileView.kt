@@ -12,7 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CreditCard
@@ -55,20 +54,28 @@ import com.android.savingssquad.viewmodel.AlertManager
 import com.yourapp.utils.CommonFunctions
 import java.util.Calendar
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.Pin
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material3.Card
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.viewmodel.AppDestination
@@ -77,6 +84,8 @@ import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import java.util.concurrent.TimeUnit
 
@@ -90,7 +99,8 @@ fun MemberProfileView(
     loaderManager: LoaderManager = LoaderManager.shared
 ) {
     val scope = rememberCoroutineScope()
-    val showPopup by squadViewModel.showUpdateMemberPopup.collectAsStateWithLifecycle()
+    val showUpdatePhoneNumberPopup by squadViewModel.showUpdateMemberPopup.collectAsStateWithLifecycle()
+
 
     val showEditAmountPopup by squadViewModel.showEditAmountPopup.collectAsStateWithLifecycle()
 
@@ -136,191 +146,150 @@ fun MemberProfileView(
     {
         AppBackgroundGradient()
 
-        Column(verticalArrangement = Arrangement.spacedBy(20.dp))
-        {
-            SSNavigationBar(title = if (screenType == SquadUserType.SQUAD_MANAGER) SquadStrings.memberProfile else SquadStrings.yourProfile,navController)
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+
+            SSNavigationBar(
+                title = if (screenType == SquadUserType.SQUAD_MANAGER)
+                    SquadStrings.memberProfile
+                else
+                    SquadStrings.yourProfile,
+                navController = navController
+            )
 
             member?.let { safeMember ->
-                MemberProfileHeaderView(
-                    member = safeMember,
-                    screenType = screenType,
-                    squadViewModel = squadViewModel,
-                    navController = navController
-                )
 
-                if (screenType == SquadUserType.SQUAD_MEMBER) {
-                    ActionButton(
-                        title = SquadStrings.manageBankDetails,
-                        caption = "Update UPI for seamless transactions"
-                    ) {
-                        navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
-                    }
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                ) {
-
-                    // -------------------------
-                    // 1️⃣ Stats List (SwiftUI Equivalent)
-                    // -------------------------
-                    val stats: List<MemberStatItem> = if (screenType == SquadUserType.SQUAD_MANAGER) {
+                val stats: List<MemberStatItem> =
+                    if (screenType == SquadUserType.SQUAD_MANAGER) {
                         listOf(
-
                             MemberStatItem(
-
                                 title = "Contribution Received",
-
-                                value = member!!.totalContributionPaid.currencyFormattedWithCommas(),
-
+                                value = safeMember.totalContributionPaid.currencyFormattedWithCommas(),
                                 icon = Icons.Default.ArrowDownward,
-
                                 color = Color.Green,
-
                                 onClick = { openContributionDetails = true },
-
                                 onEditClick = {
-
                                     squadViewModel.setShowEditAmountPopup(true)
-                                    selectedEditAmount = member!!.totalContributionPaid
+                                    selectedEditAmount = safeMember.totalContributionPaid
                                     squadViewModel.setEditAmountType(AmountEditType.contribution)
-
                                 }
-
                             ),
-
                             MemberStatItem(
-
                                 title = "Total Loan Borrowed",
-
-                                value = member!!.totalLoanBorrowed.currencyFormattedWithCommas(),
-
+                                value = safeMember.totalLoanBorrowed.currencyFormattedWithCommas(),
                                 icon = Icons.Default.ArrowUpward,
-
                                 color = Color.Red,
-
                                 onClick = { openLoanDetailsView = true },
-
                                 onEditClick = {
-
                                     squadViewModel.setShowEditAmountPopup(true)
-                                    selectedEditAmount = member!!.totalLoanBorrowed
+                                    selectedEditAmount = safeMember.totalLoanBorrowed
                                     squadViewModel.setEditAmountType(AmountEditType.loanBorrowed)
                                 }
-
                             ),
-
                             MemberStatItem(
-
                                 title = "Paid Loan Amount",
-
-                                value = member!!.totalLoanPaid.currencyFormattedWithCommas(),
-
+                                value = safeMember.totalLoanPaid.currencyFormattedWithCommas(),
                                 icon = Icons.Default.CheckCircle,
-
                                 color = Color.Blue,
-
                                 onClick = { openLoanDetailsView = true },
-
                                 onEditClick = {
-
                                     squadViewModel.setShowEditAmountPopup(true)
-                                    selectedEditAmount = member!!.totalLoanPaid
+                                    selectedEditAmount = safeMember.totalLoanPaid
                                     squadViewModel.setEditAmountType(AmountEditType.paidLoadAmount)
-
                                 }
-
                             ),
-
                             MemberStatItem(
-
                                 title = "Interest Received",
-
-                                value = member!!.totalInterestPaid.currencyFormattedWithCommas(),
-
+                                value = safeMember.totalInterestPaid.currencyFormattedWithCommas(),
                                 icon = Icons.Default.Percent,
-
                                 color = Color(0xFF7B61FF),
-
                                 onEditClick = {
-
                                     squadViewModel.setShowEditAmountPopup(true)
-                                    selectedEditAmount = member!!.totalInterestPaid
+                                    selectedEditAmount = safeMember.totalInterestPaid
                                     squadViewModel.setEditAmountType(AmountEditType.intrestAmount)
-
                                 }
-
                             )
-
                         )
                     } else {
                         listOf(
                             MemberStatItem(
                                 title = "Contribution Sent",
-                                value = member!!.totalContributionPaid.currencyFormattedWithCommas(),
+                                value = safeMember.totalContributionPaid.currencyFormattedWithCommas(),
                                 icon = Icons.Default.ArrowDownward,
                                 color = Color.Green,
                                 onClick = { openContributionDetails = true }
                             ),
                             MemberStatItem(
                                 title = "Total Loan Borrowed",
-                                value = member!!.totalLoanBorrowed.currencyFormattedWithCommas(),
+                                value = safeMember.totalLoanBorrowed.currencyFormattedWithCommas(),
                                 icon = Icons.Default.ArrowUpward,
                                 color = Color.Red,
                                 onClick = { openLoanDetailsView = true }
                             ),
                             MemberStatItem(
                                 title = "Paid Loan Amount",
-                                value = member!!.totalLoanPaid.currencyFormattedWithCommas(),
+                                value = safeMember.totalLoanPaid.currencyFormattedWithCommas(),
                                 icon = Icons.Default.CheckCircle,
                                 color = Color.Blue,
                                 onClick = { openLoanDetailsView = true }
                             ),
                             MemberStatItem(
                                 title = "Interest Sent",
-                                value = member!!.totalInterestPaid.currencyFormattedWithCommas(),
+                                value = safeMember.totalInterestPaid.currencyFormattedWithCommas(),
                                 icon = Icons.Default.Percent,
                                 color = Color(0xFF7B61FF)
                             )
                         )
                     }
 
-                    // -------------------------
-                    // 2️⃣ Scrollable Stats List — EXACT SwiftUI Equivalent
-                    // -------------------------
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
-                    ) {
-                        items(stats) { item ->
-                            MemberProfileStatsCard(
-                                title = item.title,
-                                value = item.value,
-                                icon = item.icon,
-                                color = item.color,
-                                onClick = item.onClick,
-                                onEditClick = item.onEditClick
-                            )
-                        }
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+
+                    item {
+                        MemberProfileHeaderView(
+                            member = safeMember,
+                            screenType = SquadUserType.SQUAD_MEMBER,
+                            squadViewModel = squadViewModel,
+                            onUpdatePhone = {
+                                squadViewModel.setShowUpdateMemberPopup(true)
+                            },
+                            onUpdateUPI = {
+                                navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
+                            }
+                        )
+                    }
+
+                    items(stats) { item ->
+                        MemberProfileStatsCard(
+                            title = item.title,
+                            value = item.value,
+                            icon = item.icon,
+                            color = item.color,
+                            onClick = item.onClick,
+                            onEditClick = item.onEditClick
+                        )
                     }
                 }
-
             }
-
-
         }
 
         // Update member popup (Overlay style)
-        if (showPopup) {
+        if (showUpdatePhoneNumberPopup) {
             OverlayBackgroundView(
-                showPopup = remember { mutableStateOf(showPopup) },
+                showPopup = remember { mutableStateOf(showUpdatePhoneNumberPopup) },
                 onDismiss = { squadViewModel.setShowUpdateMemberPopup(false) }
             ) {
                 UpdateMemberPopup(
+                    navController = navController,
                     squadViewModel = squadViewModel,
-                    showPopup = remember { mutableStateOf(showPopup) }
+                    onCancel = {
+                        squadViewModel.setShowUpdateMemberPopup(false)
+                    }
                 )
             }
         }
@@ -383,63 +352,104 @@ fun MemberProfileHeaderView(
     member: Member,
     screenType: SquadUserType,
     squadViewModel: SquadViewModel,
-    navController: NavController
+    onUpdatePhone: () -> Unit,
+    onUpdateUPI: () -> Unit
 ) {
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(15.dp))
-            .appShadow(AppShadows.card, RoundedCornerShape(15.dp))
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(20.dp)
+            )
+            .clip(RoundedCornerShape(20.dp))
             .background(AppColors.surface)
             .border(
-                width = 1.dp,
-                color = AppColors.border,
-                shape = RoundedCornerShape(15.dp)
+                1.dp,
+                AppColors.border,
+                RoundedCornerShape(20.dp)
             )
-            .padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
+        // Avatar
         Box(
-            modifier = Modifier
-                .size(70.dp)
-                .clip(CircleShape)
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            AppColors.primaryButton.copy(alpha = 0.3f),
-                            AppColors.primaryButton.copy(alpha = 0.1f)
-                        )
-                    )
-                ),
+            modifier = Modifier.size(88.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = member.name.firstOrNull()?.uppercase() ?: "",
-                style = AppFont.ibmPlexSans(
-                    size = 28,
-                    weight = FontWeight.Bold
-                ),
-                color = AppColors.primaryButton
+
+            Box(
+                modifier = Modifier
+                    .size(88.dp)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                AppColors.primaryButton.copy(alpha = 0.18f),
+                                AppColors.primaryButton.copy(alpha = 0.06f)
+                            )
+                        ),
+                        CircleShape
+                    )
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(70.dp)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                AppColors.primaryButton,
+                                AppColors.primaryButton.copy(alpha = 0.82f)
+                            )
+                        ),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+
+                Text(
+                    text = member.name.take(1).uppercase(),
+                    style = AppFont.ibmPlexSans(
+                        size = 24,
+                        weight = FontWeight.Bold
+                    ),
+                    color = Color.White
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .size(14.dp)
+                    .background(Color(0xFF22C55E), CircleShape)
+                    .border(2.dp, Color.White, CircleShape)
             )
         }
 
-        // MARK: - Name
+        Spacer(Modifier.height(10.dp))
 
         Text(
             text = member.name,
             style = AppFont.ibmPlexSans(
-                size = 20,
-                weight = FontWeight.SemiBold
+                size = 19,
+                weight = FontWeight.Bold
             ),
-            color = AppColors.headerText,
-            textAlign = TextAlign.Center
+            color = AppColors.headerText
         )
 
-        // MARK: - Member ID
+        Text(
+            text = "Squad Member",
+            style = AppFont.ibmPlexSans(
+                size = 12,
+                weight = FontWeight.Medium
+            ),
+            color = AppColors.secondaryText
+        )
+
+        Spacer(Modifier.height(10.dp))
 
         SSBadge(
             title = "Member ID",
@@ -448,46 +458,101 @@ fun MemberProfileHeaderView(
             style = BadgeStyle.INFO
         )
 
-        // MARK: - Phone Number
+        Spacer(Modifier.height(12.dp))
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        HorizontalDivider(color = AppColors.border)
+
+        ProfileInfoRow(
+            icon = Icons.Default.Phone,
+            title = "Phone",
+            value = member.phoneNumber,
+            buttonTitle = "Edit",
+            showButton = screenType == SquadUserType.SQUAD_MEMBER,
+            onClick = onUpdatePhone
+        )
+
+        if (screenType == SquadUserType.SQUAD_MEMBER) {
+
+            HorizontalDivider(color = AppColors.border)
+
+            ProfileInfoRow(
+                icon = Icons.Default.QrCode,
+                title = "UPI ID",
+                value = if (member.upiID.isBlank()) "Not Added" else member.upiID,
+                buttonTitle = if (member.upiID.isBlank()) "Add" else "Update",
+                showButton = true,
+                onClick = onUpdateUPI
+            )
+        }
+    }
+}
+
+@Composable
+fun ProfileInfoRow(
+    icon: ImageVector,
+    title: String,
+    value: String,
+    buttonTitle: String,
+    showButton: Boolean,
+    onClick: () -> Unit
+) {
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = AppColors.primaryButton,
+            modifier = Modifier.size(18.dp)
+        )
+
+        Spacer(Modifier.width(12.dp))
+
+        Column(
+            modifier = Modifier.weight(1f)
         ) {
 
-            Icon(
-                imageVector = Icons.Default.Phone,
-                contentDescription = null,
-                tint = AppColors.secondaryText.copy(alpha = 0.7f),
-                modifier = Modifier.size(14.dp)
-            )
-
-            Spacer(modifier = Modifier.width(6.dp))
-
             Text(
-                text = member.phoneNumber,
+                title,
                 style = AppFont.ibmPlexSans(
-                    size = 14,
-                    weight = FontWeight.Normal
+                    size = 12,
+                    weight = FontWeight.Medium
                 ),
                 color = AppColors.secondaryText
             )
 
-            if (screenType == SquadUserType.SQUAD_MEMBER) {
+            Spacer(Modifier.height(2.dp))
 
-                Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                value,
+                style = AppFont.ibmPlexSans(
+                    size = 15,
+                    weight = FontWeight.SemiBold
+                ),
+                color = AppColors.headerText
+            )
+        }
 
-                IconButton(
-                    onClick = {
-                        squadViewModel.setShowUpdateMemberPopup(true)
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Member",
-                        tint = AppColors.primaryButton
-                    )
-                }
+        if (showButton) {
+
+            TextButton(
+                onClick = onClick,
+                shape = RoundedCornerShape(50)
+            ) {
+
+                Text(
+                    buttonTitle,
+                    style = AppFont.ibmPlexSans(
+                        size = 13,
+                        weight = FontWeight.SemiBold
+                    ),
+                    color = AppColors.primaryButton
+                )
             }
         }
     }
@@ -506,78 +571,111 @@ fun MemberProfileStatsCard(
     onEditClick: (() -> Unit)? = null
 ) {
 
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .shadow(
+                elevation = 6.dp,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .background(AppColors.surface)
+            .border(
+                1.dp,
+                AppColors.border.copy(alpha = 0.6f),
+                RoundedCornerShape(16.dp)
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
 
-        Row(
+        // Icon
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(15.dp))
-                .appShadow(AppShadows.card, RoundedCornerShape(15.dp))
-                .background(AppColors.surface)
-                .border(0.5.dp, AppColors.border, RoundedCornerShape(15.dp))
-                .clickable(onClick = onClick)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .size(42.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(color.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
         ) {
 
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(color.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = color)
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(18.dp)
+            )
+        }
 
-            Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = AppFont.ibmPlexSans(14, FontWeight.Normal),
-                    color = AppColors.secondaryText
-                )
+        // Details
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
 
-                Text(
-                    text = value,
-                    style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
-                    color = AppColors.headerText
-                )
-            }
+            Text(
+                text = title,
+                style = AppFont.ibmPlexSans(
+                    size = 12,
+                    weight = FontWeight.Medium
+                ),
+                color = AppColors.secondaryText
+            )
 
-            // Space for edit icon
-            if (onEditClick != null) {
-                Spacer(modifier = Modifier.width(32.dp))
-            }
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = value,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = AppFont.ibmPlexSans(
+                    size = 17,
+                    weight = FontWeight.Bold
+                ),
+                color = AppColors.headerText
+            )
         }
 
         if (onEditClick != null) {
+
             IconButton(
-                onClick = onEditClick,
-                modifier = Modifier.align(Alignment.CenterEnd) // Vertical Center Trailing
+                onClick = onEditClick
             ) {
+
                 Icon(
                     imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit",
+                    contentDescription = null,
                     tint = AppColors.primaryButton
+                )
+            }
+
+        } else {
+
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.10f)),
+                contentAlignment = Alignment.Center
+            ) {
+
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }
     }
 }
-
 @Composable
 fun UpdateMemberPopup(
+    navController: NavController,
     squadViewModel: SquadViewModel,
-    showPopup: MutableState<Boolean>
+    onCancel: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -596,6 +694,9 @@ fun UpdateMemberPopup(
     var verifyOTPError by remember { mutableStateOf("") }
 
     val focusManager = LocalFocusManager.current
+
+    val coroutineScope = rememberCoroutineScope()
+    var debounceJob by remember { mutableStateOf<Job?>(null) }
 
     fun validateFields(): Boolean {
         phoneError =
@@ -655,7 +756,41 @@ fun UpdateMemberPopup(
         )
     }
 
-    fun handleUpdateClick() {
+    fun handlePhoneNameChange(
+        newValue: String,
+        setError: (String) -> Unit,
+        squadMembers: List<Member>,   // list from ViewModel
+        coroutineScope: CoroutineScope,
+        debounceJob: Job?,
+        onUpdateDebounceJob: (Job?) -> Unit
+    )
+    {
+        // Clear error immediately (like Swift)
+        setError("")
+
+        // Cancel previous debounce job
+        debounceJob?.cancel()
+
+        // Create new debounce job
+        val newJob = coroutineScope.launch {
+            delay(500)
+
+            val cleanedName = CommonFunctions.cleanUpPhoneNumber(newValue)
+
+            val exists = squadMembers
+                .map { it.phoneNumber.trim().lowercase() }
+                .contains(cleanedName.trim().lowercase())
+
+            if (exists) {
+                setError("Mobile name already exists")
+            }
+        }
+
+        // Update external reference
+        onUpdateDebounceJob(newJob)
+    }
+
+    fun handleUpdateClick(navController: NavController) {
         if (!validateFields()) return
 
         if (otpVerified) {
@@ -674,7 +809,18 @@ fun UpdateMemberPopup(
                 ) { success, error ->
                     LoaderManager.shared.hideLoader()
                     if (success) {
-                        showPopup.value = false
+                        squadViewModel.setShowUpdateMemberPopup(false)
+
+                        AlertManager.shared.showAlert(
+                            title = "Mobile Number Updated",
+                            message = "Your mobile number has been updated successfully. For security reasons, you have been signed out. Please sign in again using your new mobile number to continue.",
+                            primaryButtonTitle = SquadStrings.ok,
+                            primaryAction = {
+                                squadViewModel.logoutUser(navController = navController)
+                            }
+                        )
+
+
                     } else {
                         println(error ?: "Unknown error")
                     }
@@ -693,8 +839,6 @@ fun UpdateMemberPopup(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-
-        OverlayBackgroundView(showPopup) { }
 
         Column(
             modifier = Modifier
@@ -732,6 +876,14 @@ fun UpdateMemberPopup(
 
                 LaunchedEffect(phoneState.value) {
                     phoneNumber = phoneState.value
+                    handlePhoneNameChange(
+                        newValue = phoneState.value,
+                        setError = { phoneError = it },
+                        squadMembers = squadViewModel.squadMembers.value,
+                        coroutineScope = coroutineScope,
+                        debounceJob = debounceJob,
+                        onUpdateDebounceJob = { debounceJob = it }
+                    )
                 }
 
                 val otpState = remember { mutableStateOf("") }
@@ -762,7 +914,7 @@ fun UpdateMemberPopup(
             SSButton(
                 title = if (otpVerified) "Update Mobile" else "Send OTP",
                 isDisabled = otpProcessStarted,
-                action = { handleUpdateClick() }
+                action = { handleUpdateClick(navController = navController) }
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -770,7 +922,7 @@ fun UpdateMemberPopup(
             // Cancel Button
             SSCancelButton(
                 title = SquadStrings.cancel,
-                action = { showPopup.value = false }
+                action = { squadViewModel.setShowUpdateMemberPopup(false) }
             )
         }
     }

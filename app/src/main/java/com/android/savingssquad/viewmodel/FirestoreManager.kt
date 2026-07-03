@@ -22,6 +22,7 @@ import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentFilter
 import com.android.savingssquad.singleton.PaymentStatus
+import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.asTimestamp
 import com.google.firebase.Firebase
@@ -64,23 +65,52 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - 🔹 Fetch User Logins
-    fun fetchUserLogins(phoneNumber: String, completion: (List<Login>?, String?) -> Unit) {
-        val userRef = db.collection("users").document(phoneNumber)
+    fun fetchUserLogins(
+        phoneNumber: String,
+        completion: (List<Login>?, String?) -> Unit
+    ) {
 
-        userRef.collection("logins")
-            .get()
+        val userRef = db.collection("users")
+            .document(phoneNumber)
+            .collection("logins")
+
+        userRef.get()
             .addOnSuccessListener { snapshot ->
+
                 if (snapshot == null || snapshot.isEmpty) {
-                    completion(null, "You are not associated with any squads.")
+                    completion(emptyList(), null)
                     return@addOnSuccessListener
                 }
 
                 try {
-                    val logins = snapshot.documents.mapNotNull { doc ->
-                        val login = doc.toObject(Login::class.java)
-                        login?.copy(id = doc.id)
+
+                    var logins = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(Login::class.java)?.copy(id = doc.id)
                     }
+
+                    // ✅ APPLY PER-LOGIN RULE (same as Swift)
+                    logins = logins.filter { login ->
+
+                        when (login.role) {
+
+                            SquadUserType.SQUAD_MANAGER -> {
+                                // Always include manager
+                                true
+                            }
+
+                            SquadUserType.SQUAD_MEMBER -> {
+                                // Only ACTIVE members
+                                login.recordStatus == RecordStatus.ACTIVE
+                            }
+
+                            else -> {
+                                false
+                            }
+                        }
+                    }
+
                     completion(logins, null)
+
                 } catch (e: Exception) {
                     completion(null, "Decoding error: ${e.localizedMessage}")
                 }
@@ -480,15 +510,102 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - 🔹 Update Member Mobile Number
-    fun updateMemberMobileNumber(squadID: String, memberID: String, mobileNumber: String, completion: (Boolean, String?) -> Unit) {
-        val ref = db.collection("squads").document(squadID)
-            .collection("members").document(memberID)
+    fun updateMemberMobileNumber(
+        squadID: String,
+        memberID: String,
+        mobileNumber: String,
+        login: Login,
+        completion: (Boolean, String?) -> Unit
+    ) {
 
-        val updateData = mapOf("phoneNumber" to mobileNumber)
+        val memberRef = db.collection("squads")
+            .document(squadID)
+            .collection("members")
+            .document(memberID)
 
-        ref.update(updateData)
-            .addOnSuccessListener { completion(true, null) }
-            .addOnFailureListener { e -> completion(false, "❌ Failed to updateMemberMobileNumber: ${e.localizedMessage}") }
+        memberRef.update("phoneNumber", mobileNumber)
+            .addOnSuccessListener {
+
+                removeUserLogin(
+                    squadID = login.squadID,
+                    squadUserId = login.squadUserId,
+                    role = login.role,
+                    phoneNumber = login.phoneNumber
+                ) { removed, error ->
+
+                    if (!removed) {
+                        completion(false, error ?: "Failed to remove existing login.")
+                        return@removeUserLogin
+                    }
+
+                    val newLogin = Login(
+                        squadID = login.squadID,
+                        squadName = login.squadName,
+                        squadUsername = login.squadUsername,
+                        squadUserId = memberID,
+                        phoneNumber = mobileNumber,
+                        role = login.role,
+                        squadCreatedDate = login.squadCreatedDate,
+                        userCreatedDate = login.userCreatedDate
+                    )
+
+                    addUserLogin(newLogin) { added, addError ->
+
+                        if (!added) {
+                            completion(false, addError ?: "Failed to create new login.")
+                            return@addUserLogin
+                        }
+
+                        completion(true, null)
+                    }
+                }
+            }
+            .addOnFailureListener { e ->
+                completion(false, "Failed to update mobile number: ${e.localizedMessage}")
+            }
+    }
+
+    fun removeUserLogin(
+        squadID: String,
+        squadUserId: String,
+        role: SquadUserType,
+        phoneNumber: String,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val loginsRef = db.collection("users")
+            .document(phoneNumber)
+            .collection("logins")
+
+        loginsRef
+            .whereEqualTo("squadID", squadID)
+            .whereEqualTo("squadUserId", squadUserId)
+            .whereEqualTo("role", role.name)
+            .get()
+            .addOnSuccessListener { snapshot ->
+
+                if (snapshot.isEmpty) {
+                    completion(false, "No matching login found.")
+                    return@addOnSuccessListener
+                }
+
+                val batch = db.batch()
+
+                snapshot.documents.forEach { document ->
+                    batch.delete(document.reference)
+                }
+
+                batch.commit()
+                    .addOnSuccessListener {
+                        completion(true, null)
+                    }
+                    .addOnFailureListener { e ->
+                        completion(false, e.localizedMessage)
+                    }
+            }
+            .addOnFailureListener { e ->
+                completion(false, e.localizedMessage)
+            }
     }
 
 
@@ -552,6 +669,7 @@ class FirestoreManager private constructor() {
         squadID: String,
         memberID: String,
         contributionID: String,
+        amount: Int,
         newStatus: String,
         completion: (Boolean, String?) -> Unit
     ) {
@@ -563,6 +681,7 @@ class FirestoreManager private constructor() {
             .document(contributionID)
 
         val updateData = mapOf(
+            "amount" to amount,
             "paidOn" to FieldValue.serverTimestamp(),
             "paidStatus" to newStatus
         )
@@ -818,6 +937,7 @@ class FirestoreManager private constructor() {
         memberId: String? = null,
         filterType: PaymentFilter = PaymentFilter.ALL,
         lastDocument: DocumentSnapshot? = null,
+        showRejected : Boolean = true,
         limit: Int,
         completion: (List<PaymentsDetails>?, DocumentSnapshot?, String?) -> Unit
     ) {
@@ -841,6 +961,10 @@ class FirestoreManager private constructor() {
 
             query = query.whereEqualTo("paymentType", "PAYMENT_DEBIT")
 
+        }
+
+        if (!showRejected) {
+            query = query.whereNotEqualTo("paymentApproveStatus", "REJECTED")
         }
 
         if (lastDocument != null) {
@@ -2289,6 +2413,88 @@ class FirestoreManager private constructor() {
             }
             .addOnFailureListener { error ->
                 completion(Result.failure(error))
+            }
+    }
+
+    fun fetchManagerLogins(
+        phoneNumber: String,
+        completion: (List<Login>?, String?) -> Unit
+    ) {
+
+        val userRef = db.collection("users")
+            .document(phoneNumber)
+            .collection("logins")
+
+        userRef
+            .whereEqualTo("role", SquadUserType.SQUAD_MANAGER.name)
+            .get()
+            .addOnSuccessListener { snapshot ->
+
+                if (snapshot == null || snapshot.isEmpty) {
+                    completion(null, "You are not managing any squads.")
+                    return@addOnSuccessListener
+                }
+
+                try {
+
+                    val logins = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(Login::class.java)?.copy(id = doc.id)
+                    }
+
+                    completion(logins, null)
+
+                } catch (e: Exception) {
+                    completion(null, "Decoding error: ${e.localizedMessage}")
+                }
+            }
+            .addOnFailureListener { error ->
+                completion(null, "Failed to fetch managed squads: ${error.localizedMessage}")
+            }
+    }
+
+    fun updateMemberLoginStatus(
+        phoneNumber: String,
+        squadID: String,
+        recordStatus: String,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val loginRef = db.collection("users")
+            .document(phoneNumber)
+            .collection("logins")
+
+        loginRef
+            .whereEqualTo("squadID", squadID)
+            .get()
+            .addOnSuccessListener { snapshot ->
+
+                if (snapshot == null || snapshot.isEmpty) {
+                    completion(false, "Login not found.")
+                    return@addOnSuccessListener
+                }
+
+                val batch = db.batch()
+
+                snapshot.documents.forEach { document ->
+
+                    val updates = mapOf(
+                        "recordStatus" to recordStatus,
+                        "recordDate" to com.google.firebase.Timestamp.now()
+                    )
+
+                    batch.update(document.reference, updates)
+                }
+
+                batch.commit()
+                    .addOnSuccessListener {
+                        completion(true, null)
+                    }
+                    .addOnFailureListener { error ->
+                        completion(false, error.localizedMessage)
+                    }
+            }
+            .addOnFailureListener { error ->
+                completion(false, error.localizedMessage)
             }
     }
 }

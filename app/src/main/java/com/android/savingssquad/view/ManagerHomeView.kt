@@ -1,7 +1,12 @@
 package com.android.savingssquad.view
 
+import android.annotation.SuppressLint
 import android.util.Log
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -45,6 +50,9 @@ import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.viewmodel.AppDestination
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController
 import com.android.savingssquad.viewmodel.SSToast
 import kotlinx.coroutines.selects.select
 
@@ -260,9 +268,12 @@ fun ManagerHomeView(
                                 .padding(vertical = 0.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CheckDuesButton {
-                                openDuesScreen = true
-                            }
+
+                            CheckDuesButton(
+                                modifier = Modifier.padding(bottom = 10.dp),
+                                onClick = {
+                                    openDuesScreen = true
+                                })
                         }
                     }
 
@@ -498,6 +509,7 @@ fun ManagerTwoButtons(
         TwoButtonGradient(
             icon = Icons.Filled.PersonAdd,
             title = "Add Member",
+            subtitle = "Grow your squad",
             gradientColors = listOf(
                 AppColors.primaryButton,
                 AppColors.successAccent.copy(alpha = 0.95f)
@@ -514,6 +526,7 @@ fun ManagerTwoButtons(
             TwoButtonGradient(
                 icon = Icons.Default.VerifiedUser,
                 title = "Verify Payment",
+                subtitle = "Review requests",
                 gradientColors = listOf(
                     AppColors.secondaryAccent,
                     AppColors.warningAccent
@@ -522,23 +535,28 @@ fun ManagerTwoButtons(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // ================= BADGE (iOS STYLE FLOAT) =================
+            // ================= BADGE (floating count) =================
             if (verifyCount > 0) {
 
                 Box(
                     modifier = Modifier
-                        .size(22.dp) // iOS compact badge
-                        .offset(x = (-6).dp, y = (-8).dp)
+                        .size(24.dp)
+                        .offset(x = (-4).dp, y = (-6).dp)
                         .align(Alignment.TopEnd)
-                        .background(Color.Red, CircleShape)
-                        .border(2.dp, Color.White, CircleShape),
+                        .background(
+                            brush = Brush.linearGradient(
+                                listOf(Color(0xFFEF4444), Color(0xFFDC2626))
+                            ),
+                            shape = CircleShape
+                        )
+                        .border(2.5.dp, Color.White, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
 
                     Text(
-                        text = verifyCount.toString(),
+                        text = if (verifyCount > 9) "9+" else verifyCount.toString(),
                         color = Color.White,
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -546,6 +564,187 @@ fun ManagerTwoButtons(
         }
     }
 }
+
+@Composable
+fun MemberTwoButtons(
+    requestCashAction: () -> Unit,
+    approveCashAction: () -> Unit,
+    isRequestCashEnabled: Boolean = false, // flip to true when Request Cash ships
+    onRequestCashComingSoon: (() -> Unit)? = null
+) {
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+
+        // ================= REQUEST CASH =================
+        TwoButtonGradient(
+            icon = Icons.Filled.AddCircle,
+            title = "Request Cash",
+            subtitle = if (isRequestCashEnabled) "Ask your squad" else "Coming soon",
+            gradientColors = listOf(AppColors.primaryButton, AppColors.successAccent),
+            onClick = requestCashAction,
+            modifier = Modifier.weight(1f),
+            isEnabled = isRequestCashEnabled,
+            comingSoon = !isRequestCashEnabled,
+            onDisabledClick = onRequestCashComingSoon
+        )
+
+        // ================= VERIFY PAYMENT (PRIMARY ACTION) =================
+        TwoButtonGradient(
+            icon = Icons.Default.VerifiedUser,
+            title = "Verify Payment",
+            subtitle = "Review requests",
+            gradientColors = listOf(
+                AppColors.secondaryAccent,
+                AppColors.warningAccent
+            ),
+            onClick = approveCashAction,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+// =========================================================
+//  PREMIUM GRADIENT ACTION BUTTON
+// =========================================================
+
+@Composable
+fun TwoButtonGradient(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    gradientColors: List<Color>,
+    onClick: () -> Unit,
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
+    isEnabled: Boolean = true,
+    comingSoon: Boolean = false,
+    onDisabledClick: (() -> Unit)? = null
+) {
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
+        label = "actionButtonScale"
+    )
+
+    // desaturate the gradient when disabled instead of hiding the button
+    val resolvedColors = if (isEnabled) {
+        gradientColors
+    } else {
+        listOf(AppColors.secondaryText.copy(alpha = 0.35f), AppColors.secondaryText.copy(alpha = 0.25f))
+    }
+
+    Button(
+        onClick = { if (isEnabled) onClick() else onDisabledClick?.invoke() },
+        shape = RoundedCornerShape(20.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+        contentPadding = PaddingValues(0.dp),
+        interactionSource = interactionSource,
+        modifier = modifier
+            .height(64.dp)
+            .scale(scale)
+            .appShadow(AppShadows.card, RoundedCornerShape(20.dp))
+            .background(
+                brush = Brush.linearGradient(resolvedColors),
+                shape = RoundedCornerShape(20.dp)
+            )
+    ) {
+
+        Box(modifier = Modifier.fillMaxSize()) {
+
+            // subtle glossy highlight across the top for a premium sheen
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.5f)
+                    .align(Alignment.TopCenter)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            listOf(Color.White.copy(alpha = 0.14f), Color.Transparent)
+                        ),
+                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                    )
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = if (isEnabled) 0.20f else 0.14f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = if (isEnabled) 1f else 0.7f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = title,
+                        style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
+                        color = Color.White.copy(alpha = if (isEnabled) 1f else 0.75f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    if (subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            style = AppFont.ibmPlexSans(11, FontWeight.Medium),
+                            color = Color.White.copy(alpha = if (isEnabled) 0.8f else 0.6f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+
+            // ================= "SOON" PILL =================
+            if (comingSoon) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = (-8).dp, y = 8.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White.copy(alpha = 0.92f))
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "SOON",
+                        style = AppFont.ibmPlexSans(9, FontWeight.Bold),
+                        color = AppColors.headerText
+                    )
+                }
+            }
+        }
+    }
+}
+
+// =========================================================
+//  PREMIUM GRADIENT ACTION BUTTON
+// =========================================================
+
+
 
 @Composable
 fun getDrawableId(name: String): Int {
@@ -847,26 +1046,6 @@ fun LoanStatViewIOS(
             style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
             color = AppColors.headerText,
             maxLines = 1
-        )
-    }
-}
-
-@Composable
-fun CheckDuesButton(onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color.Transparent
-        ),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
-        contentPadding = PaddingValues(0.dp) // No extra padding for one-line look
-    ) {
-        Text(
-            text = "Check Dues",
-            color = AppColors.primaryBrand,
-            style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
-            textDecoration = TextDecoration.Underline,
-            textAlign = TextAlign.Center
         )
     }
 }

@@ -91,6 +91,7 @@ import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.viewmodel.SSToast
 import com.android.savingssquad.viewmodel.ToastManager
 import com.android.savingssquad.viewmodel.ToastType
+import kotlinx.coroutines.flow.firstOrNull
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -121,28 +122,57 @@ fun PaymentApprovalView(
 
         UserDefaultsManager.saveIsFromnotification(false)
 
-        val memberId =
-            if (screenType == SquadUserType.SQUAD_MEMBER)
-                squadViewModel.currentMember.value?.id
-            else null
+        if (screenType == SquadUserType.SQUAD_MANAGER) {
 
-        squadViewModel.fetchPendingApprovalPayments(
-
-            showLoader = true,
-
-            screenType = screenType,
-
-            memberId = memberId
-
-        ) { success, error ->
-
-            if (!success) {
-
-                println("Error: $error")
-
+            val memberId = if (selectedUser == "All") {
+                null
+            } else {
+                squadViewModel.squadMembers.value.firstOrNull { it.name == selectedUser }?.id
             }
 
+            squadViewModel.fetchPendingApprovalPayments(
+
+                showLoader = true,
+
+                screenType = screenType,
+
+                memberId = memberId
+
+            )
+            { success, error ->
+
+                if (!success) {
+
+                    println("Error: $error")
+
+                }
+
+            }
         }
+        else {
+            squadViewModel.fetchPendingApprovalPayments(
+
+                showLoader = true,
+
+                screenType = screenType,
+
+                memberId = squadViewModel.currentMember.value?.id
+
+            )
+            { success, error ->
+
+                if (!success) {
+
+                    println("Error: $error")
+
+                }
+
+            }
+        }
+
+
+
+
     }
 
     Box(

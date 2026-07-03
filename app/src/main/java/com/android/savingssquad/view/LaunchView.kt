@@ -180,7 +180,7 @@ fun LaunchView(
             ) {
 
                 Text(
-                    "SavingsSquad",
+                    "Savings Squad",
                     fontSize = 34.sp,
                     fontWeight = FontWeight.Bold,
                     color = AppColors.headerText

@@ -39,7 +39,8 @@ data class BeneficiaryDetails(
 
     @get:PropertyName("updatedAt") @set:PropertyName("updatedAt")
     var updatedAt: String? = null
-) {
+)
+{
     constructor() : this(
         beneficiaryId = "",
         beneficiaryName = "",
@@ -196,8 +197,13 @@ data class PaymentsDetails(
     var recordStatus: RecordStatus = RecordStatus.ACTIVE,
 
     @get:PropertyName("recordDate") @set:PropertyName("recordDate")
-    var recordDate: Timestamp = Timestamp(Date())
-) {
+    var recordDate: Timestamp = Timestamp(Date()),
+
+    @get:PropertyName("selectedEMIConfig") @set:PropertyName("selectedEMIConfig")
+    var selectedEMIConfig: EMIConfiguration? = null
+
+)
+{
     constructor() : this(
         id = null,
         paymentUpdatedDate = null,
@@ -230,7 +236,8 @@ data class PaymentsDetails(
         transferReferenceId = "",
         upiID = "",
         recordStatus = RecordStatus.ACTIVE,
-        recordDate = Timestamp(Date())
+        recordDate = Timestamp(Date()),
+        selectedEMIConfig = null
     )
 
     fun toMap(): Map<String, Any?> = mapOf(
@@ -265,7 +272,8 @@ data class PaymentsDetails(
         "transferReferenceId" to transferReferenceId,
         "upiID" to upiID,
         "recordStatus" to recordStatus.name,
-        "recordDate" to recordDate
+        "recordDate" to recordDate,
+        "selectedEMIConfig" to selectedEMIConfig
     )
 }
 

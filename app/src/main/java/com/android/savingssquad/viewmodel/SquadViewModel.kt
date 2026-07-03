@@ -8,6 +8,7 @@ import android.util.Log
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.NavController
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Login
 import com.android.savingssquad.model.Member
@@ -279,12 +280,18 @@ class SquadViewModel : ViewModel() {
     val showUpgradeSuccess: StateFlow<Boolean> = _showUpgradeSuccess
     fun setShowUpgradeSuccess(value: Boolean) { _showUpgradeSuccess.value = value }
 
+
+    private val _managerLogins = MutableStateFlow<List<Login>>(emptyList())
+    val managerLogins: StateFlow<List<Login>> = _managerLogins
+    fun setManagerLogins(list: List<Login>) { _managerLogins.value = list }
+
     init {
         val login = UserDefaultsManager.getLogin()
         if (login != null) {
             squadID = login.squadID.toString()
             loginMember = login
-            _selectedUser.value = login
+            setSelectedUser(login)
+
         } else {
             val defaultLogin = Login(
                 squadID = "",
@@ -298,7 +305,8 @@ class SquadViewModel : ViewModel() {
             )
             squadID = ""
             loginMember = defaultLogin
-            _selectedUser.value = defaultLogin
+
+            setSelectedUser(defaultLogin)
         }
 
         observeSquadChanges()
@@ -456,7 +464,7 @@ class SquadViewModel : ViewModel() {
         UserDefaultsManager.getLogin()?.let { login ->
             this.squadID = login.squadID.toString()
             this.loginMember = login
-            _selectedUser.value = login
+            setSelectedUser(login)
         }
 
         manager.fetchSquadByID(squadID) { fetchedSquad, error ->
@@ -471,13 +479,14 @@ class SquadViewModel : ViewModel() {
                         return@launch
                     }
 
-                    _squad.value = fetchedSquad
-                    _remainingMonths.value = CommonFunctions.getRemainingMonths(
+                    setSquad(fetchedSquad)
+
+                    setRemainingMonths(CommonFunctions.getRemainingMonths(
                         startDate = Date(),
                         endDate = fetchedSquad.squadEndDate?.toDate() ?: Date()
-                    )
+                    ))
 
-                    _isFetchingTotalAmountCollected.value = true
+                    setIsFetchingTotalAmountCollected(true)
 
                     // 🔹 Parallel background work with coroutine async blocks
                     val fetchEMI = async { fetchEMIConfigurations(true) { _, _ -> } }
@@ -496,8 +505,8 @@ class SquadViewModel : ViewModel() {
                         ) { fetchedPayments, lastDoc, error ->
                             viewModelScope.launch(Dispatchers.IO) {
                                 if (fetchedPayments != null) {
-                                    _squadPayments.value = fetchedPayments
-                                    _isFetchingTotalAmountCollected.value = false
+                                    setSquadPayments(fetchedPayments)
+                                    setIsFetchingTotalAmountCollected(false)
                                 } else {
                                     val errorMsg = error ?: "❌ Failed to fetch payments"
                                     println(errorMsg)
@@ -549,11 +558,12 @@ class SquadViewModel : ViewModel() {
 
                 if (success && updatedSquad != null) {
                     println("✅ Squad updated successfully!")
-                    _squad.value = updatedSquad
-                    _remainingMonths.value = CommonFunctions.getRemainingMonths(
+                    setSquad(updatedSquad)
+                    setRemainingMonths(CommonFunctions.getRemainingMonths(
                         startDate = Date(),
                         endDate = updatedSquad.squadEndDate?.orNow ?: Date()
-                    )
+                    ))
+
                     completion(true, updatedSquad, null)
                 } else {
                     val errorMsg = errorMessage ?: "Unknown error while updating squad"
@@ -605,7 +615,7 @@ class SquadViewModel : ViewModel() {
                     val updatedSquad = currentSquad.copy(
                         currentAvailableAmount = amount
                     )
-                    _squad.value = updatedSquad
+                    setSquad(updatedSquad)
                 }
 
                 completion(true, null)
@@ -665,7 +675,9 @@ class SquadViewModel : ViewModel() {
         )
 
         val addAndSave: () -> Unit = {
-            _showAddMemberPopup.value = false
+
+            setShowAddMemberPopup(false)
+
             manager.addMember(squadID, newMember) { success, message ->
                 viewModelScope.launch(Dispatchers.IO) {
                     if (showLoader) LoaderManager.shared.hideLoader()
@@ -747,7 +759,7 @@ class SquadViewModel : ViewModel() {
                             completion(true, fetchedMember, null)
                         } else {
                             val errorMsg = error ?: "❌ Failed to fetch member"
-                            _errorMessage.value = errorMsg
+                            setErrorMessage(errorMsg)
 
                             // 🔁 Retry logic if error
                             handleFetchError(errorMsg) {
@@ -781,25 +793,28 @@ class SquadViewModel : ViewModel() {
                 manager.fetchMembers(squadID) { fetchedMembers, error ->
                     // ✅ Launch on Main thread safely for UI updates
                     viewModelScope.launch(Dispatchers.Main) {
-                        _isFetchingMembers.value = false
+                        setIsFetchingMembers(false)
                         if (showLoader) LoaderManager.shared.hideLoader()
 
                         when {
                             error == "No members found." -> {
-                                _squadMembersCount.value = 0
+                                setSquadMembersCount(0)
+
                                 completion(false, null, error)
                             }
 
                             fetchedMembers != null -> {
-                                // ✅ Reset & update member list
-                                _squadMembers.value = fetchedMembers
-                                _squadMembersCount.value = fetchedMembers.size
-                                _squadMemberNames.value = fetchedMembers.map { it.name }.toMutableList()
+
+                                setSquadMembers(fetchedMembers)
+                                setSquadMembersCount(fetchedMembers.size)
+                                setSquadMemberNames(fetchedMembers.map { it.name }.toMutableList())
+
 
                                 // ✅ Auto-select login member (if applicable)
                                 loginMember?.squadUsername?.let { username ->
                                     CommonFunctions.getMemberByName(username, fetchedMembers)?.let {
-                                        _memberDetail.value = it
+                                        setMemberDetail(it)
+
                                     }
                                 }
 
@@ -808,7 +823,7 @@ class SquadViewModel : ViewModel() {
 
                             else -> {
                                 val errorMsg = error ?: "❌ Failed to fetch members"
-                                _errorMessage.value = errorMsg
+                                setErrorMessage(errorMsg)
 
                                 handleFetchError(errorMsg) {
                                     fetchMembers(showLoader, completion)
@@ -957,7 +972,8 @@ class SquadViewModel : ViewModel() {
                     } else {
                         println("✅ Contributions fetched successfully")
                         contributions?.let {
-                            _selectedContributions.value = it
+
+                            setSelectedContributions(it)
                         }
                         completion(contributions, null)
                     }
@@ -1112,7 +1128,8 @@ class SquadViewModel : ViewModel() {
 
                 if (activities != null) {
 
-                    _squadActivities.value = activities
+                    setSquadActivities(activities)
+
 
                     activitiesLastDocument = lastDocument
 
@@ -1134,7 +1151,7 @@ class SquadViewModel : ViewModel() {
 
     fun resetActivitiesPagination() {
 
-        _squadActivities.value = emptyList()
+        setSquadActivities(emptyList())
 
         activitiesLastDocument = null
 
@@ -1178,7 +1195,7 @@ class SquadViewModel : ViewModel() {
 
                     updated.addAll(activities)
 
-                    _squadActivities.value = updated
+                    setSquadActivities(updated)
 
                     activitiesLastDocument = newLastDocument
 
@@ -1228,7 +1245,8 @@ class SquadViewModel : ViewModel() {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (success) {
-                    _squadActivities.value = _squadActivities.value.filter { it.squadID != activityID }
+                    setSquadActivities(_squadActivities.value.filter { it.squadID != activityID })
+
                 } else {
                     val errorMsg = error ?: "❌ Failed to delete squad activity"
                     println(errorMsg)
@@ -1258,7 +1276,7 @@ class SquadViewModel : ViewModel() {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (rules != null) {
-                    _rules.value = rules
+                    setRules(rules)
                 } else if (error != null) {
                     handleFetchError(error) {
                         fetchRules(showLoader)
@@ -1313,7 +1331,8 @@ class SquadViewModel : ViewModel() {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (success) {
-                    _rules.value = _rules.value.filter { it.id != ruleID }
+                    setRules(_rules.value.filter { it.id != ruleID })
+
                     completion(true, null)
                 } else {
                     val errorMsg = error ?: "❌ Failed to delete squad rule"
@@ -1337,7 +1356,7 @@ class SquadViewModel : ViewModel() {
             MainScope().launch {
                 if (success) {
                     val index = _rules.value.indexOfFirst { it.id == rule.id }
-                    if (index != -1) _rules.value = _rules.value.toMutableList().apply { set(index, rule) }
+                    if (index != -1) setRules(_rules.value.toMutableList().apply { set(index, rule) })
                     completion(true, null)
                 } else {
                     completion(false, error ?: "Failed to update rule.")
@@ -1351,6 +1370,7 @@ class SquadViewModel : ViewModel() {
         squadID: String,
         memberID: String,
         contributionID: String,
+        amount : Int,
         newStatus: String,
         completion: (Boolean, String?) -> Unit
     ) {
@@ -1367,14 +1387,14 @@ class SquadViewModel : ViewModel() {
 
         if (showLoader) LoaderManager.shared.showLoader()
 
-        manager.updateContributionStatus(squadID, memberID, contributionID, newStatus) { success, message ->
+        manager.updateContributionStatus(squadID, memberID, contributionID,amount,newStatus) { success, message ->
             if (showLoader) LoaderManager.shared.hideLoader()
 
             if (!success) {
                 val errorMsg = message ?: "❌ Failed to update contribution status"
                 println(errorMsg)
                 handleFetchError(errorMsg) {
-                    updateContributionStatus(showLoader, squadID, memberID, contributionID, newStatus, completion)
+                    updateContributionStatus(showLoader, squadID, memberID, contributionID, amount,newStatus, completion)
                 }
                 completion(false, errorMsg)
                 return@updateContributionStatus
@@ -1382,12 +1402,12 @@ class SquadViewModel : ViewModel() {
 
             val index = _selectedContributions.value.indexOfFirst { it.id == contributionID && it.memberID == memberID }
             if (index != -1) {
-                _selectedContributions.value = _selectedContributions.value.toMutableList().apply {
+                setSelectedContributions(_selectedContributions.value.toMutableList().apply {
                     this[index] = this[index].copy(
                         paidStatus = PaidStatus.PAID,
                         paidOn = Timestamp(Date())
                     )
-                }
+                })
             }
 
             completion(true, message)
@@ -1543,13 +1563,13 @@ class SquadViewModel : ViewModel() {
             if (index != -1) {
                 println("SavingsSquadPayment local cache updated")
 
-                _squadPayments.value = _squadPayments.value.toMutableList().apply {
+                setSquadPayments(_squadPayments.value.toMutableList().apply {
                     val updatedPayment = this[index].copy(
                         paymentStatus = if (status == "SUCCESS") PaymentStatus.SUCCESS else PaymentStatus.FAILED,
                         paymentUpdatedDate = Timestamp(Date())
                     )
                     this[index] = updatedPayment
-                }
+                })
             }
 
             completion(true, null)
@@ -1643,9 +1663,9 @@ class SquadViewModel : ViewModel() {
                 return@savePayments
             }
 
-            _squadPayments.value = _squadPayments.value.toMutableList().apply {
+            setSquadPayments(_squadPayments.value.toMutableList().apply {
                 addAll(payment)
-            }
+            })
 
 
             for (payment in payment) {
@@ -1656,6 +1676,7 @@ class SquadViewModel : ViewModel() {
                         squadID = payment.squadId,
                         memberID = payment.memberId,
                         contributionID = payment.contributionId,
+                        amount = payment.amount,
                         newStatus = PaidStatus.INVERIFICATION.value
                     ) { success, error ->
 
@@ -1915,14 +1936,14 @@ class SquadViewModel : ViewModel() {
                     )
                 }
 
-                _squadPayments.value = list;
+                setSquadPayments(list)
 
                 // remove from pending list
                 val pending = pendingApprovalPayments.value.toMutableList() ?: mutableListOf()
 
                 pending.removeAll { it.id == paymentID }
 
-                _pendingApprovalPayments.value = pending;
+                setPendingApprovalPayments(pending)
 
                 updatePaymentCalculations(listOf(payment), status)
 
@@ -1936,6 +1957,7 @@ class SquadViewModel : ViewModel() {
                                 squadID = payment.squadId,
                                 memberID = payment.memberId,
                                 contributionID = payment.contributionId,
+                                amount = payment.amount,
                                 newStatus = PaidStatus.PAID.value
                             ){ success, error ->
 
@@ -1959,6 +1981,7 @@ class SquadViewModel : ViewModel() {
                                 squadID = payment.squadId,
                                 memberID = payment.memberId,
                                 contributionID = payment.contributionId,
+                                amount = payment.amount,
                                 newStatus = PaidStatus.NOT_PAID.value
                             ){ success, error ->
 
@@ -2020,38 +2043,46 @@ class SquadViewModel : ViewModel() {
 
                         PaymentApproveStatus.ACCEPTED -> {
 
-                            updateLoanAndAllInstallmentsStatus(
-                                squadID = payment.squadId,
-                                memberID = payment.memberId,
-                                loanID = payment.loanId,
-                                status = EMIStatus.PENDING.value
-                            ) { success, message ->
+                            val emiConfig = payment.selectedEMIConfig ?: return@updatePaymentApproveStatus
 
+                            val newLoan = CommonFunctions.generateMemberLoan(
+                                emiConfig = emiConfig,
+                                memberID = payment.memberId ?: "",
+                                memberName = payment.memberName
+                            )
+
+                            newLoan.id = payment.loanId
+
+                            addOrUpdateMemberLoan(
+                                showLoader = false,
+                                memberID = payment.memberId ?: "",
+                                loan = newLoan
+                            ) { success, error ->
                                 if (success) {
-                                    // ✅ success handling
+                                    LoaderManager.shared.hideLoader()
+
+
+                                    /*FirebaseFunctionsManager.shared.processRazorPayPayment(
+                                        squadId = squadViewModel.squad.value?.squadID ?: "",
+                                        action = RazorpayPaymentAction.New(payment = newPayment)
+                                    ) { sessionId, orderId, error ->
+
+                                        squadViewModel.handleCashFreeResponse(
+                                            sessionId, orderId, error,
+                                            completion = {
+                                                LoaderManager.shared.hideLoader()
+                                                handler()
+                                            }
+                                        )
+                                    } */
                                 } else {
-                                    // ❌ error handling
-                                    Log.e("LoanUpdate", message ?: "Unknown error")
+                                    println("❌ Error: ${error ?: "Unknown error"}")
                                 }
                             }
                         }
 
                         PaymentApproveStatus.REJECTED -> {
 
-                            updateLoanAndAllInstallmentsStatus(
-                                squadID = payment.squadId,
-                                memberID = payment.memberId,
-                                loanID = payment.loanId,
-                                status = EMIStatus.FAILED.value
-                            ) { success, message ->
-
-                                if (success) {
-                                    // ✅ success handling
-                                } else {
-                                    // ❌ error handling
-                                    Log.e("LoanUpdate", message ?: "Unknown error")
-                                }
-                            }
                         }
 
                         else -> {}
@@ -2158,12 +2189,12 @@ class SquadViewModel : ViewModel() {
                         val index = currentList.indexOfFirst { it.id == updatedMember.id }
                         if (index != -1) {
                             currentList[index] = updatedMember
-                            _squadMembers.value = currentList
+                            setSquadMembers(currentList)
                         }
                     }
 
-                    _squadMembersCount.value = _squadMembers.value.size
-                    _squadMemberNames.value = _squadMembers.value.map { it.name }
+                    setSquadMembersCount(_squadMembers.value.size)
+                    setSquadMemberNames(_squadMembers.value.map { it.name })
 
                     completion(true, null)
                 } else {
@@ -2198,7 +2229,8 @@ class SquadViewModel : ViewModel() {
 
         if (showLoader) LoaderManager.shared.showLoader()
 
-        manager.updateMemberMobileNumber(squadID, memberID, mobileNumber) { success, error ->
+        val selectedUser = selectedUser.value ?: return
+        manager.updateMemberMobileNumber(squadID, memberID, mobileNumber,selectedUser) { success, error ->
             MainScope().launch {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
@@ -2343,6 +2375,7 @@ class SquadViewModel : ViewModel() {
         showLoader: Boolean,
         memberId: String? = null,
         filterType : PaymentFilter = PaymentFilter.ALL,
+        showRejected : Boolean = true,
         completion: (Boolean, String?) -> Unit
     ) {
 
@@ -2361,7 +2394,8 @@ class SquadViewModel : ViewModel() {
             memberId = memberId,
             filterType = filterType,
             lastDocument = null,
-            limit = paymentsPageSize
+            limit = paymentsPageSize,
+            showRejected = showRejected
         ) { payments, lastDoc, error ->
 
             paymentsIsLoadingMore = false
@@ -2444,7 +2478,8 @@ class SquadViewModel : ViewModel() {
     fun observePayments() {
         manager.observePayments(squadID) { updatedPayments, error ->
             if (updatedPayments != null) {
-                _squadPayments.value = updatedPayments
+                setSquadPayments(updatedPayments)
+
             } else {
                 val errorMsg = error ?: "❌ Failed to observe payments"
                 println(errorMsg)
@@ -2514,14 +2549,14 @@ class SquadViewModel : ViewModel() {
             if (success) {
                 println("✅ EMI Configuration added/updated successfully!")
 
-                _emiConfigurations.value = _emiConfigurations.value.toMutableList().apply {
-                    val index = indexOfFirst { it.id == emi.id }
-                    if (index != -1) {
-                        this[index] = emi // Update existing item
-                    } else {
-                        add(emi) // Add new item
-                    }
-                }
+                    setEMIConfigurations(_emiConfigurations.value.toMutableList().apply {
+                        val index = indexOfFirst { it.id == emi.id }
+                        if (index != -1) {
+                            this[index] = emi // Update existing item
+                        } else {
+                            add(emi) // Add new item
+                        }
+                    })
 
                 completion(true, null)
             } else {
@@ -2584,7 +2619,7 @@ class SquadViewModel : ViewModel() {
             if (showLoader) LoaderManager.shared.hideLoader()
 
             if (success) {
-                _emiConfigurations.value = _emiConfigurations.value.filter { it.id != emiID }
+                    setEMIConfigurations(_emiConfigurations.value.filter { it.id != emiID })
                 completion(true, null)
             } else {
                 val errorMsg = error ?: "❌ Failed to delete EMI configuration"
@@ -2611,16 +2646,15 @@ class SquadViewModel : ViewModel() {
 
         if (showLoader) LoaderManager.shared.showLoader()
 
-        _isPendingLoanAvailable.value = false
+        setIsPendingLoanAvailable(false)
 
         manager.fetchMemberLoans(squadID, memberID) { loans, error ->
             if (showLoader) LoaderManager.shared.hideLoader()
 
             if (loans != null) {
-                _memberLoans.value = loans
-                _memberPendingLoans.value = loans.pendingLoans()
-                _isPendingLoanAvailable.value = !(memberPendingLoans.value?.isEmpty() ?: true)
-
+                setMemberLoans(loans)
+                setMemberPendingLoans(loans.pendingLoans())
+                setIsPendingLoanAvailable(!(memberPendingLoans.value?.isEmpty() ?: true))
                 if (_isPendingLoanAvailable.value) {
                     updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), memberID)
                 }
@@ -2803,7 +2837,7 @@ class SquadViewModel : ViewModel() {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (success) {
-                    _memberLoans.value = _memberLoans.value.filter { it.id != loanID }
+                    setMemberLoans(_memberLoans.value.filter { it.id != loanID })
                     completion(true, null)
                 } else {
                     val errorMsg = error ?: "❌ Failed to delete loan"
@@ -3115,8 +3149,9 @@ class SquadViewModel : ViewModel() {
         }
 
         Log.d("Payment", "✅ Payment entry ready | orderId: $orderId, sessionId: $sessionId")
-        _showPayment.value = true
-        _paymentOrderId.value = orderId
+
+        setShowPayment(true)
+        setPaymentOrderId(orderId)
         completion()
     }
 
@@ -3178,7 +3213,7 @@ class SquadViewModel : ViewModel() {
 
                             val updatedList = _squadPayments.value.toMutableList()
                             updatedList[index] = updatedPayment
-                            _squadPayments.value = updatedList
+                            setSquadPayments(updatedList)
 
                             AlertManager.shared.showAlert(
                                 title = SquadStrings.appName,
@@ -3230,7 +3265,7 @@ class SquadViewModel : ViewModel() {
                         val index = updatedList.indexOfFirst { it.id == payment.id }
                         if (index != -1) {
                             updatedList[index] = updatedPayment
-                            _squadPayments.value = updatedList
+                            setSquadPayments(updatedList)
                         }
 
                         if (updatedPayment.payoutStatus == PayoutStatus.PAYOUT_SUCCESS) {
@@ -3269,6 +3304,141 @@ class SquadViewModel : ViewModel() {
                     LoaderManager.shared.hideLoader()
                     handleCashFreeResponse(sessionId, orderId, error, completion = {})
                 }
+            }
+        }
+    }
+
+
+    fun fetchManagerLogins(
+        showLoader: Boolean,
+        phoneNumber: String,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            LoaderManager.shared.hideLoader()
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = "OK",
+                primaryAction = {}
+            )
+            completion(false, SquadStrings.networkError)
+            return
+        }
+
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        manager.fetchManagerLogins(phoneNumber) { loginList, error ->
+
+            // Run on main thread (like DispatchQueue.main.async)
+            Handler(Looper.getMainLooper()).post {
+
+                if (showLoader) {
+                    LoaderManager.shared.hideLoader()
+                }
+
+                if (loginList != null) {
+                    setManagerLogins(loginList)
+                    completion(true, null)
+                } else {
+                    val errorMessage = error ?: "No managed squads found"
+                    completion(false, errorMessage)
+                }
+            }
+        }
+    }
+
+    fun updateMemberLoginStatusForSquad(
+        showLoader: Boolean,
+        squadID: String,
+        status: String,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = "OK",
+                primaryAction = {}
+            )
+            completion(false, SquadStrings.networkError)
+            return
+        }
+
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        val members = squadMembers.value
+        val latch = CountDownLatch(members.size)
+
+        var hasError = false
+        var errorMessage: String? = null
+
+        members.forEach { member ->
+
+            manager.updateMemberLoginStatus(
+                phoneNumber = member.phoneNumber,
+                squadID = squadID,
+                recordStatus = status
+            ) { success, error ->
+
+                if (!success) {
+                    hasError = true
+                    errorMessage = error
+                }
+
+                latch.countDown()
+            }
+        }
+
+        // Wait for all async tasks
+        Thread {
+            latch.await()
+
+            // Update squad status
+            val db = FirebaseFirestore.getInstance()
+            val squadRef = db.collection("squads").document(squadID)
+
+            squadRef.update("recordStatus", status)
+                .addOnSuccessListener {
+                    Log.d("Squad", "Status synced: $status")
+                }
+                .addOnFailureListener {
+                    Log.e("Squad", "Sync failed: ${it.message}")
+                }
+
+            Handler(Looper.getMainLooper()).post {
+
+                if (showLoader) {
+                    LoaderManager.shared.hideLoader()
+                }
+
+                completion(!hasError, errorMessage)
+            }
+
+        }.start()
+    }
+
+    fun logoutUser(navController: NavController) {
+        UserDefaultsManager.clearAll()
+
+        FirestoreManager.shared.clearFCMTokenForAllUsers(users.value) { success, error ->
+
+            if (success) {
+                Log.d("LOGOUT", "✅ FCM tokens cleared")
+            } else {
+                Log.e("LOGOUT", "❌ Error: $error")
+            }
+
+            navController.navigate(AppDestination.SIGN_IN.route) {
+                // Remove the entire back stack
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
             }
         }
     }

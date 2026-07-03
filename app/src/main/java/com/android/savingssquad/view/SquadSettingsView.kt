@@ -1,13 +1,17 @@
 package com.android.savingssquad.view
 
 import android.util.Log
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,23 +28,30 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.NorthEast
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.SupportAgent
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.room.util.copy
+import com.android.savingssquad.model.Login
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.viewmodel.LoaderManager
 import com.android.savingssquad.singleton.AppColors
@@ -60,11 +71,18 @@ sealed class SquadSettingsEvent {
     data object BankDetails : SquadSettingsEvent()
     data object ManageLoan : SquadSettingsEvent()
     data object RestorePurchase : SquadSettingsEvent()
+
+    data object YourSquads : SquadSettingsEvent()
+
     data object Activity : SquadSettingsEvent()
     data object PaymentHistory : SquadSettingsEvent()
     data object ChitRules : SquadSettingsEvent()
     data object ContactUs : SquadSettingsEvent()
 }
+
+// =========================================================
+//  SQUAD SETTINGS — PREMIUM REDESIGN
+// =========================================================
 
 @Composable
 fun SquadSettingsView(
@@ -73,6 +91,8 @@ fun SquadSettingsView(
 ) {
 
     var navigationEvent by remember { mutableStateOf<SquadSettingsEvent?>(null) }
+
+    val usersList by squadViewModel.users.collectAsStateWithLifecycle()
 
     LaunchedEffect(navigationEvent) {
         when (navigationEvent) {
@@ -104,17 +124,20 @@ fun SquadSettingsView(
             is SquadSettingsEvent.ContactUs ->
                 navController.navigate(AppDestination.OPEN_CONTACT_US.route)
 
+            is SquadSettingsEvent.YourSquads ->
+                navController.navigate(AppDestination.OPEN_YOUR_SQUADS.route)
+
             null -> Unit
         }
 
         navigationEvent = null
     }
 
+    val isManager = UserDefaultsManager.getSquadManagerLogged()
+
     Box(
         modifier = Modifier
-
             .fillMaxSize()
-
             .windowInsetsPadding(WindowInsets.safeDrawing)
     )
     {
@@ -122,43 +145,44 @@ fun SquadSettingsView(
 
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
-        )
-        {
+        ) {
 
-            // 📌 Title
             SSNavigationBar(
                 title = SquadStrings.manageAccount,
                 navController = navController,
                 showBackButton = false
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
                 modifier = Modifier
-                    .weight(1f)   // ✅ IMPORTANT FIX
+                    .weight(1f)
                     .padding(horizontal = 16.dp)
-                    .padding(top = 12.dp)
-                    .padding(bottom = 10.dp)
-            )
-            {
+                    .padding(top = 8.dp, bottom = 10.dp)
+            ) {
 
-                if (UserDefaultsManager.getSquadManagerLogged()) {
+                // ---------- HERO / GREETING CARD ----------
+                item(span = { GridItemSpan(2) }) {
+                    HeroGreetingCard(isManager = isManager)
+                }
+
+                if (isManager) {
+                    item(span = { GridItemSpan(2) }) {
+                        SectionHeader(text = "Squad Management")
+                    }
 
                     item {
                         SettingsDashboardCard(
                             title = "Manage Squad",
                             subtitle = "Members & Settings",
                             icon = Icons.Default.Groups,
-                            color = Color(0xFF3B82F6)
-                        ) {
-                            navigationEvent = SquadSettingsEvent.ManageSquad
-                        }
+                            gradient = listOf(Color(0xFF3B82F6), Color(0xFF60A5FA))
+                        ) { navigationEvent = SquadSettingsEvent.ManageSquad }
                     }
 
                     item {
@@ -166,11 +190,8 @@ fun SquadSettingsView(
                             title = "Manage Loan",
                             subtitle = "Manage Loans",
                             icon = Icons.Default.CreditCard,
-                            color = Color(0xFF10B981)
-                        ) {
-                            navigationEvent = SquadSettingsEvent.ManageLoan
-
-                        }
+                            gradient = listOf(Color(0xFF10B981), Color(0xFF34D399))
+                        ) { navigationEvent = SquadSettingsEvent.ManageLoan }
                     }
 
                     item {
@@ -178,11 +199,22 @@ fun SquadSettingsView(
                             title = "Manual Entry",
                             subtitle = "Cash Records",
                             icon = Icons.Default.EditNote,
-                            color = Color(0xFFF59E0B)
-                        ) {
-                            navigationEvent = SquadSettingsEvent.ManualEntry
-                        }
+                            gradient = listOf(Color(0xFFF59E0B), Color(0xFFFBBF24))
+                        ) { navigationEvent = SquadSettingsEvent.ManualEntry }
                     }
+
+                    item {
+                        SettingsDashboardCard(
+                            title = "Restore Purchases",
+                            subtitle = "Subscription",
+                            icon = Icons.Default.Restore,
+                            gradient = listOf(Color(0xFF64748B), Color(0xFF94A3B8))
+                        ) { navigationEvent = SquadSettingsEvent.RestorePurchase }
+                    }
+                }
+
+                item(span = { GridItemSpan(2) }) {
+                    SectionHeader(text = "Account")
                 }
 
                 item {
@@ -190,10 +222,8 @@ fun SquadSettingsView(
                         title = "Bank Details",
                         subtitle = "UPI Setup",
                         icon = Icons.Default.AccountBalance,
-                        color = Color(0xFF8B5CF6)
-                    ) {
-                        navigationEvent = SquadSettingsEvent.BankDetails
-                    }
+                        gradient = listOf(Color(0xFF8B5CF6), Color(0xFFA78BFA))
+                    ) { navigationEvent = SquadSettingsEvent.BankDetails }
                 }
 
                 item {
@@ -201,10 +231,8 @@ fun SquadSettingsView(
                         title = "Squad Activity",
                         subtitle = "Track Insights",
                         icon = Icons.AutoMirrored.Filled.TrendingUp,
-                        color = Color(0xFFEC4899)
-                    ) {
-                        navigationEvent = SquadSettingsEvent.Activity
-                    }
+                        gradient = listOf(Color(0xFFEC4899), Color(0xFFF472B6))
+                    ) { navigationEvent = SquadSettingsEvent.Activity }
                 }
 
                 item {
@@ -212,10 +240,8 @@ fun SquadSettingsView(
                         title = "Payment History",
                         subtitle = "Transactions",
                         icon = Icons.Default.History,
-                        color = Color(0xFF6366F1)
-                    ) {
-                        navigationEvent = SquadSettingsEvent.PaymentHistory
-                    }
+                        gradient = listOf(Color(0xFF6366F1), Color(0xFF818CF8))
+                    ) { navigationEvent = SquadSettingsEvent.PaymentHistory }
                 }
 
                 item {
@@ -223,40 +249,33 @@ fun SquadSettingsView(
                         title = "Squad Rules",
                         subtitle = "Policies & Limits",
                         icon = Icons.AutoMirrored.Filled.Rule,
-                        color = Color(0xFF14B8A6)
-                    ) {
-                        navigationEvent = SquadSettingsEvent.ChitRules
-                    }
+                        gradient = listOf(Color(0xFF14B8A6), Color(0xFF2DD4BF))
+                    ) { navigationEvent = SquadSettingsEvent.ChitRules }
                 }
 
-                if (UserDefaultsManager.getSquadManagerLogged()) {
+                if (isManager) {
 
                     item {
                         SettingsDashboardCard(
-                            title = "Restore Purchases",
-                            subtitle = "Subscription",
-                            icon = Icons.Default.Restore,
-                            color = Color.Gray
+                            title = "Your Squads",
+                            subtitle = "Enable or disable squad access for members",
+                            icon = Icons.Default.Person,
+                            gradient = listOf(Color(0xFF64748B), Color(0xFF94A3B8))
                         ) {
-                            navigationEvent = SquadSettingsEvent.RestorePurchase
+                            navigationEvent = SquadSettingsEvent.YourSquads
                         }
                     }
-
                 }
 
-                item {
-                    SettingsDashboardCard(
-                        title = "Logout",
-                        subtitle = "Sign out securely",
-                        icon = Icons.AutoMirrored.Filled.Logout,
-                        color = Color.Red
-                    ) {
+
+                item(span = { GridItemSpan(2) }) {
+                    LogoutCard {
                         AlertManager.shared.showAlert(
                             title = SquadStrings.appName,
                             message = "Are you sure you want to logout?",
                             primaryButtonTitle = "LOGOUT",
                             primaryAction = {
-                                logoutUser(navController,squadViewModel)
+                                squadViewModel.logoutUser(navController)
                             },
                             secondaryButtonTitle = "NO",
                             secondaryAction = {}
@@ -266,106 +285,195 @@ fun SquadSettingsView(
             }
 
             ContactUsButton(
-
-                onClick = {
-
-                    navigationEvent = SquadSettingsEvent.ContactUs
-
-                },
-
+                onClick = { navigationEvent = SquadSettingsEvent.ContactUs },
                 modifier = Modifier.padding(bottom = 20.dp)
-
             )
-
-
         }
     }
 }
+
+// =========================================================
+//  HERO GREETING CARD
+// =========================================================
+
+@Composable
+fun HeroGreetingCard(isManager: Boolean) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(26.dp))
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        AppColors.primaryBrand,
+                        AppColors.primaryBrand.copy(alpha = 0.75f)
+                    )
+                )
+            )
+            .padding(20.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (isManager) "Squad Manager" else "Squad Member",
+                    style = AppFont.ibmPlexSans(13, FontWeight.Medium),
+                    color = Color.White.copy(alpha = 0.85f)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Your account, on your terms",
+                    style = AppFont.ibmPlexSans(17, FontWeight.SemiBold),
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.14f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Verified,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+// =========================================================
+//  SECTION HEADER
+// =========================================================
+
+@Composable
+fun SectionHeader(text: String) {
+    Text(
+        text = text.uppercase(),
+        style = AppFont.ibmPlexSans(12, FontWeight.SemiBold),
+        color = AppColors.secondaryText.copy(alpha = 0.7f),
+        modifier = Modifier.padding(top = 6.dp, bottom = 2.dp, start = 2.dp)
+    )
+}
+
+// =========================================================
+//  DASHBOARD CARD (with gradient icon + press animation)
+// =========================================================
 
 @Composable
 fun SettingsDashboardCard(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    color: Color,
+    gradient: List<Color>,
     action: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
+        label = "cardScale"
+    )
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 80.dp)
-            .clip(RoundedCornerShape(22.dp))
+            .heightIn(min = 116.dp)
+            .scale(scale)
+            .clip(RoundedCornerShape(24.dp))
             .background(AppColors.surface)
             .border(
-                width = 0.8.dp,
-                color = AppColors.border.copy(alpha = 0.18f),
-                shape = RoundedCornerShape(22.dp)
+                width = 1.dp,
+                color = AppColors.border.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(24.dp)
+            )
+            .appShadow(
+                style = AppShadows.card,
+                shape = RoundedCornerShape(24.dp)
             )
             .clickable(
                 indication = null,
-                interactionSource = remember { MutableInteractionSource() }
+                interactionSource = interactionSource
             ) { action() }
             .padding(16.dp)
     ) {
-
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
 
-            // ================= TOP ROW =================
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
 
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .background(color.copy(alpha = 0.12f)),
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Brush.linearGradient(gradient)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = title,
-                        tint = color,
-                        modifier = Modifier.size(18.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                Icon(
-                    imageVector = Icons.Default.NorthEast,
-                    contentDescription = null,
-                    tint = AppColors.secondaryText.copy(alpha = 0.5f),
-                    modifier = Modifier.size(12.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(AppColors.primaryBackground),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.NorthEast,
+                        contentDescription = null,
+                        tint = AppColors.secondaryText.copy(alpha = 0.6f),
+                        modifier = Modifier.size(11.dp)
+                    )
+                }
             }
 
-            // ================= TEXT BLOCK =================
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
                     text = title,
-                    style = AppFont.ibmPlexSans(
-                        size = 15,
-                        weight = FontWeight.SemiBold
-                    ),
+                    style = AppFont.ibmPlexSans(15, FontWeight.SemiBold),
                     color = AppColors.headerText,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-
                 Text(
                     text = subtitle,
-                    style = AppFont.ibmPlexSans(
-                        size = 12,
-                        weight = FontWeight.Medium
-                    ),
+                    style = AppFont.ibmPlexSans(12, FontWeight.Medium),
                     color = AppColors.secondaryText,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -375,53 +483,138 @@ fun SettingsDashboardCard(
     }
 }
 
+// =========================================================
+//  LOGOUT — full-width, distinct danger styling
+// =========================================================
+
+@Composable
+fun LogoutCard(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0xFFEF4444).copy(alpha = 0.08f))
+            .border(
+                width = 1.dp,
+                color = Color(0xFFEF4444).copy(alpha = 0.2f),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() }
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFEF4444).copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Logout,
+                contentDescription = null,
+                tint = Color(0xFFEF4444),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Logout",
+                style = AppFont.ibmPlexSans(15, FontWeight.SemiBold),
+                color = Color(0xFFEF4444)
+            )
+            Text(
+                text = "Sign out securely from this device",
+                style = AppFont.ibmPlexSans(12, FontWeight.Medium),
+                color = Color(0xFFEF4444).copy(alpha = 0.7f)
+            )
+        }
+
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = Color(0xFFEF4444).copy(alpha = 0.6f),
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+// =========================================================
+//  CONTACT US — premium bottom bar
+// =========================================================
+
 @Composable
 fun ContactUsButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.Center
     ) {
 
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.98f else 1f,
+            animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
+            label = "contactScale"
+        )
+
         Card(
             modifier = Modifier
-                .widthIn(max = 320.dp)
-                .clickable { onClick() }
+                .fillMaxWidth()
+                .widthIn(max = 360.dp)
+                .scale(scale)
+                .clickable(
+                    indication = null,
+                    interactionSource = interactionSource
+                ) { onClick() }
                 .appShadow(
                     style = AppShadows.card,
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(18.dp)
                 ),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(Color.White)
         ) {
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
 
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(38.dp)
+                        .clip(CircleShape)
                         .background(
-                            AppColors.primaryBackground,
-                            CircleShape
+                            Brush.linearGradient(
+                                listOf(
+                                    AppColors.primaryBrand,
+                                    AppColors.primaryBrand.copy(alpha = 0.7f)
+                                )
+                            )
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Message,
                         contentDescription = null,
-                        tint = AppColors.primaryBrand,
-                        modifier = Modifier.size(16.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(17.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -429,9 +622,8 @@ fun ContactUsButton(
                         style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
                         color = AppColors.headerText
                     )
-
                     Text(
-                        "We’re here to help you",
+                        "We're here to help you",
                         style = AppFont.ibmPlexSans(11),
                         color = AppColors.secondaryText,
                         maxLines = 1
@@ -449,21 +641,3 @@ fun ContactUsButton(
     }
 }
 
-fun logoutUser(navController: NavController, squadViewModel : SquadViewModel) {
-    UserDefaultsManager.clearAll()
-
-    FirestoreManager.shared.clearFCMTokenForAllUsers(squadViewModel.users.value) { success, error ->
-
-        if (success) {
-            Log.d("LOGOUT", "✅ FCM tokens cleared")
-        } else {
-            Log.e("LOGOUT", "❌ Error: $error")
-        }
-
-        navController.navigate(AppDestination.SIGN_IN.route) {
-            // Remove the entire back stack
-            popUpTo(0) { inclusive = true }
-            launchSingleTop = true
-        }
-    }
-}

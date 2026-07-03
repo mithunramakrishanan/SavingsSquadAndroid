@@ -32,6 +32,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -42,6 +43,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.List
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.filled.*
@@ -98,6 +100,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -1211,32 +1214,61 @@ fun UserSelectionCard(
 fun SectionView(
     title: String,
     subtitle: String? = null,
+    trailingContent: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.Start
     ) {
+
         // 🔹 Header Section
-        Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
+                .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .padding(top = 8.dp)
         ) {
-            Text(
-                text = title,
-                style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
-                color = AppColors.headerText
+
+            // gradient accent bar — gives the header a premium, branded anchor point
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(18.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(AppColors.primaryBrand, AppColors.primaryBrand.copy(alpha = 0.5f))
+                        )
+                    )
             )
 
-            if (subtitle != null) {
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(
-                    text = subtitle,
-                    style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                    color = AppColors.secondaryText
+                    text = title,
+                    style = AppFont.ibmPlexSans(17, FontWeight.SemiBold),
+                    color = AppColors.headerText
                 )
+
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = AppFont.ibmPlexSans(13, FontWeight.Normal),
+                        color = AppColors.secondaryText
+                    )
+                }
+            }
+
+            // optional trailing action, e.g. "See All" or an icon button
+            if (trailingContent != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                trailingContent()
             }
         }
 
@@ -1589,7 +1621,8 @@ fun AddMemberPopup(
         coroutineScope: CoroutineScope,
         debounceJob: Job?,
         onUpdateDebounceJob: (Job?) -> Unit
-    ) {
+    )
+    {
         // Clear error immediately (like Swift)
         setError("")
 
@@ -2645,5 +2678,125 @@ fun SetSystemBars() {
         // This is required for full transparency behavior on some OEMs
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
+    }
+}
+
+@Preview(
+    showBackground = true,
+    showSystemUi = true
+)
+@Composable
+fun CheckDuesButtonPreview() {
+
+    CheckDuesButton(
+
+        modifier = Modifier.padding(bottom = 20.dp),
+
+        onClick = {
+
+
+        }
+
+    )
+}
+
+@Composable
+fun CheckDuesButton(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.97f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = ""
+    )
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .appShadow(
+                style = AppShadows.card,
+                shape = RoundedCornerShape(20.dp)
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                onClick()
+            },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = AppColors.surface
+        )
+    ) {
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(
+                        AppColors.warningAccent.copy(alpha = 0.12f)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+
+                Icon(
+                    imageVector = Icons.Default.Assignment,
+                    contentDescription = null,
+                    tint = AppColors.warningAccent,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+
+                Text(
+                    text = "Check Dues",
+                    style = AppFont.ibmPlexSans(
+                        16,
+                        FontWeight.Bold
+                    ),
+                    color = AppColors.headerText
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = "View pending contributions & EMI details",
+                    style = AppFont.ibmPlexSans(12),
+                    color = AppColors.secondaryText,
+                    maxLines = 2
+                )
+            }
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = AppColors.secondaryText.copy(alpha = 0.7f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }

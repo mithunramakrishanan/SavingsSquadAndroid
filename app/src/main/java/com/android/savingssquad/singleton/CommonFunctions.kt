@@ -179,8 +179,23 @@ object CommonFunctions {
 
     // MARK: - Generators
     fun generateLoanNumber(): String {
-        val dateStr = SimpleDateFormat("MMddyyyyHHmmss", Locale.US).format(Date())
-        return "LN$dateStr"
+
+        val formatter = SimpleDateFormat("yyMMddHHmmss", Locale.US)
+
+        val timestamp = formatter.format(Date())
+
+        val random = UUID.randomUUID()
+
+            .toString()
+
+            .replace("-", "")
+
+            .take(4)
+
+            .uppercase()
+
+        return "LN-$timestamp-$random"
+
     }
 
     fun generateBankAccountID(): String {
@@ -241,7 +256,7 @@ object CommonFunctions {
                     interestAmount = interestSplits[i],
                     dueDate = dueDate.asTimestamp,
                     duePaidDate = null,
-                    status = EMIStatus.INVERIFICATION,
+                    status = EMIStatus.PENDING,
                     loanNumber = loanNumber
                 )
             )
@@ -257,7 +272,7 @@ object CommonFunctions {
             loanMonth = emiConfig.emiMonths,
             interest = emiConfig.emiInterestRate,
             amountSentDate = today.asTimestamp,
-            loanStatus = EMIStatus.INVERIFICATION,
+            loanStatus = EMIStatus.PENDING,
             loanClosedDate = null,
             installments = installments
         )

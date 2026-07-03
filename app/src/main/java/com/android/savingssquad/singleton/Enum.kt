@@ -217,11 +217,16 @@ enum class RemainderType(@get:PropertyName("value") val value: String) {
 enum class RecordStatus(@get:PropertyName("value") val value: String) {
     @PropertyName("ACTIVE") ACTIVE("ACTIVE"),
     @PropertyName("INACTIVE") INACTIVE("INACTIVE"),
-    @PropertyName("DELETED") DELETED("DELETED");
+    @PropertyName("DELETED") DELETED("DELETED"),
+
+    @PropertyName("COMPLETED") COMPLETED("COMPLETED");
 
     companion object {
         fun fromValue(value: String?): RecordStatus =
             entries.find { it.value == value } ?: ACTIVE
+
+        val toggleCases = listOf(ACTIVE, INACTIVE)
+
     }
 
     val color: Color
@@ -229,7 +234,40 @@ enum class RecordStatus(@get:PropertyName("value") val value: String) {
             ACTIVE -> Color(0xFF4CAF50)
             INACTIVE -> Color(0xFF9E9E9E)
             DELETED -> Color(0xFFE53935)
+            else -> {Color(0xFF4CAF50)}
         }
+
+    fun displayName(): String {
+
+        return when (this) {
+
+            ACTIVE -> "Active"
+
+            INACTIVE -> "Inactive"
+
+            DELETED -> "Deleted"
+
+            COMPLETED -> "Completed"
+
+        }
+
+    }
+
+    fun tintColor(): Color {
+
+        return when (this) {
+
+            ACTIVE -> Color(0xFF2ECC71)   // success
+
+            INACTIVE -> Color(0xFFE74C3C) // error
+
+            DELETED -> Color(0xFFE74C3C)
+
+            COMPLETED -> Color(0xFF2ECC71)
+
+        }
+
+    }
 }
 
 // ------------------------------
