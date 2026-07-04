@@ -3,8 +3,11 @@ import android.app.Application
 import android.util.Log
 import com.android.savingssquad.singleton.AppContext
 import com.android.savingssquad.singleton.LocalDatabase
+import com.android.savingssquad.singleton.SessionManager
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.FirebaseFunctionsManager
+import com.android.savingssquad.viewmodel.FirestoreManager
 import com.google.firebase.Firebase
 import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.FirebaseAppCheck
@@ -42,8 +45,7 @@ class SavingsSquadApp : Application() {
 
             val token = task.result
             Log.d("FCM_TOKEN", token)
-
-            // Save to backend
+            FirestoreManager.shared.updateFCMTokenForAllUser()
         }
 
         val db = LocalDatabase.getInstance(this)

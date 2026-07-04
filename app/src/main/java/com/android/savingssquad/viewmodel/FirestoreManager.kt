@@ -23,6 +23,7 @@ import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentFilter
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.RecordStatus
+import com.android.savingssquad.singleton.SessionManager
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.asTimestamp
 import com.google.firebase.Firebase
@@ -2143,99 +2144,99 @@ class FirestoreManager private constructor() {
 
 
     fun updateFCMTokenBasedOnRole(
-
-        squadID: String,
-
-        memberID: String,
-
-        isManager: Boolean,
-
+        users: List<Login>,
         completion: (Boolean, String?) -> Unit
-
     ) {
 
-        val db = FirebaseFirestore.getInstance()
+        if (users.isEmpty()) {
+            completion(true, null)
+            return
+        }
 
         FirebaseMessaging.getInstance().token
-
             .addOnSuccessListener { token ->
 
-                if (isManager) {
+                val db = FirebaseFirestore.getInstance()
+                val batch = db.batch()
 
-                    // Update Squad Manager FCM Token
+                users.forEach { login ->
 
-                    db.collection("squads")
+                    val documentRef = if (login.role == SquadUserType.SQUAD_MANAGER) {
 
-                        .document(squadID)
+                        db.collection("squads")
+                            .document(login.squadID)
 
-                        .update("fcmToken", token)
+                    } else {
 
-                        .addOnSuccessListener {
+                        db.collection("squads")
+                            .document(login.squadID)
+                            .collection("members")
+                            .document(login.squadUserId)
+                    }
 
-                            completion(true, null)
+                    batch.update(documentRef, "fcmToken", token)
+                }
 
-                        }
+                batch.commit()
+                    .addOnSuccessListener {
+                        completion(true, null)
+                    }
+                    .addOnFailureListener { error ->
+                        completion(
+                            false,
+                            error.localizedMessage ?: "Failed to update FCM token."
+                        )
+                    }
+            }
+            .addOnFailureListener { error ->
+                completion(
+                    false,
+                    error.localizedMessage ?: "Unable to fetch FCM token."
+                )
+            }
+    }
 
-                        .addOnFailureListener { error ->
+    fun updateFCMTokenForAllUser() {
 
-                            completion(
+        try {
 
-                                false,
+            val logins = SessionManager.logins
 
-                                "Manager update failed: ${error.localizedMessage}"
+            if (logins.isEmpty()) {
+                Log.d("FCM", "FCM sync skipped - No logged-in users found.")
+                return
+            }
 
-                            )
+            Log.d("FCM", "Starting FCM token sync for ${logins.size} login(s)...")
 
-                        }
+            updateFCMTokenBasedOnRole(
+                users = logins
+            ) { success, error ->
+
+                if (success) {
+
+                    Log.d(
+                        "FCM",
+                        "FCM token synced successfully for ${logins.size} login(s)."
+                    )
 
                 } else {
 
-                    // Update Member FCM Token
-
-                    db.collection("squads")
-
-                        .document(squadID)
-
-                        .collection("members")
-
-                        .document(memberID)
-
-                        .update("fcmToken", token)
-
-                        .addOnSuccessListener {
-
-                            completion(true, null)
-
-                        }
-
-                        .addOnFailureListener { error ->
-
-                            completion(
-
-                                false,
-
-                                "Member update failed: ${error.localizedMessage}"
-
-                            )
-
-                        }
-
+                    Log.e(
+                        "FCM",
+                        "FCM token sync failed: ${error ?: "Unknown error"}"
+                    )
                 }
-
             }
 
-            .addOnFailureListener { error ->
+        } catch (e: Exception) {
 
-                completion(
-
-                    false,
-
-                    "FCM token not available: ${error.localizedMessage}"
-
-                )
-
-            }
-
+            Log.e(
+                "FCM",
+                "Unexpected error while syncing FCM token.",
+                e
+            )
+        }
     }
 
     fun updateFCMToken(

@@ -42,10 +42,12 @@ import com.android.savingssquad.singleton.orNow
 import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.RazorpayPaymentAction
+import com.android.savingssquad.singleton.SessionManager
 import com.android.savingssquad.singleton.UPIPaymentManager
 import com.android.savingssquad.singleton.UPIPaymentStatus
 import com.google.firebase.firestore.*
 import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
 import com.yourapp.utils.CommonFunctions
 import com.yourapp.utils.IDGenerator
 import kotlinx.coroutines.CoroutineScope
@@ -418,10 +420,15 @@ class SquadViewModel : ViewModel() {
 
                     if (loginList != null && loginList.isNotEmpty()) {
                         var multipleAccount = false
+
+                        SessionManager.logins = loginList.toMutableList()
+                        FirestoreManager.shared.updateFCMTokenForAllUser()
+
                         if (loginList.size > 1) {
                             multipleAccount = true
                         }
                         setUsers(loginList)
+
                         UserDefaultsManager.saveIsMultipleAccount(multipleAccount)
                         completion(true,loginList, null)
 
@@ -3353,6 +3360,7 @@ class SquadViewModel : ViewModel() {
 
     fun updateMemberLoginStatusForSquad(
         showLoader: Boolean,
+        phoneNumber: String,
         squadID: String,
         status: String,
         completion: (Boolean, String?) -> Unit
@@ -3398,28 +3406,76 @@ class SquadViewModel : ViewModel() {
 
         // Wait for all async tasks
         Thread {
+
             latch.await()
 
-            // Update squad status
             val db = FirebaseFirestore.getInstance()
-            val squadRef = db.collection("squads").document(squadID)
 
-            squadRef.update("recordStatus", status)
-                .addOnSuccessListener {
-                    Log.d("Squad", "Status synced: $status")
+            db.collection("users")
+                .document(phoneNumber)
+                .collection("logins")
+                .whereEqualTo("squadID", squadID)
+                .whereEqualTo("role", SquadUserType.SQUAD_MANAGER.name)
+                .get()
+                .addOnSuccessListener { snapshot ->
+
+                    val batch = db.batch()
+
+                    // Update manager login(s)
+                    snapshot.documents.forEach { document ->
+                        batch.update(
+                            document.reference,
+                            mapOf(
+                                "recordStatus" to status,
+                                "recordDate" to Timestamp.now()
+                            )
+                        )
+                    }
+
+                    // Update squad status
+                    val squadRef = db.collection("squads").document(squadID)
+                    batch.update(
+                        squadRef,
+                        mapOf(
+                            "recordStatus" to status
+                        )
+                    )
+
+                    batch.commit()
+                        .addOnSuccessListener {
+
+                            Handler(Looper.getMainLooper()).post {
+
+                                if (showLoader) {
+                                    LoaderManager.shared.hideLoader()
+                                }
+
+                                completion(!hasError, errorMessage)
+                            }
+                        }
+                        .addOnFailureListener { e ->
+
+                            Handler(Looper.getMainLooper()).post {
+
+                                if (showLoader) {
+                                    LoaderManager.shared.hideLoader()
+                                }
+
+                                completion(false, e.localizedMessage ?: "Failed to update squad.")
+                            }
+                        }
                 }
-                .addOnFailureListener {
-                    Log.e("Squad", "Sync failed: ${it.message}")
+                .addOnFailureListener { e ->
+
+                    Handler(Looper.getMainLooper()).post {
+
+                        if (showLoader) {
+                            LoaderManager.shared.hideLoader()
+                        }
+
+                        completion(false, e.localizedMessage ?: "Failed to fetch manager login.")
+                    }
                 }
-
-            Handler(Looper.getMainLooper()).post {
-
-                if (showLoader) {
-                    LoaderManager.shared.hideLoader()
-                }
-
-                completion(!hasError, errorMessage)
-            }
 
         }.start()
     }
@@ -3431,6 +3487,8 @@ class SquadViewModel : ViewModel() {
 
             if (success) {
                 Log.d("LOGOUT", "✅ FCM tokens cleared")
+                FirebaseAuth.getInstance().signOut()
+                SessionManager.logins.clear()
             } else {
                 Log.e("LOGOUT", "❌ Error: $error")
             }

@@ -1110,13 +1110,6 @@ fun LoginListPopup(
                                         user.role == SquadUserType.SQUAD_MANAGER
 
                                     UserDefaultsManager.saveSquadManagerLogged(isManager)
-
-                                    FirestoreManager.shared.updateFCMTokenBasedOnRole(
-                                        squadID = user.squadID,
-                                        memberID = user.squadUserId,
-                                        isManager = isManager
-                                    ) { _, _ -> }
-
                                     val route = if (isManager)
                                         AppDestination.MANAGER_HOME.route
                                     else

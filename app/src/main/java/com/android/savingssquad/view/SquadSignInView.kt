@@ -211,59 +211,12 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
 
                                                     if (selectedUser.role == SquadUserType.SQUAD_MANAGER) {
                                                         UserDefaultsManager.saveSquadManagerLogged(true)
-
-                                                        FirestoreManager.shared.updateFCMTokenBasedOnRole(
-
-                                                            squadID = selectedUser.squadID,
-
-                                                            memberID = selectedUser.squadUserId,
-
-                                                            isManager = true
-
-                                                        ) { success, error ->
-
-                                                            if (success) {
-
-                                                                println("FCM token updated successfully")
-
-                                                            } else {
-
-                                                                println(error)
-
-                                                            }
-
-                                                        }
-
-
                                                         navController.navigate(AppDestination.MANAGER_HOME.route) {
                                                             popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
                                                             launchSingleTop = true
                                                         }
                                                     } else {
                                                         UserDefaultsManager.saveSquadManagerLogged(false)
-
-                                                        FirestoreManager.shared.updateFCMTokenBasedOnRole(
-
-                                                            squadID = selectedUser.squadID,
-
-                                                            memberID = selectedUser.squadUserId,
-
-                                                            isManager = false
-
-                                                        ) { success, error ->
-
-                                                            if (success) {
-
-                                                                println("FCM token updated successfully")
-
-                                                            } else {
-
-                                                                println(error)
-
-                                                            }
-
-                                                        }
-
                                                         navController.navigate(AppDestination.MEMBER_HOME.route) {
                                                             popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
                                                             launchSingleTop = true

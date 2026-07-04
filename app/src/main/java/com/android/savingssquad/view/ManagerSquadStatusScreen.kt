@@ -481,6 +481,7 @@ fun handleStatusSelection(
 
                 squadViewModel.updateMemberLoginStatusForSquad(
                     showLoader = true,
+                    phoneNumber = squadViewModel.squad.value?.phoneNumber ?: "",
                     squadID = login.squadID,
                     status = newStatus.value
                 )
@@ -529,6 +530,7 @@ fun handleStatusSelection(
     } else {
         squadViewModel.updateMemberLoginStatusForSquad(
             showLoader = true,
+            phoneNumber = squadViewModel.squad.value?.phoneNumber ?: "",
             squadID = login.squadID,
             status = newStatus.value
         )
