@@ -427,6 +427,16 @@ class SquadViewModel : ViewModel() {
                         if (loginList.size > 1) {
                             multipleAccount = true
                         }
+                        else {
+
+                            if (loginList.first().role == SquadUserType.SQUAD_MEMBER) {
+                                UserDefaultsManager.saveSquadManagerLogged(false)
+                            }
+                            else {
+                                UserDefaultsManager.saveSquadManagerLogged(true)
+                            }
+
+                        }
                         setUsers(loginList)
 
                         UserDefaultsManager.saveIsMultipleAccount(multipleAccount)

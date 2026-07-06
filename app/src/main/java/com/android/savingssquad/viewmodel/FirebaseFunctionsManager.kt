@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.activity.compose.setContent
 import com.android.savingssquad.model.BeneficiaryDetails
 import com.android.savingssquad.model.BeneficiaryResult
+import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.PayoutStatusResult
 import com.android.savingssquad.singleton.BulkOrder

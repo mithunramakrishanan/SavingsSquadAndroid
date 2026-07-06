@@ -45,7 +45,6 @@ class SavingsSquadApp : Application() {
 
             val token = task.result
             Log.d("FCM_TOKEN", token)
-            FirestoreManager.shared.updateFCMTokenForAllUser()
         }
 
         val db = LocalDatabase.getInstance(this)

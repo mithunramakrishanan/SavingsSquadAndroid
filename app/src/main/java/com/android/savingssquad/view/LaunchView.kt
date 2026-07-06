@@ -167,7 +167,7 @@ fun LaunchView(
                 Image(
                     painter = painterResource(id = R.drawable.app_icon),
                     contentDescription = null,
-                    modifier = Modifier.size(100.dp)
+                    modifier = Modifier.size(120.dp)
                 )
             }
 

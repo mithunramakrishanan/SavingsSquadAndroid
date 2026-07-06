@@ -161,11 +161,11 @@ class UPIPaymentManager private constructor() {
 
         val queryBuilder = Uri.Builder()
             .appendQueryParameter("pa", upiID)
-            .appendQueryParameter("pn", name)
-            .appendQueryParameter("tr", transactionRef)
-            .appendQueryParameter("tn", note)
-            .appendQueryParameter("am", amount.toString().replace(".0", ""))
-            .appendQueryParameter("cu", "INR")
+//            .appendQueryParameter("pn", name)
+//            .appendQueryParameter("tr", transactionRef)
+//            .appendQueryParameter("tn", note)
+//            .appendQueryParameter("am", amount.toString().replace(".0", ""))
+//            .appendQueryParameter("cu", "INR")
 
         if (merchantCode.isNotEmpty()) {
             queryBuilder.appendQueryParameter("mc", merchantCode)

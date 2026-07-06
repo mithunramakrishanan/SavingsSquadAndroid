@@ -10,13 +10,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -30,7 +26,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -44,10 +39,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.rounded.List
-import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -92,13 +84,10 @@ import com.google.firebase.auth.PhoneAuthProvider
 import java.util.Date
 import java.util.concurrent.TimeUnit
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
@@ -109,11 +98,11 @@ import com.android.savingssquad.R
 import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.color
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AppDestination
-import com.android.savingssquad.viewmodel.FirestoreManager
 import com.google.firebase.auth.PhoneAuthOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -2790,6 +2779,160 @@ fun CheckDuesButton(
                 tint = AppColors.secondaryText.copy(alpha = 0.7f),
                 modifier = Modifier.size(20.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun SSSearchField(
+    placeHolder: String,
+    searchText: String,
+    onTextChange: (String) -> Unit
+) {
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .shadow(
+                elevation = 6.dp,
+                shape = RoundedCornerShape(18.dp),
+                ambientColor = Color.Black.copy(alpha = 0.08f),
+                spotColor = Color.Black.copy(alpha = 0.08f)
+            )
+            .background(
+                color = Color.White,
+                shape = RoundedCornerShape(18.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = Color(0xFFE8ECEF),
+                shape = RoundedCornerShape(18.dp)
+            )
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = null,
+            tint = Color(0xFF8E99A8),
+            modifier = Modifier.size(20.dp)
+        )
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        TextField(
+            value = searchText,
+            onValueChange = onTextChange,
+            modifier = Modifier.weight(1f),
+            singleLine = true,
+            textStyle = TextStyle(
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF1F2937)
+            ),
+            placeholder = {
+                Text(
+                    placeHolder,
+                    color = Color(0xFF9CA3AF),
+                    fontSize = 15.sp
+                )
+            },
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                disabledContainerColor = Color.Transparent,
+                errorContainerColor = Color.Transparent,
+
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                errorIndicatorColor = Color.Transparent,
+
+                cursorColor = Color(0xFF14B8A6)
+            )
+        )
+
+        AnimatedVisibility(
+            visible = searchText.isNotEmpty(),
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut()
+        ) {
+
+            IconButton(
+                onClick = { onTextChange("") }
+            ) {
+
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Clear Search",
+                    tint = Color(0xFF8E99A8),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SSStatusMenuButton(
+    current: RecordStatus,
+    onSelect: (RecordStatus) -> Unit
+)
+{
+
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+
+        Row(
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(current.tintColor().copy(alpha = 0.1f))
+                .clickable { expanded = true }
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .background(current.tintColor(), CircleShape)
+            )
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            Text(current.displayName())
+
+            Icon(
+                imageVector = Icons.Default.ArrowDropDown,
+                contentDescription = null
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+
+            RecordStatus.toggleCases.forEach { status ->
+
+                DropdownMenuItem(
+                    text = {
+                        Row {
+                            if (status == current) {
+                                Text("✔ ")
+                            }
+                            Text(status.displayName())
+                        }
+                    },
+                    onClick = {
+                        expanded = false
+                        onSelect(status)
+                    }
+                )
+            }
         }
     }
 }

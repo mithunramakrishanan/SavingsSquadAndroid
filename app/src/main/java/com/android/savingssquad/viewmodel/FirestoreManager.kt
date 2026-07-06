@@ -36,6 +36,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
+import kotlin.text.get
 
 class FirestoreManager private constructor() {
 
@@ -70,6 +71,10 @@ class FirestoreManager private constructor() {
         phoneNumber: String,
         completion: (List<Login>?, String?) -> Unit
     ) {
+
+        if (phoneNumber.isEmpty()) {
+            return
+        }
 
         val userRef = db.collection("users")
             .document(phoneNumber)
@@ -2496,6 +2501,83 @@ class FirestoreManager private constructor() {
             }
             .addOnFailureListener { error ->
                 completion(false, error.localizedMessage)
+            }
+    }
+
+    fun updateOnlyMemberStatus(
+        member: Member,
+        recordStatus: String,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val memberId = member.id
+        if (memberId.isNullOrBlank()) {
+            completion(false, "Invalid member ID.")
+            return
+        }
+
+        if (member.phoneNumber.isBlank()) {
+            completion(false, "Invalid phone number.")
+            return
+        }
+
+        if (member.squadID.isBlank()) {
+            completion(false, "Invalid squad.")
+            return
+        }
+
+        val loginRef = db.collection("users")
+            .document(member.phoneNumber)
+            .collection("logins")
+
+        loginRef
+            .whereEqualTo("squadID", member.squadID)
+            .get()
+            .addOnSuccessListener { snapshot ->
+
+                if (snapshot.isEmpty) {
+                    completion(false, "Member login not found.")
+                    return@addOnSuccessListener
+                }
+
+                val batch = db.batch()
+                val timestamp = com.google.firebase.Timestamp.now()
+
+                // Update login documents
+                snapshot.documents.forEach { document ->
+                    batch.update(
+                        document.reference,
+                        mapOf(
+                            "recordStatus" to recordStatus,
+                            "recordDate" to timestamp
+                        )
+                    )
+                }
+
+                // Update member document
+                val memberRef = db.collection("squads")
+                    .document(member.squadID)
+                    .collection("members")
+                    .document(memberId)
+
+                batch.update(
+                    memberRef,
+                    mapOf(
+                        "recordStatus" to recordStatus,
+                        "recordDate" to timestamp
+                    )
+                )
+
+                batch.commit()
+                    .addOnSuccessListener {
+                        completion(true, null)
+                    }
+                    .addOnFailureListener { e ->
+                        completion(false, e.localizedMessage ?: "Failed to update member status.")
+                    }
+            }
+            .addOnFailureListener { e ->
+                completion(false, e.localizedMessage ?: "Failed to fetch member login.")
             }
     }
 }

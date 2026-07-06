@@ -54,9 +54,17 @@ import com.android.savingssquad.viewmodel.AlertManager
 import com.yourapp.utils.CommonFunctions
 import java.util.Calendar
 import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.sp
+import com.android.savingssquad.model.Login
+import com.android.savingssquad.singleton.AlertType
+import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.viewmodel.AppDestination
+import com.android.savingssquad.viewmodel.FirestoreManager
 import com.android.savingssquad.viewmodel.SSToast
+import com.android.savingssquad.viewmodel.ToastManager
+import com.android.savingssquad.viewmodel.ToastType
 
 
 @Composable
@@ -69,6 +77,18 @@ fun MembersListView(
 
     val members by squadViewModel.squadMembers.collectAsStateWithLifecycle()
     val showAddMemberPopup by squadViewModel.showAddMemberPopup.collectAsStateWithLifecycle()
+
+    var searchText by remember { mutableStateOf("") }
+
+    val filteredLogins = remember(members, searchText) {
+        if (searchText.isEmpty()) {
+            members
+        } else {
+            members.filter {
+                it. name.contains(searchText, ignoreCase = true)
+            }
+        }
+    }
 
     val screenType =
         if (UserDefaultsManager.getSquadManagerLogged())
@@ -107,11 +127,17 @@ fun MembersListView(
                 }
             }
 
-            if (members.isEmpty()) {
+            SSSearchField(
+                placeHolder = "Search members...",
+                searchText = searchText,
+                onTextChange = { searchText = it }
+            )
+
+            if (filteredLogins.isEmpty()) {
                 EmptyMembersView()
             } else {
                 MembersListContent(
-                    members = members,
+                    members = filteredLogins,
                     navController = navController,
                     squadViewModel = squadViewModel
                 )
@@ -175,6 +201,76 @@ fun MembersListContent(
     navController: NavController,
     squadViewModel: SquadViewModel
 ) {
+
+
+    fun applyStatus(
+        newStatus: RecordStatus,
+        member: Member
+    ) {
+
+        FirestoreManager.shared.updateOnlyMemberStatus(
+            member = member,
+            recordStatus = newStatus.value
+        ) { success, error ->
+
+            if (success) {
+
+                ToastManager.show(
+                    message = "${member.name} is now ${newStatus.displayName()}",
+                    type = if (newStatus == RecordStatus.INACTIVE) {
+                        ToastType.ERROR
+                    } else {
+                        ToastType.SUCCESS
+                    }
+                )
+
+                squadViewModel.fetchMembers(showLoader = false) { _, _, _ ->
+                    // No-op
+                }
+
+            } else {
+
+                ToastManager.show(
+                    message = error ?: "Failed to update status",
+                    type = ToastType.ERROR
+                )
+            }
+        }
+    }
+
+    fun handleStatusSelection(
+        member: Member,
+        newStatus: RecordStatus,
+        squadViewModel: SquadViewModel
+    )
+    {
+        if (newStatus == member.recordStatus) return
+
+        if (newStatus == RecordStatus.INACTIVE) {
+
+            AlertManager.shared.showAlert(
+                title = "Deactivate Squad?",
+                message = "If you deactivate ${member.name}, all members will lose access and won’t be able to use this squad until it is reactivated.",
+                type = AlertType.ERROR,
+                primaryButtonTitle = "Deactivate",
+                primaryAction = {
+
+                    applyStatus(newStatus,member)
+
+                },
+                secondaryButtonTitle = "Cancel",
+                secondaryAction = {}
+            )
+
+
+        }
+        else
+        {
+            applyStatus(newStatus,member)
+        }
+    }
+
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -190,17 +286,27 @@ fun MembersListContent(
                         navController.navigate(AppDestination.OPEN_MEMBER_PROFILE.route)
                     }
                 ) {
-                    MembersListCellView(member)
+                    MembersListCellView(member) {newStatus ->
+
+                        handleStatusSelection(
+                            member,
+                            newStatus,
+                            squadViewModel
+                        ) }
                 }
             } else {
-                MembersListCellView(member)
+                MembersListCellView(member) { }
             }
         }
     }
 }
 
+
 @Composable
-fun MembersListCellView(member: Member) {
+fun MembersListCellView(member: Member,onSelectStatus: (RecordStatus) -> Unit) {
+
+    var displayedStatus by remember { mutableStateOf(member.recordStatus) }
+
     Row(
         modifier = Modifier
             .padding(horizontal = 16.dp)
@@ -220,7 +326,8 @@ fun MembersListCellView(member: Member) {
                 .clip(CircleShape)
                 .background(AppColors.primaryButton.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
-        ) {
+        )
+        {
             Text(
                 text = member.name.first().toString(),
                 style = AppFont.ibmPlexSans(20, FontWeight.Bold),
@@ -232,7 +339,8 @@ fun MembersListCellView(member: Member) {
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
+        )
+        {
             Text(
                 text = member.name,
                 style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
@@ -251,6 +359,40 @@ fun MembersListCellView(member: Member) {
                 color = AppColors.successAccent,
                 maxLines = 1
             )
+        }
+
+        if (UserDefaultsManager.getSquadManagerLogged()) {
+
+            SSStatusMenuButton(
+                current = displayedStatus,
+                onSelect = {
+                    displayedStatus = it
+                    onSelectStatus(it)
+                }
+            )
+
+        } else {
+
+
+            if (displayedStatus == RecordStatus.ACTIVE) {
+
+                SSBadge(
+                    title = displayedStatus.displayName(),
+                    value = "",
+                    icon = "",
+                    style = BadgeStyle.SUCCESS
+                )
+            }
+            else {
+
+                SSBadge(
+                    title = displayedStatus.displayName(),
+                    value = "",
+                    icon = "",
+                    style = BadgeStyle.ERROR
+                )
+            }
+
         }
     }
 }

@@ -103,7 +103,7 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                     contentDescription = "App Icon",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(150.dp)
                         .clip(RoundedCornerShape(24.dp))
                         .appShadow(AppShadows.card)
                 )

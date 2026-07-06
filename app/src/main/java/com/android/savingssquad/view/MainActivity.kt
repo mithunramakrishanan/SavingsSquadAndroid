@@ -143,6 +143,19 @@ fun SavingsSquadRoot() {
         }
     }
 
+
+    LaunchedEffect(Unit) {
+
+        squadViewModel.fetchUserLogins(
+            showLoader = false,
+            phoneNumber = squadViewModel.loginMember?.phoneNumber.orEmpty()
+        ) { success, loginList,error ->
+            if (loginList != null) {
+                Log.d("FCMUPATED", if (success) "✅ Logins fetched: ${loginList.size}" else "❌ $error")
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
