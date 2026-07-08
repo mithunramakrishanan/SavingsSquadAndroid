@@ -1,6 +1,8 @@
 package com.android.savingssquad.model
 import com.google.firebase.firestore.PropertyName
 import androidx.annotation.Keep
+import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.PaymentApproveStatus
 
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.RecordStatus
@@ -87,7 +89,13 @@ data class Member(
     var upiID: String = "",
 
     @get:PropertyName("fcmToken") @set:PropertyName("fcmToken")
-    var fcmToken: String = ""
+    var fcmToken: String = "",
+
+    @get:PropertyName("lastActiveDate") @set:PropertyName("lastActiveDate")
+    var lastActiveDate: Timestamp? = null,
+
+    @get:PropertyName("currentLoanApproveStatus") @set:PropertyName("currentLoanApproveStatus")
+    var currentLoanApproveStatus: EMIStatus? = null,
 ) {
     // 🔹 Firestore needs a no-arg constructor
     constructor() : this(
@@ -109,6 +117,8 @@ data class Member(
         upiBeneId = "",
         bankBeneId = "",
         upiID = "",
-        fcmToken = ""
+        fcmToken = "",
+        lastActiveDate = null,
+        null
     )
 }

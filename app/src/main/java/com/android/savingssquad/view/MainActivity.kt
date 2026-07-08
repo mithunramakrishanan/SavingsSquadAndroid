@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
 
     private fun handleNotification(intent: Intent) {
 
-        if (UserDefaultsManager.getIsLoggedIn()) {
+        /*if (UserDefaultsManager.getIsLoggedIn()) {
 
             val navigate = intent.getStringExtra("navigate")
             val notificationType = intent.getStringExtra("notificationType")
@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity() {
                 UserDefaultsManager.saveLogin(login)
 
             }
-        }
+        } */
 
 
 

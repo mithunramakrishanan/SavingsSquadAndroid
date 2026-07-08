@@ -53,6 +53,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
+import com.android.savingssquad.viewmodel.FirestoreManager
 import com.android.savingssquad.viewmodel.SSToast
 import kotlinx.coroutines.selects.select
 
@@ -154,6 +155,9 @@ fun ManagerHomeView(
             if (SubscriptionManager.shared.shouldForceUpgrade(memberCount)) {
                 squadViewModel.setShowUpgradePlan(true)
             }
+        }
+
+        FirestoreManager.shared.updateLastActiveDate(squadID,"", SquadUserType.SQUAD_MANAGER) { success,error ->
         }
     }
     // 🔹 Main Layout
@@ -296,7 +300,7 @@ fun ManagerHomeView(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 5.dp),
+                                .padding(vertical = 0.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             ManagerTwoButtons(
@@ -501,7 +505,7 @@ fun ManagerTwoButtons(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 0.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
@@ -576,7 +580,7 @@ fun MemberTwoButtons(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 

@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -34,6 +35,7 @@ import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.unpaidMonths
+import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaymentEntryType
@@ -330,7 +332,7 @@ fun MemberPaymentView(
                     EMISection(
                         currentMember = currentMember,
                         squad = squad,
-                        isPendingLoanAvailable = squadViewModel.isPendingLoanAvailable.collectAsState().value,
+                        isPendingLoanAvailable = if (currentMember?.currentLoanApproveStatus == EMIStatus.PENDING) {true}else {false},
                         emiSelectedMonthYear = emiSelectedMonthYear,
                         emiSelectedMonthYearError = emiSelectedMonthYearError,
                         selectedInstallment = selectedInstallment,
@@ -354,7 +356,7 @@ fun MemberPaymentView(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     EMIButton(
-                        isDisabled = !squadViewModel.isPendingLoanAvailable.collectAsState().value,
+                        isDisabled = !(currentMember?.currentLoanApproveStatus == EMIStatus.PENDING),
                         onClick = {
                             if (validateEMIFields(emiSelectedMonthYear) { emiSelectedMonthYearError = it }) {
                                 // Manual EMI payment flow (mirrors SwiftUI)
@@ -379,7 +381,7 @@ fun MemberPaymentView(
                                     paymentPhone = member.phoneNumber,
                                     paymentEmail = member.mailID ?: "",
                                     userType = SquadUserType.SQUAD_MEMBER,
-                                    amount = total,
+                                    amount = selectedInstallment?.installmentAmount ?: 0,
                                     intrestAmount = selectedInstallment?.interestAmount ?: 0,
                                     paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
                                     paymentType = PaymentType.PAYMENT_CREDIT,
@@ -646,7 +648,8 @@ private fun EMISection(
 
 
                 }
-            } else if (isPendingLoanAvailable) {
+            }
+            else if (isPendingLoanAvailable) {
                 SSTextField(
                     icon = Icons.Default.CalendarToday,
                     placeholder = if (emiSelectedMonthYear.isEmpty()) "Select EMI" else emiSelectedMonthYear,
@@ -670,39 +673,43 @@ private fun EMISection(
                     keyboardType = KeyboardType.Number,
                     disabled = true
                 )
-            } else {
+            }
+            else {
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 24.dp),
                     contentAlignment = Alignment.Center
                 ) {
 
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(horizontal = 24.dp)
                     ) {
-                        Text(
-                            text = "You don’t have any pending loan.",
-                            style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
-                            color = AppColors.primaryBrand,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(8.dp)
-                        )
 
                         Icon(
-                            imageVector = Icons.Default.CheckCircle, // checkmark.circle.fill
-                            contentDescription = "Success",
+                            imageVector = Icons.Default.Verified,
+                            contentDescription = null,
                             tint = AppColors.primaryBrand,
-                            modifier = Modifier
-                                .size(50.dp)
-                                .padding(top = 5.dp)
+                            modifier = Modifier.size(60.dp)
+                        )
+
+                        Text(
+                            text = "No Pending Loans",
+                            style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                            color = AppColors.headerText,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Text(
+                            text = "Great! All your loans are up to date. You don't have any pending loan payments at the moment.",
+                            style = AppFont.ibmPlexSans(14),
+                            color = AppColors.secondaryText,
+                            textAlign = TextAlign.Center
                         )
                     }
-
                 }
             }
         }

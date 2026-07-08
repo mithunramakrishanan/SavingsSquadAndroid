@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
@@ -45,6 +46,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.android.savingssquad.model.ContributionDetail
@@ -121,6 +123,8 @@ fun ManualEntryView(
     var emiSelectedMemberNameError by remember { mutableStateOf("") }
     var emiSelectedMonthYearError by remember { mutableStateOf("") }
     var selectedInstallment by remember { mutableStateOf<Installment?>(null) }
+    var selectedEMIInstallmentAmount by remember { mutableStateOf("") }
+
 
     var notes by remember { mutableStateOf("") }
     var notesError by remember { mutableStateOf("") }
@@ -133,7 +137,6 @@ fun ManualEntryView(
     val squadMemberNames by squadViewModel.squadMemberNames.collectAsState(initial = emptyList())
     val memberPendingLoans by squadViewModel.memberPendingLoans.collectAsState(initial = null)
     val selectedContributions by squadViewModel.selectedContributions.collectAsState(initial = emptyList())
-    val isPendingLoanAvailable by remember { derivedStateOf { squadViewModel.isPendingLoanAvailable } }
 
     val paymentAmount = remember { mutableStateOf("") }
 
@@ -351,12 +354,12 @@ fun ManualEntryView(
                                             description = "Updated $contributionSelectedMemberName contribution for $contributionSelectedMonthYear"
                                         ) { success, error ->
                                             coroutineScope.launch(Dispatchers.Main) {
-                                                contributionSelectedMemberName = ""
-                                                contributionSelectedMonthYear = ""
                                                 loaderManager.hideLoader()
-
                                                 ToastManager.show(title = SquadStrings.appName, message = "Updated ${contributionSelectedMemberName} contribution for ${contributionSelectedMonthYear}",
                                                     ToastType.SUCCESS)
+
+                                                contributionSelectedMemberName = ""
+                                                contributionSelectedMonthYear = ""
                                             }
                                         }
                                     } else {
@@ -385,7 +388,7 @@ fun ManualEntryView(
                             onDropdownTap = { squadViewModel.setShowEMIMemberPopup(true) },
                             disabled = true)
 
-                        if (isPendingLoanAvailable.collectAsState().value) {
+                        if (emiSelectedMember?.currentLoanApproveStatus == EMIStatus.PENDING) {
                             SSTextField(
                                 icon = Icons.Default.CalendarToday,
                                 placeholder = if (emiSelectedMonthYear.isEmpty()) "Select EMI" else emiSelectedMonthYear,
@@ -398,24 +401,47 @@ fun ManualEntryView(
 
                             SSTextField(
                                 icon = Icons.Default.CheckCircle,
-                                placeholder = ((selectedInstallment?.installmentAmount ?: 0) + (selectedInstallment?.interestAmount ?: 0)).toString(),
-                                textState = remember { mutableStateOf(((selectedInstallment?.installmentAmount ?: 0) + (selectedInstallment?.interestAmount ?: 0)).toString()) },
+                                placeholder = selectedEMIInstallmentAmount,
+                                textState = remember { mutableStateOf(selectedEMIInstallmentAmount) },
                                 keyboardType = KeyboardType.Number,
                                 disabled = true)
-                        } else {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                                androidx.compose.material3.Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = AppColors.successAccent,
-                                    modifier = Modifier.size(50.dp)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                androidx.compose.material3.Text(
-                                    text = "${emiSelectedMemberName.ifEmpty { "Member" }} doesn't have any pending loan.",
-                                    style = AppFont.ibmPlexSans(16, FontWeight.Medium),
-                                    color = AppColors.successAccent
-                                )
+                        }
+                        else {
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.padding(horizontal = 24.dp)
+                                ) {
+
+                                    Icon(
+                                        imageVector = Icons.Default.Verified,
+                                        contentDescription = null,
+                                        tint = AppColors.primaryBrand,
+                                        modifier = Modifier.size(60.dp)
+                                    )
+
+                                    Text(
+                                        text = "No Pending Loans",
+                                        style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                                        color = AppColors.headerText,
+                                        textAlign = TextAlign.Center
+                                    )
+
+                                    Text(
+                                        text = "Great! ${emiSelectedMemberName.ifEmpty { "Member" }} don't have any pending loan payments at the moment.",
+                                        style = AppFont.ibmPlexSans(14),
+                                        color = AppColors.secondaryText,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             }
                         }
                     }
@@ -425,9 +451,9 @@ fun ManualEntryView(
 
                 SSButton(
                     title = "Pay EMI",
-                    isDisabled = !isPendingLoanAvailable.collectAsState().value,
+                    isDisabled = emiSelectedMember?.currentLoanApproveStatus != EMIStatus.PENDING,
                     action = {
-                        if (!isPendingLoanAvailable.value) return@SSButton
+                        if (emiSelectedMember?.currentLoanApproveStatus != EMIStatus.PENDING) return@SSButton
                         // handleManualEMIPayment replicate similar to SwiftUI flow
                         coroutineScope.launch {
                             if (validateEMIFields(
@@ -451,6 +477,7 @@ fun ManualEntryView(
                                         if (success) {
                                             // create payments and activity similar to SwiftUI
                                             val loanNumber = memberPendingLoans?.firstOrNull()?.loanNumber ?: "N/A"
+                                            val loanId = memberPendingLoans?.firstOrNull()?.id ?: "N/A"
                                             val loanPayment = PaymentsDetails(
                                                 id = CommonFunctions.generatePaymentID(squadId = squad?.squadID ?: ""),
                                                 paymentUpdatedDate = Date().asTimestamp,
@@ -459,8 +486,8 @@ fun ManualEntryView(
                                                 paymentPhone = emiSelectedMember?.phoneNumber ?: "",
                                                 paymentEmail = emiSelectedMember?.mailID ?: "",
                                                 userType = SquadUserType.SQUAD_MANAGER,
-                                                amount = (selectedInstallment?.installmentAmount ?: 0) + (selectedInstallment?.interestAmount ?: 0),
-                                                intrestAmount = 0,
+                                                amount = (selectedInstallment?.installmentAmount ?: 0),
+                                                intrestAmount = (selectedInstallment?.interestAmount ?: 0),
                                                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                                                 paymentType = PaymentType.PAYMENT_CREDIT,
                                                 paymentSubType = PaymentSubType.EMI_AMOUNT,
@@ -469,6 +496,8 @@ fun ManualEntryView(
                                                 paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
                                                 description = "Squad Manager updated EMI and Interest amount to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber",
                                                 squadId = squad?.squadID ?: "",
+                                                loanId = loanId,
+                                                installmentId = selectedInstallment?.id ?: "",
                                                 paymentSuccess = true,
                                                 payoutSuccess = true
                                             )
@@ -555,10 +584,10 @@ fun ManualEntryView(
                                 if (validateFields()) {
                                     handleOtherPayment(squadViewModel = squadViewModel, loaderManager = loaderManager,  amountStr = paymentAmount.value, notes = paymentNotes , activity = activity, context = appContext,  action = {
                                         LoaderManager.shared.hideLoader()
+                                        ToastManager.show(title = SquadStrings.appName, message = "Updated amount ${paymentAmount.value} - ${paymentNotes}" ,
+                                            ToastType.SUCCESS)
                                         paymentAmount.value = ""
                                         paymentNotes = ""
-                                        ToastManager.show(title = SquadStrings.appName, message = "Updated amount" ,
-                                            ToastType.SUCCESS)
                                     })
 
                                 }
@@ -659,7 +688,7 @@ fun ManualEntryView(
         if (isShowEMIMonthList.value) {
             OverlayBackgroundView(
                 showPopup = remember { mutableStateOf(true) },
-                onDismiss = {  squadViewModel.setShowEMIMemberPopup(false)}
+                onDismiss = {  squadViewModel.setShowEMIMonthPopup(false)}
             ) {
                 InstallmentPopupView(
                     title = memberPendingLoans?.firstOrNull()?.loanNumber ?: "",
@@ -667,9 +696,10 @@ fun ManualEntryView(
                     onSelect = { installment ->
                         selectedInstallment = installment
                         emiSelectedMonthYear = CommonFunctions.dateToString(date = installment.dueDate?.toDate() ?: Date(), format = "MMM yyyy")
-                        squadViewModel.setShowEMIMemberPopup(false)
+                        selectedEMIInstallmentAmount = (installment.installmentAmount + installment.interestAmount).toString()
+                        squadViewModel.setShowEMIMonthPopup(false)
                     },
-                    onCancel = {squadViewModel.setShowEMIMemberPopup(false)}
+                    onCancel = {squadViewModel.setShowEMIMonthPopup(false)}
                 )
             }
         }

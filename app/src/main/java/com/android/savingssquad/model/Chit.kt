@@ -129,7 +129,10 @@ data class Squad(
     var fcmToken: String = "",
 
     @get:PropertyName("verifyAmountCount") @set:PropertyName("verifyAmountCount")
-    var verifyAmountCount: Int = 0
+    var verifyAmountCount: Int = 0,
+
+    @get:PropertyName("lastActiveDate") @set:PropertyName("lastActiveDate")
+    var lastActiveDate: Timestamp? = null
 ) {
     // Required empty constructor for Firestore deserialization
     constructor() : this(
@@ -170,6 +173,7 @@ data class Squad(
         recordDate = Date(),
         password = null,
         fcmToken = "",
-        verifyAmountCount = 0
+        verifyAmountCount = 0,
+        lastActiveDate = null
     )
 }

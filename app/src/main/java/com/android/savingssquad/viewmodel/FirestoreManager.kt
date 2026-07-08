@@ -17,6 +17,7 @@ import com.yourapp.utils.CommonFunctions
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.singleton.AmountEditType
+import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentEntryType
@@ -868,18 +869,63 @@ class FirestoreManager private constructor() {
                 }
 
                 loanRef.update(updateMap)
+
                     .addOnSuccessListener {
 
-                        val message = if (allPaid) {
-                            "Installment updated & Loan closed successfully"
+                        if (allPaid) {
+
+                            updateCurrentLoanApproveStatus(
+
+                                squadID = squadID,
+
+                                memberID = memberID,
+
+                                paymentApproveStatus = EMIStatus.CREATED
+
+                            ) { success, error ->
+
+                                if (success) {
+
+                                    completion(
+
+                                        true,
+
+                                        "Installment updated & Loan closed successfully"
+
+                                    )
+
+                                } else {
+
+                                    completion(
+
+                                        false,
+
+                                        error ?: "Loan updated but failed to update member status"
+
+                                    )
+
+                                }
+
+                            }
+
                         } else {
-                            "Installment updated successfully"
+
+                            completion(
+
+                                true,
+
+                                "Installment updated successfully"
+
+                            )
+
                         }
 
-                        completion(true, message)
                     }
+
                     .addOnFailureListener { e ->
+
                         completion(false, "Update failed: ${e.localizedMessage}")
+
                     }
             }
             .addOnFailureListener { e ->
@@ -1957,7 +2003,28 @@ class FirestoreManager private constructor() {
                 completion(loans, null)
             }
             .addOnFailureListener { e ->
-                completion(null, "❌ Error fetching EMIs: ${e.localizedMessage}")
+                completion(null, "❌ Error fetching fetchMemberLoans: ${e.localizedMessage}")
+            }
+    }
+
+    fun fetchMemberPendingLoans(
+        squadID: String,
+        memberID: String,
+        completion: (List<MemberLoan>?, String?) -> Unit
+    ) {
+        db.collection("squads").document(squadID)
+            .collection("members").document(memberID)
+            .collection("loans").whereEqualTo("loanStatus", "PENDING")
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val loans = snapshot.documents.mapNotNull { doc ->
+                    val loan = doc.toObject(MemberLoan::class.java)
+                    loan?.copy(id = doc.id)
+                }
+                completion(loans, null)
+            }
+            .addOnFailureListener { e ->
+                completion(null, "❌ Error fetching fetchMemberPendingLoans: ${e.localizedMessage}")
             }
     }
 
@@ -2578,6 +2645,93 @@ class FirestoreManager private constructor() {
             }
             .addOnFailureListener { e ->
                 completion(false, e.localizedMessage ?: "Failed to fetch member login.")
+            }
+    }
+
+    fun updateLastActiveDate(
+        squadID: String,
+        memberID: String,
+        memberType: SquadUserType,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val documentRef = if (memberType == SquadUserType.SQUAD_MANAGER) {
+            db.collection("squads")
+                .document(squadID)
+        } else {
+            db.collection("squads")
+                .document(squadID)
+                .collection("members")
+                .document(memberID)
+        }
+
+        val updateData = mapOf(
+            "lastActiveDate" to FieldValue.serverTimestamp()
+        )
+
+        documentRef.set(updateData, SetOptions.merge())
+            .addOnSuccessListener {
+                completion(true, null)
+            }
+            .addOnFailureListener { error ->
+                completion(
+                    false,
+                    "❌ Failed to update lastActiveDate: ${error.localizedMessage}"
+                )
+            }
+    }
+
+    fun updateCurrentLoanApproveStatus(
+        squadID: String,
+        memberID: String,
+        paymentApproveStatus: EMIStatus,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val documentRef = db.collection("squads")
+            .document(squadID)
+            .collection("members")
+            .document(memberID)
+
+        documentRef.get()
+            .addOnSuccessListener { document ->
+
+                if (!document.exists()) {
+                    completion(false, "❌ Member not found.")
+                    return@addOnSuccessListener
+                }
+
+//                val currentStatus =
+//                    document.getString("currentLoanApproveStatus")
+//
+//                // Don't overwrite CREATED with PAID
+//                if (currentStatus == EMIStatus.CREATED.value &&
+//                    paymentApproveStatus == EMIStatus.PAID && !isUpdate
+//                ) {
+//                    completion(true, null)
+//                    return@addOnSuccessListener
+//                }
+
+                val updateData = hashMapOf(
+                    "currentLoanApproveStatus" to paymentApproveStatus.value
+                )
+
+                documentRef.set(updateData, SetOptions.merge())
+                    .addOnSuccessListener {
+                        completion(true, null)
+                    }
+                    .addOnFailureListener { error ->
+                        completion(
+                            false,
+                            "❌ Failed to update currentLoanApproveStatus: ${error.localizedMessage}"
+                        )
+                    }
+            }
+            .addOnFailureListener { error ->
+                completion(
+                    false,
+                    "❌ Failed to fetch member: ${error.localizedMessage}"
+                )
             }
     }
 }

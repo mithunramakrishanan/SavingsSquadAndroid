@@ -2052,129 +2052,338 @@ fun InstallmentPopupView(
 ) {
     val today = remember { Date() }
 
-    Column(
+    Box(
         modifier = Modifier
             .padding(16.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .widthIn(max = 360.dp)
+            .heightIn(max = 470.dp)
+            .clip(RoundedCornerShape(24.dp))
             .appShadow(AppShadows.elevated)
             .background(AppColors.surface)
-            .widthIn(max = 350.dp)
-            .heightIn(max = 450.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .border(
+                width = 1.dp,
+                brush = Brush.verticalGradient(
+                    listOf(Color.White.copy(alpha = 0.25f), Color.Transparent)
+                ),
+                shape = RoundedCornerShape(24.dp)
+            )
     ) {
-        // 🔹 Title Header
-        Text(
-            text = title,
-            style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
-            color = AppColors.headerText,
-            modifier = Modifier
-                .fillMaxWidth()
-                .appShadow(AppShadows.card)
-                .background(AppColors.surface, RoundedCornerShape(12.dp))
-                .padding(vertical = 12.dp),
-            textAlign = TextAlign.Center
-        )
-
-        // 🔹 Installments List
-        LazyColumn(
-            modifier = Modifier
-                .padding(vertical = 10.dp)
-                .heightIn(max = 300.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            itemsIndexed(installments) { index, installment ->
-                val status = computedStatus(installment, today)
 
-                // Enable only the first pending installment, previous must be paid
-                val isEnabled = if (status == EMIStatus.PENDING) {
-                    if (index == 0) true
-                    else installments[index - 1].status == EMIStatus.PAID
-                } else false
-
-                Button(
-                    onClick = {
-                        if (isEnabled) onSelect(installment)
-                    },
-                    enabled = isEnabled,
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AppColors.surface,
-                        disabledContainerColor = AppColors.surface
-                    ),
+            // 🔹 Header
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Column(
                     modifier = Modifier
-                        .padding(horizontal = 16.dp)
                         .fillMaxWidth()
-                        .then(
-                            if (isEnabled) Modifier.appShadow(AppShadows.card)
-                            else Modifier
-                        )
+                        .padding(top = 22.dp, bottom = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Left Section
-                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            val textColor = if (isEnabled) AppColors.secondaryText else Color.Gray
-                            val headerColor = if (isEnabled) AppColors.headerText else Color.Gray
+                    Text(
+                        text = title,
+                        style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                        color = AppColors.headerText,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${installments.size} payment${if (installments.size == 1) "" else "s"} total",
+                        style = AppFont.ibmPlexSans(12, FontWeight.Medium),
+                        color = AppColors.secondaryText
+                    )
+                }
 
-                            Text(
-                                text = installment.installmentNumber,
-                                style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                                color = textColor
-                            )
-                            Text(
-                                text = installment.installmentAmount.currencyFormattedWithCommas(),
-                                style = AppFont.ibmPlexSans(16, FontWeight.Bold),
-                                color = headerColor
-                            )
-                            Text(
-                                text = "Interest: ${installment.interestAmount.currencyFormattedWithCommas()}",
-                                style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                                color = textColor
-                            )
-                            installment.dueDate?.let {
-                                Text(
-                                    text = "Due: ${CommonFunctions.dateToString(it.toDate())}",
-                                    style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                                    color = textColor
-                                )
-                            }
-                        }
+                IconButton(
+                    onClick = onCancel,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(14.dp)
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(AppColors.surface.copy(alpha = 0.6f))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = AppColors.secondaryText,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+            }
 
-                        // Right Section – Status Badge
-                        Text(
-                            text = status.displayText,
-                            color = AppColors.primaryButtonText,
-                            style = AppFont.ibmPlexSans(12, FontWeight.Bold),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(status.color)
-                                .padding(horizontal = 10.dp, vertical = 5.dp)
+            HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.15f))
+
+            // 🔹 Installments List
+            LazyColumn(
+                modifier = Modifier
+                    .heightIn(max = 320.dp)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                itemsIndexed(installments, key = { _, item -> item.installmentNumber }) { index, installment ->
+                    val status = computedStatus(installment, today)
+
+                    val isEnabled = if (status == EMIStatus.PENDING) {
+                        if (index == 0) true
+                        else installments[index - 1].status == EMIStatus.PAID
+                    } else false
+
+                    InstallmentRow(
+                        installment = installment,
+                        status = status,
+                        isEnabled = isEnabled,
+                        index = index,
+                        appearDelayMillis = index * 40L,
+                        onClick = { if (isEnabled) onSelect(installment) }
+                    )
+                }
+            }
+
+            HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.15f))
+
+            // 🔹 Footer
+            SSCancelButton(title = "Close") {
+                onCancel()
+            }
+        }
+    }
+}
+
+@Composable
+private fun InstallmentRow(
+    installment: Installment,
+    status: EMIStatus,
+    isEnabled: Boolean,
+    index: Int,
+    appearDelayMillis: Long,
+    onClick: () -> Unit
+) {
+    val isPaid = installment.status == EMIStatus.PAID
+
+    // Staggered fade/slide-in, mirrors the SwiftUI appear animation
+    var appeared by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(appearDelayMillis)
+        appeared = true
+    }
+    val alpha by animateFloatAsState(
+        targetValue = if (appeared) 1f else 0f,
+        animationSpec = tween(durationMillis = 350),
+        label = "rowAlpha"
+    )
+    val offsetY by animateFloatAsState(
+        targetValue = if (appeared) 0f else 8f,
+        animationSpec = tween(durationMillis = 350),
+        label = "rowOffset"
+    )
+
+    // Gentle press-scale, mirrors PressableStyle
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = tween(durationMillis = 150),
+        label = "pressScale"
+    )
+
+    val rowAlpha = if (isEnabled || isPaid) 1f else 0.55f
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                this.alpha = alpha * rowAlpha
+                translationY = offsetY
+                scaleX = pressScale
+                scaleY = pressScale
+            }
+            .clip(RoundedCornerShape(16.dp))
+            .background(AppColors.surface)
+            .border(
+                width = 1.dp,
+                color = if (isEnabled) AppColors.headerText.copy(alpha = 0.08f) else Color.Transparent,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .then(
+                if (isEnabled) Modifier.appShadow(AppShadows.card) else Modifier
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = isEnabled,
+                onClick = onClick
+            )
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Top row: badge, number/amount, status
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Number badge / paid checkmark
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isPaid) Brush.linearGradient(
+                            listOf(Color(0xFF34C759).copy(alpha = 0.15f), Color(0xFF34C759).copy(alpha = 0.15f))
                         )
-                    }
+                        else Brush.linearGradient(
+                            listOf(
+                                AppColors.headerText.copy(alpha = 0.12f),
+                                AppColors.headerText.copy(alpha = 0.05f)
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isPaid) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Paid",
+                        tint = Color(0xFF34C759),
+                        modifier = Modifier.size(14.dp)
+                    )
+                } else {
+                    Text(
+                        text = "${index + 1}",
+                        style = AppFont.ibmPlexSans(14, FontWeight.Bold),
+                        color = AppColors.headerText.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier.weight(1f, fill = false),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = installment.installmentNumber,
+                    style = AppFont.ibmPlexSans(12, FontWeight.Medium),
+                    color = AppColors.secondaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = installment.installmentAmount.currencyFormattedWithCommas(),
+                    style = AppFont.ibmPlexSans(18, FontWeight.Bold),
+                    color = AppColors.headerText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                StatusBadge(status = status)
+
+                if (isEnabled) {
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = AppColors.headerText.copy(alpha = 0.35f),
+                        modifier = Modifier.size(14.dp)
+                    )
                 }
             }
         }
 
-        // 🔹 Close Button
-        SSCancelButton(title = "Close") {
-            onCancel()
-        }
+        // Detail chips: two fixed-weight columns so widths never
+        // renegotiate mid-animation (avoids any "shaking" text)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            DetailChip(
+                icon = Icons.Default.Info,
+                caption = "Interest",
+                value = installment.interestAmount.currencyFormattedWithCommas(),
+                modifier = Modifier.weight(1f)
+            )
 
-        Spacer(modifier = Modifier.height(12.dp))
+            installment.dueDate?.let {
+                DetailChip(
+                    icon = Icons.Default.DateRange,
+                    caption = "Due date",
+                    value = CommonFunctions.dateToString(it.toDate() , format = "MMM dd yyyy"),
+                    modifier = Modifier.weight(1f)
+                )
+            } ?: Spacer(modifier = Modifier.weight(1f))
+        }
     }
 }
 
-// 🔹 Helper function to compute status (same as iOS logic)
-fun computedStatus(installment: Installment, today: Date): EMIStatus {
-    return if (installment.status == EMIStatus.PENDING &&
-        (installment.dueDate?.toDate() ?: today).before(today)
-    ) EMIStatus.OVERDUE else installment.status
+@Composable
+private fun DetailChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    caption: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(AppColors.secondaryText.copy(alpha = 0.06f))
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = AppColors.secondaryText.copy(alpha = 0.7f),
+            modifier = Modifier.size(11.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Text(
+                text = caption,
+                style = AppFont.ibmPlexSans(9, FontWeight.SemiBold),
+                color = AppColors.secondaryText.copy(alpha = 0.6f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = value,
+                style = AppFont.ibmPlexSans(12, FontWeight.SemiBold),
+                color = AppColors.secondaryText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatusBadge(status: EMIStatus) {
+    Text(
+        text = status.displayText,
+        style = AppFont.ibmPlexSans(10, FontWeight.Bold),
+        color = AppColors.primaryButtonText,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(status.color)
+            .padding(horizontal = 9.dp, vertical = 4.dp)
+    )
+}
+
+/// Auto-detect overdue if pending and past due date
+private fun computedStatus(installment: Installment, today: Date): EMIStatus {
+    val dueDate = installment.dueDate?.toDate()
+    return if (installment.status == EMIStatus.PENDING && dueDate != null && dueDate.before(today)) {
+        EMIStatus.OVERDUE
+    } else {
+        installment.status
+    }
 }
 
 

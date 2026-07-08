@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.scale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.savingssquad.R
 import com.android.savingssquad.viewmodel.AppDestination
+import com.android.savingssquad.viewmodel.FirestoreManager
 import com.android.savingssquad.viewmodel.SSToast
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -253,10 +254,18 @@ fun MemberHomeView(
 
                 // 🔹 Action Buttons (Request / Approve)
                 item {
-                    MemberTwoButtons(
-                        requestCashAction = { /* TODO: handle request cash */ },
-                        approveCashAction = { navController.navigate(AppDestination.OPEN_VERIFY_PAYMENTS.route) }
-                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 0.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        MemberTwoButtons(
+                            requestCashAction = { /* TODO: handle request cash */ },
+                            approveCashAction = { navController.navigate(AppDestination.OPEN_VERIFY_PAYMENTS.route) }
+                        )
+                    }
                 }
 
                 // 🔹 Transaction Section
@@ -378,6 +387,19 @@ fun MemberHomeView(
                     remainders = (remainders + loanRemainders)
                         .sortedBy { it.remainderDueDate?.toDate() ?: Date() }
 
+
+                    squadViewModel.fetchPayments(
+                        showLoader = true,
+                        memberId = fetchedMember.id ?: ""
+                    ) { _, error ->
+                        if (error != null) {
+                            println("❌ $error")
+                        }
+                    }
+
+                    FirestoreManager.shared.updateLastActiveDate(fetchedMember.squadID,fetchedMember.id ?: "", SquadUserType.SQUAD_MEMBER) { success,error ->
+                    }
+
                     loaderManager.hideLoader()
                 }
 
@@ -402,21 +424,27 @@ fun RemainderCardView(
     val formattedDate =
         SimpleDateFormat("dd MMM", Locale.ENGLISH).format(dueDate)
 
-    // 🔹 Dynamic width logic — trimmed for a compact card
     val cardWidth = when (title.uppercase()) {
         "CONTRIBUTION" -> 168.dp
         "EMI" -> 132.dp
         else -> 168.dp
     }
 
-    val statusColor = if (isOverdue) AppColors.errorAccent else AppColors.warningAccent
+    val statusColor =
+        if (isOverdue) AppColors.errorAccent
+        else AppColors.warningAccent
 
     val interactionSource = remember { MutableInteractionSource() }
+
     val isPressed by interactionSource.collectIsPressedAsState()
+
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
-        label = "reminderCardScale"
+        animationSpec = spring(
+            dampingRatio = 0.6f,
+            stiffness = 400f
+        ),
+        label = "ReminderCardScale"
     )
 
     Column(
@@ -430,17 +458,25 @@ fun RemainderCardView(
             )
             .clip(RoundedCornerShape(14.dp))
             .background(AppColors.surface)
-            .border(1.dp, AppColors.border.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+            .border(
+                1.dp,
+                AppColors.border.copy(alpha = 0.5f),
+                RoundedCornerShape(14.dp)
+            )
             .clickable(
                 indication = null,
                 interactionSource = interactionSource
-            ) { onTap() }
+            ) {
+                onTap()
+            }
             .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
 
-        // 🔹 Status dot + Title
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // MARK: Header
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
 
             Box(
                 modifier = Modifier
@@ -453,7 +489,10 @@ fun RemainderCardView(
 
             Text(
                 text = title,
-                style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
+                style = AppFont.ibmPlexSans(
+                    13,
+                    FontWeight.SemiBold
+                ),
                 color = AppColors.headerText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -461,17 +500,35 @@ fun RemainderCardView(
             )
         }
 
-        // 🔹 Amount — the hero element, kept tight to the title
+        // MARK: Subtitle
+        Text(
+            text = subtitle,
+            style = AppFont.ibmPlexSans(
+                11,
+                FontWeight.Medium
+            ),
+            color = AppColors.secondaryText,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        // MARK: Amount
         Text(
             text = "₹$amount",
-            style = AppFont.ibmPlexSans(17, FontWeight.Bold),
+            style = AppFont.ibmPlexSans(
+                17,
+                FontWeight.Bold
+            ),
             color = AppColors.headerText
         )
 
-        // 🔹 Status + Due date, single compact line
+        // MARK: Due Status
         Text(
-            text = "${if (isOverdue) "Overdue" else "Due"} · $formattedDate",
-            style = AppFont.ibmPlexSans(11, FontWeight.Medium),
+            text = "${if (isOverdue) "Overdue" else "Due"} • $formattedDate",
+            style = AppFont.ibmPlexSans(
+                11,
+                FontWeight.Medium
+            ),
             color = statusColor
         )
     }

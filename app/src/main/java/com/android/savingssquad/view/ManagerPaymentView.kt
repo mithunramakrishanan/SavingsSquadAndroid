@@ -23,8 +23,10 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Pending
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Warning
@@ -110,9 +112,6 @@ fun ManagerPaymentView(
     var loanSelectedMemberNameError by remember { mutableStateOf("") }
     var showAllEMIs by remember { mutableStateOf(false) }
 
-    val isPendingLoanAvailable by squadViewModel.isPendingLoanAvailable.collectAsStateWithLifecycle()
-
-
     val paymentAmount = remember { mutableStateOf("") }
 
     var paymentAmountError by remember { mutableStateOf("") }
@@ -187,56 +186,77 @@ fun ManagerPaymentView(
                     }
                 }
 
-                if (isPendingLoanAvailable) {
+                if (loanSelectedMember?.currentLoanApproveStatus == EMIStatus.PENDING) {
 
                     item {
 
                         Column(
-
                             modifier = Modifier
-
                                 .fillMaxWidth()
-
                                 .padding(top = 16.dp),
-
                             horizontalAlignment = Alignment.CenterHorizontally,
-
                             verticalArrangement = Arrangement.spacedBy(12.dp)
-
-                        )
-                        {
+                        ) {
 
                             Icon(
-
-                                imageVector = Icons.Filled.Warning,
-
+                                imageVector = Icons.Default.Pending,
                                 contentDescription = null,
-
                                 modifier = Modifier.size(50.dp),
-
                                 tint = AppColors.errorAccent
-
                             )
 
                             Text(
-
-                                text = "${loanSelectedMember?.name ?: "Member"} already has a pending loan.",
-
+                                text = "Pending loan exists",
                                 style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
-
                                 color = AppColors.errorAccent,
-
-                                textAlign = TextAlign.Center,
-
-                                modifier = Modifier.padding(horizontal = 16.dp)
-
+                                textAlign = TextAlign.Center
                             )
 
+                            Text(
+                                text = "${loanSelectedMember?.name ?: "This member"} already has a pending loan. Please complete or close the existing loan before creating a new one.",
+                                style = AppFont.ibmPlexSans(14),
+                                color = AppColors.secondaryText,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 20.dp)
+                            )
                         }
-
                     }
+                }
+                else if (loanSelectedMember?.currentLoanApproveStatus == EMIStatus.INVERIFICATION) {
 
+                    item {
 
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+
+                            Icon(
+                                imageVector = Icons.Default.HourglassTop,
+                                contentDescription = null,
+                                modifier = Modifier.size(50.dp),
+                                tint = AppColors.infoAccent
+                            )
+
+                            Text(
+                                text = "Loan verification is pending",
+                                style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+                                color = AppColors.infoAccent,
+                                textAlign = TextAlign.Center
+                            )
+
+                            Text(
+                                text = "A loan verification request is already pending for ${loanSelectedMember?.name ?: "this member"}. Please wait until it is approved or rejected before creating another loan.",
+                                style = AppFont.ibmPlexSans(14),
+                                color = AppColors.secondaryText,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 20.dp)
+                            )
+                        }
+                    }
                 }
                 else {
 
@@ -291,7 +311,6 @@ fun ManagerPaymentView(
                                             handler = {
                                                 loanSelectedMember = null
                                                 emiSelectedType = null
-                                                squadViewModel.setIsPendingLoanAvailable(false)
                                             }
                                         )
 
@@ -539,7 +558,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
         intrestAmount = 0,
 
         paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
-        paymentType = PaymentType.PAYMENT_CREDIT,
+        paymentType = PaymentType.PAYMENT_DEBIT,
         paymentSubType = PaymentSubType.OTHERS_AMOUNT,
         paymentStatus = PaymentStatus.INVERIFICATION,
         payoutStatus = PayoutStatus.PAYOUT_SUCCESS,

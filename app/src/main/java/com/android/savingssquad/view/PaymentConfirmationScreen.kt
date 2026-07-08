@@ -79,6 +79,7 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 
 @Composable
@@ -90,6 +91,7 @@ fun PaymentConfirmationView(
     var payment by remember { mutableStateOf<PaymentsDetails?>(null) }
     var isProcessing by rememberSaveable { mutableStateOf(false) }
     var didCopyReference by remember { mutableStateOf(false) }
+    var didCopyUPI by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
 
     val context = LocalContext.current
@@ -115,7 +117,30 @@ fun PaymentConfirmationView(
         label = "pulseAlpha"
     )
 
-    LaunchedEffectCopyReset(didCopyReference) { didCopyReference = false }
+    LaunchedEffect(didCopyReference) {
+
+        if (didCopyReference) {
+
+            delay(1400.milliseconds)
+
+            didCopyReference = false
+
+        }
+
+    }
+
+    LaunchedEffect(didCopyUPI) {
+
+        if (didCopyUPI) {
+
+            delay(1400.milliseconds)
+
+            didCopyUPI = false
+
+        }
+
+    }
+
     LaunchedEffect(Unit) {
         payment = UserDefaultsManager.getPendingPayment()
     }
@@ -175,13 +200,20 @@ fun PaymentConfirmationView(
                 ReferenceCard(
                     payment = payment,
                     didCopyReference = didCopyReference,
-                    onCopy = {
+                    didCopyUPI = didCopyUPI,
+
+                    onCopyReference = {
                         clipboardManager.setText(
-                            AnnotatedString(
-                                payment?.transferReferenceId.orEmpty()
-                            )
+                            AnnotatedString(payment?.id.orEmpty())
                         )
                         didCopyReference = true
+                    },
+
+                    onCopyUPI = {
+                        clipboardManager.setText(
+                            AnnotatedString(payment?.upiID.orEmpty())
+                        )
+                        didCopyUPI = true
                     }
                 )
 
@@ -313,11 +345,31 @@ private fun StatusHero(payment: PaymentsDetails?, pulseScale: Float, pulseAlpha:
                 style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
                 color = AppColors.secondaryText.copy(alpha = 0.7f)
             )
+
             Text(
-                text = "₹${payment?.amount}",
-                style = AppFont.ibmPlexSans(36, FontWeight.Bold),
-                color = AppColors.headerText
+                text = payment?.transferReferenceId ?: "",
+                style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
+                color = AppColors.secondaryText.copy(alpha = 0.7f)
             )
+
+            if (payment?.paymentSubType == PaymentSubType.EMI_AMOUNT) {
+
+                Text(
+                    text = "₹${payment.amount + payment.intrestAmount}",
+                    style = AppFont.ibmPlexSans(36, FontWeight.Bold),
+                    color = AppColors.headerText
+                )
+            }
+            else {
+
+                Text(
+                    text = "₹${payment?.amount}",
+                    style = AppFont.ibmPlexSans(36, FontWeight.Bold),
+                    color = AppColors.headerText
+                )
+            }
+
+
         }
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -358,97 +410,176 @@ private fun StatusHero(payment: PaymentsDetails?, pulseScale: Float, pulseAlpha:
 private fun ReferenceCard(
     payment: PaymentsDetails?,
     didCopyReference: Boolean,
-    onCopy: () -> Unit
+    didCopyUPI: Boolean,
+    onCopyReference: () -> Unit,
+    onCopyUPI: () -> Unit
 ) {
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(AppColors.background.copy(alpha = 0.5f))
-            .border(1.dp, AppColors.border.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+            .border(
+                1.dp,
+                AppColors.border.copy(alpha = 0.6f),
+                RoundedCornerShape(16.dp)
+            )
             .padding(14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        //========================
+        // Reference ID
+        //========================
 
-            Column(modifier = Modifier.weight(1f)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+
                 Text(
                     text = "REFERENCE ID",
-                    style = AppFont.ibmPlexSans(9, FontWeight.SemiBold),
+                    style = AppFont.ibmPlexSans(
+                        9,
+                        FontWeight.SemiBold
+                    ),
                     color = AppColors.secondaryText.copy(alpha = 0.6f)
                 )
+
                 Text(
-                    text = payment?.transferReferenceId ?: "",
-                    style = AppFont.ibmPlexSans(13, FontWeight.Medium).copy(fontFamily = FontFamily.Monospace),
+                    text = payment?.id.orEmpty(),
+                    style = AppFont.ibmPlexSans(
+                        11,
+                        FontWeight.Medium
+                    ).copy(fontFamily = FontFamily.Monospace),
                     color = AppColors.headerText,
                     maxLines = 1
                 )
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
-
-            val chipColor = if (didCopyReference) AppColors.successAccent else AppColors.primaryBrand
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(chipColor.copy(alpha = 0.1f))
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { onCopy() }
-                    .padding(horizontal = 9.dp, vertical = 5.dp)
-            ) {
-                Icon(
-                    imageVector = if (didCopyReference) Icons.Default.Check else Icons.Default.ContentCopy,
-                    contentDescription = null,
-                    tint = chipColor,
-                    modifier = Modifier.size(12.dp)
-                )
-                Text(
-                    text = if (didCopyReference) "Copied" else "Copy",
-                    style = AppFont.ibmPlexSans(11, FontWeight.SemiBold),
-                    color = chipColor
-                )
-            }
+            CopyChip(
+                copied = didCopyReference,
+                onClick = onCopyReference
+            )
         }
 
         HorizontalDivider(color = AppColors.border)
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        //========================
+        // UPI ID
+        //========================
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(AppColors.primaryBackground)
-                    .padding(horizontal = 9.dp, vertical = 4.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Column(
+                modifier = Modifier.weight(1f)
             ) {
-                Icon(
-                    imageVector = Icons.Default.CurrencyRupee,
-                    contentDescription = null,
-                    tint = AppColors.primaryBrand,
-                    modifier = Modifier.size(12.dp)
-                )
+
                 Text(
-                    text = "UPI",
-                    style = AppFont.ibmPlexSans(11, FontWeight.SemiBold),
-                    color = AppColors.primaryBrand
+                    text = "UPI ID",
+                    style = AppFont.ibmPlexSans(
+                        9,
+                        FontWeight.SemiBold
+                    ),
+                    color = AppColors.secondaryText.copy(alpha = 0.6f)
+                )
+
+                Text(
+                    text = payment?.upiID.orEmpty(),
+                    style = AppFont.ibmPlexSans(
+                        13,
+                        FontWeight.Medium
+                    ).copy(fontFamily = FontFamily.Monospace),
+                    color = AppColors.primaryBrand,
+                    maxLines = 1
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            CopyChip(
+                copied = didCopyUPI,
+                onClick = onCopyUPI
+            )
+        }
+
+        HorizontalDivider(color = AppColors.border)
+
+        Row {
 
             Text(
                 text = formattedTimestamp(),
-                style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                style = AppFont.ibmPlexSans(
+                    10,
+                    FontWeight.Medium
+                ),
                 color = AppColors.secondaryText
             )
+
+            Spacer(modifier = Modifier.weight(1f))
         }
+    }
+}
+
+@Composable
+private fun CopyChip(
+    copied: Boolean,
+    onClick: () -> Unit
+) {
+
+    val chipColor =
+        if (copied)
+            AppColors.successAccent
+        else
+            AppColors.primaryBrand
+
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(chipColor.copy(alpha = 0.10f))
+            .clickable(
+                indication = null,
+                interactionSource = remember {
+                    MutableInteractionSource()
+                }
+            ) {
+                onClick()
+            }
+            .padding(
+                horizontal = 9.dp,
+                vertical = 5.dp
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+
+        Icon(
+            imageVector =
+                if (copied)
+                    Icons.Default.Check
+                else
+                    Icons.Default.ContentCopy,
+            contentDescription = null,
+            tint = chipColor,
+            modifier = Modifier.size(12.dp)
+        )
+
+        Text(
+            text =
+                if (copied)
+                    "Copied"
+                else
+                    "Copy",
+            style = AppFont.ibmPlexSans(
+                11,
+                FontWeight.SemiBold
+            ),
+            color = chipColor
+        )
     }
 }
 

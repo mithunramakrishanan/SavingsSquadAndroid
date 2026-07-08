@@ -202,10 +202,6 @@ class SquadViewModel : ViewModel() {
     val selectedLoan: StateFlow<MemberLoan?> = _selectedLoan
     fun setSelectedLoan(value: MemberLoan?) { _selectedLoan.value = value }
 
-    private val _isPendingLoanAvailable = MutableStateFlow(false)
-    val isPendingLoanAvailable: StateFlow<Boolean> = _isPendingLoanAvailable
-    fun setIsPendingLoanAvailable(value: Boolean) { _isPendingLoanAvailable.value = value }
-
     // ------------------------------------------------------------------------
     // 🔹 UI States / Popups
     // ------------------------------------------------------------------------
@@ -688,7 +684,8 @@ class SquadViewModel : ViewModel() {
             upiBeneId = "",
             bankBeneId = "",
             upiID = "",
-            fcmToken = ""
+            fcmToken = "",
+            currentLoanApproveStatus = EMIStatus.CREATED
         )
 
         val addAndSave: () -> Unit = {
@@ -1689,34 +1686,78 @@ class SquadViewModel : ViewModel() {
 
                 if (payment.paymentSubType == PaymentSubType.CONTRIBUTION_AMOUNT) {
 
-                    updateContributionStatus(
-                        squadID = payment.squadId,
-                        memberID = payment.memberId,
-                        contributionID = payment.contributionId,
-                        amount = payment.amount,
-                        newStatus = PaidStatus.INVERIFICATION.value
-                    ) { success, error ->
+                    if (payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
 
-                        // handle response if needed
-                        if (!success) {
-                            println("Error updating: $error")
+                        updateContributionStatus(
+                            squadID = payment.squadId,
+                            memberID = payment.memberId,
+                            contributionID = payment.contributionId,
+                            amount = payment.amount,
+                            newStatus = PaidStatus.PAID.value
+                        ) { success, error ->
+
+                            // handle response if needed
+                            if (!success) {
+                                println("Error updating: $error")
+                            }
                         }
+
                     }
-                }
-                else if (payment.paymentSubType == PaymentSubType.EMI_AMOUNT) {
+                    else {
 
-                    updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.INVERIFICATION.value){ success, error ->
-                        // handle response if needed
-                        if (!success) {
-                            println("Error updating: $error")
-                        }
-                        else {
+                        updateContributionStatus(
+                            squadID = payment.squadId,
+                            memberID = payment.memberId,
+                            contributionID = payment.contributionId,
+                            amount = payment.amount,
+                            newStatus = PaidStatus.INVERIFICATION.value
+                        ) { success, error ->
 
-                            if (_isPendingLoanAvailable.value) {
-                                updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), payment.memberId)
+                            // handle response if needed
+                            if (!success) {
+                                println("Error updating: $error")
                             }
                         }
                     }
+
+
+                }
+                else if (payment.paymentSubType == PaymentSubType.EMI_AMOUNT) {
+
+                    if (payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
+
+                        updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.value){ success, error ->
+                            // handle response if needed
+                            if (!success) {
+                                println("Error updating: $error")
+                            }
+                            else {
+
+                                updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), payment.memberId)
+
+                            }
+                        }
+                    }
+                    else {
+
+                        updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.INVERIFICATION.value){ success, error ->
+                            // handle response if needed
+                            if (!success) {
+                                println("Error updating: $error")
+                            }
+                            else {
+
+                                updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), payment.memberId)
+
+                            }
+                        }
+                    }
+
+                }
+                else if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
+
+                    FirestoreManager.shared.updateCurrentLoanApproveStatus(payment.squadId,payment.memberId,
+                        EMIStatus.INVERIFICATION) {_,_ -> }
                 }
 
                 if (payment.paymentSubType == PaymentSubType.OTHERS_AMOUNT || payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
@@ -1829,44 +1870,92 @@ class SquadViewModel : ViewModel() {
             // 🔹 Update squad financials atomically
             for (pay in payment) {
                 applyPaymentToFirestore(squadID = squadLocal.squadID, payment = pay, status = status)
+
+                if (status == PaymentApproveStatus.ACCEPTED && pay.memberId.isNotEmpty()) {
+
+                    applyMemberToFirestore(
+
+                        squadID = squadLocal.squadID,
+
+                        memberID = pay.memberId,
+
+                        payment = pay,
+
+                        status = status
+
+                    )
+                }
+
+
             }
 
-            // 🔹 Update member if exists
-            if (status == PaymentApproveStatus.ACCEPTED && member != null) {
-                var memberCopy = member
-                applyMemberSummaries(payment, memberCopy)
-                updateMembers(squadID = squadLocal.squadID, members = listOf(memberCopy)) { success, error ->
-                    if (!success) println("❌ Failed to update member: ${error ?: "Unknown error"}")
-                }
-            }
         }
     }
 
-    fun applyMemberSummaries(payments: List<PaymentsDetails>, member: Member) {
-        for (pay in payments) {
-            when (pay.paymentType) {
-                PaymentType.PAYMENT_CREDIT -> {
-                    when (pay.paymentSubType) {
-                        PaymentSubType.INTEREST_AMOUNT -> {
-                            member.totalInterestPaid += pay.intrestAmount
-                        }
-                        PaymentSubType.EMI_AMOUNT -> {
-                            member.totalLoanPaid += (pay.amount - pay.intrestAmount)
-                            member.totalInterestPaid += pay.intrestAmount
-                        }
-                        PaymentSubType.CONTRIBUTION_AMOUNT -> {
-                            member.totalContributionPaid += pay.amount
-                        }
-                        else -> Unit
+    fun applyMemberToFirestore(
+        squadID: String,
+        memberID: String,
+        payment: PaymentsDetails,
+        status: PaymentApproveStatus
+    ) {
+
+        if (status != PaymentApproveStatus.ACCEPTED) return
+
+        val updates = mutableMapOf<String, Any>()
+
+        when (payment.paymentType) {
+
+            PaymentType.PAYMENT_CREDIT -> {
+
+                when (payment.paymentSubType) {
+
+                    PaymentSubType.CONTRIBUTION_AMOUNT -> {
+                        updates["totalContributionPaid"] =
+                            FieldValue.increment(payment.amount.toLong())
                     }
+
+                    PaymentSubType.INTEREST_AMOUNT -> {
+                        updates["totalInterestPaid"] =
+                            FieldValue.increment(payment.intrestAmount.toLong())
+                    }
+
+                    PaymentSubType.EMI_AMOUNT -> {
+
+                        updates["totalLoanPaid"] =
+                            FieldValue.increment((payment.amount).toLong())
+
+                        updates["totalInterestPaid"] =
+                            FieldValue.increment(payment.intrestAmount.toLong())
+                    }
+
+                    else -> Unit
                 }
-                PaymentType.PAYMENT_DEBIT -> {
-                    if (pay.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
-                        member.totalLoanBorrowed += (pay.amount - pay.intrestAmount)
-                    }
+            }
+
+            PaymentType.PAYMENT_DEBIT -> {
+
+                if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
+
+                    updates["totalLoanBorrowed"] =
+                        FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
                 }
             }
         }
+
+        if (updates.isEmpty()) return
+
+        FirebaseFirestore.getInstance()
+            .collection("squads")
+            .document(squadID)
+            .collection("members")
+            .document(memberID)
+            .update(updates)
+            .addOnSuccessListener {
+                println("✅ Member financials updated atomically")
+            }
+            .addOnFailureListener {
+                println("❌ Failed to update member financials: ${it.message}")
+            }
     }
 
     fun applyPaymentToFirestore(squadID: String, payment: PaymentsDetails, status: PaymentApproveStatus) {
@@ -1888,10 +1977,10 @@ class SquadViewModel : ViewModel() {
                         updates["currentAvailableAmount"] = FieldValue.increment(payment.amount.toLong())
                     }
                     PaymentSubType.EMI_AMOUNT -> {
-                        updates["totalLoanAmountReceived"] = FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
+                        updates["totalLoanAmountReceived"] = FieldValue.increment((payment.amount.toLong()))
                         updates["totalInterestAmountReceived"] = FieldValue.increment(payment.intrestAmount.toLong())
-                        updates["currentCreditAmount"] = FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
-                        updates["currentAvailableAmount"] = FieldValue.increment(payment.amount.toLong())
+                        updates["currentCreditAmount"] = FieldValue.increment((payment.amount + payment.intrestAmount).toLong())
+                        updates["currentAvailableAmount"] = FieldValue.increment((payment.amount + payment.intrestAmount).toLong())
                     }
                     else -> {
                         updates["currentCreditAmount"] = FieldValue.increment(payment.amount.toLong())
@@ -2096,10 +2185,15 @@ class SquadViewModel : ViewModel() {
                                     println("❌ Error: ${error ?: "Unknown error"}")
                                 }
                             }
+
+                            FirestoreManager.shared.updateCurrentLoanApproveStatus(payment.squadId,payment.memberId,
+                                EMIStatus.PENDING) {_,_ -> }
                         }
 
                         PaymentApproveStatus.REJECTED -> {
 
+                            FirestoreManager.shared.updateCurrentLoanApproveStatus(payment.squadId,payment.memberId,
+                                EMIStatus.CREATED) {_,_ -> }
                         }
 
                         else -> {}
@@ -2649,40 +2743,74 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-    fun fetchMemberLoans(showLoader: Boolean, memberID: String, completion: (Boolean, String?) -> Unit) {
+    fun fetchMemberLoans(
+        showLoader: Boolean,
+        memberID: String,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
+
+            if (showLoader) {
+                LoaderManager.shared.hideLoader()
+            }
+
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
+
+            completion(false, SquadStrings.networkError)
             return
         }
 
-        if (showLoader) LoaderManager.shared.showLoader()
-
-        setIsPendingLoanAvailable(false)
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
 
         manager.fetchMemberLoans(squadID, memberID) { loans, error ->
-            if (showLoader) LoaderManager.shared.hideLoader()
 
-            if (loans != null) {
-                setMemberLoans(loans)
-                setMemberPendingLoans(loans.pendingLoans())
-                setIsPendingLoanAvailable(!(memberPendingLoans.value?.isEmpty() ?: true))
-                if (_isPendingLoanAvailable.value) {
-                    updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), memberID)
+            if (loans == null) {
+
+                if (showLoader) {
+                    LoaderManager.shared.hideLoader()
                 }
 
-                completion(true, null)
-            } else {
-                val errorMsg = error ?: "Failed to fetch EMIs"
+                val errorMsg = error ?: "Failed to fetch loans"
+
                 handleFetchError(errorMsg) {
-                    fetchMemberLoans(showLoader, memberID, completion)
+                    fetchMemberLoans(
+                        showLoader,
+                        memberID,
+                        completion
+                    )
                 }
+
                 completion(false, errorMsg)
+                return@fetchMemberLoans
+            }
+
+            setMemberLoans(loans)
+
+            FirestoreManager.shared.fetchMemberPendingLoans(
+                squadID,
+                memberID
+            ) { pendingLoans, pendingError ->
+
+                setMemberPendingLoans(
+                    pendingLoans ?: emptyList()
+                )
+                if (showLoader) {
+                    LoaderManager.shared.hideLoader()
+                }
+
+                if (pendingError != null) {
+                    completion(false, pendingError)
+                } else {
+                    completion(true, null)
+                }
             }
         }
     }
