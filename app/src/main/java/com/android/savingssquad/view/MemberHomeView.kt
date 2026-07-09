@@ -48,6 +48,11 @@ import com.android.savingssquad.R
 import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.FirestoreManager
 import com.android.savingssquad.viewmodel.SSToast
+import androidx.compose.runtime.collectAsState
+import com.android.savingssquad.viewmodel.AlertManager
+import com.android.savingssquad.viewmodel.ToastManager
+import com.android.savingssquad.viewmodel.ToastType
+import com.yourapp.utils.IDGenerator
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -262,8 +267,29 @@ fun MemberHomeView(
                         contentAlignment = Alignment.Center
                     ) {
                         MemberTwoButtons(
-                            requestCashAction = { /* TODO: handle request cash */ },
-                            approveCashAction = { navController.navigate(AppDestination.OPEN_VERIFY_PAYMENTS.route) }
+                            requestCashAction = {
+
+                                val member = squadViewModel.currentMember ?: return@MemberTwoButtons
+
+                                if (member.value?.cashRequested == true || member.value?.currentLoanApproveStatus != EMIStatus.CREATED) {
+
+                                    AlertManager.shared.showAlert(
+                                        title = "Request Not Available",
+                                        message = "You already have a pending loan or cash request. Please wait until the existing request is confirmed before creating a new request",
+                                        type = AlertType.INFO,
+                                        primaryButtonTitle = SquadStrings.ok,
+                                        primaryAction = {
+
+                                        }
+                                    )
+                                }
+
+                                squadViewModel.setShowRequestCashPopup(true)
+
+
+                                                },
+                            approveCashAction = { navController.navigate(AppDestination.OPEN_VERIFY_PAYMENTS.route) } , verifyCount = currentMember?.verifyAmountCount
+                                ?: 0
                         )
                     }
                 }
@@ -307,6 +333,7 @@ fun MemberHomeView(
                 }
             }
         }
+
         if (showPopup) {
             OverlayBackgroundView(
                 showPopup = remember { mutableStateOf(showPopup) },
@@ -322,6 +349,64 @@ fun MemberHomeView(
                 )
             }
         }
+
+        val showRequestCashPopup by squadViewModel.showRequestCashPopup
+            .collectAsStateWithLifecycle()
+
+        if (showRequestCashPopup) {
+
+            OverlayBackgroundView(
+                showPopup = remember { mutableStateOf(showRequestCashPopup) },
+                onDismiss = {
+                    squadViewModel.setShowRequestCashPopup(false)
+                }
+            ) {
+
+                RequestCashEMIListView(
+
+                    emiConfigs = squadViewModel.emiConfigurations
+                        .collectAsState()
+                        .value,
+
+                    onRequestCash = { emi ->
+
+                        println("Request Cash : ${emi.loanAmount}")
+
+                        AlertManager.shared.showAlert(
+                            title = "Request Cash Confirmation",
+                            message = "Are you sure you want to request cash for this EMI? Your request will be sent to the Squad Manager. Once approved, the manager will make the payment to you.",
+                            primaryButtonTitle = "Request Cash",
+                            primaryAction =
+                                {
+                                    val cashRequest = CashRequest(id = IDGenerator.generateCashRequestID(), requestedByName = squadViewModel.currentMember.value?.name
+                                        ?: "",requestedByID = squadViewModel.currentMember.value?.id
+                                        ?: "", requestedEMIConfig = emi)
+
+                                    squadViewModel.addCashRequest(true,cashRequest) {success,error ->
+
+                                        ToastManager.show(SquadStrings.appName,"Request Sent Successfully", type = ToastType.SUCCESS)
+                                    }
+
+                                },
+                            secondaryButtonTitle = "Cancel",
+                            secondaryAction = {}
+                        )
+
+
+
+                    },
+
+                    onDismiss = {
+
+                        squadViewModel.setShowRequestCashPopup(false)
+
+                    }
+                )
+            }
+        }
+
+
+
     }
 
     // ------------------------------

@@ -351,6 +351,10 @@ object IDGenerator {
         return "SQD-${randomCode(6)}-${randomSuffix()}"
     }
 
+    fun generateCashRequestID(): String {
+        return "CR-${randomCode(6)}-${randomSuffix()}"
+    }
+
     // MARK: - Core
 
     private fun randomCode(length: Int): String {

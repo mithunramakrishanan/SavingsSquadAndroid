@@ -1,6 +1,8 @@
 package com.android.savingssquad.viewmodel
 
 import android.util.Log
+import com.android.savingssquad.model.CashRequest
+import com.android.savingssquad.model.CashRequestStatus
 import com.android.savingssquad.model.ContributionDetail
 import com.android.savingssquad.model.EMIConfiguration
 import com.android.savingssquad.model.Squad
@@ -28,6 +30,7 @@ import com.android.savingssquad.singleton.SessionManager
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.asTimestamp
 import com.google.firebase.Firebase
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.firestore
 import com.google.firebase.messaging.FirebaseMessaging
@@ -388,13 +391,6 @@ class FirestoreManager private constructor() {
                 paymentRef.update(updateData)
                     .addOnSuccessListener {
 
-                        // 🔥 ALWAYS DECREMENT (NO CONDITION)
-                        db.collection("squads")
-                            .document(squadID)
-                            .update(
-                                "verifyAmountCount",
-                                com.google.firebase.firestore.FieldValue.increment(-1)
-                            )
 
                         paymentRef.get()
                             .addOnSuccessListener { updatedSnapshot ->
@@ -479,6 +475,17 @@ class FirestoreManager private constructor() {
 
                     db.collection("squads")
                         .document(squadID)
+                        .update("verifyAmountCount", verifyCount)
+                        .addOnFailureListener {
+                            println("⚠️ verifyAmountCount sync failed: ${it.message}")
+                        }
+                }
+                else {
+
+                    val verifyCount = list.size
+
+                    db.collection("squads").document(squadID)
+                        .collection("members").document(memberId ?: "")
                         .update("verifyAmountCount", verifyCount)
                         .addOnFailureListener {
                             println("⚠️ verifyAmountCount sync failed: ${it.message}")
@@ -874,50 +881,67 @@ class FirestoreManager private constructor() {
 
                         if (allPaid) {
 
-                            updateCurrentLoanApproveStatus(
+                            val documentRef = FirebaseFirestore.getInstance()
+                                .collection("squads")
+                                .document(squadID)
+                                .collection("members")
+                                .document(memberID)
 
-                                squadID = squadID,
 
-                                memberID = memberID,
+                            documentRef.get()
+                                .addOnSuccessListener { document ->
 
-                                paymentApproveStatus = EMIStatus.CREATED
+                                    if (!document.exists()) {
 
-                            ) { success, error ->
+                                        completion(
+                                            false,
+                                            "❌ Member not found."
+                                        )
+                                        return@addOnSuccessListener
+                                    }
 
-                                if (success) {
 
-                                    completion(
-
-                                        true,
-
-                                        "Installment updated & Loan closed successfully"
-
+                                    val updateData = hashMapOf<String, Any>(
+                                        "currentLoanApproveStatus" to "CREATED",
+                                        "cashRequested" to false
                                     )
 
-                                } else {
 
-                                    completion(
-
-                                        false,
-
-                                        error ?: "Loan updated but failed to update member status"
-
+                                    documentRef.set(
+                                        updateData,
+                                        SetOptions.merge()
                                     )
+                                        .addOnSuccessListener {
+
+                                            completion(
+                                                true,
+                                                "✅ Installment updated & Loan closed successfully"
+                                            )
+                                        }
+                                        .addOnFailureListener { error ->
+
+                                            completion(
+                                                false,
+                                                "${error.localizedMessage} Loan updated but failed to update member status"
+                                            )
+                                        }
 
                                 }
+                                .addOnFailureListener { error ->
 
-                            }
+                                    completion(
+                                        false,
+                                        "❌ Failed to fetch member: ${error.localizedMessage}"
+                                    )
+                                }
+
 
                         } else {
 
                             completion(
-
                                 true,
-
-                                "Installment updated successfully"
-
+                                "✅ Installment updated successfully"
                             )
-
                         }
 
                     }
@@ -962,16 +986,6 @@ class FirestoreManager private constructor() {
             if (payment.paymentApproveStatus == PaymentApproveStatus.REQUESTED) {
                 requestedCountIncrement++
             }
-
-
-        // 🔥 Update squad verifyAmountCount only if needed
-        if (requestedCountIncrement > 0) {
-            batch.update(
-                squadRef,
-                "verifyAmountCount",
-                FieldValue.increment(requestedCountIncrement.toLong())
-            )
-        }
 
         // 🔥 Commit batch
         batch.commit()
@@ -2732,6 +2746,145 @@ class FirestoreManager private constructor() {
                     false,
                     "❌ Failed to fetch member: ${error.localizedMessage}"
                 )
+            }
+    }
+
+    fun addCashRequest(
+        squadID: String,
+        cashRequest: CashRequest,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val db = FirebaseFirestore.getInstance()
+
+        val cashReqID = cashRequest.id
+            ?: run {
+                completion(false, "Invalid cash request ID")
+                return
+            }
+
+
+        val squadRef = db
+            .collection("squads")
+            .document(squadID)
+
+        val memberRef = squadRef
+            .collection("members")
+            .document(cashRequest.requestedByID)
+
+        val cashRef = squadRef
+            .collection("cashrequest")
+            .document(cashReqID)
+
+
+        cashRef.set(cashRequest)
+            .addOnSuccessListener {
+
+                memberRef.update(
+                    "cashRequested",
+                    true
+                )
+                    .addOnSuccessListener {
+
+                        completion(true, null)
+
+                    }
+                    .addOnFailureListener { error ->
+
+                        completion(
+                            false,
+                            "Member cashRequested update failed: ${error.localizedMessage}"
+                        )
+                    }
+
+            }
+            .addOnFailureListener { error ->
+
+                completion(
+                    false,
+                    error.localizedMessage
+                )
+            }
+    }
+
+    fun fetchCashRequests(
+        squadID: String,
+        memberId: String? = null,
+        lastDocument: DocumentSnapshot? = null,
+        limit: Int = 20,
+        completion: (
+            cashRequests: List<CashRequest>?,
+            lastDocument: DocumentSnapshot?,
+            error: String?
+        ) -> Unit
+    ) {
+
+        var query: Query = FirebaseFirestore.getInstance()
+            .collection("squads")
+            .document(squadID)
+            .collection("cashrequest")
+            .orderBy("requestedOn", Query.Direction.DESCENDING)
+            .limit(limit.toLong())
+
+        if (!memberId.isNullOrEmpty()) {
+            query = query.whereEqualTo("requestedByID", memberId)
+        }
+
+        if (lastDocument != null) {
+            query = query.startAfter(lastDocument)
+        }
+
+        query.get()
+            .addOnSuccessListener { snapshot ->
+
+                val cashRequests = snapshot.documents.mapNotNull {
+
+                    val cashRequest = it.toObject(CashRequest::class.java)
+                    cashRequest?.id = it.id
+                    cashRequest
+                }
+
+                completion(
+                    cashRequests,
+                    snapshot.documents.lastOrNull(),
+                    null
+                )
+            }
+            .addOnFailureListener {
+                completion(
+                    null,
+                    null,
+                    it.localizedMessage
+                )
+            }
+    }
+
+    fun updateCashRequestStatus(
+        squadID: String,
+        cashRequestId: String,
+        status: CashRequestStatus,
+        completion: (error: String?) -> Unit
+    ) {
+
+        val updates = hashMapOf<String, Any>(
+            "cashRequestStatus" to status.name
+        )
+
+        if (status == CashRequestStatus.ACCEPTED) {
+            updates["requestAcceptedOn"] = Timestamp.now()
+        }
+
+        FirebaseFirestore.getInstance()
+            .collection("squads")
+            .document(squadID)
+            .collection("cashrequest")
+            .document(cashRequestId)
+            .update(updates)
+            .addOnSuccessListener {
+                completion(null)
+            }
+            .addOnFailureListener {
+                completion(it.localizedMessage)
             }
     }
 }

@@ -525,7 +525,8 @@ fun ManagerTwoButtons(
         // ================= VERIFY PAYMENT =================
         Box(
             modifier = Modifier.weight(1f)
-        ) {
+        )
+        {
 
             TwoButtonGradient(
                 icon = Icons.Default.VerifiedUser,
@@ -573,7 +574,8 @@ fun ManagerTwoButtons(
 fun MemberTwoButtons(
     requestCashAction: () -> Unit,
     approveCashAction: () -> Unit,
-    isRequestCashEnabled: Boolean = false, // flip to true when Request Cash ships
+    verifyCount: Int,
+    isRequestCashEnabled: Boolean = true, // flip to true when Request Cash ships
     onRequestCashComingSoon: (() -> Unit)? = null
 ) {
 
@@ -597,18 +599,53 @@ fun MemberTwoButtons(
             onDisabledClick = onRequestCashComingSoon
         )
 
-        // ================= VERIFY PAYMENT (PRIMARY ACTION) =================
-        TwoButtonGradient(
-            icon = Icons.Default.VerifiedUser,
-            title = "Verify Payment",
-            subtitle = "Review requests",
-            gradientColors = listOf(
-                AppColors.secondaryAccent,
-                AppColors.warningAccent
-            ),
-            onClick = approveCashAction,
+        Box(
             modifier = Modifier.weight(1f)
         )
+        {
+
+            TwoButtonGradient(
+                icon = Icons.Default.VerifiedUser,
+                title = "Verify Payment",
+                subtitle = "Review requests",
+                gradientColors = listOf(
+                    AppColors.secondaryAccent,
+                    AppColors.warningAccent
+                ),
+                onClick = approveCashAction,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // ================= BADGE (floating count) =================
+            if (verifyCount > 0) {
+
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .offset(x = (-4).dp, y = (-6).dp)
+                        .align(Alignment.TopEnd)
+                        .background(
+                            brush = Brush.linearGradient(
+                                listOf(Color(0xFFEF4444), Color(0xFFDC2626))
+                            ),
+                            shape = CircleShape
+                        )
+                        .border(2.5.dp, Color.White, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+
+                    Text(
+                        text = if (verifyCount > 9) "9+" else verifyCount.toString(),
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+
+
     }
 }
 

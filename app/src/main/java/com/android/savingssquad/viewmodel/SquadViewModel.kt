@@ -9,6 +9,8 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import com.android.savingssquad.model.CashRequest
+import com.android.savingssquad.model.CashRequestStatus
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Login
 import com.android.savingssquad.model.Member
@@ -72,7 +74,6 @@ class SquadViewModel : ViewModel() {
     private val manager = FirestoreManager.shared
     private var squadID: String = ""
     var loginMember: Login? = null
-    private var squadListener: ListenerRegistration? = null
 
     // ------------------------------------------------------------------------
     // 🔹 Squad
@@ -209,6 +210,11 @@ class SquadViewModel : ViewModel() {
     val showPopup: StateFlow<Boolean> = _showPopup
     fun setShowPopup(value: Boolean) { _showPopup.value = value }
 
+
+    private val _showRequestCashPopup = MutableStateFlow(false)
+    val showRequestCashPopup: StateFlow<Boolean> = _showRequestCashPopup
+    fun setShowRequestCashPopup(value: Boolean) { _showRequestCashPopup.value = value }
+
     private val _showAddMemberPopup = MutableStateFlow(false)
     val showAddMemberPopup: StateFlow<Boolean> = _showAddMemberPopup
     fun setShowAddMemberPopup(value: Boolean) { _showAddMemberPopup.value = value }
@@ -283,12 +289,35 @@ class SquadViewModel : ViewModel() {
     val managerLogins: StateFlow<List<Login>> = _managerLogins
     fun setManagerLogins(list: List<Login>) { _managerLogins.value = list }
 
+
+    // Pagination State
+    var cashRequestsLastDocument: DocumentSnapshot? = null
+    private val cashRequestsPageSize : Int = 20
+
+    var cashRequestsHasMoreData = true
+    var cashRequestsIsLoadingMore = false
+
+    private val _squadCashRequests = mutableStateOf<List<CashRequest>>(emptyList())
+    val squadCashRequests: State<List<CashRequest>> = _squadCashRequests
+
+    fun setSquadCashRequests(cashRequests: List<CashRequest>) {
+        _squadCashRequests.value = cashRequests
+    }
+
+
+    private var squadListener: ListenerRegistration? = null
+    private var membersListener: ListenerRegistration? = null
+
+
+
     init {
         val login = UserDefaultsManager.getLogin()
         if (login != null) {
-            squadID = login.squadID.toString()
+            squadID = login.squadID
             loginMember = login
             setSelectedUser(login)
+
+            startObservers(login.squadID)
 
         } else {
             val defaultLogin = Login(
@@ -306,35 +335,139 @@ class SquadViewModel : ViewModel() {
 
             setSelectedUser(defaultLogin)
         }
+    }
 
+
+    fun startObservers(squadID: String) {
+
+        this.squadID = squadID
+
+        // Stop previous listeners
+        stopObservers()
+
+        // Start new listeners
         observeSquadChanges()
+        observeMembers()
     }
 
-    override fun onCleared() {
-        super.onCleared()
+    fun stopObservers() {
+
         squadListener?.remove()
+        squadListener = null
+
+        membersListener?.remove()
+        membersListener = null
     }
 
-    private fun observeSquadChanges() {
-        if (squadID.isEmpty()) return
+
+    fun observeSquadChanges() {
+
+        if (squadID.isEmpty()) {
+            Log.w("Firestore", "observeSquadChanges: Squad ID is empty")
+            return
+        }
 
         squadListener?.remove()
-        val db = FirebaseFirestore.getInstance()
 
-        squadListener = db.collection("squads")
+        squadListener = FirebaseFirestore.getInstance()
+            .collection("squads")
             .document(squadID)
             .addSnapshotListener { snapshot, error ->
+
                 if (error != null) {
-                    println("❌ Failed to observe squad changes: ${error.message}")
+                    Log.e(
+                        "Firestore",
+                        "Failed to observe squad",
+                        error
+                    )
                     return@addSnapshotListener
                 }
-                if (snapshot == null || !snapshot.exists()) {
-                    println("⚠️ Squad document deleted or doesn't exist")
+
+                if (snapshot == null) {
+                    Log.w("Firestore", "Squad snapshot is null")
                     return@addSnapshotListener
                 }
-                println("🔄 Squad updated remotely, refetching data...")
-                fetchSquadByID(showLoader = false) { success, _, _ ->
-                    println(if (success) "✅ Squad re-fetched on update" else "❌ Re-fetch failed")
+
+                if (!snapshot.exists()) {
+                    Log.w("Firestore", "Squad document does not exist")
+                    return@addSnapshotListener
+                }
+
+                try {
+
+                    val squad = snapshot.toObject(Squad::class.java)
+
+                    if (squad != null) {
+
+                        setSquad(squad)
+
+                        setRemainingMonths(CommonFunctions.getRemainingMonths(
+                            Date(),
+                            squad.squadEndDate?.toDate() ?: Date()
+                        ))
+                    }
+
+                } catch (e: Exception) {
+
+                    Log.e(
+                        "Firestore",
+                        "Failed to decode Squad",
+                        e
+                    )
+                }
+            }
+    }
+
+    fun observeMembers() {
+
+        membersListener?.remove()
+
+        membersListener = FirebaseFirestore.getInstance()
+            .collection("squads")
+            .document(squadID)
+            .collection("members")
+            .addSnapshotListener { snapshot, error ->
+
+                if (error != null) {
+                    Log.e(
+                        "Firestore",
+                        "Members Listener",
+                        error
+                    )
+                    return@addSnapshotListener
+                }
+
+                if (snapshot == null) return@addSnapshotListener
+
+                try {
+
+                    val fetchedMembers = snapshot.documents.mapNotNull {
+                        it.toObject(Member::class.java)
+                    }
+
+                    setSquadMembers(fetchedMembers)
+                    setSquadMembersCount(fetchedMembers.size)
+                    setSquadMemberNames(fetchedMembers.map { it.name })
+
+                    loginMember?.squadUsername?.let { username ->
+
+                        val member = CommonFunctions.getMemberByName(
+                            username,
+                            fetchedMembers
+                        )
+
+                        if (member != null) {
+                            setMemberDetail(member)
+                        }
+                    }
+
+                } catch (e: Exception) {
+
+                    Log.e(
+                        "Firestore",
+                        "Failed to decode members",
+                        e
+                    )
                 }
             }
     }
@@ -685,7 +818,9 @@ class SquadViewModel : ViewModel() {
             bankBeneId = "",
             upiID = "",
             fcmToken = "",
-            currentLoanApproveStatus = EMIStatus.CREATED
+            currentLoanApproveStatus = EMIStatus.CREATED,
+            verifyAmountCount = 0,
+            cashRequested = false
         )
 
         val addAndSave: () -> Unit = {
@@ -2586,21 +2721,6 @@ class SquadViewModel : ViewModel() {
         loadMorePayments(memberId,filterType)
     }
 
-    fun observePayments() {
-        manager.observePayments(squadID) { updatedPayments, error ->
-            if (updatedPayments != null) {
-                setSquadPayments(updatedPayments)
-
-            } else {
-                val errorMsg = error ?: "❌ Failed to observe payments"
-                println(errorMsg)
-                handleFetchError(errorMsg) {
-                    observePayments()
-                }
-            }
-        }
-    }
-
     fun addEMIConfiguration(
         showLoader: Boolean,
         emi: EMIConfiguration,
@@ -3635,6 +3755,190 @@ class SquadViewModel : ViewModel() {
                 // Remove the entire back stack
                 popUpTo(0) { inclusive = true }
                 launchSingleTop = true
+            }
+        }
+    }
+
+    fun fetchCashRequests(
+        showLoader: Boolean,
+        memberId: String? = null,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            LoaderManager.shared.hideLoader()
+            completion(false, "No Internet")
+            return
+        }
+
+        if (showLoader) LoaderManager.shared.showLoader()
+
+        cashRequestsIsLoadingMore = true
+
+        manager.fetchCashRequests(
+            squadID = squadID,
+            memberId = memberId,
+            lastDocument = null,
+            limit = cashRequestsPageSize
+        ) { cashRequests, lastDoc, error ->
+
+            cashRequestsIsLoadingMore = false
+            LoaderManager.shared.hideLoader()
+
+            if (cashRequests != null) {
+
+                setSquadCashRequests(cashRequests)
+
+                cashRequestsLastDocument = lastDoc
+
+                cashRequestsHasMoreData =
+                    cashRequests.size == cashRequestsPageSize
+
+                completion(true, null)
+
+            } else {
+
+                completion(false, error ?: "Failed to fetch cash requests")
+            }
+        }
+    }
+
+    fun resetCashRequestsPagination() {
+
+        setSquadCashRequests(emptyList())
+
+        cashRequestsLastDocument = null
+
+        cashRequestsHasMoreData = true
+
+        cashRequestsIsLoadingMore = false
+    }
+
+    fun loadMoreCashRequests(
+        memberId: String? = null
+    ) {
+
+        if (cashRequestsIsLoadingMore) return
+        if (!cashRequestsHasMoreData) return
+
+        val last = cashRequestsLastDocument ?: return
+
+        cashRequestsIsLoadingMore = true
+
+        manager.fetchCashRequests(
+            squadID = squadID,
+            memberId = memberId,
+            lastDocument = last,
+            limit = cashRequestsPageSize
+        ) { cashRequests, newLastDoc, _ ->
+
+            cashRequestsIsLoadingMore = false
+
+            if (cashRequests != null) {
+
+                val current = squadCashRequests.value.toMutableList()
+
+                current.addAll(cashRequests)
+
+                setSquadCashRequests(current)
+
+                cashRequestsLastDocument = newLastDoc
+
+                cashRequestsHasMoreData =
+                    cashRequests.size == cashRequestsPageSize.toInt()
+            }
+        }
+    }
+
+    fun loadMoreCashRequestsIfNeeded(
+        currentCashRequest: CashRequest,
+        memberId: String? = null
+    ) {
+
+        val last = squadCashRequests.value.lastOrNull() ?: return
+
+        if (currentCashRequest.id != last.id) return
+
+        loadMoreCashRequests(memberId)
+    }
+
+    fun addCashRequest(
+        showLoader: Boolean = true,
+        cashRequest: CashRequest,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            LoaderManager.shared.hideLoader()
+            completion(false, "No Internet")
+            return
+        }
+
+        if (showLoader) LoaderManager.shared.showLoader()
+
+        manager.addCashRequest(
+            squadID = squadID,
+            cashRequest = cashRequest
+        ) { documentId, error ->
+
+            LoaderManager.shared.hideLoader()
+
+                val current = squadCashRequests.value.toMutableList()
+                current.add(0, cashRequest)
+                setSquadCashRequests(current)
+
+                completion(true, null)
+
+
+        }
+    }
+
+    fun updateCashRequestStatus(
+        cashRequest: CashRequest,
+        status: CashRequestStatus,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val id = cashRequest.id ?: run {
+            completion(false, "Invalid Cash Request")
+            return
+        }
+
+        LoaderManager.shared.showLoader()
+
+        manager.updateCashRequestStatus(
+            squadID = squadID,
+            cashRequestId = id,
+            status = status
+        ) { error ->
+
+            LoaderManager.shared.hideLoader()
+
+            if (error == null) {
+
+                val updated = squadCashRequests.value.toMutableList()
+
+                val index = updated.indexOfFirst { it.id == id }
+
+                if (index != -1) {
+
+                    updated[index] =
+                        updated[index].copy(
+                            cashRequestStatus = status,
+                            requestAcceptedOn = if (status == CashRequestStatus.ACCEPTED)
+                                Timestamp.now()
+                            else
+                                updated[index].requestAcceptedOn
+                        )
+
+                    setSquadCashRequests(updated)
+                }
+
+                completion(true, null)
+
+            } else {
+
+                completion(false, error)
             }
         }
     }

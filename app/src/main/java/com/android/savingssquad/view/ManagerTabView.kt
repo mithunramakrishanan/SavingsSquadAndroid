@@ -58,10 +58,16 @@ fun ManagerTabView(
 
     LaunchedEffect(Unit) {
 
-        squadViewModel.fetchSquadByID(showLoader = true) { success, _, _ ->
-            LoaderManager.shared.hideLoader()
-            println(if (success) "✅ Squad re-fetched on update" else "❌ Re-fetch failed")
+        UserDefaultsManager.getLogin()?.let { login ->
+
+            squadViewModel.startObservers(login.squadID)
+            squadViewModel.fetchSquadByID(showLoader = true) { success, _, _ ->
+                LoaderManager.shared.hideLoader()
+                println(if (success) "✅ Squad re-fetched on update" else "❌ Re-fetch failed")
+            }
         }
+
+
     }
 
     Box(

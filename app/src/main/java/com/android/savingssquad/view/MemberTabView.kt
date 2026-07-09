@@ -65,6 +65,7 @@ import androidx.navigation.NavHostController
 import com.android.savingssquad.R
 import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.singleton.AppFont
+import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SSToast
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -86,9 +87,13 @@ fun MemberTabView(
 
     LaunchedEffect(Unit) {
 
-        squadViewModel.fetchSquadByID(showLoader = true) { success, _, _ ->
-            LoaderManager.shared.hideLoader()
-            println(if (success) "✅ Squad re-fetched on update" else "❌ Re-fetch failed")
+        UserDefaultsManager.getLogin()?.let { login ->
+
+            squadViewModel.startObservers(login.squadID)
+            squadViewModel.fetchSquadByID(showLoader = true) { success, _, _ ->
+                LoaderManager.shared.hideLoader()
+                println(if (success) "✅ Squad re-fetched on update" else "❌ Re-fetch failed")
+            }
         }
     }
 

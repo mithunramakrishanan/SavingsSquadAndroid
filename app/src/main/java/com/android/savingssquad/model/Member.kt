@@ -96,6 +96,13 @@ data class Member(
 
     @get:PropertyName("currentLoanApproveStatus") @set:PropertyName("currentLoanApproveStatus")
     var currentLoanApproveStatus: EMIStatus? = null,
+
+    @get:PropertyName("verifyAmountCount") @set:PropertyName("verifyAmountCount")
+    var verifyAmountCount: Int? = null,
+
+    @get:PropertyName("cashRequested") @set:PropertyName("cashRequested")
+    var cashRequested: Boolean? = null,
+
 ) {
     // 🔹 Firestore needs a no-arg constructor
     constructor() : this(
@@ -119,6 +126,8 @@ data class Member(
         upiID = "",
         fcmToken = "",
         lastActiveDate = null,
-        null
+        null,
+        verifyAmountCount = null,
+        cashRequested = null
     )
 }
