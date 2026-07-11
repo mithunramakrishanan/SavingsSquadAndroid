@@ -200,7 +200,11 @@ data class PaymentsDetails(
     var recordDate: Timestamp = Timestamp(Date()),
 
     @get:PropertyName("selectedEMIConfig") @set:PropertyName("selectedEMIConfig")
-    var selectedEMIConfig: EMIConfiguration? = null
+    var selectedEMIConfig: EMIConfiguration? = null,
+
+    @get:PropertyName("cashRequestId") @set:PropertyName("cashRequestId")
+    var cashRequestId: String? = null
+
 
 )
 {
@@ -237,7 +241,8 @@ data class PaymentsDetails(
         upiID = "",
         recordStatus = RecordStatus.ACTIVE,
         recordDate = Timestamp(Date()),
-        selectedEMIConfig = null
+        selectedEMIConfig = null,
+        cashRequestId = ""
     )
 
     fun toMap(): Map<String, Any?> = mapOf(
@@ -273,7 +278,8 @@ data class PaymentsDetails(
         "upiID" to upiID,
         "recordStatus" to recordStatus.name,
         "recordDate" to recordDate,
-        "selectedEMIConfig" to selectedEMIConfig
+        "selectedEMIConfig" to selectedEMIConfig,
+        "cashRequestId" to cashRequestId
     )
 }
 

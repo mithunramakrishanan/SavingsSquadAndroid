@@ -480,53 +480,23 @@ private fun makeLoanPayment(
     selectedLoan: EMIConfiguration,
     handler : () -> Unit
 ) {
-    val newLoan = CommonFunctions.generateMemberLoan(
-        emiConfig = selectedLoan,
-        memberID = selectedMember.id ?: "",
-        memberName = selectedMember.name
-    )
 
-    val newPayment = PaymentsDetails(
-        id = CommonFunctions.generatePaymentID(squadId = squadViewModel.squad.value?.squadID ?: ""),
-        paymentUpdatedDate = Timestamp.now(),
-        memberId = selectedMember.id ?: "",
-        memberName = selectedMember.name,
-        paymentPhone = selectedMember.phoneNumber,
-        paymentEmail = selectedMember.mailID ?: "",
-        userType = SquadUserType.SQUAD_MANAGER,
-        amount = selectedLoan.loanAmount,
-        paymentStatus = PaymentStatus.INVERIFICATION,
-        paymentApproveStatus = PaymentApproveStatus.REQUESTED,
-        intrestAmount = 0,
-        paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
-        paymentType = PaymentType.PAYMENT_DEBIT,
-        paymentSubType = PaymentSubType.LOAN_AMOUNT,
-        description = "Loan disbursement",
-        squadId = squadViewModel.squad.value?.squadID ?: "",
-        order_id = newLoan.id ?: "",
-        contributionId = "",
-        loanId = newLoan.id ?: "",
-        installmentId = "",
-        paymentResponseMessage = "Pending member verification.",
-        transferReferenceId = "Loan disbursement to " + selectedMember.name,
-        upiID = selectedMember.upiID,
-        selectedEMIConfig = selectedLoan
-    )
-    squadViewModel.savePayments(
+    squadViewModel.makeLoanPayment(
         activity = activity,
         context = context,
-        showLoader = true,
-        squadID = squadViewModel.squad.value?.squadID ?: "",
-        payment = listOf(newPayment)
+        selectedMember = selectedMember,
+        selectedLoan = selectedLoan,
+        ""
     ) { success, error ->
+
         if (success) {
-            println("✅ Payment added successfully!")
 
             if (error == "UPI_OPENED") {
                 handler()
             }
 
         } else {
+
             println("❌ Error adding payment: $error")
         }
     }

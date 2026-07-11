@@ -72,6 +72,7 @@ fun ManagerHomeView(
     var openMembersList by remember { mutableStateOf(false) }
     var openLoanDetails by remember { mutableStateOf(false) }
     var openAccountSummary by remember { mutableStateOf(false) }
+    var openCashRequestList by remember { mutableStateOf(false) }
 
 
     // 🔹 Observing ViewModel state via StateFlow
@@ -79,10 +80,21 @@ fun ManagerHomeView(
     val squadMembersCount by squadViewModel.squadMembersCount.collectAsStateWithLifecycle()
     val users by squadViewModel.users.collectAsStateWithLifecycle()
 
+    val verifySquadManagerAmountBadgeCount by squadViewModel.verifySquadManagerAmountBadgeCount.collectAsState()
+    val verifySquadCashRequestBadgeCount by squadViewModel.verifySquadCashRequestBadgeCount.collectAsState()
+
+
     LaunchedEffect(openAccountSummary) {
         if (openAccountSummary) {
             navController.navigate(AppDestination.ACCOUNT_SUMMARY.route)
             openAccountSummary = false
+        }
+    }
+
+    LaunchedEffect(openCashRequestList) {
+        if (openCashRequestList) {
+            navController.navigate(AppDestination.CASH_REQUEST_LIST.route)
+            openCashRequestList = false
         }
     }
 
@@ -306,11 +318,26 @@ fun ManagerHomeView(
                             ManagerTwoButtons(
                                 addMemberAction = { squadViewModel.setShowAddMemberPopup(true) },
                                 acceptAmountAction = { openVerifyPayment = true },
-                                verifyCount = squadViewModel.squad.collectAsState().value?.verifyAmountCount
-                                    ?: 0
+                                verifyCount = verifySquadManagerAmountBadgeCount
                             )
                         }
                     }
+
+                    item {
+
+                        Box(
+                            modifier = Modifier.padding(top = 15.dp)
+                            .fillMaxWidth()
+                                .padding(vertical = 0.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CashRequestButton(verifySquadCashRequestBadgeCount) {
+                                openCashRequestList = true
+                            }
+                        }
+                    }
+
+
 
                     item {
 

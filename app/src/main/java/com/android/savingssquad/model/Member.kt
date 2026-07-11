@@ -98,7 +98,7 @@ data class Member(
     var currentLoanApproveStatus: EMIStatus? = null,
 
     @get:PropertyName("verifyAmountCount") @set:PropertyName("verifyAmountCount")
-    var verifyAmountCount: Int? = null,
+    var verifyAmountCount: Int = 0,
 
     @get:PropertyName("cashRequested") @set:PropertyName("cashRequested")
     var cashRequested: Boolean? = null,
@@ -127,7 +127,7 @@ data class Member(
         fcmToken = "",
         lastActiveDate = null,
         null,
-        verifyAmountCount = null,
+        verifyAmountCount = 0,
         cashRequested = null
     )
 }

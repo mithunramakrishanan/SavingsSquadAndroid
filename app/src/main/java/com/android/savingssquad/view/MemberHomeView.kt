@@ -73,6 +73,17 @@ fun MemberHomeView(
     var remainders by remember { mutableStateOf(listOf<RemainderModel>()) }
     var currentOrOverDueContribution by remember { mutableStateOf(listOf<ContributionDetail>()) }
 
+    val verifySquadMemberAmountBadgeCount by squadViewModel.verifySquadMemberAmountBadgeCount.collectAsState()
+
+    var openCashRequestList by remember { mutableStateOf(false) }
+
+
+    LaunchedEffect(openCashRequestList) {
+        if (openCashRequestList) {
+            navController.navigate(AppDestination.CASH_REQUEST_LIST.route)
+            openCashRequestList = false
+        }
+    }
 
     LaunchedEffect(Unit) {
         // runs once when Composable enters composition
@@ -282,15 +293,38 @@ fun MemberHomeView(
 
                                         }
                                     )
+                                    return@MemberTwoButtons
                                 }
 
-                                squadViewModel.setShowRequestCashPopup(true)
+
+                                squadViewModel.fetchEMIConfigurations(true){success,error->
+
+                                    if (success) {
+                                        squadViewModel.setShowRequestCashPopup(true)
+                                    }
+                                }
+
+
 
 
                                                 },
-                            approveCashAction = { navController.navigate(AppDestination.OPEN_VERIFY_PAYMENTS.route) } , verifyCount = currentMember?.verifyAmountCount
+                            approveCashAction = { navController.navigate(AppDestination.OPEN_VERIFY_PAYMENTS.route) } , verifyCount = verifySquadMemberAmountBadgeCount
                                 ?: 0
                         )
+                    }
+                }
+
+                item {
+
+                    Box(
+                        modifier = Modifier.padding(top = 15.dp)
+                            .fillMaxWidth()
+                            .padding(vertical = 0.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CashRequestButton(0) {
+                            openCashRequestList = true
+                        }
                     }
                 }
 

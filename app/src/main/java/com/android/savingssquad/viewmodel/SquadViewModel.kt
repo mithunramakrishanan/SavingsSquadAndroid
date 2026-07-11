@@ -304,6 +304,17 @@ class SquadViewModel : ViewModel() {
         _squadCashRequests.value = cashRequests
     }
 
+    private val _verifySquadManagerAmountBadgeCount = MutableStateFlow(0)
+    val verifySquadManagerAmountBadgeCount: StateFlow<Int> = _verifySquadManagerAmountBadgeCount
+    fun setVerifySquadManagerAmountBadgeCount(count: Int) { _verifySquadManagerAmountBadgeCount.value = count }
+
+    private val _verifySquadCashRequestBadgeCount = MutableStateFlow(0)
+    val verifySquadCashRequestBadgeCount: StateFlow<Int> = _verifySquadCashRequestBadgeCount
+    fun setVerifySquadCashRequestBadgeCount(count: Int) { _verifySquadCashRequestBadgeCount.value = count }
+
+    private val _verifySquadMemberAmountBadgeCount = MutableStateFlow(0)
+    val verifySquadMemberAmountBadgeCount: StateFlow<Int> = _verifySquadMemberAmountBadgeCount
+    fun setVerifySquadMemberAmountBadgeCount(count: Int) { _verifySquadMemberAmountBadgeCount.value = count }
 
     private var squadListener: ListenerRegistration? = null
     private var membersListener: ListenerRegistration? = null
@@ -400,7 +411,8 @@ class SquadViewModel : ViewModel() {
                     if (squad != null) {
 
                         setSquad(squad)
-
+                        setVerifySquadManagerAmountBadgeCount(squad.verifyAmountCount)
+                        setVerifySquadCashRequestBadgeCount(squad.cashRequestedCount)
                         setRemainingMonths(CommonFunctions.getRemainingMonths(
                             Date(),
                             squad.squadEndDate?.toDate() ?: Date()
@@ -448,6 +460,11 @@ class SquadViewModel : ViewModel() {
                     setSquadMembers(fetchedMembers)
                     setSquadMembersCount(fetchedMembers.size)
                     setSquadMemberNames(fetchedMembers.map { it.name })
+
+                    currentMember.let { member ->
+                        setCurrentMember( fetchedMembers.find { it.id == member.value?.id })
+                        setVerifySquadMemberAmountBadgeCount(member.value?.verifyAmountCount ?: 0)
+                    }
 
                     loginMember?.squadUsername?.let { username ->
 
@@ -626,6 +643,8 @@ class SquadViewModel : ViewModel() {
                     }
 
                     setSquad(fetchedSquad)
+                    setVerifySquadManagerAmountBadgeCount(fetchedSquad.verifyAmountCount)
+                    setVerifySquadCashRequestBadgeCount(fetchedSquad.cashRequestedCount)
 
                     setRemainingMonths(CommonFunctions.getRemainingMonths(
                         startDate = Date(),
@@ -904,7 +923,7 @@ class SquadViewModel : ViewModel() {
                         if (fetchedMember != null) {
                             // ✅ Update LiveData / StateFlow
                             setCurrentMember(fetchedMember)
-
+                            setVerifySquadMemberAmountBadgeCount(fetchedMember.verifyAmountCount)
                             completion(true, fetchedMember, null)
                         } else {
                             val errorMsg = error ?: "❌ Failed to fetch member"
@@ -3894,52 +3913,134 @@ class SquadViewModel : ViewModel() {
     }
 
     fun updateCashRequestStatus(
-        cashRequest: CashRequest,
+        showLoader: Boolean = true,
+        squadID: String,
+        cashRequestId: String,
         status: CashRequestStatus,
         completion: (Boolean, String?) -> Unit
     ) {
 
-        val id = cashRequest.id ?: run {
-            completion(false, "Invalid Cash Request")
+        if (!CommonFunctions.isInternetAvailable()) {
+
+            LoaderManager.shared.hideLoader()
+
+            completion(false, "No Internet")
+
             return
         }
 
-        LoaderManager.shared.showLoader()
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
 
         manager.updateCashRequestStatus(
             squadID = squadID,
-            cashRequestId = id,
+            cashRequestId = cashRequestId,
             status = status
         ) { error ->
 
             LoaderManager.shared.hideLoader()
 
-            if (error == null) {
+            if (error != null) {
 
-                val updated = squadCashRequests.value.toMutableList()
+                handleFetchError(error) {
 
-                val index = updated.indexOfFirst { it.id == id }
-
-                if (index != -1) {
-
-                    updated[index] =
-                        updated[index].copy(
-                            cashRequestStatus = status,
-                            requestAcceptedOn = if (status == CashRequestStatus.ACCEPTED)
-                                Timestamp.now()
-                            else
-                                updated[index].requestAcceptedOn
-                        )
-
-                    setSquadCashRequests(updated)
+                    updateCashRequestStatus(
+                        showLoader = showLoader,
+                        squadID = squadID,
+                        cashRequestId = cashRequestId,
+                        status = status,
+                        completion = completion
+                    )
                 }
 
-                completion(true, null)
-
-            } else {
-
                 completion(false, error)
+                return@updateCashRequestStatus
             }
+
+            // Update local list
+            val updatedList = squadCashRequests.value.toMutableList()
+
+            val index = updatedList.indexOfFirst {
+                it.id == cashRequestId
+            }
+
+            if (index != -1) {
+
+                val request = updatedList[index].copy(
+                    cashRequestStatus = status,
+                    requestAcceptedOn =
+                        if (status == CashRequestStatus.ACCEPTED)
+                            Timestamp.now()
+                        else
+                            updatedList[index].requestAcceptedOn
+                )
+
+                updatedList[index] = request
+
+                setSquadCashRequests(updatedList)
+            }
+
+            completion(true, null)
+        }
+    }
+
+
+    fun makeLoanPayment(
+        activity: Activity,
+        context: Context,
+        selectedMember: Member,
+        selectedLoan: EMIConfiguration,
+        cashRequestId : String,
+        showLoader: Boolean = true,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val newLoan = CommonFunctions.generateMemberLoan(
+            emiConfig = selectedLoan,
+            memberID = selectedMember.id ?: "",
+            memberName = selectedMember.name
+        )
+
+        val newPayment = PaymentsDetails(
+            id = CommonFunctions.generatePaymentID(
+                squadId = squad.value?.squadID ?: ""
+            ),
+            paymentUpdatedDate = Timestamp.now(),
+            memberId = selectedMember.id ?: "",
+            memberName = selectedMember.name,
+            paymentPhone = selectedMember.phoneNumber,
+            paymentEmail = selectedMember.mailID ?: "",
+            userType = SquadUserType.SQUAD_MANAGER,
+            amount = selectedLoan.loanAmount,
+            paymentStatus = PaymentStatus.INVERIFICATION,
+            paymentApproveStatus = PaymentApproveStatus.REQUESTED,
+            intrestAmount = 0,
+            paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
+            paymentType = PaymentType.PAYMENT_DEBIT,
+            paymentSubType = PaymentSubType.LOAN_AMOUNT,
+            description = "Loan disbursement",
+            squadId = squad.value?.squadID ?: "",
+            order_id = newLoan.id ?: "",
+            contributionId = "",
+            loanId = newLoan.id ?: "",
+            installmentId = "",
+            paymentResponseMessage = "Pending member verification.",
+            transferReferenceId = "Loan disbursement to ${selectedMember.name}",
+            upiID = selectedMember.upiID,
+            selectedEMIConfig = selectedLoan,
+            cashRequestId = cashRequestId
+        )
+
+        savePayments(
+            activity = activity,
+            context = context,
+            showLoader = showLoader,
+            squadID = squad.value?.squadID ?: "",
+            payment = listOf(newPayment)
+        ) { success, error ->
+
+            completion(success, error)
         }
     }
 }

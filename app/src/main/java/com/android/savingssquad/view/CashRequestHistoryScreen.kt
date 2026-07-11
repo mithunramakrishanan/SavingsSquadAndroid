@@ -184,33 +184,25 @@ fun CashRequestHistoryScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
+    Box(
+        modifier = Modifier
+
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
+        AppBackgroundGradient()
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
 
             SSNavigationBar(
                 title = SquadStrings.cashRequests,
                 navController = navController
             )
-        },
-        containerColor = Color.Transparent
-    ) { padding ->
 
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
-
-            AppBackgroundGradient()
-
-            Column(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-
-                //----------------------------------------------------
-                // User Filter
-                //----------------------------------------------------
+            Spacer(modifier = Modifier.height(12.dp))
 
                 if (screenType != SquadUserType.SQUAD_MEMBER) {
 
@@ -239,9 +231,7 @@ fun CashRequestHistoryScreen(
 
                 }
 
-                //----------------------------------------------------
-                // Empty State
-                //----------------------------------------------------
+            Spacer(modifier = Modifier.height(8.dp))
 
                 if (
                     cashRequests.isEmpty() &&
@@ -303,8 +293,9 @@ fun CashRequestHistoryScreen(
                                 onAccept = {
 
                                     squadViewModel.updateCashRequestStatus(
-                                        cashRequest,
-                                        CashRequestStatus.ACCEPTED
+                                        squadID = squadViewModel.squad.value?.squadID ?: "",
+                                        cashRequestId = cashRequest.id ?: "",
+                                        status = CashRequestStatus.ACCEPTED
                                     ) { _, _ ->
 
                                         reloadCashRequests()
@@ -314,8 +305,9 @@ fun CashRequestHistoryScreen(
                                 onReject = {
 
                                     squadViewModel.updateCashRequestStatus(
-                                        cashRequest,
-                                        CashRequestStatus.REJECTED
+                                        squadID = squadViewModel.squad.value?.squadID ?: "",
+                                        cashRequestId = cashRequest.id ?: "",
+                                        status = CashRequestStatus.REJECTED
                                     ) { _, _ ->
 
                                         reloadCashRequests()
@@ -353,7 +345,7 @@ fun CashRequestHistoryScreen(
                     }
                 }
             }
-        }
+
     }
 }
 
@@ -430,9 +422,12 @@ fun CashRequestRow(
             }
 
             StatusChip(
-                text = cashRequest.cashRequestStatus.name,
+                text = if (cashRequest.cashRequestStatus == CashRequestStatus.CREATED){"Requested"}else{cashRequest.cashRequestStatus.name} ,
+                statusDate = CommonFunctions.dateToString(cashRequest.requestAcceptedOn?.toDate() ?: Date()),
                 color = statusColor
             )
+
+
         }
 
         //---------------------------------------------------------
@@ -584,24 +579,42 @@ fun CashRequestRow(
 @Composable
 private fun StatusChip(
     text: String,
+    statusDate: String,
     color: Color
 ) {
 
-    Box(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(color.copy(alpha = .12f))
-            .padding(horizontal = 12.dp, vertical = 5.dp)
+    Column(
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
 
-        Text(
-            text = text.replaceFirstChar { it.uppercase() },
-            style = AppFont.ibmPlexSans(
-                11,
-                FontWeight.SemiBold
-            ),
-            color = color
-        )
+        Box(
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(color.copy(alpha = 0.12f))
+                .padding(horizontal = 12.dp, vertical = 5.dp)
+        ) {
+
+            Text(
+                text = text.replaceFirstChar { it.uppercase() },
+                style = AppFont.ibmPlexSans(
+                    11,
+                    FontWeight.SemiBold
+                ),
+                color = color
+            )
+        }
+
+        if (statusDate.isNotEmpty()) {
+            Text(
+                text = statusDate,
+                style = AppFont.ibmPlexSans(
+                    9,
+                    FontWeight.Normal
+                ),
+                color = AppColors.secondaryText
+            )
+        }
     }
 }
 
@@ -685,168 +698,199 @@ fun RequestCashEMIListView(
 
     var appeared by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) {
+        appeared = true
+    }
 
     Column(
         modifier = Modifier
             .width(330.dp)
-            .heightIn(max = 380.dp)
+            .heightIn(max = 400.dp)
+            .shadow(
+                elevation = 24.dp,
+                shape = RoundedCornerShape(24.dp),
+                ambientColor = Color.Black.copy(alpha = 0.25f),
+                spotColor = Color.Black.copy(alpha = 0.25f)
+            )
             .background(
                 color = AppColors.surface,
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(24.dp)
             )
             .border(
                 width = 1.dp,
                 color = AppColors.border.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(20.dp)
-            )
-            .shadow(
-                elevation = 12.dp,
-                shape = RoundedCornerShape(20.dp)
+                shape = RoundedCornerShape(24.dp)
             )
     ) {
 
+        // MARK: Top accent bar — small brand gradient sliver for a premium finish
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            AppColors.primaryBrand,
+                            AppColors.primaryBrand.copy(alpha = 0.5f)
+                        )
+                    )
+                )
+        )
 
         // MARK: Header
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(
-                    top = 14.dp,
-                    bottom = 10.dp
-                )
+                .padding(top = 18.dp, bottom = 14.dp, start = 12.dp, end = 12.dp)
         ) {
 
             Column(
-                modifier = Modifier.align(
-                    Alignment.Center
-                ),
+                modifier = Modifier.align(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
 
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    AppColors.primaryBrand,
+                                    AppColors.primaryBrand.copy(alpha = 0.7f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(14.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccountBalanceWallet,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
                 Text(
                     text = title,
-                    style = AppFont.ibmPlexSans(
-                        size = 17,
-                        weight = FontWeight.Bold
-                    ),
+                    style = AppFont.ibmPlexSans(size = 18, weight = FontWeight.Bold),
                     color = AppColors.headerText
                 )
 
+                Spacer(modifier = Modifier.height(4.dp))
 
-                Text(
-                    text = "${emiConfigs.size} option${if (emiConfigs.size == 1) "" else "s"}",
-                    style = AppFont.ibmPlexSans(
-                        size = 11,
-                        weight = FontWeight.Medium
-                    ),
-                    color = AppColors.secondaryText
-                )
+                Box(
+                    modifier = Modifier
+                        .background(
+                            color = AppColors.primaryBrand.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = "${emiConfigs.size} option${if (emiConfigs.size == 1) "" else "s"} available",
+                        style = AppFont.ibmPlexSans(size = 11, weight = FontWeight.SemiBold),
+                        color = AppColors.primaryBrand
+                    )
+                }
             }
 
-
             IconButton(
-                onClick = {
-                    onDismiss()
-                },
+                onClick = { onDismiss() },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(end = 8.dp)
-                    .size(28.dp)
+                    .size(30.dp)
+                    .background(
+                        color = AppColors.background,
+                        shape = RoundedCornerShape(50)
+                    )
             ) {
-
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Close",
                     tint = AppColors.secondaryText,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(13.dp)
                 )
             }
         }
 
-
-        HorizontalDivider(
-            color = AppColors.secondaryText.copy(alpha = 0.15f)
-        )
-
+        HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.12f))
 
         // MARK: EMI List
 
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f, fill = false)
-                .heightIn(max = 260.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(
-                vertical = 10.dp,
-                horizontal = 12.dp
-            )
-        ) {
+        if (emiConfigs.isEmpty()) {
 
-            itemsIndexed(
-                items = emiConfigs,
-                key = { _, item -> item.id!! }
-            ) { index, emi ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No EMI options available right now",
+                    style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Medium),
+                    color = AppColors.secondaryText
+                )
+            }
 
+        } else {
 
-                AnimatedVisibility(
-                    visible = appeared,
-                    enter = fadeIn(
-                        animationSpec = tween(
-                            durationMillis = 250,
-                            delayMillis = index * 30
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .heightIn(max = 260.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(vertical = 12.dp, horizontal = 14.dp)
+            ) {
+
+                itemsIndexed(
+                    items = emiConfigs,
+                    key = { index, item -> item.id ?: index }
+                ) { index, emi ->
+
+                    AnimatedVisibility(
+                        visible = appeared,
+                        enter = fadeIn(
+                            animationSpec = tween(durationMillis = 280, delayMillis = index * 35)
+                        ) + slideInVertically(initialOffsetY = { 8 })
+                    ) {
+                        EMIRequestRow(
+                            emi = emi,
+                            onRequestCash = {
+                                onRequestCash(emi)
+                                onDismiss()
+                            }
                         )
-                    ) + slideInVertically(
-                        initialOffsetY = { 5 }
-                    )
-                ) {
-
-                    EMIRequestRow(
-                        emi = emi,
-                        onRequestCash = {
-
-                            onRequestCash(emi)
-                            onDismiss()
-
-                        }
-                    )
+                    }
                 }
             }
         }
 
-
-        HorizontalDivider(
-            color = AppColors.secondaryText.copy(alpha = 0.15f)
-        )
-
+        HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.12f))
 
         // MARK: Footer
 
         TextButton(
-            onClick = {
-                onDismiss()
-            },
-            modifier = Modifier.fillMaxWidth()
+            onClick = { onDismiss() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
         ) {
-
             Text(
                 text = "Close",
-                style = AppFont.ibmPlexSans(
-                    size = 13,
-                    weight = FontWeight.SemiBold
-                ),
+                style = AppFont.ibmPlexSans(size = 13, weight = FontWeight.SemiBold),
                 color = AppColors.secondaryText
             )
-        }
-
-
-        LaunchedEffect(Unit) {
-            appeared = true
         }
     }
 }
 
-
+// MARK: - EMI Row
 
 @Composable
 private fun EMIRequestRow(
@@ -859,188 +903,206 @@ private fun EMIRequestRow(
             .fillMaxWidth()
             .background(
                 color = AppColors.background,
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(16.dp)
             )
-            .padding(10.dp),
+            .border(
+                width = 1.dp,
+                color = AppColors.border.copy(alpha = 0.25f),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
 
+        Row(verticalAlignment = Alignment.CenterVertically) {
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-
-            Column(
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Loan Amount",
-                    style = AppFont.ibmPlexSans(
-                        size = 10
-                    ),
+                    style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Medium),
                     color = AppColors.secondaryText
                 )
-
-
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "₹${emi.loanAmount}",
-                    style = AppFont.ibmPlexSans(
-                        size = 17,
-                        weight = FontWeight.Bold
-                    ),
+                    text = emi.loanAmount.currencyFormattedWithCommas(),
+                    style = AppFont.ibmPlexSans(size = 18, weight = FontWeight.Bold),
                     color = AppColors.headerText
                 )
             }
 
-
-            Spacer(
-                modifier = Modifier.weight(1f)
-            )
-
-
             Button(
                 onClick = onRequestCash,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = AppColors.primaryBrand
-                ),
                 shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(
-                    horizontal = 12.dp,
-                    vertical = 7.dp
-                )
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.primaryBrand),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 3.dp)
             ) {
-
                 Text(
                     text = "Request",
-                    style = AppFont.ibmPlexSans(
-                        size = 12,
-                        weight = FontWeight.SemiBold
-                    ),
+                    style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.SemiBold),
                     color = Color.White
                 )
             }
         }
 
+        HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.12f))
 
-        HorizontalDivider(
-            color = AppColors.border.copy(alpha = 0.3f)
-        )
-
-
-        Row(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-
-            EMIInfoView(
+        Row(modifier = Modifier.fillMaxWidth()) {
+            InfoView(
+                modifier = Modifier.weight(1f),
                 title = "Months",
                 value = "${emi.emiMonths}"
             )
-
-
-            Spacer(
-                modifier = Modifier.weight(1f)
-            )
-
-
-            EMIInfoView(
+            InfoView(
+                modifier = Modifier.weight(1f),
                 title = "EMI",
-                value = "₹${emi.emiAmount}"
+                value = emi.emiAmount.currencyFormattedWithCommas()
             )
-
-
-            Spacer(
-                modifier = Modifier.weight(1f)
-            )
-
-
-            EMIInfoView(
+            InfoView(
+                modifier = Modifier.weight(1f),
                 title = "Interest",
-                value = "₹${emi.interestAmount}"
+                value = emi.interestAmount.currencyFormattedWithCommas()
             )
         }
     }
 }
 
-
-
 @Composable
-private fun EMIInfoView(
+private fun InfoView(
+    modifier: Modifier = Modifier,
     title: String,
     value: String
 ) {
-
-    Column(
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-
+    Column(modifier = modifier) {
         Text(
             text = title,
-            style = AppFont.ibmPlexSans(
-                size = 10
-            ),
+            style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Medium),
             color = AppColors.secondaryText
         )
-
-
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = value,
-            style = AppFont.ibmPlexSans(
-                size = 12,
-                weight = FontWeight.Bold
-            ),
+            style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Bold),
             color = AppColors.headerText
         )
     }
 }
 
-//@Preview(showBackground = true)
-//@Composable
-//fun RequestCashEMIListViewPreview() {
-//
-//    RequestCashEMIListView(
-//        emiConfigs = listOf(
-//
-//            EMIConfiguration(
-//                id = "1",
-//                loanAmount = 100000,
-//                emiMonths = 12,
-//                emiInterestRate = 10.0,
-//                emiAmount = 9500,
-//                interestAmount = 14000
-//            ),
-//
-//            EMIConfiguration(
-//                id = "2",
-//                loanAmount = 50000,
-//                emiMonths = 6,
-//                emiInterestRate = 8.0,
-//                emiAmount = 9000,
-//                interestAmount = 4000
-//            ),
-//
-//            EMIConfiguration(
-//                id = "3",
-//                loanAmount = 50000,
-//                emiMonths = 6,
-//                emiInterestRate = 8.0,
-//                emiAmount = 9000,
-//                interestAmount = 4000
-//            ),
-//            EMIConfiguration(
-//                id = "4",
-//                loanAmount = 50000,
-//                emiMonths = 6,
-//                emiInterestRate = 8.0,
-//                emiAmount = 9000,
-//                interestAmount = 4000
-//            )
-//        ),
-//        onRequestCash = { emi ->
-//            println("Request Cash: ${emi.loanAmount}")
-//        },
-//        title = "",
-//        isShowing = true
-//    )
-//}
+@Composable
+fun CashRequestButton(
+    pendingCount: Int,
+    onClick: () -> Unit
+) {
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(AppColors.surface)
+            .border(
+                1.dp,
+                AppColors.border.copy(alpha = 0.4f),
+                RoundedCornerShape(14.dp)
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(AppColors.primaryBrand.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+
+            Icon(
+                imageVector = Icons.Default.AttachMoney,
+                contentDescription = null,
+                tint = AppColors.primaryBrand,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+
+            Text(
+                text = "Cash Requests",
+                style = AppFont.ibmPlexSans(
+                    14,
+                    FontWeight.SemiBold
+                ),
+                color = AppColors.headerText
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            if (UserDefaultsManager.getSquadManagerLogged()) {
+
+                Text(
+                    text = if (pendingCount > 0)
+                        "$pendingCount Pending"
+                    else
+                        "No Pending",
+                    style = AppFont.ibmPlexSans(
+                        11,
+                        FontWeight.Normal
+                    ),
+                    color = if (pendingCount > 0)
+                        AppColors.errorAccent
+                    else
+                        AppColors.secondaryText
+                )
+            }
+            else {
+
+                Text(
+                    text = "Your Cash Requests",
+                    style = AppFont.ibmPlexSans(
+                        11,
+                        FontWeight.Normal
+                    ),
+                    color =
+                        AppColors.secondaryText
+                )
+            }
+
+
+        }
+
+        if (pendingCount > 0) {
+
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(AppColors.errorAccent),
+                contentAlignment = Alignment.Center
+            ) {
+
+                Text(
+                    text = pendingCount.toString(),
+                    style = AppFont.ibmPlexSans(
+                        11,
+                        FontWeight.Bold
+                    ),
+                    color = Color.White
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+        }
+
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = AppColors.secondaryText,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}

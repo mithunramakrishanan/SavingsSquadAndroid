@@ -147,6 +147,10 @@ fun AppNavHost(
             ManagerSquadStatusScreen(navController,squadViewModel)
         }
 
+        composable(AppDestination.CASH_REQUEST_LIST.route) {
+            CashRequestHistoryScreen(navController,squadViewModel)
+        }
+
         composable(AppDestination.PAYMENT_CONFIRMATION.route) {
 
             val context = LocalContext.current
@@ -171,6 +175,8 @@ sealed class AppDestination(val route: String) {
     object MANAGER_HOME : AppDestination("manager_home")
     object MEMBER_HOME : AppDestination("member_home")
     object ACCOUNT_SUMMARY : AppDestination("account_summary")
+
+    object CASH_REQUEST_LIST : AppDestination("cash_req_list")
     object MANAGE_SQUAD : AppDestination("manager_group_fund")
     object OPEN_MEMBERS_LIST : AppDestination("open_members_list")
     object OPEN_MEMBER_PROFILE : AppDestination("open_member_profile")

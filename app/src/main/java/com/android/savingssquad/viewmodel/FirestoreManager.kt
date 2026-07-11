@@ -964,36 +964,51 @@ class FirestoreManager private constructor() {
         completion: (Boolean, String?) -> Unit
     ) {
 
+        val paymentID = payment?.id
+        if (paymentID.isNullOrEmpty()) {
+            completion(false, "Payment ID is missing.")
+            return
+        }
+
         val batch = db.batch()
+
         val squadRef = db.collection("squads").document(squadID)
 
-        var requestedCountIncrement = 0
+        val paymentRef = squadRef
+            .collection("payments")
+            .document(paymentID)
 
-            val paymentID = payment?.id
-                ?: return completion(false, "❌ One or more payments are missing an ID.")
+        batch.set(paymentRef, payment, SetOptions.merge())
 
-            val docRef = squadRef
-                .collection("payments")
-                .document(paymentID)
-
-            try {
-                batch.set(docRef, payment.toMap(), SetOptions.merge())
-            } catch (e: Exception) {
-                return completion(false, "❌ Error encoding payment: ${e.localizedMessage}")
-            }
-
-            // 🔥 Count REQUESTED payments
-            if (payment.paymentApproveStatus == PaymentApproveStatus.REQUESTED) {
-                requestedCountIncrement++
-            }
-
-        // 🔥 Commit batch
         batch.commit()
             .addOnSuccessListener {
-                completion(true, null)
+
+                if (payment.cashRequestId?.isNotEmpty() == true) {
+
+                    updateCashRequestStatus(
+                        squadID = squadID,
+                        cashRequestId = payment.cashRequestId!!,
+                        status = CashRequestStatus.ACCEPTED
+                    ) { error ->
+
+                        if (error != null) {
+                            completion(false, error)
+                        } else {
+                            completion(true, null)
+                        }
+                    }
+
+                } else {
+
+                    completion(true, null)
+                }
             }
-            .addOnFailureListener { e ->
-                completion(false, "❌ Error saving batch payments: ${e.localizedMessage}")
+            .addOnFailureListener { error ->
+
+                completion(
+                    false,
+                    "Batch commit failed: ${error.localizedMessage}"
+                )
             }
     }
 
@@ -2757,12 +2772,10 @@ class FirestoreManager private constructor() {
 
         val db = FirebaseFirestore.getInstance()
 
-        val cashReqID = cashRequest.id
-            ?: run {
-                completion(false, "Invalid cash request ID")
-                return
-            }
-
+        val cashReqID = cashRequest.id ?: run {
+            completion(false, "Invalid cash request ID")
+            return
+        }
 
         val squadRef = db
             .collection("squads")
@@ -2776,26 +2789,36 @@ class FirestoreManager private constructor() {
             .collection("cashrequest")
             .document(cashReqID)
 
-
         cashRef.set(cashRequest)
             .addOnSuccessListener {
 
                 memberRef.update(
                     "cashRequested",
                     true
-                )
-                    .addOnSuccessListener {
+                ).addOnSuccessListener {
+
+                    squadRef.update(
+                        "cashRequestedCount",
+                        FieldValue.increment(1)
+                    ).addOnSuccessListener {
 
                         completion(true, null)
 
-                    }
-                    .addOnFailureListener { error ->
+                    }.addOnFailureListener { error ->
 
                         completion(
                             false,
-                            "Member cashRequested update failed: ${error.localizedMessage}"
+                            "Cash request created but failed to update squad count: ${error.localizedMessage}"
                         )
                     }
+
+                }.addOnFailureListener { error ->
+
+                    completion(
+                        false,
+                        "Cash request created but failed to update member status: ${error.localizedMessage}"
+                    )
+                }
 
             }
             .addOnFailureListener { error ->
@@ -2863,28 +2886,44 @@ class FirestoreManager private constructor() {
         squadID: String,
         cashRequestId: String,
         status: CashRequestStatus,
-        completion: (error: String?) -> Unit
+        completion: (String?) -> Unit
     ) {
 
-        val updates = hashMapOf<String, Any>(
+        val squadRef = db.collection("squads").document(squadID)
+
+        val cashRequestRef = squadRef
+            .collection("cashrequest")
+            .document(cashRequestId)
+
+        val data = hashMapOf<String, Any>(
             "cashRequestStatus" to status.name
         )
 
-        if (status == CashRequestStatus.ACCEPTED) {
-            updates["requestAcceptedOn"] = Timestamp.now()
+        if (status == CashRequestStatus.ACCEPTED ||
+            status == CashRequestStatus.REJECTED
+        ) {
+            data["requestAcceptedOn"] = Timestamp.now()
         }
 
-        FirebaseFirestore.getInstance()
-            .collection("squads")
-            .document(squadID)
-            .collection("cashrequest")
-            .document(cashRequestId)
-            .update(updates)
+        cashRequestRef.update(data)
             .addOnSuccessListener {
-                completion(null)
+
+                squadRef.update(
+                    "cashRequestedCount",
+                    FieldValue.increment(-1)
+                )
+                    .addOnSuccessListener {
+
+                        completion(null)
+                    }
+                    .addOnFailureListener { error ->
+
+                        completion(error.localizedMessage)
+                    }
             }
-            .addOnFailureListener {
-                completion(it.localizedMessage)
+            .addOnFailureListener { error ->
+
+                completion(error.localizedMessage)
             }
     }
 }
