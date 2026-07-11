@@ -988,6 +988,7 @@ class FirestoreManager private constructor() {
                     updateCashRequestStatus(
                         squadID = squadID,
                         cashRequestId = payment.cashRequestId!!,
+                        memberId = payment.memberId,
                         status = CashRequestStatus.ACCEPTED
                     ) { error ->
 
@@ -2885,41 +2886,57 @@ class FirestoreManager private constructor() {
     fun updateCashRequestStatus(
         squadID: String,
         cashRequestId: String,
+        memberId: String,
         status: CashRequestStatus,
         completion: (String?) -> Unit
     ) {
 
-        val squadRef = db.collection("squads").document(squadID)
+        val squadRef = db.collection("squads")
+            .document(squadID)
 
         val cashRequestRef = squadRef
             .collection("cashrequest")
             .document(cashRequestId)
 
-        val data = hashMapOf<String, Any>(
+        val memberRef = squadRef
+            .collection("members")
+            .document(memberId)
+
+        val batch = db.batch()
+
+        val cashRequestData = hashMapOf<String, Any>(
             "cashRequestStatus" to status.name
         )
 
-        if (status == CashRequestStatus.ACCEPTED ||
+        if (
+            status == CashRequestStatus.ACCEPTED ||
             status == CashRequestStatus.REJECTED
         ) {
-            data["requestAcceptedOn"] = Timestamp.now()
+            cashRequestData["requestAcceptedOn"] = Timestamp.now()
         }
 
-        cashRequestRef.update(data)
+        batch.update(
+            cashRequestRef,
+            cashRequestData
+        )
+
+        batch.update(
+            memberRef,
+            "cashRequested",
+            false
+        )
+
+        batch.update(
+            squadRef,
+            "cashRequestedCount",
+            FieldValue.increment(-1)
+        )
+
+        batch.commit()
             .addOnSuccessListener {
 
-                squadRef.update(
-                    "cashRequestedCount",
-                    FieldValue.increment(-1)
-                )
-                    .addOnSuccessListener {
+                completion(null)
 
-                        completion(null)
-                    }
-                    .addOnFailureListener { error ->
-
-                        completion(error.localizedMessage)
-                    }
             }
             .addOnFailureListener { error ->
 

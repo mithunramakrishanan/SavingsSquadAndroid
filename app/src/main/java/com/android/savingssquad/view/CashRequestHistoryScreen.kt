@@ -310,6 +310,7 @@ fun CashRequestHistoryScreen(
                                     squadViewModel.updateCashRequestStatus(
                                         squadID = squadViewModel.squad.value?.squadID ?: "",
                                         cashRequestId = cashRequest.id ?: "",
+                                        memberId = cashRequest.requestedByID,
                                         status = CashRequestStatus.ACCEPTED
                                     ) { _, _ ->
 
@@ -322,6 +323,7 @@ fun CashRequestHistoryScreen(
                                     squadViewModel.updateCashRequestStatus(
                                         squadID = squadViewModel.squad.value?.squadID ?: "",
                                         cashRequestId = cashRequest.id ?: "",
+                                        memberId = cashRequest.requestedByID,
                                         status = CashRequestStatus.REJECTED
                                     ) { _, _ ->
 

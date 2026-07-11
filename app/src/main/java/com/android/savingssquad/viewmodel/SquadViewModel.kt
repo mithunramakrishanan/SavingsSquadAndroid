@@ -3916,6 +3916,7 @@ class SquadViewModel : ViewModel() {
         showLoader: Boolean = true,
         squadID: String,
         cashRequestId: String,
+        memberId: String,
         status: CashRequestStatus,
         completion: (Boolean, String?) -> Unit
     ) {
@@ -3936,6 +3937,7 @@ class SquadViewModel : ViewModel() {
         manager.updateCashRequestStatus(
             squadID = squadID,
             cashRequestId = cashRequestId,
+            memberId = memberId,
             status = status
         ) { error ->
 
@@ -3949,6 +3951,7 @@ class SquadViewModel : ViewModel() {
                         showLoader = showLoader,
                         squadID = squadID,
                         cashRequestId = cashRequestId,
+                        memberId = memberId,
                         status = status,
                         completion = completion
                     )
