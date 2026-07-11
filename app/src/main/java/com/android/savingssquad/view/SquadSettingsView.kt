@@ -413,10 +413,6 @@ fun SettingsDashboardCard(
                 color = AppColors.border.copy(alpha = 0.12f),
                 shape = RoundedCornerShape(24.dp)
             )
-            .appShadow(
-                style = AppShadows.card,
-                shape = RoundedCornerShape(24.dp)
-            )
             .clickable(
                 indication = null,
                 interactionSource = interactionSource

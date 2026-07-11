@@ -1,6 +1,7 @@
 package com.android.savingssquad.view
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -61,6 +62,38 @@ import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.SSToast
 import com.yourapp.utils.CommonFunctions
 import java.util.Calendar
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.unit.dp
+import java.text.NumberFormat
+import java.util.Locale
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.unit.dp
 
 @Composable
 fun LoanDetailsView(
@@ -170,7 +203,7 @@ fun LoanDetailsView(
 
             // ===== LOAN LIST =====
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
                 contentPadding = PaddingValues(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -244,140 +277,359 @@ fun DropdownMenuPicker(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
+    val borderColor = if (expanded) AppColors.primaryBrand else AppColors.border
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        label = "chevronRotation"
+    )
+
     Column(modifier = modifier) {
+
         Text(
-            text = label,
-            style = AppFont.ibmPlexSans(12),
+            text = label.uppercase(),
+            style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.SemiBold),
             color = AppColors.secondaryText,
-            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
         )
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .appShadow(AppShadows.card, RoundedCornerShape(12.dp))
-                .background(AppColors.surface, RoundedCornerShape(12.dp))
-                .border(1.dp, AppColors.border, RoundedCornerShape(12.dp))
-                .clickable { expanded = true }
-                .padding(12.dp)
-        ) {
-            Text(
-                text = selected,
-                style = AppFont.ibmPlexSans(14),
-                color = AppColors.headerText
-            )
-        }
+        Box {
 
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            items.forEach { item ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = item,
-                            style = AppFont.ibmPlexSans(14),
-                            color = AppColors.headerText
-                        )
-                    },
-                    onClick = {
-                        onSelected(item)
-                        expanded = false
-                    }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .appShadow(AppShadows.card, RoundedCornerShape(14.dp))
+                    .background(AppColors.surface, RoundedCornerShape(14.dp))
+                    .border(
+                        width = if (expanded) 1.5.dp else 1.dp,
+                        color = borderColor,
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { expanded = true }
+                    .padding(horizontal = 14.dp, vertical = 13.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = selected,
+                    style = AppFont.ibmPlexSans(size = 14, weight = FontWeight.SemiBold),
+                    color = AppColors.headerText,
+                    modifier = Modifier.weight(1f)
                 )
+
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = if (expanded) AppColors.primaryBrand else AppColors.secondaryText,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .rotate(chevronRotation)
+                )
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .background(AppColors.surface, RoundedCornerShape(14.dp))
+                    .border(1.dp, AppColors.border.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+            ) {
+                items.forEach { item ->
+
+                    val isSelected = item == selected
+
+                    DropdownMenuItem(
+                        modifier = Modifier
+                            .background(
+                                if (isSelected) AppColors.primaryBackground else androidx.compose.ui.graphics.Color.Transparent,
+                                RoundedCornerShape(10.dp)
+                            )
+                            .padding(horizontal = 4.dp),
+                        text = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = item,
+                                    style = AppFont.ibmPlexSans(
+                                        size = 14,
+                                        weight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    ),
+                                    color = if (isSelected) AppColors.primaryBrand else AppColors.headerText,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = AppColors.primaryBrand,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        },
+                        onClick = {
+                            onSelected(item)
+                            expanded = false
+                        }
+                    )
+                }
             }
         }
     }
 }
 
+
+private val inrFormatter: NumberFormat by lazy { NumberFormat.getNumberInstance(Locale("en", "IN")) }
+private fun Int.currencyFormattedWithCommas(): String = "₹${inrFormatter.format(this)}"
+
+
+// MARK: - Shared status color mapping
+
+private fun statusColorFor(status: EMIStatus): Color = when (status) {
+    EMIStatus.PAID, EMIStatus.CREATED -> AppColors.successAccent
+    EMIStatus.PENDING, EMIStatus.INVERIFICATION -> AppColors.warningAccent
+    EMIStatus.OVERDUE, EMIStatus.FAILED -> AppColors.errorAccent
+}
+
+
+// MARK: - Loan Card
+
 @Composable
 fun LoanCard(loan: MemberLoan) {
+
     var showInstallments by remember { mutableStateOf(false) }
+
+    val statusColor = statusColorFor(loan.loanStatus)
+    val paidCount = loan.installments.count { it.status == EMIStatus.PAID }
+    val progressFraction = if (loan.installments.isEmpty()) 0f
+    else paidCount.toFloat() / loan.installments.size.toFloat()
+    val progressColor = if (loan.loanStatus == EMIStatus.PAID) AppColors.successAccent else AppColors.primaryBrand
+
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (showInstallments) 180f else 0f,
+        label = "chevronRotation"
+    )
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .appShadow(AppShadows.card, RoundedCornerShape(16.dp))
-            .background(AppColors.surface, RoundedCornerShape(16.dp))
-            .border(0.5.dp, AppColors.border.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
-            .padding(14.dp)
+            .appShadow(AppShadows.card, RoundedCornerShape(20.dp))
+            .background(color = AppColors.surface, shape = RoundedCornerShape(20.dp))
+            .border(width = 1.dp, color = AppColors.border.copy(alpha = 0.5f), shape = RoundedCornerShape(20.dp))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
 
-        // HEADER
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column {
+        // MARK: Header
+
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .background(color = statusColor.copy(alpha = 0.12f), shape = CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Description,
+                    contentDescription = null,
+                    tint = statusColor,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
-                    "Loan #${loan.loanNumber}",
-                    style = AppFont.ibmPlexSans(17, FontWeight.Bold),
+                    text = "Loan #${loan.loanNumber}",
+                    style = AppFont.ibmPlexSans(size = 15, weight = FontWeight.Bold),
                     color = AppColors.headerText
                 )
                 Text(
-                    "Member: ${loan.memberName}",
-                    style = AppFont.ibmPlexSans(14),
-                    color = AppColors.secondaryText
+                    text = loan.memberName,
+                    style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Medium),
+                    color = AppColors.secondaryText,
+                    maxLines = 1
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            StatusBadge(text = loan.loanStatus.displayText, color = statusColor)
+        }
 
-            Text(
-                loan.loanStatus.displayText,
-                style = AppFont.ibmPlexSans(12, FontWeight.Bold),
+        // MARK: Progress
+
+        if (loan.installments.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Repayment Progress",
+                        style = AppFont.ibmPlexSans(size = 11, weight = FontWeight.SemiBold),
+                        color = AppColors.secondaryText,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "$paidCount of ${loan.installments.size} paid",
+                        style = AppFont.ibmPlexSans(size = 11, weight = FontWeight.Bold),
+                        color = AppColors.headerText
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .background(color = AppColors.border.copy(alpha = 0.4f), shape = RoundedCornerShape(50))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction = progressFraction.coerceIn(0f, 1f))
+                            .fillMaxHeight()
+                            .background(color = progressColor, shape = RoundedCornerShape(50))
+                    )
+                }
+            }
+        }
+
+        // MARK: Total Interest Paid
+
+        val totalInterestPaid = loan.installments
+            .filter { it.status == EMIStatus.PAID }
+            .sumOf { it.interestAmount }
+
+        if (totalInterestPaid > 0) {
+            Row(
                 modifier = Modifier
-                    .background(statusColor(loan.loanStatus).copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                color = statusColor(loan.loanStatus)
+                    .fillMaxWidth()
+                    .background(color = AppColors.primaryBackground, shape = RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .background(color = AppColors.primaryBrand.copy(alpha = 0.15f), shape = CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Percent,
+                        contentDescription = null,
+                        tint = AppColors.primaryBrand,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
+
+                Text(
+                    text = "Total Interest Paid",
+                    style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Medium),
+                    color = AppColors.secondaryText,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Text(
+                    text = totalInterestPaid.currencyFormattedWithCommas(),
+                    style = AppFont.ibmPlexSans(size = 14, weight = FontWeight.Bold),
+                    color = AppColors.primaryBrand
+                )
+            }
+        }
+
+        HorizontalDivider(color = AppColors.border.copy(alpha = 0.6f))
+
+        // MARK: Stats
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            StatColumn(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.CurrencyRupee,
+                title = "Loan Amount",
+                value = loan.loanAmount.currencyFormattedWithCommas()
+            )
+            StatDivider()
+            StatColumn(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.Percent,
+                title = "Interest",
+                value = String.format("%.2f%%", loan.interest)
+            )
+            StatDivider()
+            StatColumn(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.CalendarMonth,
+                title = "Tenure",
+                value = "${loan.loanMonth} mo"
             )
         }
 
-        Divider(color = AppColors.border, thickness = 1.dp)
+        // MARK: Dates
 
-        Row(Modifier.padding(vertical = 6.dp)) {
-            InfoColumn("Loan Amount", loan.loanAmount.currencyFormattedWithCommas())
-            Spacer(modifier = Modifier.weight(1f))
-            InfoColumn("Interest", "${loan.interest}%")
-            Spacer(modifier = Modifier.weight(1f))
-            InfoColumn("Months", "${loan.loanMonth}")
+        Row(modifier = Modifier.fillMaxWidth()) {
+            StatColumn(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.ArrowUpward,
+                title = "Start Date",
+                value = CommonFunctions.dateToString(loan.amountSentDate?.toDate() ?: java.util.Date()),
+                small = true
+            )
+            StatDivider()
+            StatColumn(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.Verified,
+                title = "Close Date",
+                value = if (loan.loanStatus == EMIStatus.PAID)
+                    CommonFunctions.dateToString(loan.loanClosedDate?.toDate() ?: java.util.Date())
+                else "—",
+                small = true
+            )
         }
 
-        Row {
-            InfoColumn("Start Date", CommonFunctions.dateToString(loan.amountSentDate?.toDate() ?: Date()))
-            Spacer(modifier = Modifier.weight(1f))
+        // MARK: Installment Toggle
 
-            if (loan.loanStatus == EMIStatus.PAID){
-                InfoColumn("Close Date", CommonFunctions.dateToString(loan.loanClosedDate?.toDate() ?: Date()))
-            }
-            else {
-                InfoColumn("Close Date", "-")
-            }
-
-        }
-
-        // INSTALLMENTS
         if (loan.installments.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { showInstallments = !showInstallments }
+                    .background(color = AppColors.primaryBackground, shape = RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    if (showInstallments) "Hide Installments" else "View Installments",
-                    color = AppColors.infoAccent,
-                    style = AppFont.ibmPlexSans(13, FontWeight.Bold)
+                    text = if (showInstallments) "Hide Installments" else "View Installments (${loan.installments.size})",
+                    style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Bold),
+                    color = AppColors.primaryBrand,
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.weight(1f))
                 Icon(
-                    imageVector = if (showInstallments) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = AppColors.infoAccent
+                    tint = AppColors.primaryBrand,
+                    modifier = Modifier
+                        .size(18.dp)
+                        .rotate(chevronRotation)
                 )
             }
 
-            if (showInstallments) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    loan.installments.forEach { inst ->
-                        InstallmentRow(installment = inst)
+            AnimatedVisibility(
+                visible = showInstallments,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier.padding(top = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    loan.installments.forEachIndexed { index, installment ->
+                        InstallmentRow(
+                            installment = installment,
+                            index = index + 1,
+                            isLast = index == loan.installments.size - 1
+                        )
                     }
                 }
             }
@@ -385,60 +637,210 @@ fun LoanCard(loan: MemberLoan) {
     }
 }
 
+
 @Composable
-private fun InfoColumn(title: String, value: String) {
-    Column {
-        Text(title, style = AppFont.ibmPlexSans(12), color = AppColors.secondaryText)
-        Text(value, style = AppFont.ibmPlexSans(14, FontWeight.SemiBold), color = AppColors.headerText)
+private fun StatColumn(
+    modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    value: String,
+    small: Boolean = false
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (small) AppColors.secondaryText else AppColors.primaryBrand,
+                modifier = Modifier.size(11.dp)
+            )
+            Text(
+                text = title,
+                style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Medium),
+                color = AppColors.secondaryText
+            )
+        }
+        Text(
+            text = value,
+            style = AppFont.ibmPlexSans(size = if (small) 12 else 13, weight = FontWeight.Bold),
+            color = AppColors.headerText,
+            maxLines = 1
+        )
     }
 }
 
-private fun statusColor(status: EMIStatus): Color = when (status) {
-    EMIStatus.CREATED -> AppColors.warningAccent
-    EMIStatus.PAID -> AppColors.successAccent
-    EMIStatus.PENDING -> AppColors.warningAccent
-    EMIStatus.OVERDUE -> AppColors.errorAccent
-    EMIStatus.FAILED -> AppColors.errorAccent
-    EMIStatus.INVERIFICATION -> AppColors.warningAccent
+@Composable
+private fun StatDivider() {
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .fillMaxHeight()
+            .padding(vertical = 2.dp)
+            .background(AppColors.border.copy(alpha = 0.5f))
+    )
 }
 
 @Composable
-fun InstallmentRow(installment: Installment) {
+private fun StatusBadge(text: String, color: Color) {
+    Row(
+        modifier = Modifier
+            .background(color = color.copy(alpha = 0.12f), shape = RoundedCornerShape(50))
+            .padding(horizontal = 9.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .background(color = color, shape = CircleShape)
+        )
+        Text(
+            text = text,
+            style = AppFont.ibmPlexSans(size = 11, weight = FontWeight.Bold),
+            color = color
+        )
+    }
+}
 
-    Column(
+
+// MARK: - Installment Row (timeline style)
+
+@Composable
+fun InstallmentRow(
+    installment: Installment,
+    index: Int,
+    isLast: Boolean
+) {
+
+    val statusColor = statusColorFor(installment.status)
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .appShadow(AppShadows.card, RoundedCornerShape(14.dp))
-            .background(AppColors.surface, RoundedCornerShape(14.dp))
-            .border(0.5.dp, AppColors.border.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
-            .padding(14.dp)
+            .padding(top = if (index == 1) 12.dp else 0.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
 
-        Row {
-            InfoColumn("Due Date", CommonFunctions.dateToString(installment.dueDate?.toDate() ?: Date()))
-            Spacer(modifier = Modifier.weight(1f))
-            InfoColumn("Paid Date", CommonFunctions.dateToString(installment.duePaidDate?.toDate() ?: Date()))
-        }
+        // MARK: Timeline marker
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .background(
+                        color = if (installment.status == EMIStatus.PAID) AppColors.successAccent else AppColors.surface,
+                        shape = CircleShape
+                    )
+                    .border(width = 1.5.dp, color = statusColor.copy(alpha = 0.4f), shape = CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (installment.status == EMIStatus.PAID) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(12.dp)
+                    )
+                } else {
+                    Text(
+                        text = "$index",
+                        style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Bold),
+                        color = statusColor
+                    )
+                }
+            }
 
-        Row {
-            InfoColumn("Amount", installment.installmentAmount.currencyFormattedWithCommas())
-            Spacer(modifier = Modifier.weight(1f))
-            InfoColumn("Interest", installment.interestAmount.currencyFormattedWithCommas())
-            Spacer(modifier = Modifier.weight(1f))
-
-            Column {
-                Text("Status", style = AppFont.ibmPlexSans(12), color = AppColors.secondaryText)
-                Text(
-                    installment.status.value,
-                    style = AppFont.ibmPlexSans(14, FontWeight.Bold),
-                    color = statusColor(installment.status),
+            if (!isLast) {
+                Box(
                     modifier = Modifier
-                        .background(statusColor(installment.status).copy(alpha = 0.1f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .width(2.dp)
+                        .weight(1f, fill = false)
+                        .defaultMinSize(minHeight = 44.dp)
+                        .background(AppColors.border.copy(alpha = 0.6f))
                 )
             }
         }
+
+        // MARK: Content card
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .background(color = AppColors.background.copy(alpha = 0.5f), shape = RoundedCornerShape(14.dp))
+                .border(width = 1.dp, color = AppColors.border.copy(alpha = 0.5f), shape = RoundedCornerShape(14.dp))
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+                LabeledValue(
+                    modifier = Modifier.weight(1f),
+                    title = SquadStrings.dueDate,
+                    value = CommonFunctions.dateToString(installment.dueDate?.toDate() ?: java.util.Date())
+                )
+                LabeledValue(
+                    modifier = Modifier.weight(1f),
+                    title = SquadStrings.paidDate,
+                    value = installment.duePaidDate?.let { CommonFunctions.dateToString(it.toDate()) } ?: "—",
+                    alignEnd = true
+                )
+            }
+
+            HorizontalDivider(color = AppColors.border.copy(alpha = 0.5f))
+
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                LabeledValue(
+                    modifier = Modifier.weight(1f),
+                    title = SquadStrings.amount,
+                    value = installment.installmentAmount.currencyFormattedWithCommas()
+                )
+                LabeledValue(
+                    modifier = Modifier.weight(1f),
+                    title = SquadStrings.interest,
+                    value = installment.interestAmount.currencyFormattedWithCommas()
+                )
+                Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = SquadStrings.status,
+                        style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Medium),
+                        color = AppColors.secondaryText
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = installment.status.displayText,
+                        style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Bold),
+                        color = statusColor,
+                        modifier = Modifier
+                            .background(color = statusColor.copy(alpha = 0.12f), shape = RoundedCornerShape(50))
+                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LabeledValue(
+    modifier: Modifier = Modifier,
+    title: String,
+    value: String,
+    alignEnd: Boolean = false
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start
+    ) {
+        Text(
+            text = title,
+            style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Medium),
+            color = AppColors.secondaryText
+        )
+        Spacer(modifier = Modifier.height(3.dp))
+        Text(
+            text = value,
+            style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Bold),
+            color = AppColors.headerText
+        )
     }
 }

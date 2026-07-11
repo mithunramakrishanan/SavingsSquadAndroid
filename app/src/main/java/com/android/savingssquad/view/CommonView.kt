@@ -672,12 +672,6 @@ fun SSTextView(
                     color = borderColor,
                     shape = RoundedCornerShape(16.dp)
                 )
-                .shadow(
-                    elevation = 10.dp,
-                    shape = RoundedCornerShape(16.dp),
-                    ambientColor = AppColors.primaryButton.copy(alpha = elevationAlpha),
-                    spotColor = AppColors.primaryButton.copy(alpha = elevationAlpha)
-                )
                 .padding(4.dp)
         ) {
 

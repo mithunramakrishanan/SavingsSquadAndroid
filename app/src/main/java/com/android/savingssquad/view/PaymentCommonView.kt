@@ -24,369 +24,421 @@ import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.launch
 import java.util.*
 
-// --------------------------------------------------------------
-// MARK: - Payment Row (Main Container)
-// --------------------------------------------------------------
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
+import java.text.NumberFormat
+import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
+
+// MARK: - Currency helper
+
+private val inrFormatter: NumberFormat by lazy {
+    NumberFormat.getNumberInstance(Locale("en", "IN"))
+}
+
+private fun formatINR(amount: Int): String = "₹${inrFormatter.format(amount)}"
+
+
+// MARK: - Payment History Row (GPay style)
+
 @Composable
 fun PaymentRow(
-    payment: PaymentsDetails,
-    showPaymentStatusRow: Boolean,
-    showPayoutStatusRow: Boolean,
-    squadViewModel: SquadViewModel
+    payment: PaymentsDetails
 ) {
-    Column(
+
+    var showDetails by remember { mutableStateOf(false) }
+
+    val isCredit = payment.paymentType == PaymentType.PAYMENT_CREDIT
+    val displayName = if (payment.paymentType == PaymentType.PAYMENT_DEBIT) "Squad Manager" else payment.memberName
+    val totalAmount = if (payment.paymentSubType == PaymentSubType.EMI_AMOUNT)
+        payment.amount + payment.intrestAmount else payment.amount
+    val amountText = (if (isCredit) "+ " else "- ") + formatINR(totalAmount)
+
+    val iconColor = if (payment.paymentType == PaymentType.PAYMENT_DEBIT)
+        AppColors.secondaryAccent else AppColors.primaryBrand
+
+    val iconVector: ImageVector = when (payment.paymentSubType) {
+        PaymentSubType.CONTRIBUTION_AMOUNT -> Icons.Default.Groups
+        PaymentSubType.EMI_AMOUNT -> Icons.Default.EventRepeat
+        PaymentSubType.LOAN_AMOUNT -> Icons.Default.AccountBalanceWallet
+        PaymentSubType.OTHERS_AMOUNT -> if (payment.paymentType == PaymentType.PAYMENT_DEBIT)
+            Icons.Default.CallMade else Icons.Default.CallReceived
+        PaymentSubType.INTEREST_AMOUNT -> Icons.Default.Percent
+    }
+
+    val statusColor = statusColorFor(payment.paymentStatus)
+    val statusIcon = statusIconFor(payment.paymentStatus)
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .appShadow(AppShadows.card, RoundedCornerShape(14.dp)) // shadow outside
-            .clip(RoundedCornerShape(14.dp))                       // round corners
-            .background(AppColors.surface)                        // card background
-            .padding(12.dp)                                       // inner content padding
+            .appShadow(AppShadows.card, RoundedCornerShape(18.dp))
+            .background(color = AppColors.surface, shape = RoundedCornerShape(18.dp))
+            .border(width = 1.dp, color = AppColors.border.copy(alpha = 0.6f), shape = RoundedCornerShape(18.dp))
+            .clickable { showDetails = true }
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // 🔹 Name
-        Text(
-            text = if (payment.paymentType == PaymentType.PAYMENT_DEBIT)
-                "Squad Manager" else payment.memberName,
-            style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
-            color = AppColors.headerText
-        )
 
-        // 🔹 Description
-        Text(
-            text = if (payment.paymentType == PaymentType.PAYMENT_DEBIT)
-                "${payment.description} to ${payment.memberName}" else payment.description,
-            style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-            color = AppColors.secondaryText,
-            modifier = Modifier.padding(top = 4.dp)
-        )
+        // MARK: Icon
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-        if (showPaymentStatusRow) {
-            PaymentStatusRowView(
-                status = payment.paymentStatus,
-                paymentDate = payment.paymentUpdatedDate,
-                reason = payment.paymentResponseMessage,
-                retryAction = { squadViewModel.retryPaymentAction(payment) },
-                paymentType = payment.paymentType,
-                memberId = payment.memberId,
-                squadViewModel = squadViewModel
-            )
-        }
-
-        if (showPayoutStatusRow && payment.paymentEntryType == PaymentEntryType.AUTOMATIC_ENTRY) {
-            PayoutStatusRowView(
-                status = payment.payoutStatus,
-                payoutDate = payment.payoutUpdatedDate,
-                reason = payment.payoutResponseMessage,
-                retryAction = { squadViewModel.retryPayoutAction(payment) },
-                paymentType = payment.paymentType,
-                memberId = payment.memberId,
-                squadViewModel = squadViewModel
-            )
-        }
-    }
-}
-
-// --------------------------------------------------------------
-// MARK: - Payment Status Row
-// --------------------------------------------------------------
-@Composable
-fun PaymentStatusRowView(
-    status: PaymentStatus,
-    paymentDate: Timestamp?,
-    reason: String,
-    retryAction: () -> Unit,
-    paymentType: PaymentType,
-    memberId: String,
-    squadViewModel: SquadViewModel
-) {
-    var reasonData by remember { mutableStateOf<ReasonSheetData?>(null) }
-
-    CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(color = AppColors.headerText)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .graphicsLayer {
-                    // ✅ Enables subpixel antialiasing for icons and text
-                    renderEffect = null
-                    clip = false
-                }
-                .padding(vertical = 2.dp)
+                .size(42.dp)
+                .background(color = iconColor.copy(alpha = 0.12f), shape = CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            // ✅ Larger icon (better vector clarity on HDPI)
             Icon(
-                imageVector = when (status) {
-                    PaymentStatus.SUCCESS -> Icons.Filled.CheckCircle
-                    PaymentStatus.FAILED -> Icons.Filled.Error
-                    else -> Icons.Filled.Info
-                },
+                imageVector = iconVector,
                 contentDescription = null,
-                tint = when (status) {
-                    PaymentStatus.SUCCESS -> Color(0xFF2ECC71) // vibrant green
-                    PaymentStatus.FAILED -> Color(0xFFE74C3C)  // bright red
-                    else -> AppColors.infoAccent
-                },
-                modifier = Modifier
-                    .size(22.dp)
-                    .align(Alignment.CenterVertically)
+                tint = iconColor,
+                modifier = Modifier.size(19.dp)
             )
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                // ✅ Use Material3 typography for better anti-alias
-                Text(
-                    text = status.displayText,
-                    style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
-                    color = when (status) {
-                        PaymentStatus.SUCCESS -> Color(0xFF2ECC71)
-                        PaymentStatus.FAILED -> Color(0xFFE74C3C)
-                        else -> AppColors.infoAccent
-                    }
-                )
-
-                paymentDate?.let {
-                    Text(
-                        text = CommonFunctions.dateToString(it.toDate()),
-                        style = AppFont.ibmPlexSans(12, FontWeight.Normal),
-                        color = AppColors.secondaryText
-                    )
-                }
-
-                if (reason.isNotEmpty()) {
-                    Text(
-                        text = "More Details",
-                        style = AppFont.ibmPlexSans(11, FontWeight.Medium),
-                        color = Color(0xFF007AFF),
-                        modifier = Modifier.clickable {
-
-                            val title = when (status) {
-
-                                PaymentStatus.SUCCESS ->
-
-                                    SquadStrings.paymentSuccess
-
-                                PaymentStatus.INVERIFICATION ->
-
-                                    "Waiting for admin confirmation"
-
-                                else ->
-
-                                    SquadStrings.paymentIssue
-
-                            }
-
-                            reasonData = ReasonSheetData(
-
-                                title = title,
-
-                                message = reason
-
-                            )
-
-                        }
-                    )
-                }
-            }
-
-//            if (canShowPaymentAction(status, paymentType, memberId, squadViewModel)) {
-//                Button(
-//                    onClick = retryAction,
-//                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2ECC71).copy(alpha = 0.15f)),
-//                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-//                    modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
-//                ) {
-//                    Text(
-//                        "Retry",
-//                        style = AppFont.ibmPlexSans(11, FontWeight.Medium),
-//                        color = Color(0xFF2ECC71)
-//                    )
-//                }
-//            }
         }
 
-        reasonData?.let {
-            ReasonSheet(it) { reasonData = null }
-        }
-    }
-}
+        // MARK: Name + reference
 
-private fun canShowPaymentAction(
-    status: PaymentStatus,
-    paymentType: PaymentType,
-    memberId: String,
-    squadViewModel: SquadViewModel
-): Boolean {
-    return status == PaymentStatus.FAILED &&
-            ((paymentType == PaymentType.PAYMENT_CREDIT &&
-                    memberId == squadViewModel.currentMember.value?.id) ||
-                    (paymentType == PaymentType.PAYMENT_DEBIT &&
-                            UserDefaultsManager.getSquadManagerLogged()))
-}
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
 
-// --------------------------------------------------------------
-// MARK: - Payout Status Row
-// --------------------------------------------------------------
-@Composable
-fun PayoutStatusRowView(
-    status: PayoutStatus,
-    payoutDate: Timestamp?,
-    reason: String,
-    retryAction: () -> Unit,
-    paymentType: PaymentType,
-    memberId: String,
-    squadViewModel: SquadViewModel
-) {
-    var reasonData by remember { mutableStateOf<ReasonSheetData?>(null) }
-
-    CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(color = AppColors.headerText)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .graphicsLayer {
-                    // ✅ Ensure sharp edges & text clarity
-                    renderEffect = null
-                    clip = false
-                }
-                .padding(vertical = 2.dp)
-        ) {
-            // 🔹 Crisp Vector Icon (slightly larger)
-            Icon(
-                imageVector = when (status) {
-                    PayoutStatus.PAYOUT_SUCCESS -> Icons.Filled.CheckCircle
-                    PayoutStatus.PAYOUT_FAILED -> Icons.Filled.Error
-                    PayoutStatus.PENDING -> Icons.Filled.HourglassEmpty
-                    PayoutStatus.PAYOUT_INPROGRESS -> Icons.Filled.Autorenew
-                    else -> Icons.Filled.Info
-                },
-                contentDescription = null,
-                tint = when (status) {
-                    PayoutStatus.PAYOUT_SUCCESS -> Color(0xFF2ECC71)  // bright green
-                    PayoutStatus.PAYOUT_FAILED -> Color(0xFFE74C3C)   // red
-                    PayoutStatus.PENDING,
-                    PayoutStatus.RECEIVED,
-                    PayoutStatus.PAYOUT_INPROGRESS -> Color(0xFFFFA500) // orange
-                    else -> AppColors.infoAccent
-                },
-                modifier = Modifier
-                    .size(22.dp)
-                    .align(Alignment.CenterVertically)
-            )
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                // 🔹 Status Text
-                Text(
-                    text = status.displayText,
-                    style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
-                    color = when (status) {
-                        PayoutStatus.PAYOUT_SUCCESS -> Color(0xFF2ECC71)
-                        PayoutStatus.PAYOUT_FAILED -> Color(0xFFE74C3C)
-                        PayoutStatus.PENDING,
-                        PayoutStatus.RECEIVED,
-                        PayoutStatus.PAYOUT_INPROGRESS -> Color(0xFFFFA500)
-                        else -> AppColors.secondaryText
-                    }
-                )
-
-                // 🔹 Date Text
-                payoutDate?.let {
-                    Text(
-                        text = CommonFunctions.dateToString(it.toDate()),
-                        style = AppFont.ibmPlexSans(12, FontWeight.Normal),
-                        color = AppColors.secondaryText
-                    )
-                }
-
-                // 🔹 Reason (More Details)
-                if (reason.isNotEmpty()) {
-                    Text(
-                        text = "More Details",
-                        style = AppFont.ibmPlexSans(11, FontWeight.Medium),
-                        color = Color(0xFF007AFF),
-                        modifier = Modifier.clickable {
-                            reasonData = ReasonSheetData(
-                                title = if (status == PayoutStatus.PAYOUT_SUCCESS)
-                                    "Payout Success" else "Payout Issue",
-                                message = reason
-                            )
-                        }
-                    )
-                }
-            }
-
-            // 🔹 Retry / Verify / Refresh Button
-//            if (canShowPayoutAction(status, paymentType, memberId, squadViewModel)) {
-//                Button(
-//                    onClick = retryAction,
-//                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2ECC71).copy(alpha = 0.15f)),
-//                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-//                    modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp)
-//                ) {
-//                    Text(
-//                        text = when (status) {
-//                            PayoutStatus.PAYOUT_FAILED -> "Retry"
-//                            PayoutStatus.PENDING,
-//                            PayoutStatus.RECEIVED,
-//                            PayoutStatus.PAYOUT_INPROGRESS -> "Verify"
-//                            else -> "Refresh"
-//                        },
-//                        style = AppFont.ibmPlexSans(11, FontWeight.Medium),
-//                        color = Color(0xFF2ECC71)
-//                    )
-//                }
-//            }
-        }
-
-        // 🔹 Crisp Reason Sheet Popup
-        reasonData?.let {
-            ReasonSheet(it) { reasonData = null }
-        }
-    }
-}
-
-private fun canShowPayoutAction(
-    status: PayoutStatus,
-    paymentType: PaymentType,
-    memberId: String,
-    squadViewModel: SquadViewModel
-): Boolean {
-    return status != PayoutStatus.PAYOUT_SUCCESS &&
-            ((paymentType == PaymentType.PAYMENT_CREDIT &&
-                    UserDefaultsManager.getSquadManagerLogged()) ||
-                    (paymentType == PaymentType.PAYMENT_DEBIT &&
-                            memberId == squadViewModel.currentMember.value?.id))
-}
-
-// --------------------------------------------------------------
-// MARK: - Reason Sheet
-// --------------------------------------------------------------
-@Composable
-fun ReasonSheet(data: ReasonSheetData, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
-        },
-        title = { Text(data.title, style = AppFont.ibmPlexSans(18, FontWeight.SemiBold)) },
-        text = {
             Text(
-                text = if (data.message.isEmpty()) "No details available." else data.message,
-                style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                color = AppColors.secondaryText
+                text = displayName,
+                style = AppFont.ibmPlexSans(size = 14, weight = FontWeight.Bold),
+                color = AppColors.headerText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Text(
+                text = payment.transferReferenceId,
+                style = AppFont.ibmPlexSans(size = 11, weight = FontWeight.Normal),
+                color = AppColors.secondaryText,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            payment.paymentUpdatedDate?.let { date ->
+                Text(
+                    text = CommonFunctions.dateToString(date.toDate()),
+                    style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Medium),
+                    color = AppColors.placeholderText
+                )
+            }
+        }
+
+        // MARK: Amount + status
+
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+
+            Text(
+                text = amountText,
+                style = AppFont.ibmPlexSans(size = 15, weight = FontWeight.Bold),
+                color = if (isCredit) AppColors.successAccent else AppColors.headerText,
+                maxLines = 1
+            )
+
+            StatusBadge(
+                text = payment.paymentStatus.displayText,
+                icon = statusIcon,
+                color = statusColor
             )
         }
+    }
+
+    if (showDetails) {
+        PaymentDetailSheet(
+            payment = payment,
+            onDismiss = { showDetails = false }
+        )
+    }
+}
+
+
+@Composable
+private fun StatusBadge(text: String, icon: ImageVector, color: Color) {
+    Row(
+        modifier = Modifier
+            .background(color = color.copy(alpha = 0.12f), shape = RoundedCornerShape(50))
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(10.dp))
+        Text(
+            text = text,
+            style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Bold),
+            color = color,
+            maxLines = 1
+        )
+    }
+}
+
+
+// MARK: - Payment Detail Sheet
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PaymentDetailSheet(
+    payment: PaymentsDetails,
+    onDismiss: () -> Unit
+) {
+
+    val clipboard = LocalClipboardManager.current
+    var didCopy by remember { mutableStateOf(false) }
+
+    LaunchedEffect(didCopy) {
+        if (didCopy) {
+            delay(1200.milliseconds)
+            didCopy = false
+        }
+    }
+
+    val isCredit = payment.paymentType == PaymentType.PAYMENT_CREDIT
+    val totalAmount = if (payment.paymentSubType == PaymentSubType.EMI_AMOUNT)
+        payment.amount + payment.intrestAmount else payment.amount
+    val amountText = (if (isCredit) "+ " else "- ") + formatINR(totalAmount)
+
+    val statusColor = statusColorFor(payment.paymentStatus)
+    val statusIcon = statusIconFor(payment.paymentStatus)
+
+    val typeTitle = when (payment.paymentSubType) {
+        PaymentSubType.CONTRIBUTION_AMOUNT -> "Contribution"
+        PaymentSubType.EMI_AMOUNT -> "EMI Amount"
+        PaymentSubType.LOAN_AMOUNT -> "Loan Disbursement"
+        PaymentSubType.OTHERS_AMOUNT -> "Payment"
+        PaymentSubType.INTEREST_AMOUNT -> "Interest"
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = AppColors.surface,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+
+            // MARK: Hero
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .background(color = statusColor.copy(alpha = 0.12f), shape = CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(imageVector = statusIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(28.dp))
+                }
+
+                Text(
+                    text = amountText,
+                    style = AppFont.ibmPlexSans(size = 28, weight = FontWeight.Bold),
+                    color = AppColors.headerText
+                )
+
+                Text(
+                    text = payment.paymentStatus.displayText,
+                    style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.SemiBold),
+                    color = statusColor
+                )
+            }
+
+            // MARK: Description
+
+            if (payment.description.isNotEmpty()) {
+                Text(
+                    text = payment.description,
+                    style = AppFont.ibmPlexSans(size = 13, weight = FontWeight.Normal),
+                    color = AppColors.secondaryText,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            // MARK: Response message
+
+            if (payment.paymentResponseMessage.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(color = statusColor.copy(alpha = 0.08f), shape = RoundedCornerShape(12.dp))
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = statusColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = payment.paymentResponseMessage,
+                        style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Medium),
+                        color = AppColors.headerText
+                    )
+                }
+            }
+
+            // MARK: Details card
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(color = AppColors.background.copy(alpha = 0.5f), shape = RoundedCornerShape(16.dp))
+                    .border(width = 1.dp, color = AppColors.border.copy(alpha = 0.6f), shape = RoundedCornerShape(16.dp))
+                    .padding(vertical = 2.dp)
+            ) {
+
+                DetailRow(icon = Icons.Default.Person, title = "Member", value = payment.memberName)
+                RowDivider()
+
+                DetailRow(icon = Icons.Default.Sell, title = "Type", value = typeTitle)
+                RowDivider()
+
+                DetailRow(
+                    icon = Icons.Default.Tag,
+                    title = "Payment ID",
+                    value = payment.id ?: "—",
+                    monospaced = true,
+                    copyable = true,
+                    didCopy = didCopy,
+                    onCopy = {
+                        clipboard.setText(AnnotatedString(payment.id ?: ""))
+                        didCopy = true
+                    }
+                )
+
+                if (payment.upiID.isNotEmpty()) {
+                    RowDivider()
+                    DetailRow(icon = Icons.Default.AlternateEmail, title = "UPI ID", value = payment.upiID, monospaced = true)
+                }
+
+                RowDivider()
+                DetailRow(
+                    icon = Icons.Default.SwapHoriz,
+                    title = "Reference",
+                    value = payment.transferReferenceId,
+                    monospaced = true
+                )
+
+                payment.paymentUpdatedDate?.let { date ->
+                    RowDivider()
+                    DetailRow(
+                        icon = Icons.Default.Schedule,
+                        title = "Date",
+                        value = CommonFunctions.dateToString(date.toDate())
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun DetailRow(
+    icon: ImageVector,
+    title: String,
+    value: String,
+    monospaced: Boolean = false,
+    copyable: Boolean = false,
+    didCopy: Boolean = false,
+    onCopy: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(26.dp)
+                .background(color = AppColors.primaryBackground, shape = CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = AppColors.primaryBrand, modifier = Modifier.size(11.dp))
+        }
+
+        Text(
+            text = title,
+            style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Medium),
+            color = AppColors.secondaryText
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Text(
+            text = value,
+            style = if (monospaced)
+                AppFont.ibmPlexSans(size = 12, weight = FontWeight.SemiBold).copy(fontFamily = FontFamily.Monospace)
+            else
+                AppFont.ibmPlexSans(size = 12, weight = FontWeight.SemiBold),
+            color = AppColors.headerText,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        if (copyable && onCopy != null) {
+            Icon(
+                imageVector = if (didCopy) Icons.Default.Check else Icons.Default.ContentCopy,
+                contentDescription = "Copy",
+                tint = if (didCopy) AppColors.successAccent else AppColors.primaryBrand,
+                modifier = Modifier
+                    .size(15.dp)
+                    .clickable { onCopy() }
+            )
+        }
+    }
+}
+
+@Composable
+private fun RowDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 42.dp)
+            .height(1.dp)
+            .background(AppColors.border.copy(alpha = 0.5f))
     )
 }
 
-// --------------------------------------------------------------
-// MARK: - Model
-// --------------------------------------------------------------
-data class ReasonSheetData(
-    val title: String,
-    val message: String
-)
+
+// MARK: - Shared status helpers
+
+private fun statusColorFor(status: PaymentStatus): Color = when (status) {
+    PaymentStatus.SUCCESS -> AppColors.successAccent
+    PaymentStatus.FAILED -> AppColors.errorAccent
+    PaymentStatus.INVERIFICATION -> AppColors.warningAccent
+    else -> AppColors.infoAccent
+}
+
+private fun statusIconFor(status: PaymentStatus): ImageVector = when (status) {
+    PaymentStatus.SUCCESS -> Icons.Default.CheckCircle
+    PaymentStatus.FAILED -> Icons.Default.Cancel
+    PaymentStatus.INVERIFICATION -> Icons.Default.Schedule
+    else -> Icons.Default.Info
+}

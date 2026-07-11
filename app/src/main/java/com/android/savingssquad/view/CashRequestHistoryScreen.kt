@@ -41,6 +41,7 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -108,6 +109,7 @@ import com.android.savingssquad.singleton.color
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.AppDestination
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.PhoneAuthOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -130,6 +132,10 @@ fun CashRequestHistoryScreen(
             SquadUserType.SQUAD_MANAGER
         else
             SquadUserType.SQUAD_MEMBER
+
+    if (screenType == SquadUserType.SQUAD_MEMBER) {
+        selectedMemberId = UserDefaultsManager.getLogin()?.squadUserId
+    }
 
     val cashRequests by squadViewModel.squadCashRequests
     val members by squadViewModel.squadMembers.collectAsState()
@@ -272,8 +278,17 @@ fun CashRequestHistoryScreen(
                 else {
 
                     LazyColumn(
+
+                        modifier = Modifier
+
+                            .fillMaxSize()
+
+                            .background(AppColors.background),
+
                         verticalArrangement = Arrangement.spacedBy(16.dp),
-                        modifier = Modifier.fillMaxSize()
+
+                        contentPadding = PaddingValues(vertical = 16.dp)
+
                     ) {
 
                         items(
@@ -379,10 +394,6 @@ fun CashRequestRow(
                 1.dp,
                 AppColors.border.copy(alpha = 0.45f),
                 RoundedCornerShape(16.dp)
-            )
-            .appShadow(
-                style = AppShadows.card,
-                shape = RoundedCornerShape(16.dp)
             )
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1000,11 +1011,11 @@ fun CashRequestButton(
             .clip(RoundedCornerShape(14.dp))
             .background(AppColors.surface)
             .border(
-                1.dp,
-                AppColors.border.copy(alpha = 0.4f),
-                RoundedCornerShape(14.dp)
+                width = 1.dp,
+                color = AppColors.border.copy(alpha = .4f),
+                shape = RoundedCornerShape(14.dp)
             )
-            .clickable { onClick() }
+            .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1013,15 +1024,20 @@ fun CashRequestButton(
             modifier = Modifier
                 .size(38.dp)
                 .clip(CircleShape)
-                .background(AppColors.primaryBrand.copy(alpha = 0.12f)),
+                .background(AppColors.primaryBrand.copy(alpha = .12f)),
             contentAlignment = Alignment.Center
         ) {
 
             Icon(
-                imageVector = Icons.Default.AttachMoney,
-                contentDescription = null,
+
+                painter = painterResource(R.drawable.cash_request),
+
+                contentDescription = "Cash Requests",
+
                 tint = AppColors.primaryBrand,
-                modifier = Modifier.size(20.dp)
+
+                modifier = Modifier.size(18.dp)
+
             )
         }
 
@@ -1042,37 +1058,26 @@ fun CashRequestButton(
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            if (UserDefaultsManager.getSquadManagerLogged()) {
-
-                Text(
-                    text = if (pendingCount > 0)
-                        "$pendingCount Pending"
-                    else
-                        "No Pending",
-                    style = AppFont.ibmPlexSans(
-                        11,
-                        FontWeight.Normal
-                    ),
-                    color = if (pendingCount > 0)
+            Text(
+                text =
+                    if (UserDefaultsManager.getSquadManagerLogged()) {
+                        if (pendingCount > 0)
+                            "$pendingCount Pending"
+                        else
+                            "No Pending"
+                    } else {
+                        "Your Cash Requests"
+                    },
+                style = AppFont.ibmPlexSans(
+                    11,
+                    FontWeight.Normal
+                ),
+                color =
+                    if (UserDefaultsManager.getSquadManagerLogged() && pendingCount > 0)
                         AppColors.errorAccent
                     else
                         AppColors.secondaryText
-                )
-            }
-            else {
-
-                Text(
-                    text = "Your Cash Requests",
-                    style = AppFont.ibmPlexSans(
-                        11,
-                        FontWeight.Normal
-                    ),
-                    color =
-                        AppColors.secondaryText
-                )
-            }
-
-
+            )
         }
 
         if (pendingCount > 0) {
@@ -1080,8 +1085,10 @@ fun CashRequestButton(
             Box(
                 modifier = Modifier
                     .size(22.dp)
-                    .clip(CircleShape)
-                    .background(AppColors.errorAccent),
+                    .background(
+                        AppColors.errorAccent,
+                        CircleShape
+                    ),
                 contentAlignment = Alignment.Center
             ) {
 
@@ -1095,14 +1102,62 @@ fun CashRequestButton(
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
         }
 
         Icon(
-            imageVector = Icons.Default.ChevronRight,
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
             tint = AppColors.secondaryText,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(12.dp)
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun CashRequestRowPreview() {
+
+    val emiConfig = EMIConfiguration(
+        loanAmount = 50000,
+        emiMonths = 12,
+        emiInterestRate = 12.0,
+        emiAmount = 4441,
+        interestAmount = 3292
+    )
+
+    val pendingRequest = CashRequest(
+        id = "REQ001",
+        requestedByName = "Mithun",
+        requestedByID = "MEM001",
+        requestedOn = Timestamp.now(),
+        requestedEMIConfig = emiConfig,
+        cashRequestStatus = CashRequestStatus.CREATED
+    )
+
+    val acceptedRequest = pendingRequest.copy(
+        id = "REQ002",
+        requestedByName = "Karthika",
+        cashRequestStatus = CashRequestStatus.ACCEPTED,
+        requestAcceptedOn = Timestamp.now()
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AppColors.background)
+            .padding(vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+
+        CashRequestRow(
+            cashRequest = pendingRequest,
+            showActions = true
+        )
+
+        CashRequestRow(
+            cashRequest = acceptedRequest,
+            showActions = false
         )
     }
 }

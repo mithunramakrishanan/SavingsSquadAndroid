@@ -191,10 +191,7 @@ fun DuesScreenView(
                             ) {
                                 items(payments) { payment ->
                                     PaymentRow(
-                                        payment = payment,
-                                        showPaymentStatusRow = true,
-                                        showPayoutStatusRow = false,
-                                        squadViewModel = squadViewModel
+                                        payment = payment
                                     )
                                 }
                             }
@@ -528,10 +525,7 @@ fun DuesScreenView(
                         ) {
                             items(payments) { payment ->
                                 PaymentRow(
-                                    payment = payment,
-                                    showPaymentStatusRow = true,
-                                    showPayoutStatusRow = false,
-                                    squadViewModel = squadViewModel
+                                    payment = payment
                                 )
                             }
                         }

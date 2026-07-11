@@ -254,7 +254,7 @@ fun MemberHomeView(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
+                                .padding(horizontal = 8.dp),
                             horizontalArrangement = Arrangement.Center
                         ) {
                             AllCaughUPView(
@@ -274,6 +274,7 @@ fun MemberHomeView(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
                             .padding(vertical = 0.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -317,8 +318,9 @@ fun MemberHomeView(
                 item {
 
                     Box(
-                        modifier = Modifier.padding(top = 15.dp)
+                        modifier = Modifier.padding(top = 2.dp)
                             .fillMaxWidth()
+                            .padding(horizontal = 22.dp)
                             .padding(vertical = 0.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -338,14 +340,11 @@ fun MemberHomeView(
 
                         Column(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.padding(horizontal = 16.dp)
+                            modifier = Modifier.padding(horizontal = 8.dp)
                         ) {
                             lastFivePayments.forEach { payment ->
                                 PaymentRow(
                                     payment = payment,
-                                    showPaymentStatusRow = true,
-                                    showPayoutStatusRow = false,
-                                    squadViewModel = squadViewModel
                                 )
                             }
 

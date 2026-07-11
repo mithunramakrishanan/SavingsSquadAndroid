@@ -312,6 +312,7 @@ fun ManagerHomeView(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .padding(top = 10.dp)
                                 .padding(vertical = 0.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -345,7 +346,8 @@ fun ManagerHomeView(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 10.dp),
+                                .padding(top = 15.dp)
+                                .padding(vertical = 0.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             TotalMemberContributionCard(
@@ -749,7 +751,7 @@ fun TwoButtonGradient(
 
                 Box(
                     modifier = Modifier
-                        .size(30.dp)
+                        .size(25.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = if (isEnabled) 0.20f else 0.14f)),
                     contentAlignment = Alignment.Center

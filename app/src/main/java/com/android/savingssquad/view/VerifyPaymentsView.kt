@@ -194,10 +194,7 @@ fun VerifyPaymentsViewOld(
                     items(pendingAccountTransfers, key = { it.id!! }) { payment ->
 
                         PaymentRow(
-                            payment = payment,
-                            showPaymentStatusRow = true,
-                            showPayoutStatusRow = false,
-                            squadViewModel = squadViewModel
+                            payment = payment
                         )
                     }
                 }
