@@ -51,7 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.android.savingssquad.model.ContributionDetail
 import com.android.savingssquad.viewmodel.SquadViewModel
-import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch

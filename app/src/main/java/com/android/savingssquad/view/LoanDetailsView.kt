@@ -41,7 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.android.savingssquad.viewmodel.SquadViewModel
-import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
@@ -93,6 +93,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -177,17 +179,17 @@ fun LoanDetailsView(
             ) {
                 if (screenType != SquadUserType.SQUAD_MEMBER) {
                     DropdownMenuPicker(
-                        label = "Member",
                         selected = selectedMember,
                         items = memberList,
+                        icon = Icons.Default.Group,
                         modifier = Modifier.weight(1f)
                     ) { selectedMember = it }
                 }
 
                 DropdownMenuPicker(
-                    label = "Status",
                     selected = selectedStatus?.value ?: "All",
                     items = listOf("All", "Pending", "Paid", "Overdue"),
+                    icon = Icons.Default.Tune,
                     modifier = Modifier.weight(1f)
                 ) {
                     selectedStatus = when (it.lowercase()) {
@@ -269,114 +271,111 @@ fun LoanDetailsView(
 
 @Composable
 fun DropdownMenuPicker(
-    label: String,
     selected: String,
     items: List<String>,
+    icon: ImageVector,
     modifier: Modifier = Modifier,
     onSelected: (String) -> Unit
 ) {
+
     var expanded by remember { mutableStateOf(false) }
 
-    val borderColor = if (expanded) AppColors.primaryBrand else AppColors.border
-    val chevronRotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        label = "chevronRotation"
-    )
+    Box(modifier = modifier) {
 
-    Column(modifier = modifier) {
-
-        Text(
-            text = label.uppercase(),
-            style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.SemiBold),
-            color = AppColors.secondaryText,
-            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
-        )
-
-        Box {
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .appShadow(AppShadows.card, RoundedCornerShape(14.dp))
-                    .background(AppColors.surface, RoundedCornerShape(14.dp))
-                    .border(
-                        width = if (expanded) 1.5.dp else 1.dp,
-                        color = borderColor,
-                        shape = RoundedCornerShape(14.dp)
-                    )
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { expanded = true }
-                    .padding(horizontal = 14.dp, vertical = 13.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = selected,
-                    style = AppFont.ibmPlexSans(size = 14, weight = FontWeight.SemiBold),
-                    color = AppColors.headerText,
-                    modifier = Modifier.weight(1f)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    AppColors.surface,
+                    RoundedCornerShape(14.dp)
                 )
-
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = if (expanded) AppColors.primaryBrand else AppColors.secondaryText,
-                    modifier = Modifier
-                        .size(20.dp)
-                        .rotate(chevronRotation)
+                .border(
+                    1.dp,
+                    AppColors.border.copy(alpha = 0.35f),
+                    RoundedCornerShape(14.dp)
                 )
-            }
+                .clickable { expanded = true }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
 
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier
-                    .background(AppColors.surface, RoundedCornerShape(14.dp))
-                    .border(1.dp, AppColors.border.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
-            ) {
-                items.forEach { item ->
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = AppColors.primaryBrand,
+                modifier = Modifier.size(16.dp)
+            )
 
-                    val isSelected = item == selected
+            Spacer(modifier = Modifier.width(8.dp))
 
-                    DropdownMenuItem(
-                        modifier = Modifier
-                            .background(
-                                if (isSelected) AppColors.primaryBackground else androidx.compose.ui.graphics.Color.Transparent,
-                                RoundedCornerShape(10.dp)
+            Text(
+                text = selected,
+                style = AppFont.ibmPlexSans(
+                    size = 13,
+                    weight = FontWeight.Medium
+                ),
+                color = AppColors.headerText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = AppColors.secondaryText,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier
+                .background(
+                    AppColors.surface,
+                    RoundedCornerShape(14.dp)
+                )
+        ) {
+
+            items.forEach { item ->
+
+                DropdownMenuItem(
+
+                    text = {
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            Text(
+                                text = item,
+                                style = AppFont.ibmPlexSans(
+                                    size = 13,
+                                    weight = FontWeight.Medium
+                                ),
+                                modifier = Modifier.weight(1f)
                             )
-                            .padding(horizontal = 4.dp),
-                        text = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = item,
-                                    style = AppFont.ibmPlexSans(
-                                        size = 14,
-                                        weight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                    ),
-                                    color = if (isSelected) AppColors.primaryBrand else AppColors.headerText,
-                                    modifier = Modifier.weight(1f)
-                                )
 
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = AppColors.primaryBrand,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
+                            if (item == selected) {
+
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = AppColors.primaryBrand,
+                                    modifier = Modifier.size(16.dp)
+                                )
                             }
-                        },
-                        onClick = {
-                            onSelected(item)
-                            expanded = false
                         }
-                    )
-                }
+                    },
+
+                    onClick = {
+
+                        expanded = false
+                        onSelected(item)
+                    }
+                )
             }
         }
     }

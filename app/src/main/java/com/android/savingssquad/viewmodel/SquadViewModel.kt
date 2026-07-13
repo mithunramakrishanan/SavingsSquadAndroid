@@ -28,6 +28,7 @@ import com.android.savingssquad.model.pendingLoans
 import com.android.savingssquad.singleton.AlertType
 import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.NotificationService
 import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadUserType
@@ -60,6 +61,7 @@ import java.util.Date
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.Calendar
@@ -348,6 +350,16 @@ class SquadViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Reference-counted loaders (see LoaderManager) make show/hide safe to nest,
+     * but the ViewModel itself can still leak a coroutine that never resolves
+     * (e.g. a hung network call). Always call this from onCleared() as a
+     * defensive backstop so navigating away never leaves a stuck spinner.
+     */
+    override fun onCleared() {
+        super.onCleared()
+        LoaderManager.shared.forceReset()
+    }
 
     fun startObservers(squadID: String) {
 
@@ -491,7 +503,6 @@ class SquadViewModel : ViewModel() {
 
     fun addUserLogin(showLoader: Boolean = true, member: Member) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -515,7 +526,7 @@ class SquadViewModel : ViewModel() {
         )
 
         manager.addUserLogin(login) { success, error ->
-            viewModelScope.launch(Dispatchers.IO) {
+            viewModelScope.launch(Dispatchers.Main) {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (success) {
@@ -538,8 +549,6 @@ class SquadViewModel : ViewModel() {
     ) {
         // ✅ Check Internet
         if (!CommonFunctions.isInternetAvailable()) {
-
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -556,9 +565,8 @@ class SquadViewModel : ViewModel() {
         manager.fetchUserLogins(phoneNumber) { loginList, error ->
 
             // DispatchQueue.main.async → main-safe via viewModelScope
-            viewModelScope.launch(Dispatchers.IO) {
+            viewModelScope.launch(Dispatchers.Main) {
 
-                // Guard self check not needed in Kotlin, directly use `this@SquadViewModel`
                 try {
                     if (showLoader) {
                         LoaderManager.shared.hideLoader()
@@ -610,7 +618,6 @@ class SquadViewModel : ViewModel() {
     ) {
         // ✅ Internet check
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -631,7 +638,7 @@ class SquadViewModel : ViewModel() {
         }
 
         manager.fetchSquadByID(squadID) { fetchedSquad, error ->
-            viewModelScope.launch(Dispatchers.IO) {
+            viewModelScope.launch(Dispatchers.Main) {
                 try {
                     if (fetchedSquad == null) {
                         if (showLoader) LoaderManager.shared.hideLoader()
@@ -653,8 +660,14 @@ class SquadViewModel : ViewModel() {
 
                     setIsFetchingTotalAmountCollected(true)
 
-                    // 🔹 Parallel background work with coroutine async blocks
-                    val fetchEMI = async { fetchEMIConfigurations(true) { _, _ -> } }
+                    // FIX: these are sub-tasks of ONE larger group operation — this outer
+                    // function alone owns show/hide of the loader. Previously
+                    // fetchEMIConfigurations(true) passed showLoader=true, which meant that
+                    // sub-call would show *and hide* its own loader the instant IT finished,
+                    // well before fetchMembers/fetchPayments completed — causing the spinner
+                    // to disappear early even though work was still in flight. All sub-calls
+                    // below now pass showLoader = false.
+                    val fetchEMI = async { fetchEMIConfigurations(false) { _, _ -> } }
                     val fetchMembers = async { fetchMembers(false) { _, _, _ -> } }
                     val fetchPayments = async {
                         manager.fetchPayments(
@@ -668,7 +681,7 @@ class SquadViewModel : ViewModel() {
                             limit = paymentsPageSize
 
                         ) { fetchedPayments, lastDoc, error ->
-                            viewModelScope.launch(Dispatchers.IO) {
+                            viewModelScope.launch(Dispatchers.Main) {
                                 if (fetchedPayments != null) {
                                     setSquadPayments(fetchedPayments)
                                     setIsFetchingTotalAmountCollected(false)
@@ -703,7 +716,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, Squad?, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -718,7 +730,7 @@ class SquadViewModel : ViewModel() {
         }
 
         manager.updateSquad(squad) { success, updatedSquad, errorMessage ->
-            viewModelScope.launch(Dispatchers.IO) {
+            viewModelScope.launch(Dispatchers.Main) {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (success && updatedSquad != null) {
@@ -749,9 +761,6 @@ class SquadViewModel : ViewModel() {
     ) {
 
         if (!CommonFunctions.isInternetAvailable()) {
-
-            LoaderManager.shared.hideLoader()
-
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -804,7 +813,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -847,7 +855,7 @@ class SquadViewModel : ViewModel() {
             setShowAddMemberPopup(false)
 
             manager.addMember(squadID, newMember) { success, message ->
-                viewModelScope.launch(Dispatchers.IO) {
+                viewModelScope.launch(Dispatchers.Main) {
                     if (showLoader) LoaderManager.shared.hideLoader()
 
                     if (success) {
@@ -865,7 +873,7 @@ class SquadViewModel : ViewModel() {
 
         if (_squadMembersCount.value > 0) {
             manager.fetchMembers(squad.squadID) { memberNames, error ->
-                viewModelScope.launch(Dispatchers.IO) {
+                viewModelScope.launch(Dispatchers.Main) {
                     if (error != null) {
                         if (showLoader) LoaderManager.shared.hideLoader()
                         handleFetchError(error) {
@@ -894,44 +902,99 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-        // ✅ fetchMember
-        fun fetchMember(
-            showLoader: Boolean,
-            squadID: String,
-            memberID: String,
-            completion: (Boolean, Member?, String?) -> Unit
-        ) {
-            if (!CommonFunctions.isInternetAvailable()) {
-                LoaderManager.shared.hideLoader()
-                AlertManager.shared.showAlert(
-                    title = SquadStrings.appName,
-                    message = SquadStrings.networkError,
-                    primaryButtonTitle = SquadStrings.ok,
-                    primaryAction = {}
-                )
-                return
+    // ✅ fetchMember
+    fun fetchMember(
+        showLoader: Boolean,
+        squadID: String,
+        memberID: String,
+        completion: (Boolean, Member?, String?) -> Unit
+    ) {
+        if (!CommonFunctions.isInternetAvailable()) {
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+            return
+        }
+
+        if (showLoader) LoaderManager.shared.showLoader()
+
+        viewModelScope.launch(Dispatchers.IO) { // 🧵 Run on background thread
+            manager.fetchMember(squadID, memberID) { fetchedMember, error ->
+                viewModelScope.launch(Dispatchers.Main) { // 🧭 Switch back to Main thread
+                    if (showLoader) LoaderManager.shared.hideLoader()
+
+                    if (fetchedMember != null) {
+                        setCurrentMember(fetchedMember)
+                        setVerifySquadMemberAmountBadgeCount(fetchedMember.verifyAmountCount)
+                        completion(true, fetchedMember, null)
+                    } else {
+                        val errorMsg = error ?: "❌ Failed to fetch member"
+                        setErrorMessage(errorMsg)
+
+                        handleFetchError(errorMsg) {
+                            fetchMember(showLoader, squadID, memberID, completion)
+                        }
+
+                        completion(false, null, errorMsg)
+                    }
+                }
             }
+        }
 
-            if (showLoader) LoaderManager.shared.showLoader()
+    }
 
-            viewModelScope.launch(Dispatchers.IO) { // 🧵 Run on background thread
-                manager.fetchMember(squadID, memberID) { fetchedMember, error ->
-                    // ✅ Use launch instead of withContext inside callback (no suspend issue)
-                    viewModelScope.launch(Dispatchers.Main) { // 🧭 Switch back to Main thread
-                        if (showLoader) LoaderManager.shared.hideLoader()
+    // ✅ fetchMembers
+    fun fetchMembers(showLoader: Boolean, completion: (Boolean, List<Member>?, String?) -> Unit) {
+        if (!CommonFunctions.isInternetAvailable()) {
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+            return
+        }
 
-                        if (fetchedMember != null) {
-                            // ✅ Update LiveData / StateFlow
-                            setCurrentMember(fetchedMember)
-                            setVerifySquadMemberAmountBadgeCount(fetchedMember.verifyAmountCount)
-                            completion(true, fetchedMember, null)
-                        } else {
-                            val errorMsg = error ?: "❌ Failed to fetch member"
+        if (showLoader) LoaderManager.shared.showLoader()
+
+        viewModelScope.launch(Dispatchers.IO) { // 🧵 Run Firebase fetch in background
+            manager.fetchMembers(squadID) { fetchedMembers, error ->
+                viewModelScope.launch(Dispatchers.Main) {
+                    setIsFetchingMembers(false)
+                    if (showLoader) LoaderManager.shared.hideLoader()
+
+                    when {
+                        error == "No members found." -> {
+                            setSquadMembersCount(0)
+
+                            completion(false, null, error)
+                        }
+
+                        fetchedMembers != null -> {
+
+                            setSquadMembers(fetchedMembers)
+                            setSquadMembersCount(fetchedMembers.size)
+                            setSquadMemberNames(fetchedMembers.map { it.name }.toMutableList())
+
+                            loginMember?.squadUsername?.let { username ->
+                                CommonFunctions.getMemberByName(username, fetchedMembers)?.let {
+                                    setMemberDetail(it)
+
+                                }
+                            }
+
+                            completion(true, fetchedMembers, null)
+                        }
+
+                        else -> {
+                            val errorMsg = error ?: "❌ Failed to fetch members"
                             setErrorMessage(errorMsg)
 
-                            // 🔁 Retry logic if error
                             handleFetchError(errorMsg) {
-                                fetchMember(showLoader, squadID, memberID, completion)
+                                fetchMembers(showLoader, completion)
                             }
 
                             completion(false, null, errorMsg)
@@ -939,166 +1002,100 @@ class SquadViewModel : ViewModel() {
                     }
                 }
             }
+        }
+    }
 
+    // ✅ createContributionWhenMemberCreate
+    private fun createContributionWhenMemberCreate(member: Member) {
+        if (!CommonFunctions.isInternetAvailable()) {
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+            return
         }
 
-        // ✅ fetchMembers
-        fun fetchMembers(showLoader: Boolean, completion: (Boolean, List<Member>?, String?) -> Unit) {
-            if (!CommonFunctions.isInternetAvailable()) {
-                LoaderManager.shared.hideLoader()
-                AlertManager.shared.showAlert(
-                    title = SquadStrings.appName,
-                    message = SquadStrings.networkError,
-                    primaryButtonTitle = SquadStrings.ok,
-                    primaryAction = {}
+        val squad = _squad.value ?: return
+
+        manager.createContributionWhenMemberCreate(
+            squadID = squad.squadID,
+            memberID = member.id ?: "",
+            memberName = member.name,
+            squadStart = squad.squadStartDate?.toDate() ?: Date(),
+            squadEnd = squad.squadEndDate?.toDate() ?: Date(),
+            amount = squad.monthlyContribution
+        ) { success, message ->
+            if (success) {
+                createSquadActivity(
+                    activityType = SquadActivityType.OTHER_ACTIVITY,
+                    userName = "SQUAD MANAGER",
+                    memberId = "",
+                    amount = 0,
+                    description = "Added a new member ${member.name} to the squad"
                 )
-                return
-            }
-
-            if (showLoader) LoaderManager.shared.showLoader()
-
-            viewModelScope.launch(Dispatchers.IO) { // 🧵 Run Firebase fetch in background
-                manager.fetchMembers(squadID) { fetchedMembers, error ->
-                    // ✅ Launch on Main thread safely for UI updates
-                    viewModelScope.launch(Dispatchers.Main) {
-                        setIsFetchingMembers(false)
-                        if (showLoader) LoaderManager.shared.hideLoader()
-
-                        when {
-                            error == "No members found." -> {
-                                setSquadMembersCount(0)
-
-                                completion(false, null, error)
-                            }
-
-                            fetchedMembers != null -> {
-
-                                setSquadMembers(fetchedMembers)
-                                setSquadMembersCount(fetchedMembers.size)
-                                setSquadMemberNames(fetchedMembers.map { it.name }.toMutableList())
-
-
-                                // ✅ Auto-select login member (if applicable)
-                                loginMember?.squadUsername?.let { username ->
-                                    CommonFunctions.getMemberByName(username, fetchedMembers)?.let {
-                                        setMemberDetail(it)
-
-                                    }
-                                }
-
-                                completion(true, fetchedMembers, null)
-                            }
-
-                            else -> {
-                                val errorMsg = error ?: "❌ Failed to fetch members"
-                                setErrorMessage(errorMsg)
-
-                                handleFetchError(errorMsg) {
-                                    fetchMembers(showLoader, completion)
-                                }
-
-                                completion(false, null, errorMsg)
-                            }
-                        }
-                    }
+            } else {
+                handleFetchError(message ?: "Unknown error") {
+                    createContributionWhenMemberCreate(member)
                 }
             }
         }
+    }
 
-        // ✅ createContributionWhenMemberCreate
-        private fun createContributionWhenMemberCreate(member: Member) {
-            if (!CommonFunctions.isInternetAvailable()) {
-                LoaderManager.shared.hideLoader()
-                AlertManager.shared.showAlert(
-                    title = SquadStrings.appName,
-                    message = SquadStrings.networkError,
-                    primaryButtonTitle = SquadStrings.ok,
-                    primaryAction = {}
-                )
-                return
-            }
+    // ✅ contibutionEditWhenMonthsChanged
+    fun contibutionEditWhenMonthsChanged(
+        showLoader: Boolean,
+        squad: Squad,
+        squadEndDate: Date,
+        amount: String,
+        completion: (Boolean, String?) -> Unit
+    ) {
+        if (!CommonFunctions.isInternetAvailable()) {
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+            return
+        }
 
-            val squad = _squad.value ?: return
+        if (showLoader) LoaderManager.shared.showLoader()
 
-            manager.createContributionWhenMemberCreate(
+        viewModelScope.launch(Dispatchers.IO) {
+            manager.contibutionEditWhenMonthsChanged(
                 squadID = squad.squadID,
-                memberID = member.id ?: "",
-                memberName = member.name,
-                squadStart = squad.squadStartDate?.toDate() ?: Date(),
-                squadEnd = squad.squadEndDate?.toDate() ?: Date(),
-                amount = squad.monthlyContribution
+                squadStartDate = squad.squadStartDate?.toDate() ?: Date(),
+                squadEndDate = squadEndDate,
+                amount = squad.monthlyContribution.toString()
             ) { success, message ->
-                if (success) {
-                    createSquadActivity(
-                        activityType = SquadActivityType.OTHER_ACTIVITY,
-                        userName = "SQUAD MANAGER",
-                        memberId = "",
-                        amount = 0,
-                        description = "Added a new member ${member.name} to the squad"
-                    )
-                } else {
-                    handleFetchError(message ?: "Unknown error") {
-                        createContributionWhenMemberCreate(member)
-                    }
-                }
-            }
-        }
+                viewModelScope.launch(Dispatchers.Main) {
+                    if (showLoader) LoaderManager.shared.hideLoader()
 
-        // ✅ contibutionEditWhenMonthsChanged
-        fun contibutionEditWhenMonthsChanged(
-            showLoader: Boolean,
-            squad: Squad,
-            squadEndDate: Date,
-            amount: String,
-            completion: (Boolean, String?) -> Unit
-        ) {
-            if (!CommonFunctions.isInternetAvailable()) {
-                LoaderManager.shared.hideLoader()
-                AlertManager.shared.showAlert(
-                    title = SquadStrings.appName,
-                    message = SquadStrings.networkError,
-                    primaryButtonTitle = SquadStrings.ok,
-                    primaryAction = {}
-                )
-                return
-            }
+                    if (success) {
+                        println(message ?: "✅ Squad contributions updated successfully!")
+                        completion(true, message)
+                    } else {
+                        val errorMsg = message ?: "❌ Error updating squad contributions"
+                        println(errorMsg)
 
-            if (showLoader) LoaderManager.shared.showLoader()
-
-            viewModelScope.launch(Dispatchers.IO) {
-                manager.contibutionEditWhenMonthsChanged(
-                    squadID = squad.squadID,
-                    squadStartDate = squad.squadStartDate?.toDate() ?: Date(),
-                    squadEndDate = squadEndDate,
-                    amount = squad.monthlyContribution.toString()
-                ) { success, message ->
-                    // ✅ Switch back to Main thread safely
-                    viewModelScope.launch(Dispatchers.Main) {
-                        if (showLoader) LoaderManager.shared.hideLoader()
-
-                        if (success) {
-                            println(message ?: "✅ Squad contributions updated successfully!")
-                            completion(true, message)
-                        } else {
-                            val errorMsg = message ?: "❌ Error updating squad contributions"
-                            println(errorMsg)
-
-                            handleFetchError(errorMsg) {
-                                contibutionEditWhenMonthsChanged(
-                                    showLoader = showLoader,
-                                    squad = squad,
-                                    squadEndDate = squadEndDate,
-                                    amount = amount,
-                                    completion = completion
-                                )
-                            }
-
-                            completion(false, errorMsg)
+                        handleFetchError(errorMsg) {
+                            contibutionEditWhenMonthsChanged(
+                                showLoader = showLoader,
+                                squad = squad,
+                                squadEndDate = squadEndDate,
+                                amount = amount,
+                                completion = completion
+                            )
                         }
+
+                        completion(false, errorMsg)
                     }
                 }
             }
         }
+    }
 
     // ✅ fetchContributionsForMember
     fun fetchContributionsForMember(
@@ -1108,7 +1105,6 @@ class SquadViewModel : ViewModel() {
         completion: (List<ContributionDetail>?, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -1122,7 +1118,6 @@ class SquadViewModel : ViewModel() {
 
         viewModelScope.launch(Dispatchers.IO) {
             manager.fetchContributionsForMember(squadID, memberID) { contributions, error ->
-                // ✅ Switch to main thread safely inside callback
                 viewModelScope.launch(Dispatchers.Main) {
                     if (showLoader) LoaderManager.shared.hideLoader()
 
@@ -1161,7 +1156,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -1180,7 +1174,6 @@ class SquadViewModel : ViewModel() {
                 contributionID = contributionID,
                 updatedContribution = updatedContribution
             ) { success, error ->
-                // ✅ Move UI updates safely to Main thread
                 viewModelScope.launch(Dispatchers.Main) {
                     if (showLoader) LoaderManager.shared.hideLoader()
 
@@ -1217,7 +1210,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -1231,7 +1223,6 @@ class SquadViewModel : ViewModel() {
 
         viewModelScope.launch(Dispatchers.IO) {
             manager.addSquadActivity(squad.value?.squadID ?: "", activity) { success, error ->
-                // ✅ Switch safely to main thread inside callback
                 viewModelScope.launch(Dispatchers.Main) {
                     if (showLoader) LoaderManager.shared.hideLoader()
 
@@ -1265,11 +1256,7 @@ class SquadViewModel : ViewModel() {
     ) {
 
         if (!CommonFunctions.isInternetAvailable()) {
-
-            LoaderManager.shared.hideLoader()
-
             completion(false, SquadStrings.networkError)
-
             return
         }
 
@@ -1287,9 +1274,9 @@ class SquadViewModel : ViewModel() {
             limit = activitiesPageSize
         ) { activities, lastDocument, error ->
 
-            MainScope().launch {
+            viewModelScope.launch(Dispatchers.Main) {
 
-                LoaderManager.shared.hideLoader()
+                if (showLoader) LoaderManager.shared.hideLoader()
 
                 activitiesIsLoadingMore = false
                 isLoadingMoreActivities = false
@@ -1351,7 +1338,7 @@ class SquadViewModel : ViewModel() {
             limit = activitiesPageSize
         ) { activities, newLastDocument, _ ->
 
-            MainScope().launch {
+            viewModelScope.launch(Dispatchers.Main) {
 
                 activitiesIsLoadingMore = false
                 isLoadingMoreActivities = false
@@ -1396,7 +1383,6 @@ class SquadViewModel : ViewModel() {
 
     fun deleteSquadActivity(showLoader: Boolean = true, activityID: String) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -1409,7 +1395,7 @@ class SquadViewModel : ViewModel() {
         if (showLoader) LoaderManager.shared.showLoader()
 
         manager.deleteSquadActivity(squadID, activityID) { success, error ->
-            MainScope().launch {
+            viewModelScope.launch(Dispatchers.Main) {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (success) {
@@ -1440,7 +1426,7 @@ class SquadViewModel : ViewModel() {
         if (showLoader) LoaderManager.shared.showLoader()
 
         manager.fetchSquadRules(squadID) { rules, error ->
-            MainScope().launch {
+            viewModelScope.launch(Dispatchers.Main) {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (rules != null) {
@@ -1456,7 +1442,6 @@ class SquadViewModel : ViewModel() {
 
     fun addRule(rule: SquadRule, showLoader: Boolean = true, completion: (Boolean, String?) -> Unit) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -1469,7 +1454,7 @@ class SquadViewModel : ViewModel() {
         if (showLoader) LoaderManager.shared.showLoader()
 
         manager.addSquadRule(squadID, rule) { success, error ->
-            MainScope().launch {
+            viewModelScope.launch(Dispatchers.Main) {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (success) {
@@ -1495,7 +1480,7 @@ class SquadViewModel : ViewModel() {
         if (showLoader) LoaderManager.shared.showLoader()
 
         manager.deleteSquadRule(squadID, ruleID) { success, error ->
-            MainScope().launch {
+            viewModelScope.launch(Dispatchers.Main) {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (success) {
@@ -1521,7 +1506,7 @@ class SquadViewModel : ViewModel() {
         }
 
         manager.updateSquadRule(currentSquadID, rule) { success, error ->
-            MainScope().launch {
+            viewModelScope.launch(Dispatchers.Main) {
                 if (success) {
                     val index = _rules.value.indexOfFirst { it.id == rule.id }
                     if (index != -1) setRules(_rules.value.toMutableList().apply { set(index, rule) })
@@ -1543,7 +1528,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -1696,7 +1680,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -1754,7 +1737,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -1769,10 +1751,8 @@ class SquadViewModel : ViewModel() {
         if (firstPayment != null &&
             firstPayment.paymentApproveStatus != PaymentApproveStatus.ACCEPTED && showUPIIntent
         ) {
-
-            // Save pending payment
             LoaderManager.shared.hideLoader()
-
+            // No loader was shown yet on this branch — nothing to hide.
             UPIPaymentManager.shared.pay(
                 activity =  activity,
                 context = context,
@@ -1813,17 +1793,18 @@ class SquadViewModel : ViewModel() {
             return
         }
 
+        if (showLoader) LoaderManager.shared.showLoader()
+
         if (firstPayment?.paymentSubType == PaymentSubType.OTHERS_AMOUNT || firstPayment?.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
             firstPayment.paymentApproveStatus = PaymentApproveStatus.ACCEPTED
             firstPayment.paymentStatus = PaymentStatus.SUCCESS
             firstPayment.paymentUpdatedDate = Date().asTimestamp
         }
         manager.savePayments(squadID, firstPayment) { success, error ->
-            if (showLoader) LoaderManager.shared.hideLoader()
-
             if (!success) {
                 val errorMsg = error ?: "❌ Failed to add payment"
                 println(errorMsg)
+                if (showLoader) LoaderManager.shared.hideLoader()
                 handleFetchError(errorMsg) {
                     savePayments(activity,context,showUPIIntent, showLoader, squadID, payment, completion)
                 }
@@ -1843,6 +1824,7 @@ class SquadViewModel : ViewModel() {
                     if (payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
 
                         updateContributionStatus(
+                            showLoader = false,
                             squadID = payment.squadId,
                             memberID = payment.memberId,
                             contributionID = payment.contributionId,
@@ -1850,7 +1832,6 @@ class SquadViewModel : ViewModel() {
                             newStatus = PaidStatus.PAID.value
                         ) { success, error ->
 
-                            // handle response if needed
                             if (!success) {
                                 println("Error updating: $error")
                             }
@@ -1860,6 +1841,7 @@ class SquadViewModel : ViewModel() {
                     else {
 
                         updateContributionStatus(
+                            showLoader = false,
                             squadID = payment.squadId,
                             memberID = payment.memberId,
                             contributionID = payment.contributionId,
@@ -1867,7 +1849,6 @@ class SquadViewModel : ViewModel() {
                             newStatus = PaidStatus.INVERIFICATION.value
                         ) { success, error ->
 
-                            // handle response if needed
                             if (!success) {
                                 println("Error updating: $error")
                             }
@@ -1880,8 +1861,7 @@ class SquadViewModel : ViewModel() {
 
                     if (payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
 
-                        updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.value){ success, error ->
-                            // handle response if needed
+                        updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.value, showLoader = false){ success, error ->
                             if (!success) {
                                 println("Error updating: $error")
                             }
@@ -1894,8 +1874,7 @@ class SquadViewModel : ViewModel() {
                     }
                     else {
 
-                        updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.INVERIFICATION.value){ success, error ->
-                            // handle response if needed
+                        updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.INVERIFICATION.value, showLoader = false){ success, error ->
                             if (!success) {
                                 println("Error updating: $error")
                             }
@@ -1953,7 +1932,6 @@ class SquadViewModel : ViewModel() {
                                 ),
 
                                 onSuccess = { response ->
-                                    LoaderManager.shared.hideLoader()
                                     ToastManager.show(
                                         title = "Reminder Sent",
                                         message = "Notification sent to ${response.sentTo} member(s)",
@@ -1962,7 +1940,6 @@ class SquadViewModel : ViewModel() {
                                 },
 
                                 onError = { error ->
-                                    LoaderManager.shared.hideLoader()
                                     ToastManager.show(
                                         title = "Failed",
                                         message = error.localizedMessage ?: "Unable to send reminder.",
@@ -1977,7 +1954,10 @@ class SquadViewModel : ViewModel() {
                 }
             }
 
-            if (showLoader) LoaderManager.shared.showLoader()
+            // FIX: this used to call showLoader() again (a straight typo) instead of
+            // hideLoader() — the loader would be left visible forever after a successful
+            // save. Corrected to hideLoader().
+            if (showLoader) LoaderManager.shared.hideLoader()
             completion(true, null)
         }
     }
@@ -2020,8 +2000,11 @@ class SquadViewModel : ViewModel() {
         val userId = payment.firstOrNull()?.memberId
         val member = _squadMembers.value.firstOrNull { it.id == userId }
 
-        CoroutineScope(Dispatchers.IO).launch {
-            // 🔹 Update squad financials atomically
+        // FIX: was a bare CoroutineScope(Dispatchers.IO).launch — that coroutine kept
+        // running (and could crash silently) even after the ViewModel was cleared.
+        // viewModelScope ties its lifetime to the ViewModel and is auto-cancelled
+        // in onCleared().
+        viewModelScope.launch(Dispatchers.IO) {
             for (pay in payment) {
                 applyPaymentToFirestore(squadID = squadLocal.squadID, payment = pay, status = status)
 
@@ -2168,7 +2151,6 @@ class SquadViewModel : ViewModel() {
     ) {
 
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError
@@ -2185,185 +2167,157 @@ class SquadViewModel : ViewModel() {
             status = status
         ) { success, payment, error ->
 
-            if (success && payment != null) {
-
-                val list = (squadPayments.value ?: mutableListOf()).toMutableList()
-
-                val index = list.indexOfFirst { it.id == paymentID }
-                if (index != -1) {
-                    list[index] = list[index].copy(
-                        paymentApproveStatus = status
-                    )
-                }
-
-                setSquadPayments(list)
-
-                // remove from pending list
-                val pending = pendingApprovalPayments.value.toMutableList() ?: mutableListOf()
-
-                pending.removeAll { it.id == paymentID }
-
-                setPendingApprovalPayments(pending)
-
-                updatePaymentCalculations(listOf(payment), status)
-
-                // contribution logic
-                if (payment.paymentSubType == PaymentSubType.CONTRIBUTION_AMOUNT) {
-
-                    when (status) {
-
-                        PaymentApproveStatus.ACCEPTED -> {
-                            updateContributionStatus(
-                                squadID = payment.squadId,
-                                memberID = payment.memberId,
-                                contributionID = payment.contributionId,
-                                amount = payment.amount,
-                                newStatus = PaidStatus.PAID.value
-                            ){ success, error ->
-
-                                if (success) {
-
-                                    // success logic
-
-                                } else {
-
-                                    // show error
-
-                                    println(error)
-
-                                }
-
-                            }
-                        }
-
-                        PaymentApproveStatus.REJECTED -> {
-                            updateContributionStatus(
-                                squadID = payment.squadId,
-                                memberID = payment.memberId,
-                                contributionID = payment.contributionId,
-                                amount = payment.amount,
-                                newStatus = PaidStatus.NOT_PAID.value
-                            ){ success, error ->
-
-                                if (success) {
-
-                                    // success logic
-
-                                } else {
-
-                                    // show error
-
-                                    println(error)
-
-                                }
-
-                            }
-                        }
-
-                        else -> {}
-                    }
-                }
-                else if (payment.paymentSubType == PaymentSubType.EMI_AMOUNT) {
-
-                    when (status) {
-
-                        PaymentApproveStatus.ACCEPTED -> {
-                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.value){ success, error ->
-                                // handle response if needed
-                                if (!success) {
-                                    println("Error updating: $error")
-                                }
-                                else {
-
-
-                                }
-                            }
-                        }
-
-                        PaymentApproveStatus.REJECTED -> {
-                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PENDING.value){ success, error ->
-                                // handle response if needed
-                                if (!success) {
-                                    println("Error updating: $error")
-                                }
-                                else {
-
-                                }
-                            }
-                        }
-
-                        else -> {}
-                    }
-
-
-                }
-                else if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
-
-                    when (status) {
-
-                        PaymentApproveStatus.ACCEPTED -> {
-
-                            val emiConfig = payment.selectedEMIConfig ?: return@updatePaymentApproveStatus
-
-                            val newLoan = CommonFunctions.generateMemberLoan(
-                                emiConfig = emiConfig,
-                                memberID = payment.memberId ?: "",
-                                memberName = payment.memberName
-                            )
-
-                            newLoan.id = payment.loanId
-
-                            addOrUpdateMemberLoan(
-                                showLoader = false,
-                                memberID = payment.memberId ?: "",
-                                loan = newLoan
-                            ) { success, error ->
-                                if (success) {
-                                    LoaderManager.shared.hideLoader()
-
-
-                                    /*FirebaseFunctionsManager.shared.processRazorPayPayment(
-                                        squadId = squadViewModel.squad.value?.squadID ?: "",
-                                        action = RazorpayPaymentAction.New(payment = newPayment)
-                                    ) { sessionId, orderId, error ->
-
-                                        squadViewModel.handleCashFreeResponse(
-                                            sessionId, orderId, error,
-                                            completion = {
-                                                LoaderManager.shared.hideLoader()
-                                                handler()
-                                            }
-                                        )
-                                    } */
-                                } else {
-                                    println("❌ Error: ${error ?: "Unknown error"}")
-                                }
-                            }
-
-                            FirestoreManager.shared.updateCurrentLoanApproveStatus(payment.squadId,payment.memberId,
-                                EMIStatus.PENDING) {_,_ -> }
-                        }
-
-                        PaymentApproveStatus.REJECTED -> {
-
-                            FirestoreManager.shared.updateCurrentLoanApproveStatus(payment.squadId,payment.memberId,
-                                EMIStatus.CREATED) {_,_ -> }
-                        }
-
-                        else -> {}
-                    }
-
-
-                }
-
+            // FIX: previously, when success was false or payment was null, this whole
+            // block was skipped, the loader was NEVER hidden on that path, and the
+            // function fell through to `completion(false, errorMsg)` below — but any
+            // caller relying on the loader being cleared would see a stuck spinner.
+            // Now the loader is always hidden and the failure path returns immediately.
+            if (!success || payment == null) {
                 if (showLoader) LoaderManager.shared.hideLoader()
-
-                completion(true, null)
+                val errorMsg = error ?: "Failed to update approval status"
+                completion(false, errorMsg)
                 return@updatePaymentApproveStatus
             }
 
-            val errorMsg = error ?: "Failed to update approval status"
-            completion(false, errorMsg)
+            val list = _squadPayments.value.toMutableList()
+
+            val index = list.indexOfFirst { it.id == paymentID }
+            if (index != -1) {
+                list[index] = list[index].copy(
+                    paymentApproveStatus = status
+                )
+            }
+
+            setSquadPayments(list)
+
+            // remove from pending list
+            val pending = _pendingApprovalPayments.value.toMutableList()
+
+            pending.removeAll { it.id == paymentID }
+
+            setPendingApprovalPayments(pending)
+
+            updatePaymentCalculations(listOf(payment), status)
+
+            // contribution logic
+            if (payment.paymentSubType == PaymentSubType.CONTRIBUTION_AMOUNT) {
+
+                when (status) {
+
+                    PaymentApproveStatus.ACCEPTED -> {
+                        updateContributionStatus(
+                            showLoader = false,
+                            squadID = payment.squadId,
+                            memberID = payment.memberId,
+                            contributionID = payment.contributionId,
+                            amount = payment.amount,
+                            newStatus = PaidStatus.PAID.value
+                        ){ success, error ->
+
+                            if (!success) {
+                                println(error)
+                            }
+
+                        }
+                    }
+
+                    PaymentApproveStatus.REJECTED -> {
+                        updateContributionStatus(
+                            showLoader = false,
+                            squadID = payment.squadId,
+                            memberID = payment.memberId,
+                            contributionID = payment.contributionId,
+                            amount = payment.amount,
+                            newStatus = PaidStatus.NOT_PAID.value
+                        ){ success, error ->
+
+                            if (!success) {
+                                println(error)
+                            }
+
+                        }
+                    }
+
+                    else -> {}
+                }
+            }
+            else if (payment.paymentSubType == PaymentSubType.EMI_AMOUNT) {
+
+                when (status) {
+
+                    PaymentApproveStatus.ACCEPTED -> {
+                        updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.value, showLoader = false){ success, error ->
+                            if (!success) {
+                                println("Error updating: $error")
+                            }
+                        }
+                    }
+
+                    PaymentApproveStatus.REJECTED -> {
+                        updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PENDING.value, showLoader = false){ success, error ->
+                            if (!success) {
+                                println("Error updating: $error")
+                            }
+                        }
+                    }
+
+                    else -> {}
+                }
+
+
+            }
+            else if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
+
+                when (status) {
+
+                    PaymentApproveStatus.ACCEPTED -> {
+
+                        val emiConfig = payment.selectedEMIConfig
+                        if (emiConfig == null) {
+                            if (showLoader) LoaderManager.shared.hideLoader()
+                            completion(true, null)
+                            return@updatePaymentApproveStatus
+                        }
+
+                        val newLoan = CommonFunctions.generateMemberLoan(
+                            emiConfig = emiConfig,
+                            memberID = payment.memberId ?: "",
+                            memberName = payment.memberName
+                        )
+
+                        newLoan.id = payment.loanId
+
+                        addOrUpdateMemberLoan(
+                            showLoader = false,
+                            memberID = payment.memberId ?: "",
+                            loan = newLoan
+                        ) { success, error ->
+                            if (success) {
+                                // handled by fetchMemberLoans refresh inside addOrUpdateMemberLoan
+                            } else {
+                                println("❌ Error: ${error ?: "Unknown error"}")
+                            }
+                        }
+
+                        FirestoreManager.shared.updateCurrentLoanApproveStatus(payment.squadId,payment.memberId,
+                            EMIStatus.PENDING) {_,_ -> }
+                    }
+
+                    PaymentApproveStatus.REJECTED -> {
+
+                        FirestoreManager.shared.updateCurrentLoanApproveStatus(payment.squadId,payment.memberId,
+                            EMIStatus.CREATED) {_,_ -> }
+                    }
+
+                    else -> {}
+                }
+
+
+            }
+
+            if (showLoader) LoaderManager.shared.hideLoader()
+
+            completion(true, null)
         }
     }
 
@@ -2407,7 +2361,7 @@ class SquadViewModel : ViewModel() {
 
         ) { list, error ->
 
-            LoaderManager.shared.hideLoader()
+            if (showLoader) LoaderManager.shared.hideLoader()
 
             if (error != null) {
 
@@ -2431,7 +2385,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -2444,7 +2397,7 @@ class SquadViewModel : ViewModel() {
         if (showLoader) LoaderManager.shared.showLoader()
 
         manager.updateMembers(squadID, members) { success, error ->
-            MainScope().launch {
+            viewModelScope.launch(Dispatchers.Main) {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (success) {
@@ -2482,7 +2435,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -2494,9 +2446,12 @@ class SquadViewModel : ViewModel() {
 
         if (showLoader) LoaderManager.shared.showLoader()
 
-        val selectedUser = selectedUser.value ?: return
+        val selectedUser = selectedUser.value ?: run {
+            if (showLoader) LoaderManager.shared.hideLoader()
+            return
+        }
         manager.updateMemberMobileNumber(squadID, memberID, mobileNumber,selectedUser) { success, error ->
-            MainScope().launch {
+            viewModelScope.launch(Dispatchers.Main) {
                 if (showLoader) LoaderManager.shared.hideLoader()
 
                 if (success) {
@@ -2523,7 +2478,6 @@ class SquadViewModel : ViewModel() {
     ) {
 
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -2544,7 +2498,7 @@ class SquadViewModel : ViewModel() {
             editAmountType = editAmountType
         ) { success, error ->
 
-            MainScope().launch {
+            viewModelScope.launch(Dispatchers.Main) {
 
                 if (showLoader) {
                     LoaderManager.shared.hideLoader()
@@ -2645,7 +2599,6 @@ class SquadViewModel : ViewModel() {
     ) {
 
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             completion(false, "No Internet")
             return
         }
@@ -2664,7 +2617,7 @@ class SquadViewModel : ViewModel() {
         ) { payments, lastDoc, error ->
 
             paymentsIsLoadingMore = false
-            LoaderManager.shared.hideLoader()
+            if (showLoader) LoaderManager.shared.hideLoader()
 
             if (payments != null) {
 
@@ -2746,7 +2699,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -2781,7 +2733,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -2799,14 +2750,14 @@ class SquadViewModel : ViewModel() {
             if (success) {
                 println("✅ EMI Configuration added/updated successfully!")
 
-                    setEMIConfigurations(_emiConfigurations.value.toMutableList().apply {
-                        val index = indexOfFirst { it.id == emi.id }
-                        if (index != -1) {
-                            this[index] = emi // Update existing item
-                        } else {
-                            add(emi) // Add new item
-                        }
-                    })
+                setEMIConfigurations(_emiConfigurations.value.toMutableList().apply {
+                    val index = indexOfFirst { it.id == emi.id }
+                    if (index != -1) {
+                        this[index] = emi // Update existing item
+                    } else {
+                        add(emi) // Add new item
+                    }
+                })
 
                 completion(true, null)
             } else {
@@ -2822,7 +2773,6 @@ class SquadViewModel : ViewModel() {
 
     fun fetchEMIConfigurations(showLoader: Boolean, completion: (Boolean, String?) -> Unit) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -2853,7 +2803,6 @@ class SquadViewModel : ViewModel() {
 
     fun deleteEMIConfiguration(showLoader: Boolean, emiID: String, completion: (Boolean, String?) -> Unit) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -2869,7 +2818,7 @@ class SquadViewModel : ViewModel() {
             if (showLoader) LoaderManager.shared.hideLoader()
 
             if (success) {
-                    setEMIConfigurations(_emiConfigurations.value.filter { it.id != emiID })
+                setEMIConfigurations(_emiConfigurations.value.filter { it.id != emiID })
                 completion(true, null)
             } else {
                 val errorMsg = error ?: "❌ Failed to delete EMI configuration"
@@ -2889,10 +2838,6 @@ class SquadViewModel : ViewModel() {
     ) {
 
         if (!CommonFunctions.isInternetAvailable()) {
-
-            if (showLoader) {
-                LoaderManager.shared.hideLoader()
-            }
 
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
@@ -2957,28 +2902,31 @@ class SquadViewModel : ViewModel() {
     private fun updateLoanPaidAfterInstallmentSettled(loans: List<MemberLoan>, memberID: String) {
         if (loans.isNotEmpty()) {
             viewModelScope.launch(Dispatchers.IO) {
-                memberPendingLoans.collect { loans ->
-                    loans?.forEach { loan ->
-                        // If all installments are paid
-                        if (loan.installments.pendingInstallments().isEmpty()) {
+                // FIX: `memberPendingLoans.collect { ... }` never completes, so this
+                // coroutine would live for the ViewModel's whole lifetime and re-run its
+                // body on every emission. We only want the CURRENT snapshot once, so use
+                // `.first()` instead of an unbounded `collect`.
+                val currentLoans = memberPendingLoans.first()
+                currentLoans?.forEach { loan ->
+                    // If all installments are paid
+                    if (loan.installments.pendingInstallments().isEmpty()) {
 
-                            // Only update if still pending
-                            if (loan.loanStatus == EMIStatus.PENDING) {
-                                val updatedLoan = loan.copy(
-                                    loanStatus = EMIStatus.PAID,
-                                    loanClosedDate = Date().asTimestamp
-                                )
+                        // Only update if still pending
+                        if (loan.loanStatus == EMIStatus.PENDING) {
+                            val updatedLoan = loan.copy(
+                                loanStatus = EMIStatus.PAID,
+                                loanClosedDate = Date().asTimestamp
+                            )
 
-                                addOrUpdateMemberLoan(
-                                    showLoader = true,
-                                    memberID = memberID,
-                                    loan = updatedLoan
-                                ) { success, error ->
-                                    if (success) {
-                                        Log.d("Loans", "✅ Loan ${loan.id} marked as PAID")
-                                    } else {
-                                        Log.e("Loans", "❌ Failed to update loan: $error")
-                                    }
+                            addOrUpdateMemberLoan(
+                                showLoader = false,
+                                memberID = memberID,
+                                loan = updatedLoan
+                            ) { success, error ->
+                                if (success) {
+                                    Log.d("Loans", "✅ Loan ${loan.id} marked as PAID")
+                                } else {
+                                    Log.e("Loans", "❌ Failed to update loan: $error")
                                 }
                             }
                         }
@@ -2995,7 +2943,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -3034,7 +2981,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, List<MemberLoan>?, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -3051,20 +2997,19 @@ class SquadViewModel : ViewModel() {
         val errors = mutableListOf<String>()
 
         membersRef.get().addOnCompleteListener { memberTask ->
-            if (showLoader) LoaderManager.shared.hideLoader()
 
             if (!memberTask.isSuccessful) {
+                if (showLoader) LoaderManager.shared.hideLoader()
                 completion(false, null, "❌ Failed to fetch members: ${memberTask.exception?.localizedMessage}")
                 return@addOnCompleteListener
             }
 
             val members = memberTask.result?.documents ?: emptyList()
             if (members.isEmpty()) {
+                if (showLoader) LoaderManager.shared.hideLoader()
                 completion(false, null, "❌ No members found")
                 return@addOnCompleteListener
             }
-
-            if (showLoader) LoaderManager.shared.showLoader()
 
             val latch = CountDownLatch(members.size)
             for (memberDoc in members) {
@@ -3105,7 +3050,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -3143,7 +3087,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -3181,7 +3124,6 @@ class SquadViewModel : ViewModel() {
         completion: (Boolean, String?) -> Unit
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -3247,7 +3189,7 @@ class SquadViewModel : ViewModel() {
             description = description
         )
 
-        addSquadActivity(true, activity) { success, error ->
+        addSquadActivity(false, activity) { success, error ->
             if (success) {
                 println("✅ Activity added successfully!")
                 completion?.invoke(true, null)
@@ -3278,9 +3220,6 @@ class SquadViewModel : ViewModel() {
                     return@addOnSuccessListener
                 }
 
-                // Two Firestore requests per member:
-                // 1. contributions
-                // 2. loans
                 val latch = CountDownLatch(members.size * 2)
 
                 val formatter = SimpleDateFormat("MMM yyyy", Locale.ENGLISH)
@@ -3294,8 +3233,6 @@ class SquadViewModel : ViewModel() {
 
                     val loansRef =
                         membersRef.document(memberID).collection("loans")
-
-                    // ---------------- Contributions ----------------
 
                     contribRef.get()
                         .addOnSuccessListener { contribSnap ->
@@ -3327,8 +3264,6 @@ class SquadViewModel : ViewModel() {
                         .addOnFailureListener {
                             latch.countDown()
                         }
-
-                    // ---------------- Loans ----------------
 
                     loansRef.get()
                         .addOnSuccessListener { loanSnap ->
@@ -3479,7 +3414,6 @@ class SquadViewModel : ViewModel() {
 
                         val updatedTimestamp = CommonFunctions.parseISODateToTimestamp(updatedOnStr)
 
-                        // Update payment model in local list
                         val index = _squadPayments.value.indexOfFirst { it.id == payment.id }
                         if (index != -1) {
                             val updatedPayment = _squadPayments.value[index].copy(
@@ -3521,7 +3455,6 @@ class SquadViewModel : ViewModel() {
                 }
 
             } else {
-                // ✅ Verify existing payout instead of retrying
                 LoaderManager.shared.showLoader()
                 FirebaseFunctionsManager.shared.verifyCashFreePayoutStatus(
                     squadId = squad.value?.squadID ?: "",
@@ -3579,11 +3512,17 @@ class SquadViewModel : ViewModel() {
     fun retryPaymentAction(payment: PaymentsDetails) {
         viewModelScope.launch(Dispatchers.IO) {
             if (payment.paymentStatus == PaymentStatus.PENDING || payment.paymentStatus == PaymentStatus.FAILED) {
+                val orderId = payment.id
+                if (orderId == null) {
+                    Log.e("Payment", "❌ retryPaymentAction: payment.id is null, cannot retry")
+                    return@launch
+                }
+
                 LoaderManager.shared.showLoader()
 
                 FirebaseFunctionsManager.shared.processRazorPayPayment(
                     squadId = payment.squadId,
-                    action = RazorpayPaymentAction.Retry(failedOrderId = payment.id!!)
+                    action = RazorpayPaymentAction.Retry(failedOrderId = orderId)
                 ) { sessionId, orderId, error ->
                     LoaderManager.shared.hideLoader()
                     handleCashFreeResponse(sessionId, orderId, error, completion = {})
@@ -3600,7 +3539,6 @@ class SquadViewModel : ViewModel() {
     ) {
 
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
                 message = SquadStrings.networkError,
@@ -3617,7 +3555,6 @@ class SquadViewModel : ViewModel() {
 
         manager.fetchManagerLogins(phoneNumber) { loginList, error ->
 
-            // Run on main thread (like DispatchQueue.main.async)
             Handler(Looper.getMainLooper()).post {
 
                 if (showLoader) {
@@ -3681,7 +3618,6 @@ class SquadViewModel : ViewModel() {
             }
         }
 
-        // Wait for all async tasks
         Thread {
 
             latch.await()
@@ -3698,7 +3634,6 @@ class SquadViewModel : ViewModel() {
 
                     val batch = db.batch()
 
-                    // Update manager login(s)
                     snapshot.documents.forEach { document ->
                         batch.update(
                             document.reference,
@@ -3709,7 +3644,6 @@ class SquadViewModel : ViewModel() {
                         )
                     }
 
-                    // Update squad status
                     val squadRef = db.collection("squads").document(squadID)
                     batch.update(
                         squadRef,
@@ -3770,8 +3704,10 @@ class SquadViewModel : ViewModel() {
                 Log.e("LOGOUT", "❌ Error: $error")
             }
 
+            // Guarantee the loader is fully cleared on logout no matter what state it was in.
+            LoaderManager.shared.forceReset()
+
             navController.navigate(AppDestination.SIGN_IN.route) {
-                // Remove the entire back stack
                 popUpTo(0) { inclusive = true }
                 launchSingleTop = true
             }
@@ -3785,7 +3721,6 @@ class SquadViewModel : ViewModel() {
     ) {
 
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             completion(false, "No Internet")
             return
         }
@@ -3802,7 +3737,7 @@ class SquadViewModel : ViewModel() {
         ) { cashRequests, lastDoc, error ->
 
             cashRequestsIsLoadingMore = false
-            LoaderManager.shared.hideLoader()
+            if (showLoader) LoaderManager.shared.hideLoader()
 
             if (cashRequests != null) {
 
@@ -3888,7 +3823,6 @@ class SquadViewModel : ViewModel() {
     ) {
 
         if (!CommonFunctions.isInternetAvailable()) {
-            LoaderManager.shared.hideLoader()
             completion(false, "No Internet")
             return
         }
@@ -3900,13 +3834,13 @@ class SquadViewModel : ViewModel() {
             cashRequest = cashRequest
         ) { documentId, error ->
 
-            LoaderManager.shared.hideLoader()
+            if (showLoader) LoaderManager.shared.hideLoader()
 
-                val current = squadCashRequests.value.toMutableList()
-                current.add(0, cashRequest)
-                setSquadCashRequests(current)
+            val current = squadCashRequests.value.toMutableList()
+            current.add(0, cashRequest)
+            setSquadCashRequests(current)
 
-                completion(true, null)
+            completion(true, null)
 
 
         }
@@ -3922,11 +3856,7 @@ class SquadViewModel : ViewModel() {
     ) {
 
         if (!CommonFunctions.isInternetAvailable()) {
-
-            LoaderManager.shared.hideLoader()
-
             completion(false, "No Internet")
-
             return
         }
 
@@ -3941,7 +3871,7 @@ class SquadViewModel : ViewModel() {
             status = status
         ) { error ->
 
-            LoaderManager.shared.hideLoader()
+            if (showLoader) LoaderManager.shared.hideLoader()
 
             if (error != null) {
 
@@ -3961,7 +3891,6 @@ class SquadViewModel : ViewModel() {
                 return@updateCashRequestStatus
             }
 
-            // Update local list
             val updatedList = squadCashRequests.value.toMutableList()
 
             val index = updatedList.indexOfFirst {

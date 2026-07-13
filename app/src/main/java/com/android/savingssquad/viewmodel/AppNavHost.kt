@@ -20,6 +20,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.platform.LocalContext
 import com.android.savingssquad.SquadSubscription.RestorePurchasesScreen
+import com.android.savingssquad.singleton.LoaderManager
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalAnimationApi::class)

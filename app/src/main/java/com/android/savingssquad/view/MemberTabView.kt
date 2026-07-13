@@ -43,7 +43,7 @@ import com.android.savingssquad.view.AppBackgroundGradient
 
 // ViewModels & Managers
 import com.android.savingssquad.viewmodel.SquadViewModel
-import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.singleton.LoaderManager
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*

@@ -53,7 +53,7 @@ import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.FirestoreManager
-import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.viewmodel.SSToast
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.viewmodel.ToastManager

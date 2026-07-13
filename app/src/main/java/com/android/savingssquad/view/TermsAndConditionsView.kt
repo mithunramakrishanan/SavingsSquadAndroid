@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.android.savingssquad.model.*
 import com.android.savingssquad.singleton.*
 import com.yourapp.utils.CommonFunctions
-import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.singleton.LoaderManager
 import java.util.*
 import androidx.navigation.NavController
 import com.android.savingssquad.viewmodel.FirestoreManager

@@ -1,5 +1,6 @@
 package com.android.savingssquad.view
 
+import android.annotation.SuppressLint
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
@@ -16,9 +17,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.CurrencyRupee
@@ -31,6 +34,7 @@ import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
@@ -64,13 +68,14 @@ import com.android.savingssquad.model.BeneficiaryResult
 import com.android.savingssquad.model.ContributionDetail
 import com.android.savingssquad.model.EMIConfiguration
 import com.android.savingssquad.viewmodel.SquadViewModel
-import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
+import com.android.savingssquad.model.InterestType
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.model.PaymentsDetails
@@ -206,13 +211,14 @@ fun ManageLoanView(
 
                 AddEMIPopup(
                     emi = selectedEMI,
-                    onSave = { amount, months, interest ->
+                    onSave = { amount, months, interest,type ->
                         squadViewModel.setShowEMIConfigPopup(false)
 
                         handleAddEditEMI(
                             amount = amount,
                             months = months,
                             interest = interest,
+                            type = type,
                             squadViewModel = squadViewModel,
                             loaderManager = loaderManager,
                             selectedEMI = selectedEMI,
@@ -237,6 +243,7 @@ private fun handleAddEditEMI(
     amount: Int,
     months: Int,
     interest: Double,
+    type: InterestType,
     squadViewModel: SquadViewModel,
     loaderManager: LoaderManager,
     selectedEMI: EMIConfiguration?,
@@ -255,6 +262,7 @@ private fun handleAddEditEMI(
         loanAmount = amount,
         emiMonths = months,
         emiInterestRate = interest,
+        interestType = type,
         emiAmount = 0,
         interestAmount = 0,
         emiDate = endOfMonth?.asTimestamp,
@@ -318,22 +326,26 @@ private fun handleAddEditEMI(
     }
 }
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun AddEMIPopup(
     emi: EMIConfiguration?,
-    onSave: (Int, Int, Double) -> Unit,
+    onSave: (Int, Int, Double, InterestType) -> Unit,   // 🔹 CHANGED
     onCancel: () -> Unit
 ) {
 
     val amountState = remember { mutableStateOf("") }
     val monthsState = remember { mutableStateOf("") }
     val rateState = remember { mutableStateOf("") }
+    val interestTypeState = remember { mutableStateOf(InterestType.YEARLY) } // 🔹 NEW
+    var dropdownExpanded by remember { mutableStateOf(false) }              // 🔹 NEW
 
     LaunchedEffect(emi) {
         emi?.let {
             amountState.value = it.loanAmount.toString()
             monthsState.value = it.emiMonths.toString()
             rateState.value = String.format("%.2f", it.emiInterestRate)
+            interestTypeState.value = it.interestType   // 🔹 NEW
         }
     }
 
@@ -345,19 +357,19 @@ fun AddEMIPopup(
     val calculatedEMI = remember(
         amountState.value,
         monthsState.value,
-        rateState.value
+        rateState.value,
+        interestTypeState.value   // 🔹 NEW — recompute when type changes
     ) {
         runCatching {
 
             val principal = amountState.value.toDouble()
             val tenure = monthsState.value.toInt()
-            val annualRate = rateState.value.toDouble()
+            val rate = rateState.value.toDouble()
 
-            require(principal > 0 && tenure > 0 && annualRate >= 0)
+            require(principal > 0 && tenure > 0 && rate >= 0)
 
-            val monthlyRate = annualRate / (12 * 100)
+            val monthlyRate = interestTypeState.value.monthlyRate(rate)   // 🔹 CHANGED
 
-            // No interest case
             if (monthlyRate == 0.0) {
                 val emi = principal / tenure
                 return@runCatching emi.round(2) to 0.0
@@ -403,17 +415,12 @@ fun AddEMIPopup(
                         )
                     )
                 )
-                .shadow(
-                    elevation = 24.dp,
-                    shape = RoundedCornerShape(24.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.2f),
-                    spotColor = Color.Black.copy(alpha = 0.25f)
-                )
+
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
 
-            // MARK: Drag handle (modern modal feel)
+            // MARK: Drag handle
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
@@ -453,9 +460,60 @@ fun AddEMIPopup(
                     textState = rateState,
                     keyboardType = KeyboardType.Decimal
                 )
+
+                // 🔹 NEW — Interest type dropdown
+                Box {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.6f))
+                            .clickable { dropdownExpanded = true }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Update,
+                            contentDescription = null,
+                            tint = AppColors.secondaryText
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Interest Type: ${interestTypeState.value.label}",
+                            style = AppFont.ibmPlexSans(15, FontWeight.Normal),
+                            color = AppColors.headerText,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = AppColors.secondaryText
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = dropdownExpanded,
+                        onDismissRequest = { dropdownExpanded = false }
+                    ) {
+                        InterestType.entries.forEach { type ->
+                            DropdownMenuItem(
+                                text = { Text(type.label) },
+                                onClick = {
+                                    interestTypeState.value = type
+                                    dropdownExpanded = false
+                                },
+                                trailingIcon = {
+                                    if (type == interestTypeState.value) {
+                                        Icon(Icons.Default.Check, contentDescription = null)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
             }
 
-            // MARK: EMI Preview Card (Premium highlight)
+            // MARK: EMI Preview Card
             calculatedEMI?.let { (emiValue, interestValue) ->
 
                 Column(
@@ -508,7 +566,8 @@ fun AddEMIPopup(
                         onSave(
                             amountState.value.toInt(),
                             monthsState.value.toInt(),
-                            rateState.value.toDouble()
+                            rateState.value.toDouble(),
+                            interestTypeState.value   // 🔹 NEW
                         )
                     }
                 )

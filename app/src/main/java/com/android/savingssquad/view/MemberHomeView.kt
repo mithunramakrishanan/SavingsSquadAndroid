@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.android.savingssquad.model.*
 import com.android.savingssquad.singleton.*
 import com.yourapp.utils.CommonFunctions
-import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
@@ -36,6 +36,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -411,9 +412,15 @@ fun MemberHomeView(
                             primaryButtonTitle = "Request Cash",
                             primaryAction =
                                 {
-                                    val cashRequest = CashRequest(id = IDGenerator.generateCashRequestID(), requestedByName = squadViewModel.currentMember.value?.name
-                                        ?: "",requestedByID = squadViewModel.currentMember.value?.id
-                                        ?: "", requestedEMIConfig = emi)
+                                    val cashRequest = CashRequest(
+                                        id = IDGenerator.generateCashRequestID(),
+                                        requestedByName = squadViewModel.currentMember.value?.name ?: "",
+                                        requestedByID = squadViewModel.currentMember.value?.id ?: "",
+                                        requestedByUPI = squadViewModel.currentMember.value?.upiID ?: "",
+                                        requestedByPhone = squadViewModel.currentMember.value?.phoneNumber ?: "",
+                                        requestedByEmail = squadViewModel.currentMember.value?.mailID ?: "",
+                                        requestedEMIConfig = emi
+                                    )
 
                                     squadViewModel.addCashRequest(true,cashRequest) {success,error ->
 
@@ -768,37 +775,47 @@ fun MemberDashBoardCard(
 @Composable
 fun ViewAllButton(
     title: String = "View All",
-    icon: ImageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+    icon: ImageVector = Icons.AutoMirrored.Filled.ArrowForward,
     onClick: () -> Unit
 ) {
-    Box(
+
+    Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(AppColors.primaryBackground)
+            .clip(RoundedCornerShape(16.dp))
+            .background(AppColors.surface)
             .border(
-                width = 1.dp,
-                color = AppColors.primaryButton,
-                shape = RoundedCornerShape(12.dp)
+                1.dp,
+                AppColors.border.copy(alpha = 0.35f),
+                RoundedCornerShape(16.dp)
             )
-            .appShadow(AppShadows.card, RoundedCornerShape(12.dp)) // same soft shadow
             .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+
+        Text(
+            text = title,
+            style = AppFont.ibmPlexSans(
+                13,
+                FontWeight.SemiBold
+            ),
+            color = AppColors.headerText
+        )
+
+        Box(
+            modifier = Modifier
+                .size(22.dp)
+                .clip(CircleShape)
+                .background(AppColors.primaryBrand.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = title,
-                style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
-                color = AppColors.headerText
-            )
 
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = AppColors.primaryButton,
-                modifier = Modifier.size(14.dp)
+                tint = AppColors.primaryBrand,
+                modifier = Modifier.size(11.dp)
             )
         }
     }

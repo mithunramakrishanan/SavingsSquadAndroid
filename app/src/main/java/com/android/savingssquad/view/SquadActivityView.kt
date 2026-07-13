@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -22,7 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.android.savingssquad.viewmodel.SquadViewModel
-import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import java.util.Date
@@ -128,9 +129,9 @@ fun SquadActivityView(
             if (screenType != SquadUserType.SQUAD_MEMBER) {
 
                 DropdownMenuPicker(
-                    label = "",
                     selected = selectedUser,
                     items = userList,
+                    icon = Icons.Default.Tune,
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
                         .fillMaxWidth()

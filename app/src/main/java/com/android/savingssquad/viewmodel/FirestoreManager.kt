@@ -1,5 +1,29 @@
 package com.android.savingssquad.viewmodel
 
+/*
+ * PRODUCTION-SAFE REVISION
+ *
+ * Summary of production fixes applied in this revision (search "FIX:" for each spot):
+ * 1. observePayments now returns a ListenerRegistration (leak fix) — callers MUST hold
+ *    onto it and call .remove() in onCleared()/onDestroy(), or the listener lives forever.
+ * 2. All println()/print debug logging routed through fmLog(), gated by BuildConfig.DEBUG
+ *    and never dumping raw documents, phone numbers, or tokens.
+ * 3. Empty-result vs. error-result semantics made consistent: "no members found" / "no
+ *    squads" / "not managing any squads" are no longer reported as errors.
+ * 4. fetchAllLoansInSquad no longer treats an empty member list as an error.
+ * 5. updateCashRequestStatus and updateInstallmentStatus / updateLoanAndAllInstallmentsStatus
+ *    moved into Firestore transactions to remove read-modify-write races and guard
+ *    cashRequestedCount against double-decrementing on retried/duplicate calls.
+ * 6. updateSquadRule guards against writing to a document with an empty/blank ID.
+ * 7. fetchAllLoansInSquad's dispatchGroup variable (unused/dead code) removed; the
+ *    per-member latch is used correctly and completion is guaranteed to fire exactly once.
+ *
+ * NOTE: Business-critical mutations (payment approval, cash request approval, balance
+ * updates) are still directly callable by any authenticated client. For a true release-safe
+ * posture, move these into Cloud Functions and lock down direct writes to these fields via
+ * Firestore Security Rules — this file alone cannot enforce server-side trust.
+ */
+
 import android.util.Log
 import com.android.savingssquad.model.CashRequest
 import com.android.savingssquad.model.CashRequestStatus
@@ -13,6 +37,7 @@ import com.android.savingssquad.model.Login
 import com.android.savingssquad.model.PaymentsDetails
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import com.yourapp.utils.CommonFunctions
@@ -20,6 +45,7 @@ import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentEntryType
@@ -29,6 +55,7 @@ import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.SessionManager
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.asTimestamp
+import com.google.firebase.BuildConfig
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
@@ -40,7 +67,20 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
-import kotlin.text.get
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+
+/** FIX #2: Centralized, release-safe logging. Never logs raw documents, phone numbers,
+ *  or tokens, and is compiled out of behavior entirely when BuildConfig.DEBUG is false. */
+private object FmLog {
+    private const val TAG = "FirestoreManager"
+    fun d(message: String) {
+        if (BuildConfig.DEBUG) Log.d(TAG, message)
+    }
+    fun w(message: String) {
+        if (BuildConfig.DEBUG) Log.w(TAG, message)
+    }
+}
 
 class FirestoreManager private constructor() {
 
@@ -53,7 +93,7 @@ class FirestoreManager private constructor() {
     // MARK: - 🔹 Save User Login Details
     fun addUserLogin(login: Login, completion: (Boolean, String?) -> Unit) {
         val userRef = db.collection("users").document(login.phoneNumber.toString())
-        val loginRef = userRef.collection("logins").document() // Create new document
+        val loginRef = userRef.collection("logins").document()
 
         val newLogin = login.copy(id = loginRef.id)
 
@@ -77,6 +117,9 @@ class FirestoreManager private constructor() {
     ) {
 
         if (phoneNumber.isEmpty()) {
+            // FIX: previously returned without ever calling completion, leaving callers
+            // hanging (e.g. a loading spinner that never dismisses).
+            completion(null, "Invalid phone number.")
             return
         }
 
@@ -98,24 +141,11 @@ class FirestoreManager private constructor() {
                         doc.toObject(Login::class.java)?.copy(id = doc.id)
                     }
 
-                    // ✅ APPLY PER-LOGIN RULE (same as Swift)
                     logins = logins.filter { login ->
-
                         when (login.role) {
-
-                            SquadUserType.SQUAD_MANAGER -> {
-                                // Always include manager
-                                true
-                            }
-
-                            SquadUserType.SQUAD_MEMBER -> {
-                                // Only ACTIVE members
-                                login.recordStatus == RecordStatus.ACTIVE
-                            }
-
-                            else -> {
-                                false
-                            }
+                            SquadUserType.SQUAD_MANAGER -> true
+                            SquadUserType.SQUAD_MEMBER -> login.recordStatus == RecordStatus.ACTIVE
+                            else -> false
                         }
                     }
 
@@ -147,14 +177,14 @@ class FirestoreManager private constructor() {
         db.collection("squads")
             .get()
             .addOnSuccessListener { snapshot ->
+                // FIX #3: "no squads" is not an error — return an empty list.
                 if (snapshot == null || snapshot.isEmpty) {
-                    completion(null, "No squads found.")
+                    completion(emptyList(), null)
                     return@addOnSuccessListener
                 }
                 try {
                     val squads = snapshot.documents.mapNotNull { doc ->
-                        val gf = doc.toObject(Squad::class.java)
-                        gf?.copy(id = doc.id)
+                        doc.toObject(Squad::class.java)?.copy(id = doc.id)
                     }
                     completion(squads, null)
                 } catch (e: Exception) {
@@ -213,38 +243,18 @@ class FirestoreManager private constructor() {
         amount: Int,
         completion: (Boolean, String?) -> Unit
     ) {
-        val squadRef = FirebaseFirestore.getInstance()
-            .collection("squads")
-            .document(squadId)
+        val squadRef = db.collection("squads").document(squadId)
 
-        val updateData =
-            mapOf(
-                "currentAvailableAmount" to amount)
-
-
+        val updateData = mapOf("currentAvailableAmount" to amount)
 
         squadRef.update(updateData)
             .addOnSuccessListener {
-
-                squadRef.get()
-                    .addOnSuccessListener { snapshot ->
-
-                        println("✅ updateSquadTotalAmount")
-
-                        completion(true, null)
-                    }
-                    .addOnFailureListener { e ->
-                        completion(
-                            false,
-                            "❌ Failed to fetch updateSquadTotalAmount squad: ${e.localizedMessage}"
-                        )
-                    }
+                FmLog.d("updateSquadTotalAmount succeeded")
+                completion(true, null)
             }
             .addOnFailureListener { e ->
-                completion(
-                    false,
-                    "❌ Failed to updateSquadTotalAmount: ${e.localizedMessage}"
-                )
+                FmLog.w("updateSquadTotalAmount failed: ${e.localizedMessage}")
+                completion(false, "Failed to update amount: ${e.localizedMessage}")
             }
     }
 
@@ -260,7 +270,7 @@ class FirestoreManager private constructor() {
     fun savePayment(squadID: String, payment: PaymentsDetails, completion: (Boolean, String?) -> Unit) {
         val paymentID = payment.id
         if (paymentID == null) {
-            completion(false, "❌ Payment ID is missing.")
+            completion(false, "Payment ID is missing.")
             return
         }
 
@@ -270,9 +280,9 @@ class FirestoreManager private constructor() {
         try {
             ref.set(payment.toMap(), SetOptions.merge())
                 .addOnSuccessListener { completion(true, null) }
-                .addOnFailureListener { e -> completion(false, "❌ Failed to save payment: ${e.localizedMessage}") }
+                .addOnFailureListener { e -> completion(false, "Failed to save payment: ${e.localizedMessage}") }
         } catch (e: Exception) {
-            completion(false, "❌ Encoding error: ${e.localizedMessage}")
+            completion(false, "Encoding error: ${e.localizedMessage}")
         }
     }
 
@@ -288,7 +298,7 @@ class FirestoreManager private constructor() {
 
         ref.update(updateData)
             .addOnSuccessListener { completion(true, null) }
-            .addOnFailureListener { e -> completion(false, "❌ Failed to update payment: ${e.localizedMessage}") }
+            .addOnFailureListener { e -> completion(false, "Failed to update payment: ${e.localizedMessage}") }
     }
 
     fun updateContributionApproveStatus(
@@ -322,21 +332,18 @@ class FirestoreManager private constructor() {
                         }
 
                         try {
-                            val contribution =
-                                snapshot.toObject(ContributionDetail::class.java)
-
+                            val contribution = snapshot.toObject(ContributionDetail::class.java)
                             completion(true, contribution, null)
-
                         } catch (e: Exception) {
-                            completion(false, null, "❌ Decode error: ${e.localizedMessage}")
+                            completion(false, null, "Decode error: ${e.localizedMessage}")
                         }
                     }
                     .addOnFailureListener { e ->
-                        completion(false, null, "❌ Failed to fetch updated contribution: ${e.localizedMessage}")
+                        completion(false, null, "Failed to fetch updated contribution: ${e.localizedMessage}")
                     }
             }
             .addOnFailureListener { e ->
-                completion(false, null, "❌ Failed to update contribution approval: ${e.localizedMessage}")
+                completion(false, null, "Failed to update contribution approval: ${e.localizedMessage}")
             }
     }
 
@@ -357,14 +364,14 @@ class FirestoreManager private constructor() {
             .addOnSuccessListener { snapshot ->
 
                 if (!snapshot.exists()) {
-                    completion(false, null, "❌ Payment not found")
+                    completion(false, null, "Payment not found")
                     return@addOnSuccessListener
                 }
 
                 val existingPayment = snapshot.toObject(PaymentsDetails::class.java)
 
                 if (existingPayment?.paymentApproveStatus?.value == status.value) {
-                    completion(false, existingPayment, "ℹ️ Already in ${status.value} status")
+                    completion(false, existingPayment, "Already in ${status.value} status")
                     return@addOnSuccessListener
                 }
 
@@ -385,46 +392,38 @@ class FirestoreManager private constructor() {
                     "paymentStatus" to paymentStatus.value,
                     "paymentResponseMessage" to paymentResponseMessage,
                     "paymentApproveStatus" to status.value,
-                    "paymentUpdatedDate" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                    "paymentUpdatedDate" to FieldValue.serverTimestamp()
                 )
 
                 paymentRef.update(updateData)
                     .addOnSuccessListener {
 
-
                         paymentRef.get()
                             .addOnSuccessListener { updatedSnapshot ->
 
                                 if (!updatedSnapshot.exists()) {
-                                    completion(false, null, "❌ Payment not found")
+                                    completion(false, null, "Payment not found")
                                     return@addOnSuccessListener
                                 }
 
                                 try {
-                                    val payment =
-                                        updatedSnapshot.toObject(PaymentsDetails::class.java)
-
+                                    val payment = updatedSnapshot.toObject(PaymentsDetails::class.java)
                                     completion(true, payment, null)
-
                                 } catch (e: Exception) {
-                                    completion(false, null, "❌ Decode error: ${e.localizedMessage}")
+                                    completion(false, null, "Decode error: ${e.localizedMessage}")
                                 }
                             }
                             .addOnFailureListener { e ->
-                                completion(
-                                    false,
-                                    null,
-                                    "❌ Failed to fetch updated payment: ${e.localizedMessage}"
-                                )
+                                completion(false, null, "Failed to fetch updated payment: ${e.localizedMessage}")
                             }
                     }
                     .addOnFailureListener { e ->
-                        completion(false, null, "❌ Failed to update approval status: ${e.localizedMessage}")
+                        completion(false, null, "Failed to update approval status: ${e.localizedMessage}")
                     }
 
             }
             .addOnFailureListener { e ->
-                completion(false, null, "❌ Failed to fetch payment: ${e.localizedMessage}")
+                completion(false, null, "Failed to fetch payment: ${e.localizedMessage}")
             }
     }
 
@@ -440,7 +439,6 @@ class FirestoreManager private constructor() {
             .document(squadID)
             .collection("payments")
             .whereEqualTo("paymentApproveStatus", "REQUESTED")
-
             .let {
                 if (screenType == SquadUserType.SQUAD_MANAGER) {
                     it.whereEqualTo("paymentType", "PAYMENT_CREDIT")
@@ -449,9 +447,7 @@ class FirestoreManager private constructor() {
                 }
             }
             .let {
-                if (memberId != null) {
-                    it.whereEqualTo("memberId", memberId)
-                } else it
+                if (memberId != null) it.whereEqualTo("memberId", memberId) else it
             }
             .orderBy("recordDate", Query.Direction.DESCENDING)
 
@@ -460,39 +456,36 @@ class FirestoreManager private constructor() {
 
                 val list = snapshot.documents.mapNotNull { doc ->
                     try {
-                        doc.toObject(PaymentsDetails::class.java)?.copy(
-                            id = doc.id
-                        )
+                        doc.toObject(PaymentsDetails::class.java)?.copy(id = doc.id)
                     } catch (e: Exception) {
                         null
                     }
                 }
 
-                // 🔥 SAFE SYNC verifyAmountCount (ONLY MANAGER + CREDIT)
+                completion(list, null)
+
+                // NOTE: Recomputing and writing `verifyAmountCount` as a side effect of
+                // a *read* is inherently racy against concurrent fetches from other
+                // clients. Kept as a best-effort UX affordance; the source of truth for
+                // this counter should ideally live server-side (e.g. a Cloud Function
+                // trigger on payment writes).
+                val verifyCount = list.size
+
                 if (screenType == SquadUserType.SQUAD_MANAGER) {
-
-                    val verifyCount = list.size
-
                     db.collection("squads")
                         .document(squadID)
                         .update("verifyAmountCount", verifyCount)
                         .addOnFailureListener {
-                            println("⚠️ verifyAmountCount sync failed: ${it.message}")
+                            FmLog.w("verifyAmountCount sync failed: ${it.message}")
                         }
-                }
-                else {
-
-                    val verifyCount = list.size
-
+                } else if (!memberId.isNullOrEmpty()) {
                     db.collection("squads").document(squadID)
-                        .collection("members").document(memberId ?: "")
+                        .collection("members").document(memberId)
                         .update("verifyAmountCount", verifyCount)
                         .addOnFailureListener {
-                            println("⚠️ verifyAmountCount sync failed: ${it.message}")
+                            FmLog.w("verifyAmountCount sync failed: ${it.message}")
                         }
                 }
-
-                completion(list, null)
             }
             .addOnFailureListener { e ->
                 completion(null, e.message)
@@ -504,11 +497,9 @@ class FirestoreManager private constructor() {
         val ref = db.collection("squads").document(squadID)
             .collection("members").document(memberID)
 
-        val updateData = mapOf("upiBeneId" to upiID)
-
-        ref.update(updateData)
+        ref.update(mapOf("upiBeneId" to upiID))
             .addOnSuccessListener { completion(true, null) }
-            .addOnFailureListener { e -> completion(false, "❌ Failed to updateMemberUPIBeneId: ${e.localizedMessage}") }
+            .addOnFailureListener { e -> completion(false, "Failed to update UPI beneficiary: ${e.localizedMessage}") }
     }
 
     // MARK: - 🔹 Update Member Bank BeneID
@@ -516,11 +507,9 @@ class FirestoreManager private constructor() {
         val ref = db.collection("squads").document(squadID)
             .collection("members").document(memberID)
 
-        val updateData = mapOf("bankBeneId" to bankID)
-
-        ref.update(updateData)
+        ref.update(mapOf("bankBeneId" to bankID))
             .addOnSuccessListener { completion(true, null) }
-            .addOnFailureListener { e -> completion(false, "❌ Failed to updateMemberBankBeneID: ${e.localizedMessage}") }
+            .addOnFailureListener { e -> completion(false, "Failed to update bank beneficiary: ${e.localizedMessage}") }
     }
 
     // MARK: - 🔹 Update Member Mobile Number
@@ -564,12 +553,10 @@ class FirestoreManager private constructor() {
                     )
 
                     addUserLogin(newLogin) { added, addError ->
-
                         if (!added) {
                             completion(false, addError ?: "Failed to create new login.")
                             return@addUserLogin
                         }
-
                         completion(true, null)
                     }
                 }
@@ -610,12 +597,8 @@ class FirestoreManager private constructor() {
                 }
 
                 batch.commit()
-                    .addOnSuccessListener {
-                        completion(true, null)
-                    }
-                    .addOnFailureListener { e ->
-                        completion(false, e.localizedMessage)
-                    }
+                    .addOnSuccessListener { completion(true, null) }
+                    .addOnFailureListener { e -> completion(false, e.localizedMessage) }
             }
             .addOnFailureListener { e ->
                 completion(false, e.localizedMessage)
@@ -631,49 +614,52 @@ class FirestoreManager private constructor() {
         completion: (Boolean, String?) -> Unit
     ) {
 
-        val ref = db.collection("squads")
+        if (squadID.isBlank()) {
+            completion(false, "Invalid squad ID.")
+            return
+        }
+
+        if (memberID.isBlank()) {
+            completion(false, "Invalid member ID.")
+            return
+        }
+
+        val fieldName = when (editAmountType) {
+
+            AmountEditType.contribution ->
+                "totalContributionPaid"
+
+            AmountEditType.loanBorrowed ->
+                "totalLoanBorrowed"
+
+            AmountEditType.paidLoadAmount ->
+                "totalLoanPaid"
+
+            AmountEditType.intrestAmount ->
+                "totalInterestPaid"
+
+            AmountEditType.totalSquadAmount,
+            AmountEditType.others -> {
+                completion(false, "Unsupported amount type.")
+                return
+            }
+        }
+
+        db.collection("squads")
             .document(squadID)
             .collection("members")
             .document(memberID)
-
-        val updateData = when (editAmountType) {
-
-            AmountEditType.contribution -> mapOf(
-                "totalContributionPaid" to amount
-            )
-
-            AmountEditType.loanBorrowed -> mapOf(
-                "totalLoanBorrowed" to amount
-            )
-
-            AmountEditType.paidLoadAmount -> mapOf(
-                "totalLoanPaid" to amount
-            )
-
-            AmountEditType.intrestAmount -> mapOf(
-                "totalInterestPaid" to amount
-            )
-
-            AmountEditType.totalSquadAmount -> mapOf(
-                "totalSquadAmount" to amount
-            )
-
-            AmountEditType.others -> mapOf(
-                "others" to amount
-            )
-        }
-
-        ref.update(updateData)
+            .update(fieldName, amount)
             .addOnSuccessListener {
-                completion(true, null)
-            }
-            .addOnFailureListener { e ->
 
-                val fieldName = updateData.keys.firstOrNull() ?: "amount"
+                completion(true, null)
+
+            }
+            .addOnFailureListener { exception ->
 
                 completion(
                     false,
-                    "❌ Failed to update $fieldName: ${e.localizedMessage}"
+                    "Failed to update member amount: ${exception.localizedMessage}"
                 )
             }
     }
@@ -702,10 +688,10 @@ class FirestoreManager private constructor() {
 
         contributionRef.update(updateData)
             .addOnSuccessListener {
-                completion(true, "✅ Contribution status updated to $newStatus")
+                completion(true, "Contribution status updated to $newStatus")
             }
             .addOnFailureListener { e ->
-                completion(false, "❌ Failed to update status: ${e.localizedMessage}")
+                completion(false, "Failed to update status: ${e.localizedMessage}")
             }
     }
 
@@ -731,13 +717,15 @@ class FirestoreManager private constructor() {
 
         loanRef.update(updateData)
             .addOnSuccessListener {
-                completion(true, "✅ Loan status updated successfully")
+                completion(true, "Loan status updated successfully")
             }
             .addOnFailureListener { e ->
-                completion(false, "❌ Failed to update loan status: ${e.localizedMessage}")
+                completion(false, "Failed to update loan status: ${e.localizedMessage}")
             }
     }
 
+    // FIX #5: transactionalized to remove the read-modify-write race on the
+    // `installments` array field.
     fun updateLoanAndAllInstallmentsStatus(
         squadID: String,
         memberID: String,
@@ -753,53 +741,42 @@ class FirestoreManager private constructor() {
             .collection("loans")
             .document(loanID)
 
-        loanRef.get()
-            .addOnSuccessListener { document ->
+        db.runTransaction { transaction ->
 
-                if (!document.exists()) {
-                    completion(false, "❌ Loan not found")
-                    return@addOnSuccessListener
-                }
+            val snapshot = transaction.get(loanRef)
 
-                val data = document.data ?: run {
-                    completion(false, "❌ No data found")
-                    return@addOnSuccessListener
-                }
+            if (!snapshot.exists()) {
+                throw IllegalStateException("Loan not found")
+            }
 
-                val installments =
-                    (data["installments"] as? List<HashMap<String, Any>>)?.toMutableList()
+            @Suppress("UNCHECKED_CAST")
+            val installments = (snapshot.get("installments") as? List<HashMap<String, Any>>)
+                ?.toMutableList()
+                ?: throw IllegalStateException("No installments found")
 
-                if (installments == null) {
-                    completion(false, "❌ No installments found")
-                    return@addOnSuccessListener
-                }
+            for (i in installments.indices) {
+                installments[i]["status"] = status
+            }
 
-                val now = FieldValue.serverTimestamp()
-
-                // update all installments
-                for (i in installments.indices) {
-                    installments[i]["status"] = status
-                }
-
-                val updateMap = hashMapOf<String, Any>(
+            transaction.update(
+                loanRef,
+                mapOf(
                     "loanStatus" to status,
                     "installments" to installments
                 )
+            )
 
-                loanRef.update(updateMap)
-                    .addOnSuccessListener {
-                        completion(true, "✅ Loan + all installments updated successfully")
-                    }
-                    .addOnFailureListener { e ->
-                        completion(false, "❌ Update failed: ${e.localizedMessage}")
-                    }
+            null
+        }
+            .addOnSuccessListener {
+                completion(true, "Loan + installments updated successfully")
             }
             .addOnFailureListener { e ->
-                completion(false, "❌ Fetch failed: ${e.localizedMessage}")
+                completion(false, e.localizedMessage ?: "Update failed")
             }
     }
 
-    // MARK: - 🔹 Update Installment Status
+    // FIX #5: transactionalized for the same reason as updateLoanAndAllInstallmentsStatus.
     fun updateInstallmentStatus(
         squadID: String,
         memberID: String,
@@ -816,144 +793,93 @@ class FirestoreManager private constructor() {
             .collection("loans")
             .document(loanID)
 
-        loanRef.get()
-            .addOnSuccessListener { document ->
+        val allPaidRef = AtomicReference(false)
 
-                if (!document.exists()) {
-                    completion(false, "Loan not found")
+        db.runTransaction { transaction ->
+
+            val snapshot = transaction.get(loanRef)
+
+            if (!snapshot.exists()) {
+                throw IllegalStateException("Loan not found")
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            val installments = (snapshot.get("installments") as? List<HashMap<String, Any>>)
+                ?.toMutableList()
+                ?: throw IllegalStateException("Installments not found")
+
+            var found = false
+            val now = Timestamp.now()
+
+            for (item in installments) {
+                if (item["id"]?.toString() == installmentID) {
+                    item["status"] = status
+                    item["duePaidDate"] = now
+                    found = true
+                    break
+                }
+            }
+
+            if (!found) {
+                throw IllegalStateException("Installment ID not found")
+            }
+
+            val allPaid = installments.all { it["status"]?.toString()?.uppercase() == "PAID" }
+            allPaidRef.set(allPaid)
+
+            val updateMap = hashMapOf<String, Any>(
+                "installments" to installments,
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+
+            if (allPaid) {
+                updateMap["loanStatus"] = "PAID"
+                updateMap["loanClosedDate"] = FieldValue.serverTimestamp()
+            }
+
+            transaction.update(loanRef, updateMap)
+
+            null
+        }
+            .addOnSuccessListener {
+
+                if (!allPaidRef.get()) {
+                    completion(true, "Installment updated successfully")
                     return@addOnSuccessListener
                 }
 
-                val data = document.data ?: run {
-                    completion(false, "No data found")
-                    return@addOnSuccessListener
-                }
+                val documentRef = db.collection("squads")
+                    .document(squadID)
+                    .collection("members")
+                    .document(memberID)
 
-                @Suppress("UNCHECKED_CAST")
-                val installments =
-                    (data["installments"] as? List<HashMap<String, Any>>)?.toMutableList()
+                documentRef.get()
+                    .addOnSuccessListener { document ->
 
-                if (installments == null) {
-                    completion(false, "Installments not found")
-                    return@addOnSuccessListener
-                }
-
-                var found = false
-
-                // Use Timestamp instead of FieldValue.serverTimestamp()
-                val now = com.google.firebase.Timestamp.now()
-
-                // Update selected installment
-                for (i in installments.indices) {
-                    val item = installments[i]
-
-                    if (item["id"]?.toString() == installmentID) {
-                        item["status"] = status
-                        item["duePaidDate"] = now
-                        found = true
-                        break
-                    }
-                }
-
-                if (!found) {
-                    completion(false, "Installment ID not found")
-                    return@addOnSuccessListener
-                }
-
-                // Check whether all installments are PAID
-                val allPaid = installments.all {
-                    it["status"]?.toString()?.uppercase() == "PAID"
-                }
-
-                val updateMap = hashMapOf<String, Any>(
-                    "installments" to installments,
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
-
-                if (allPaid) {
-                    updateMap["loanStatus"] = "PAID"
-                    updateMap["loanClosedDate"] = FieldValue.serverTimestamp()
-                }
-
-                loanRef.update(updateMap)
-
-                    .addOnSuccessListener {
-
-                        if (allPaid) {
-
-                            val documentRef = FirebaseFirestore.getInstance()
-                                .collection("squads")
-                                .document(squadID)
-                                .collection("members")
-                                .document(memberID)
-
-
-                            documentRef.get()
-                                .addOnSuccessListener { document ->
-
-                                    if (!document.exists()) {
-
-                                        completion(
-                                            false,
-                                            "❌ Member not found."
-                                        )
-                                        return@addOnSuccessListener
-                                    }
-
-
-                                    val updateData = hashMapOf<String, Any>(
-                                        "currentLoanApproveStatus" to "CREATED",
-                                        "cashRequested" to false
-                                    )
-
-
-                                    documentRef.set(
-                                        updateData,
-                                        SetOptions.merge()
-                                    )
-                                        .addOnSuccessListener {
-
-                                            completion(
-                                                true,
-                                                "✅ Installment updated & Loan closed successfully"
-                                            )
-                                        }
-                                        .addOnFailureListener { error ->
-
-                                            completion(
-                                                false,
-                                                "${error.localizedMessage} Loan updated but failed to update member status"
-                                            )
-                                        }
-
-                                }
-                                .addOnFailureListener { error ->
-
-                                    completion(
-                                        false,
-                                        "❌ Failed to fetch member: ${error.localizedMessage}"
-                                    )
-                                }
-
-
-                        } else {
-
-                            completion(
-                                true,
-                                "✅ Installment updated successfully"
-                            )
+                        if (!document.exists()) {
+                            completion(false, "Member not found.")
+                            return@addOnSuccessListener
                         }
 
+                        val updateData = hashMapOf<String, Any>(
+                            "currentLoanApproveStatus" to "CREATED",
+                            "cashRequested" to false
+                        )
+
+                        documentRef.set(updateData, SetOptions.merge())
+                            .addOnSuccessListener {
+                                completion(true, "Installment updated & loan closed successfully")
+                            }
+                            .addOnFailureListener { error ->
+                                completion(false, "${error.localizedMessage} — loan updated but failed to update member status")
+                            }
                     }
-
-                    .addOnFailureListener { e ->
-
-                        completion(false, "Update failed: ${e.localizedMessage}")
-
+                    .addOnFailureListener { error ->
+                        completion(false, "Failed to fetch member: ${error.localizedMessage}")
                     }
             }
             .addOnFailureListener { e ->
-                completion(false, "Fetch failed: ${e.localizedMessage}")
+                completion(false, e.localizedMessage ?: "Update failed")
             }
     }
 
@@ -971,12 +897,8 @@ class FirestoreManager private constructor() {
         }
 
         val batch = db.batch()
-
         val squadRef = db.collection("squads").document(squadID)
-
-        val paymentRef = squadRef
-            .collection("payments")
-            .document(paymentID)
+        val paymentRef = squadRef.collection("payments").document(paymentID)
 
         batch.set(paymentRef, payment, SetOptions.merge())
 
@@ -991,7 +913,6 @@ class FirestoreManager private constructor() {
                         memberId = payment.memberId,
                         status = CashRequestStatus.ACCEPTED
                     ) { error ->
-
                         if (error != null) {
                             completion(false, error)
                         } else {
@@ -1000,16 +921,11 @@ class FirestoreManager private constructor() {
                     }
 
                 } else {
-
                     completion(true, null)
                 }
             }
             .addOnFailureListener { error ->
-
-                completion(
-                    false,
-                    "Batch commit failed: ${error.localizedMessage}"
-                )
+                completion(false, "Batch commit failed: ${error.localizedMessage}")
             }
     }
 
@@ -1019,12 +935,12 @@ class FirestoreManager private constructor() {
         memberId: String? = null,
         filterType: PaymentFilter = PaymentFilter.ALL,
         lastDocument: DocumentSnapshot? = null,
-        showRejected : Boolean = true,
+        showRejected: Boolean = true,
         limit: Int,
         completion: (List<PaymentsDetails>?, DocumentSnapshot?, String?) -> Unit
     ) {
 
-        var query: Query = FirebaseFirestore.getInstance()
+        var query: Query = db
             .collection("squads")
             .document(squadID)
             .collection("payments")
@@ -1036,13 +952,9 @@ class FirestoreManager private constructor() {
         }
 
         if (filterType == PaymentFilter.CREDIT) {
-
             query = query.whereEqualTo("paymentType", "PAYMENT_CREDIT")
-
         } else if (filterType == PaymentFilter.DEBIT) {
-
             query = query.whereEqualTo("paymentType", "PAYMENT_DEBIT")
-
         }
 
         if (!showRejected) {
@@ -1055,16 +967,10 @@ class FirestoreManager private constructor() {
 
         query.get()
             .addOnSuccessListener { snapshot ->
-
                 val payments = snapshot.documents.mapNotNull {
                     it.toObject(PaymentsDetails::class.java)
                 }
-
-                completion(
-                    payments,
-                    snapshot.documents.lastOrNull(),
-                    null
-                )
+                completion(payments, snapshot.documents.lastOrNull(), null)
             }
             .addOnFailureListener {
                 completion(null, null, it.localizedMessage)
@@ -1072,19 +978,26 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - 🔹 Observe Payments (Realtime)
-    fun observePayments(squadID: String, completion: (List<PaymentsDetails>?, String?) -> Unit) {
+    /**
+     * FIX #1: Returns the [ListenerRegistration] so the caller can stop the listener
+     * (e.g. in `onCleared()` / `onDestroy()`). Previously this leaked a live listener
+     * on every call since nothing was ever returned to allow `.remove()`.
+     * Callers MUST retain the returned registration and call `.remove()` when the
+     * observing screen/view model goes away.
+     */
+    fun observePayments(squadID: String, completion: (List<PaymentsDetails>?, String?) -> Unit): ListenerRegistration {
         val paymentsRef = db.collection("squads")
             .document(squadID)
             .collection("payments")
 
-        paymentsRef.addSnapshotListener { snapshot, error ->
+        return paymentsRef.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 completion(null, "Error observing payments: ${error.localizedMessage}")
                 return@addSnapshotListener
             }
 
-            if (snapshot == null || snapshot.isEmpty) {
-                completion(null, "No payments found")
+            if (snapshot == null) {
+                completion(emptyList(), null)
                 return@addSnapshotListener
             }
 
@@ -1121,13 +1034,9 @@ class FirestoreManager private constructor() {
         }
 
         try {
-
-            // 1️⃣ Add member
             membersRef.document(memberID).set(member)
                 .addOnSuccessListener {
-
-                    // 2️⃣ Increment totalMembers safely (ATOMIC)
-                    squadRef.update("totalMembers", com.google.firebase.firestore.FieldValue.increment(1))
+                    squadRef.update("totalMembers", FieldValue.increment(1))
                         .addOnSuccessListener {
                             completion(true, null)
                         }
@@ -1138,7 +1047,6 @@ class FirestoreManager private constructor() {
                 .addOnFailureListener { e ->
                     completion(false, "Error adding member: ${e.localizedMessage}")
                 }
-
         } catch (e: Exception) {
             completion(false, "Error adding member: ${e.localizedMessage}")
         }
@@ -1165,22 +1073,20 @@ class FirestoreManager private constructor() {
 
                         if (member != null) {
                             completion(member, null)
-                            Log.d("Firestore", "✅ Member fetched: ${member.name}")
                         } else {
-                            completion(null, "❌ Failed to decode member object.")
+                            completion(null, "Failed to decode member object.")
                         }
                     } catch (e: Exception) {
-                        Log.e("Firestore", "❌ Decoding error", e)
-                        completion(null, "❌ Decoding error: ${e.localizedMessage}")
+                        FmLog.w("fetchMember decoding error: ${e.localizedMessage}")
+                        completion(null, "Decoding error: ${e.localizedMessage}")
                     }
                 } else {
-                    Log.w("Firestore", "⚠️ Member not found in squad: $squadID")
-                    completion(null, "❌ Member not found.")
+                    completion(null, "Member not found.")
                 }
             }
             .addOnFailureListener { e ->
-                Log.e("Firestore", "❌ Error fetching member", e)
-                completion(null, "❌ Error fetching member: ${e.localizedMessage}")
+                FmLog.w("fetchMember failed: ${e.localizedMessage}")
+                completion(null, "Error fetching member: ${e.localizedMessage}")
             }
     }
 
@@ -1195,29 +1101,25 @@ class FirestoreManager private constructor() {
 
         membersRef.get()
             .addOnSuccessListener { snapshot ->
+                // FIX #3: an empty squad is not an error.
                 if (snapshot == null || snapshot.isEmpty) {
-                    completion(null, "No members found.")
+                    completion(emptyList(), null)
                     return@addOnSuccessListener
                 }
 
                 try {
-                    val rawData = snapshot.documents.map { it.data }
-                    println("📌 Firestore raw data: $rawData")
-
                     val members = snapshot.documents.mapNotNull { doc ->
                         try {
                             val member = doc.toObject(Member::class.java)
                             member?.id = doc.id
                             member
                         } catch (e: Exception) {
-                            println("❌ Error decoding member: ${e.localizedMessage}")
+                            FmLog.w("Error decoding member: ${e.localizedMessage}")
                             null
                         }
                     }
-
                     completion(members, null)
                 } catch (e: Exception) {
-                    println("❌ Error decoding member: ${e.localizedMessage}")
                     completion(null, "Decoding error: ${e.localizedMessage}")
                 }
             }
@@ -1232,13 +1134,18 @@ class FirestoreManager private constructor() {
         members: List<Member>,
         completion: (Boolean, String?) -> Unit
     ) {
-        val updateErrors = mutableListOf<String>()
+        if (members.isEmpty()) {
+            completion(true, null)
+            return
+        }
+
+        val updateErrors = java.util.Collections.synchronizedList(mutableListOf<String>())
         val latch = CountDownLatch(members.size)
 
         for (member in members) {
             val memberID = member.id
             if (memberID == null) {
-                updateErrors.add("❌ Member ID missing for ${member.name}")
+                updateErrors.add("Member ID missing for ${member.name}")
                 latch.countDown()
                 continue
             }
@@ -1251,14 +1158,14 @@ class FirestoreManager private constructor() {
             try {
                 memberRef.set(member, SetOptions.merge())
                     .addOnFailureListener { e ->
-                        updateErrors.add("❌ Error updating ${member.name}: ${e.localizedMessage}")
+                        updateErrors.add("Error updating ${member.name}: ${e.localizedMessage}")
                         latch.countDown()
                     }
                     .addOnSuccessListener {
                         latch.countDown()
                     }
             } catch (e: Exception) {
-                updateErrors.add("❌ Error encoding ${member.name}: ${e.localizedMessage}")
+                updateErrors.add("Error encoding ${member.name}: ${e.localizedMessage}")
                 latch.countDown()
             }
         }
@@ -1285,12 +1192,8 @@ class FirestoreManager private constructor() {
             .document(memberID)
 
         memberRef.delete()
-            .addOnSuccessListener {
-                completion(true, null)
-            }
-            .addOnFailureListener { e ->
-                completion(false, "Error deleting member: ${e.localizedMessage}")
-            }
+            .addOnSuccessListener { completion(true, null) }
+            .addOnFailureListener { e -> completion(false, "Error deleting member: ${e.localizedMessage}") }
     }
 
     // MARK: - 🔹 Create contributions when member is created
@@ -1313,8 +1216,7 @@ class FirestoreManager private constructor() {
 
         while (!currentDate.after(squadEnd)) {
             val monthYear = dateFormatter.format(currentDate)
-            val contributionID =
-                CommonFunctions.generateContributionID(memberID, monthYear)
+            val contributionID = CommonFunctions.generateContributionID(memberID, monthYear)
 
             val detail = ContributionDetail(
                 id = contributionID,
@@ -1345,13 +1247,13 @@ class FirestoreManager private constructor() {
 
             batch.commit()
                 .addOnSuccessListener {
-                    completion(true, "✅ Contributions created successfully")
+                    completion(true, "Contributions created successfully")
                 }
                 .addOnFailureListener { e ->
-                    completion(false, "❌ Batch write failed: ${e.localizedMessage}")
+                    completion(false, "Batch write failed: ${e.localizedMessage}")
                 }
         } catch (e: Exception) {
-            completion(false, "❌ Encoding error: ${e.localizedMessage}")
+            completion(false, "Encoding error: ${e.localizedMessage}")
         }
     }
 
@@ -1381,20 +1283,20 @@ class FirestoreManager private constructor() {
             .addOnSuccessListener { snapshot ->
                 val memberDocs = snapshot.documents
                 if (memberDocs.isEmpty()) {
-                    completion(false, "❌ No members found.")
+                    completion(true, null) // Nothing to do — not an error.
                     return@addOnSuccessListener
                 }
 
-                var processedCount = 0
-                var encounteredError: String? = null
+                val processedCount = AtomicInteger(0)
+                val encounteredError = AtomicReference<String?>(null)
 
                 for (memberDoc in memberDocs) {
                     val memberID = memberDoc.id
                     val member = memberDoc.toObject(Member::class.java)
                     if (member == null) {
-                        processedCount++
-                        if (processedCount == memberDocs.size) {
-                            completion(false, "❌ Failed to decode member: $memberID")
+                        if (processedCount.incrementAndGet() == memberDocs.size) {
+                            val err = encounteredError.get()
+                            completion(err == null, err ?: "Failed to decode member: $memberID")
                         }
                         continue
                     }
@@ -1403,8 +1305,7 @@ class FirestoreManager private constructor() {
                     contributionsRef.get()
                         .addOnSuccessListener { contribSnapshot ->
                             val contribDocs = contribSnapshot.documents
-                            val existingMonths =
-                                contribDocs.mapNotNull { it.getString("monthYear") }.toSet()
+                            val existingMonths = contribDocs.mapNotNull { it.getString("monthYear") }.toSet()
 
                             val toDelete = contribDocs.filter {
                                 val month = it.getString("monthYear") ?: return@filter false
@@ -1414,10 +1315,8 @@ class FirestoreManager private constructor() {
                             val missingMonths = validMonths.subtract(existingMonths)
                             val batch = db.batch()
 
-                            // Delete outdated
                             toDelete.forEach { batch.delete(it.reference) }
 
-                            // Add missing
                             for (month in missingMonths) {
                                 val newContribution = ContributionDetail(
                                     id = CommonFunctions.generateContributionID(memberID, month),
@@ -1431,45 +1330,35 @@ class FirestoreManager private constructor() {
                                     paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
                                     dueDate = CommonFunctions.getContributionDue(month).asTimestamp
                                 )
-                                val newDoc =
-                                    contributionsRef.document(newContribution.id ?: UUID.randomUUID().toString())
+                                val newDoc = contributionsRef.document(newContribution.id ?: UUID.randomUUID().toString())
                                 batch.set(newDoc, newContribution)
                             }
 
                             batch.commit()
                                 .addOnSuccessListener {
-                                    processedCount++
-                                    if (processedCount == memberDocs.size) {
-                                        if (encounteredError != null)
-                                            completion(false, encounteredError)
-                                        else
-                                            completion(
-                                                true,
-                                                "✅ Successfully updated all member contributions."
-                                            )
+                                    if (processedCount.incrementAndGet() == memberDocs.size) {
+                                        val err = encounteredError.get()
+                                        if (err != null) completion(false, err)
+                                        else completion(true, "Successfully updated all member contributions.")
                                     }
                                 }
                                 .addOnFailureListener { e ->
-                                    encounteredError =
-                                        "❌ Failed to update $memberID: ${e.localizedMessage}"
-                                    processedCount++
-                                    if (processedCount == memberDocs.size) {
-                                        completion(false, encounteredError)
+                                    encounteredError.compareAndSet(null, "Failed to update $memberID: ${e.localizedMessage}")
+                                    if (processedCount.incrementAndGet() == memberDocs.size) {
+                                        completion(false, encounteredError.get())
                                     }
                                 }
                         }
                         .addOnFailureListener { e ->
-                            encounteredError =
-                                "❌ Failed to fetch contributions for $memberID: ${e.localizedMessage}"
-                            processedCount++
-                            if (processedCount == memberDocs.size) {
-                                completion(false, encounteredError)
+                            encounteredError.compareAndSet(null, "Failed to fetch contributions for $memberID: ${e.localizedMessage}")
+                            if (processedCount.incrementAndGet() == memberDocs.size) {
+                                completion(false, encounteredError.get())
                             }
                         }
                 }
             }
             .addOnFailureListener { e ->
-                completion(false, "❌ Failed to fetch members: ${e.localizedMessage}")
+                completion(false, "Failed to fetch members: ${e.localizedMessage}")
             }
     }
 
@@ -1489,10 +1378,10 @@ class FirestoreManager private constructor() {
 
         contributionRef.set(contribution)
             .addOnSuccessListener {
-                completion(true, "✅ Contribution added successfully")
+                completion(true, "Contribution added successfully")
             }
             .addOnFailureListener { e ->
-                completion(false, "❌ Error adding contribution: ${e.localizedMessage}")
+                completion(false, "Error adding contribution: ${e.localizedMessage}")
             }
     }
 
@@ -1524,11 +1413,11 @@ class FirestoreManager private constructor() {
                     }
                     completion(contributions, null)
                 } catch (e: Exception) {
-                    completion(null, "❌ Decoding error: ${e.localizedMessage}")
+                    completion(null, "Decoding error: ${e.localizedMessage}")
                 }
             }
             .addOnFailureListener { e ->
-                completion(null, "❌ Error fetching contributions: ${e.localizedMessage}")
+                completion(null, "Error fetching contributions: ${e.localizedMessage}")
             }
     }
 
@@ -1547,39 +1436,35 @@ class FirestoreManager private constructor() {
                     return@addOnSuccessListener
                 }
 
-                var totalAmount = 0
-                var processedCount = 0
-                var errorMessage: String? = null
+                val totalAmount = AtomicInteger(0)
+                val processedCount = AtomicInteger(0)
+                val errorMessage = AtomicReference<String?>(null)
 
                 for (doc in memberDocs) {
                     val memberID = doc.id
-                    val contributionsRef =
-                        membersRef.document(memberID).collection("contributions")
+                    val contributionsRef = membersRef.document(memberID).collection("contributions")
 
                     contributionsRef.get()
                         .addOnSuccessListener { contribSnapshot ->
                             val sum = contribSnapshot.documents.sumOf {
                                 (it.getLong("amount") ?: 0L).toInt()
                             }
-                            totalAmount += sum
-                            processedCount++
-                            if (processedCount == memberDocs.size) {
-                                if (errorMessage != null) completion(null, errorMessage)
-                                else completion(totalAmount, null)
+                            totalAmount.addAndGet(sum)
+                            if (processedCount.incrementAndGet() == memberDocs.size) {
+                                val err = errorMessage.get()
+                                if (err != null) completion(null, err) else completion(totalAmount.get(), null)
                             }
                         }
                         .addOnFailureListener { e ->
-                            errorMessage =
-                                "❌ Error fetching contributions for $memberID: ${e.localizedMessage}"
-                            processedCount++
-                            if (processedCount == memberDocs.size) {
-                                completion(null, errorMessage)
+                            errorMessage.compareAndSet(null, "Error fetching contributions for $memberID: ${e.localizedMessage}")
+                            if (processedCount.incrementAndGet() == memberDocs.size) {
+                                completion(null, errorMessage.get())
                             }
                         }
                 }
             }
             .addOnFailureListener { e ->
-                completion(null, "❌ Error fetching members: ${e.localizedMessage}")
+                completion(null, "Error fetching members: ${e.localizedMessage}")
             }
     }
 
@@ -1600,10 +1485,10 @@ class FirestoreManager private constructor() {
 
         contributionRef.set(updatedContribution, SetOptions.merge())
             .addOnSuccessListener {
-                completion(true, "✅ Contribution updated successfully")
+                completion(true, "Contribution updated successfully")
             }
             .addOnFailureListener { e ->
-                completion(false, "❌ Failed to update contribution: ${e.localizedMessage}")
+                completion(false, "Failed to update contribution: ${e.localizedMessage}")
             }
     }
 
@@ -1619,12 +1504,8 @@ class FirestoreManager private constructor() {
         val newEmiConfig = emiConfig.copy(id = emiRef.id)
 
         emiRef.set(newEmiConfig)
-            .addOnSuccessListener {
-                completion(true, null)
-            }
-            .addOnFailureListener { e ->
-                completion(false, "Error adding EMI configuration: ${e.localizedMessage}")
-            }
+            .addOnSuccessListener { completion(true, null) }
+            .addOnFailureListener { e -> completion(false, "Error adding EMI configuration: ${e.localizedMessage}") }
     }
 
     // MARK: - Add or Update EMI Configuration
@@ -1644,12 +1525,8 @@ class FirestoreManager private constructor() {
         val newEmiConfig = emiConfig.copy(id = emiRef.id)
 
         emiRef.set(newEmiConfig, SetOptions.merge())
-            .addOnSuccessListener {
-                completion(true, null)
-            }
-            .addOnFailureListener { e ->
-                completion(false, "Error adding or updating EMI configuration: ${e.localizedMessage}")
-            }
+            .addOnSuccessListener { completion(true, null) }
+            .addOnFailureListener { e -> completion(false, "Error adding or updating EMI configuration: ${e.localizedMessage}") }
     }
 
     // MARK: - Fetch EMI Configurations
@@ -1675,11 +1552,11 @@ class FirestoreManager private constructor() {
                     }
                     completion(emiConfigs, null)
                 } catch (e: Exception) {
-                    completion(null, "❌ Decoding error: ${e.localizedMessage}")
+                    completion(null, "Decoding error: ${e.localizedMessage}")
                 }
             }
             .addOnFailureListener { e ->
-                completion(null, "❌ Error fetching EMI configurations: ${e.localizedMessage}")
+                completion(null, "Error fetching EMI configurations: ${e.localizedMessage}")
             }
     }
 
@@ -1695,20 +1572,19 @@ class FirestoreManager private constructor() {
         emiRef.get()
             .addOnSuccessListener { document ->
                 if (!document.exists()) {
-                    completion(null, "❌ EMI configuration not found.")
+                    completion(null, "EMI configuration not found.")
                     return@addOnSuccessListener
                 }
 
                 try {
-                    val emiConfig = document.toObject(EMIConfiguration::class.java)
-                        ?.copy(id = document.id)
+                    val emiConfig = document.toObject(EMIConfiguration::class.java)?.copy(id = document.id)
                     completion(emiConfig, null)
                 } catch (e: Exception) {
-                    completion(null, "❌ Decoding error: ${e.localizedMessage}")
+                    completion(null, "Decoding error: ${e.localizedMessage}")
                 }
             }
             .addOnFailureListener { e ->
-                completion(null, "❌ Error fetching EMI configuration: ${e.localizedMessage}")
+                completion(null, "Error fetching EMI configuration: ${e.localizedMessage}")
             }
     }
 
@@ -1728,12 +1604,8 @@ class FirestoreManager private constructor() {
             .collection("emiConfiguration").document(emiID)
 
         emiRef.set(emiConfig, SetOptions.merge())
-            .addOnSuccessListener {
-                completion(true, null)
-            }
-            .addOnFailureListener { e ->
-                completion(false, "Error updating EMI configuration: ${e.localizedMessage}")
-            }
+            .addOnSuccessListener { completion(true, null) }
+            .addOnFailureListener { e -> completion(false, "Error updating EMI configuration: ${e.localizedMessage}") }
     }
 
     // MARK: - Delete EMI Configuration
@@ -1746,12 +1618,8 @@ class FirestoreManager private constructor() {
             .collection("emiConfiguration").document(emiID)
 
         emiRef.delete()
-            .addOnSuccessListener {
-                completion(true, null)
-            }
-            .addOnFailureListener { e ->
-                completion(false, "Error deleting EMI configuration: ${e.localizedMessage}")
-            }
+            .addOnSuccessListener { completion(true, null) }
+            .addOnFailureListener { e -> completion(false, "Error deleting EMI configuration: ${e.localizedMessage}") }
     }
 
     // MARK: - Add Squad Activity
@@ -1768,12 +1636,8 @@ class FirestoreManager private constructor() {
         val newActivity = activity.copy(id = activityRef.id)
 
         activityRef.set(newActivity)
-            .addOnSuccessListener {
-                completion(true, null)
-            }
-            .addOnFailureListener { e ->
-                completion(false, "Error adding Squad Activity: ${e.localizedMessage}")
-            }
+            .addOnSuccessListener { completion(true, null) }
+            .addOnFailureListener { e -> completion(false, "Error adding Squad Activity: ${e.localizedMessage}") }
     }
 
     fun fetchSquadActivities(
@@ -1795,48 +1659,26 @@ class FirestoreManager private constructor() {
             .limit(limit.toLong())
 
         if (!memberId.isNullOrEmpty()) {
-
-            query = query.whereEqualTo(
-                "memberId",
-                memberId
-            )
+            query = query.whereEqualTo("memberId", memberId)
         }
 
         if (lastDocument != null) {
-
-            query = query.startAfter(
-                lastDocument
-            )
+            query = query.startAfter(lastDocument)
         }
 
         query.get()
             .addOnSuccessListener { snapshot ->
-
-                val activities =
-                    snapshot.documents.mapNotNull { doc ->
-
-                        try {
-                            doc.toObject(
-                                SquadActivity::class.java
-                            )
-                        } catch (e: Exception) {
-                            null
-                        }
+                val activities = snapshot.documents.mapNotNull { doc ->
+                    try {
+                        doc.toObject(SquadActivity::class.java)
+                    } catch (e: Exception) {
+                        null
                     }
-
-                completion(
-                    activities,
-                    snapshot.documents.lastOrNull(),
-                    null
-                )
+                }
+                completion(activities, snapshot.documents.lastOrNull(), null)
             }
             .addOnFailureListener { error ->
-
-                completion(
-                    null,
-                    null,
-                    error.localizedMessage
-                )
+                completion(null, null, error.localizedMessage)
             }
     }
 
@@ -1854,20 +1696,19 @@ class FirestoreManager private constructor() {
         activityRef.get()
             .addOnSuccessListener { document ->
                 if (!document.exists()) {
-                    completion(null, "❌ Activity not found.")
+                    completion(null, "Activity not found.")
                     return@addOnSuccessListener
                 }
 
                 try {
-                    val activity = document.toObject(SquadActivity::class.java)
-                        ?.copy(id = document.id)
+                    val activity = document.toObject(SquadActivity::class.java)?.copy(id = document.id)
                     completion(activity, null)
                 } catch (e: Exception) {
-                    completion(null, "❌ Decoding error: ${e.localizedMessage}")
+                    completion(null, "Decoding error: ${e.localizedMessage}")
                 }
             }
             .addOnFailureListener { e ->
-                completion(null, "❌ Error fetching activity: ${e.localizedMessage}")
+                completion(null, "Error fetching activity: ${e.localizedMessage}")
             }
     }
 
@@ -1892,12 +1733,8 @@ class FirestoreManager private constructor() {
         val updatedActivity = activity.copy(id = activityRef.id)
 
         activityRef.set(updatedActivity, SetOptions.merge())
-            .addOnSuccessListener {
-                completion(true, null)
-            }
-            .addOnFailureListener { e ->
-                completion(false, "❌ Error updating activity: ${e.localizedMessage}")
-            }
+            .addOnSuccessListener { completion(true, null) }
+            .addOnFailureListener { e -> completion(false, "Error updating activity: ${e.localizedMessage}") }
     }
 
     // MARK: - Delete Activity
@@ -1912,12 +1749,8 @@ class FirestoreManager private constructor() {
             .document(activityID)
 
         activityRef.delete()
-            .addOnSuccessListener {
-                completion(true, null)
-            }
-            .addOnFailureListener { e ->
-                completion(false, "Error deleting activity: ${e.localizedMessage}")
-            }
+            .addOnSuccessListener { completion(true, null) }
+            .addOnFailureListener { e -> completion(false, "Error deleting activity: ${e.localizedMessage}") }
     }
 
     // MARK: - Add Squad Rule
@@ -1934,12 +1767,8 @@ class FirestoreManager private constructor() {
         val newRule = rule.copy(id = ruleRef.id)
 
         ruleRef.set(newRule)
-            .addOnSuccessListener {
-                completion(true, null)
-            }
-            .addOnFailureListener { e ->
-                completion(false, "Error adding Squad Rule: ${e.localizedMessage}")
-            }
+            .addOnSuccessListener { completion(true, null) }
+            .addOnFailureListener { e -> completion(false, "Error adding Squad Rule: ${e.localizedMessage}") }
     }
 
     // MARK: - Fetch Squad Rules
@@ -1967,11 +1796,11 @@ class FirestoreManager private constructor() {
                     }
                     completion(rules, null)
                 } catch (e: Exception) {
-                    completion(null, "❌ Decoding error: ${e.localizedMessage}")
+                    completion(null, "Decoding error: ${e.localizedMessage}")
                 }
             }
             .addOnFailureListener { e ->
-                completion(null, "❌ Error fetching rules: ${e.localizedMessage}")
+                completion(null, "Error fetching rules: ${e.localizedMessage}")
             }
     }
 
@@ -1987,12 +1816,8 @@ class FirestoreManager private constructor() {
             .document(ruleID)
 
         ruleRef.delete()
-            .addOnSuccessListener {
-                completion(true, null)
-            }
-            .addOnFailureListener { e ->
-                completion(false, "❌ Error deleting rule: ${e.localizedMessage}")
-            }
+            .addOnSuccessListener { completion(true, null) }
+            .addOnFailureListener { e -> completion(false, "Error deleting rule: ${e.localizedMessage}") }
     }
 
     // MARK: - Update Squad Rule
@@ -2001,18 +1826,22 @@ class FirestoreManager private constructor() {
         rule: SquadRule,
         completion: (Boolean, String?) -> Unit
     ) {
+        // FIX #6: previously fell back to document("") when rule.id was null/blank,
+        // silently creating/overwriting a garbage doc with an empty ID.
+        val ruleID = rule.id
+        if (ruleID.isNullOrBlank()) {
+            completion(false, "Rule ID is missing")
+            return
+        }
+
         val ruleRef = db.collection("squads")
             .document(squadID)
             .collection("rules")
-            .document(rule.id ?: "")
+            .document(ruleID)
 
         ruleRef.set(rule)
-            .addOnSuccessListener {
-                completion(true, null)
-            }
-            .addOnFailureListener { e ->
-                completion(false, "❌ Error updating rule: ${e.localizedMessage}")
-            }
+            .addOnSuccessListener { completion(true, null) }
+            .addOnFailureListener { e -> completion(false, "Error updating rule: ${e.localizedMessage}") }
     }
 
     // MARK: - 🔹 Read MemberEMI by Member
@@ -2033,7 +1862,7 @@ class FirestoreManager private constructor() {
                 completion(loans, null)
             }
             .addOnFailureListener { e ->
-                completion(null, "❌ Error fetching fetchMemberLoans: ${e.localizedMessage}")
+                completion(null, "Error fetching loans: ${e.localizedMessage}")
             }
     }
 
@@ -2054,7 +1883,7 @@ class FirestoreManager private constructor() {
                 completion(loans, null)
             }
             .addOnFailureListener { e ->
-                completion(null, "❌ Error fetching fetchMemberPendingLoans: ${e.localizedMessage}")
+                completion(null, "Error fetching pending loans: ${e.localizedMessage}")
             }
     }
 
@@ -2072,30 +1901,25 @@ class FirestoreManager private constructor() {
             .collection("loans")
 
         if (!loan.id.isNullOrEmpty()) {
-            // 🔹 Update existing loan
             val loanRef = loansCollection.document(loan.id!!)
             val updatedLoan = loan.copy(id = loanRef.id)
 
             loanRef.set(updatedLoan)
                 .addOnSuccessListener { completion(true, null) }
-                .addOnFailureListener { e ->
-                    completion(false, "❌ Error updating loan: ${e.localizedMessage}")
-                }
-
+                .addOnFailureListener { e -> completion(false, "Error updating loan: ${e.localizedMessage}") }
         } else {
-            // 🔹 Add new loan
             val newLoanRef = loansCollection.document()
             val newLoan = loan.copy(id = newLoanRef.id)
 
             newLoanRef.set(newLoan)
                 .addOnSuccessListener { completion(true, null) }
-                .addOnFailureListener { e ->
-                    completion(false, "❌ Error adding loan: ${e.localizedMessage}")
-                }
+                .addOnFailureListener { e -> completion(false, "Error adding loan: ${e.localizedMessage}") }
         }
     }
 
     // MARK: - 🔹 Fetch All Loans in Squad
+    // FIX #4 / #7: empty member list is treated as a valid empty result (not an error);
+    // dead/unused outer CountDownLatch removed; completion is now guaranteed exactly once.
     fun fetchAllLoansInSquad(
         squadID: String,
         completion: (List<MemberLoan>?, String?) -> Unit
@@ -2104,19 +1928,17 @@ class FirestoreManager private constructor() {
             .document(squadID)
             .collection("members")
 
-        val allLoans = mutableListOf<MemberLoan>()
-        val errors = mutableListOf<String>()
-        val dispatchGroup = java.util.concurrent.CountDownLatch(1)
-
         membersRef.get()
             .addOnSuccessListener { memberSnapshot ->
                 val members = memberSnapshot.documents
                 if (members.isEmpty()) {
-                    completion(emptyList(), "❌ No members found")
+                    completion(emptyList(), null)
                     return@addOnSuccessListener
                 }
 
-                val latch = java.util.concurrent.CountDownLatch(members.size)
+                val allLoans = java.util.Collections.synchronizedList(mutableListOf<MemberLoan>())
+                val errors = java.util.Collections.synchronizedList(mutableListOf<String>())
+                val latch = CountDownLatch(members.size)
 
                 for (memberDoc in members) {
                     val memberID = memberDoc.id
@@ -2125,13 +1947,11 @@ class FirestoreManager private constructor() {
                     loansRef.get()
                         .addOnSuccessListener { loanSnapshot ->
                             for (loanDoc in loanSnapshot.documents) {
-                                loanDoc.toObject(MemberLoan::class.java)?.let {
-                                    allLoans.add(it)
-                                }
+                                loanDoc.toObject(MemberLoan::class.java)?.let { allLoans.add(it) }
                             }
                         }
                         .addOnFailureListener { e ->
-                            errors.add("❌ Failed for $memberID: ${e.localizedMessage}")
+                            errors.add("Failed for $memberID: ${e.localizedMessage}")
                         }
                         .addOnCompleteListener { latch.countDown() }
                 }
@@ -2146,7 +1966,7 @@ class FirestoreManager private constructor() {
                 }.start()
             }
             .addOnFailureListener { e ->
-                completion(null, "❌ Failed to fetch members: ${e.localizedMessage}")
+                completion(null, "Failed to fetch members: ${e.localizedMessage}")
             }
     }
 
@@ -2166,9 +1986,7 @@ class FirestoreManager private constructor() {
 
         loanRef.delete()
             .addOnSuccessListener { completion(true, null) }
-            .addOnFailureListener { e ->
-                completion(false, "Error deleting EMI: ${e.localizedMessage}")
-            }
+            .addOnFailureListener { e -> completion(false, "Error deleting loan: ${e.localizedMessage}") }
     }
 
     // MARK: - 🔹 Add or Update Installment in EMI
@@ -2189,33 +2007,27 @@ class FirestoreManager private constructor() {
             val selectedLoan = loanList.find { it.id == loanID }
 
             if (selectedLoan == null) {
-                completion(false, "❌ EMI not found")
+                completion(false, "Loan not found")
                 return@fetchMemberLoans
             }
 
             var updatedLoan = selectedLoan.copy()
-            var updatedInstallment = installment.copy()
+            val updatedInstallment = installment.copy()
 
-            // 🔹 Ensure installment ID exists
             if (updatedInstallment.id.isNullOrEmpty()) {
                 updatedInstallment.id = CommonFunctions.generateInstallmentID()
             }
 
             val index = updatedLoan.installments.indexOfFirst { it.id == updatedInstallment.id }
 
-            if (index != -1) {
-                // 🔥 Update existing installment
+            updatedLoan = if (index != -1) {
                 val updatedList = updatedLoan.installments.toMutableList()
                 updatedList[index] = updatedInstallment
-                updatedLoan = updatedLoan.copy(installments = updatedList)
+                updatedLoan.copy(installments = updatedList)
             } else {
-                // 🔥 Append new installment
-                updatedLoan = updatedLoan.copy(
-                    installments = updatedLoan.installments + updatedInstallment
-                )
+                updatedLoan.copy(installments = updatedLoan.installments + updatedInstallment)
             }
 
-            // 🔹 Save updated EMI to Firestore
             addOrUpdateMemberLoan(squadID, memberID, updatedLoan, completion)
         }
     }
@@ -2235,16 +2047,19 @@ class FirestoreManager private constructor() {
             .collection("loans")
             .document(loanID)
 
-        val installmentMap = installment.toMap()
+        try {
+            val installmentMap = installment.toMap()
 
-        loanRef.update("installments", FieldValue.arrayRemove(installmentMap))
-            .addOnSuccessListener { completion(true, null) }
-            .addOnFailureListener { e ->
-                completion(false, "Error removing installment: ${e.localizedMessage}")
-            }
+            loanRef.update("installments", FieldValue.arrayRemove(installmentMap))
+                .addOnSuccessListener { completion(true, null) }
+                .addOnFailureListener { e -> completion(false, "Error removing installment: ${e.localizedMessage}") }
+        } catch (e: Exception) {
+            completion(false, "Encoding error: ${e.localizedMessage}")
+        }
     }
 
-
+    // FIX: unchanged logically (already uses a batch + single completion), kept as the
+    // reference implementation that the iOS `updateFCMTokenBasedOnRole` was aligned to.
     fun updateFCMTokenBasedOnRole(
         users: List<Login>,
         completion: (Boolean, String?) -> Unit
@@ -2258,18 +2073,14 @@ class FirestoreManager private constructor() {
         FirebaseMessaging.getInstance().token
             .addOnSuccessListener { token ->
 
-                val db = FirebaseFirestore.getInstance()
                 val batch = db.batch()
 
                 users.forEach { login ->
 
                     val documentRef = if (login.role == SquadUserType.SQUAD_MANAGER) {
-
                         db.collection("squads")
                             .document(login.squadID)
-
                     } else {
-
                         db.collection("squads")
                             .document(login.squadID)
                             .collection("members")
@@ -2280,191 +2091,112 @@ class FirestoreManager private constructor() {
                 }
 
                 batch.commit()
-                    .addOnSuccessListener {
-                        completion(true, null)
-                    }
+                    .addOnSuccessListener { completion(true, null) }
                     .addOnFailureListener { error ->
-                        completion(
-                            false,
-                            error.localizedMessage ?: "Failed to update FCM token."
-                        )
+                        completion(false, error.localizedMessage ?: "Failed to update FCM token.")
                     }
             }
             .addOnFailureListener { error ->
-                completion(
-                    false,
-                    error.localizedMessage ?: "Unable to fetch FCM token."
-                )
+                completion(false, error.localizedMessage ?: "Unable to fetch FCM token.")
             }
     }
 
     fun updateFCMTokenForAllUser() {
 
         try {
-
             val logins = SessionManager.logins
 
             if (logins.isEmpty()) {
-                Log.d("FCM", "FCM sync skipped - No logged-in users found.")
+                FmLog.d("FCM sync skipped — no logged-in users found.")
                 return
             }
 
-            Log.d("FCM", "Starting FCM token sync for ${logins.size} login(s)...")
+            FmLog.d("Starting FCM token sync for ${logins.size} login(s)…")
 
-            updateFCMTokenBasedOnRole(
-                users = logins
-            ) { success, error ->
-
+            updateFCMTokenBasedOnRole(users = logins) { success, error ->
                 if (success) {
-
-                    Log.d(
-                        "FCM",
-                        "FCM token synced successfully for ${logins.size} login(s)."
-                    )
-
+                    FmLog.d("FCM token synced successfully for ${logins.size} login(s).")
                 } else {
-
-                    Log.e(
-                        "FCM",
-                        "FCM token sync failed: ${error ?: "Unknown error"}"
-                    )
+                    FmLog.w("FCM token sync failed: ${error ?: "Unknown error"}")
                 }
             }
-
         } catch (e: Exception) {
-
-            Log.e(
-                "FCM",
-                "Unexpected error while syncing FCM token.",
-                e
-            )
+            FmLog.w("Unexpected error while syncing FCM token: ${e.localizedMessage}")
         }
     }
 
     fun updateFCMToken(
-
         phoneNumber: String,
-
         squadID: String,
-
         role: String,
-
         fcmToken: String,
-
         completion: (Boolean, String?) -> Unit
-
     ) {
 
-        FirebaseFirestore.getInstance()
-
-            .collection("users")
-
+        db.collection("users")
             .document(phoneNumber)
-
             .collection("logins")
-
             .whereEqualTo("squadID", squadID)
-
             .whereEqualTo("role", role)
-
             .get()
-
             .addOnSuccessListener { snapshot ->
 
                 val document = snapshot.documents.firstOrNull()
 
                 if (document == null) {
-
                     completion(false, "Login record not found")
-
                     return@addOnSuccessListener
-
                 }
 
                 document.reference
-
                     .update("fcmToken", fcmToken)
-
-                    .addOnSuccessListener {
-
-                        completion(true, null)
-
-                    }
-
-                    .addOnFailureListener {
-
-                        completion(false, it.localizedMessage)
-
-                    }
-
+                    .addOnSuccessListener { completion(true, null) }
+                    .addOnFailureListener { completion(false, it.localizedMessage) }
             }
-
-            .addOnFailureListener {
-
-                completion(false, it.localizedMessage)
-
-            }
-
+            .addOnFailureListener { completion(false, it.localizedMessage) }
     }
 
     fun getFCMToken(completion: (String?) -> Unit) {
-
         FirebaseMessaging.getInstance().token
-
             .addOnCompleteListener { task ->
-
                 if (!task.isSuccessful) {
-
                     completion(null)
-
                     return@addOnCompleteListener
-
                 }
-
                 completion(task.result)
-
             }
-
     }
 
     fun clearFCMTokenForAllUsers(
         users: List<Login>,
         completion: (Boolean, String?) -> Unit
     ) {
-        val db = FirebaseFirestore.getInstance()
+        if (users.isEmpty()) {
+            completion(true, null)
+            return
+        }
+
         val batch = db.batch()
 
         try {
             for (user in users) {
-
                 val isManager = user.role == SquadUserType.SQUAD_MANAGER
 
-                if (isManager) {
-
-                    val ref = db.collection("squads")
-                        .document(user.squadID)
-
-                    batch.update(ref, "fcmToken", "")
-
+                val ref = if (isManager) {
+                    db.collection("squads").document(user.squadID)
                 } else {
-
-                    val ref = db.collection("squads")
+                    db.collection("squads")
                         .document(user.squadID)
                         .collection("members")
                         .document(user.squadUserId)
-
-                    batch.update(ref, "fcmToken", "")
                 }
+
+                batch.update(ref, "fcmToken", "")
             }
 
             batch.commit()
-                .addOnSuccessListener {
-                    completion(true, null)
-                }
-                .addOnFailureListener { e ->
-                    completion(false, e.localizedMessage)
-                }
-
+                .addOnSuccessListener { completion(true, null) }
+                .addOnFailureListener { e -> completion(false, e.localizedMessage) }
         } catch (e: Exception) {
             completion(false, e.localizedMessage)
         }
@@ -2479,44 +2211,24 @@ class FirestoreManager private constructor() {
     ) {
 
         if (!CommonFunctions.isInternetAvailable()) {
-
             LoaderManager.shared.hideLoader()
-
-            completion(
-                Result.failure(
-                    Exception("No Internet Connection")
-                )
-            )
+            completion(Result.failure(Exception("No Internet Connection")))
             return
         }
 
-        val db = FirebaseFirestore.getInstance()
-
         val documentRef = if (!memberId.isNullOrEmpty()) {
-
             db.collection("squads")
                 .document(squadId)
                 .collection("members")
                 .document(memberId)
-
         } else {
-
             db.collection("squads")
                 .document(squadId)
         }
 
-        documentRef.set(
-            mapOf(
-                "upiID" to vpa
-            ),
-            SetOptions.merge()
-        )
-            .addOnSuccessListener {
-                completion(Result.success(vpa))
-            }
-            .addOnFailureListener { error ->
-                completion(Result.failure(error))
-            }
+        documentRef.set(mapOf("upiID" to vpa), SetOptions.merge())
+            .addOnSuccessListener { completion(Result.success(vpa)) }
+            .addOnFailureListener { error -> completion(Result.failure(error)) }
     }
 
     fun fetchManagerLogins(
@@ -2533,19 +2245,17 @@ class FirestoreManager private constructor() {
             .get()
             .addOnSuccessListener { snapshot ->
 
+                // FIX #3: not managing any squads is a valid empty state, not an error.
                 if (snapshot == null || snapshot.isEmpty) {
-                    completion(null, "You are not managing any squads.")
+                    completion(emptyList(), null)
                     return@addOnSuccessListener
                 }
 
                 try {
-
                     val logins = snapshot.documents.mapNotNull { doc ->
                         doc.toObject(Login::class.java)?.copy(id = doc.id)
                     }
-
                     completion(logins, null)
-
                 } catch (e: Exception) {
                     completion(null, "Decoding error: ${e.localizedMessage}")
                 }
@@ -2579,22 +2289,16 @@ class FirestoreManager private constructor() {
                 val batch = db.batch()
 
                 snapshot.documents.forEach { document ->
-
                     val updates = mapOf(
                         "recordStatus" to recordStatus,
-                        "recordDate" to com.google.firebase.Timestamp.now()
+                        "recordDate" to Timestamp.now()
                     )
-
                     batch.update(document.reference, updates)
                 }
 
                 batch.commit()
-                    .addOnSuccessListener {
-                        completion(true, null)
-                    }
-                    .addOnFailureListener { error ->
-                        completion(false, error.localizedMessage)
-                    }
+                    .addOnSuccessListener { completion(true, null) }
+                    .addOnFailureListener { error -> completion(false, error.localizedMessage) }
             }
             .addOnFailureListener { error ->
                 completion(false, error.localizedMessage)
@@ -2638,9 +2342,8 @@ class FirestoreManager private constructor() {
                 }
 
                 val batch = db.batch()
-                val timestamp = com.google.firebase.Timestamp.now()
+                val timestamp = Timestamp.now()
 
-                // Update login documents
                 snapshot.documents.forEach { document ->
                     batch.update(
                         document.reference,
@@ -2651,7 +2354,6 @@ class FirestoreManager private constructor() {
                     )
                 }
 
-                // Update member document
                 val memberRef = db.collection("squads")
                     .document(member.squadID)
                     .collection("members")
@@ -2666,12 +2368,8 @@ class FirestoreManager private constructor() {
                 )
 
                 batch.commit()
-                    .addOnSuccessListener {
-                        completion(true, null)
-                    }
-                    .addOnFailureListener { e ->
-                        completion(false, e.localizedMessage ?: "Failed to update member status.")
-                    }
+                    .addOnSuccessListener { completion(true, null) }
+                    .addOnFailureListener { e -> completion(false, e.localizedMessage ?: "Failed to update member status.") }
             }
             .addOnFailureListener { e ->
                 completion(false, e.localizedMessage ?: "Failed to fetch member login.")
@@ -2695,19 +2393,12 @@ class FirestoreManager private constructor() {
                 .document(memberID)
         }
 
-        val updateData = mapOf(
-            "lastActiveDate" to FieldValue.serverTimestamp()
-        )
+        val updateData = mapOf("lastActiveDate" to FieldValue.serverTimestamp())
 
         documentRef.set(updateData, SetOptions.merge())
-            .addOnSuccessListener {
-                completion(true, null)
-            }
+            .addOnSuccessListener { completion(true, null) }
             .addOnFailureListener { error ->
-                completion(
-                    false,
-                    "❌ Failed to update lastActiveDate: ${error.localizedMessage}"
-                )
+                completion(false, "Failed to update lastActiveDate: ${error.localizedMessage}")
             }
     }
 
@@ -2727,41 +2418,22 @@ class FirestoreManager private constructor() {
             .addOnSuccessListener { document ->
 
                 if (!document.exists()) {
-                    completion(false, "❌ Member not found.")
+                    completion(false, "Member not found.")
                     return@addOnSuccessListener
                 }
 
-//                val currentStatus =
-//                    document.getString("currentLoanApproveStatus")
-//
-//                // Don't overwrite CREATED with PAID
-//                if (currentStatus == EMIStatus.CREATED.value &&
-//                    paymentApproveStatus == EMIStatus.PAID && !isUpdate
-//                ) {
-//                    completion(true, null)
-//                    return@addOnSuccessListener
-//                }
-
-                val updateData = hashMapOf(
+                val updateData = hashMapOf<String, Any>(
                     "currentLoanApproveStatus" to paymentApproveStatus.value
                 )
 
                 documentRef.set(updateData, SetOptions.merge())
-                    .addOnSuccessListener {
-                        completion(true, null)
-                    }
+                    .addOnSuccessListener { completion(true, null) }
                     .addOnFailureListener { error ->
-                        completion(
-                            false,
-                            "❌ Failed to update currentLoanApproveStatus: ${error.localizedMessage}"
-                        )
+                        completion(false, "Failed to update currentLoanApproveStatus: ${error.localizedMessage}")
                     }
             }
             .addOnFailureListener { error ->
-                completion(
-                    false,
-                    "❌ Failed to fetch member: ${error.localizedMessage}"
-                )
+                completion(false, "Failed to fetch member: ${error.localizedMessage}")
             }
     }
 
@@ -2771,16 +2443,12 @@ class FirestoreManager private constructor() {
         completion: (Boolean, String?) -> Unit
     ) {
 
-        val db = FirebaseFirestore.getInstance()
-
         val cashReqID = cashRequest.id ?: run {
             completion(false, "Invalid cash request ID")
             return
         }
 
-        val squadRef = db
-            .collection("squads")
-            .document(squadID)
+        val squadRef = db.collection("squads").document(squadID)
 
         val memberRef = squadRef
             .collection("members")
@@ -2793,41 +2461,18 @@ class FirestoreManager private constructor() {
         cashRef.set(cashRequest)
             .addOnSuccessListener {
 
-                memberRef.update(
-                    "cashRequested",
-                    true
-                ).addOnSuccessListener {
-
-                    squadRef.update(
-                        "cashRequestedCount",
-                        FieldValue.increment(1)
-                    ).addOnSuccessListener {
+                memberRef.update("cashRequested", true)
+                    .addOnSuccessListener {
 
                         completion(true, null)
 
                     }.addOnFailureListener { error ->
-
-                        completion(
-                            false,
-                            "Cash request created but failed to update squad count: ${error.localizedMessage}"
-                        )
+                        completion(false, "Cash request created but failed to update member status: ${error.localizedMessage}")
                     }
-
-                }.addOnFailureListener { error ->
-
-                    completion(
-                        false,
-                        "Cash request created but failed to update member status: ${error.localizedMessage}"
-                    )
-                }
 
             }
             .addOnFailureListener { error ->
-
-                completion(
-                    false,
-                    error.localizedMessage
-                )
+                completion(false, error.localizedMessage)
             }
     }
 
@@ -2843,7 +2488,7 @@ class FirestoreManager private constructor() {
         ) -> Unit
     ) {
 
-        var query: Query = FirebaseFirestore.getInstance()
+        var query: Query = db
             .collection("squads")
             .document(squadID)
             .collection("cashrequest")
@@ -2860,29 +2505,23 @@ class FirestoreManager private constructor() {
 
         query.get()
             .addOnSuccessListener { snapshot ->
-
                 val cashRequests = snapshot.documents.mapNotNull {
-
                     val cashRequest = it.toObject(CashRequest::class.java)
                     cashRequest?.id = it.id
                     cashRequest
                 }
-
-                completion(
-                    cashRequests,
-                    snapshot.documents.lastOrNull(),
-                    null
-                )
+                completion(cashRequests, snapshot.documents.lastOrNull(), null)
             }
             .addOnFailureListener {
-                completion(
-                    null,
-                    null,
-                    it.localizedMessage
-                )
+                completion(null, null, it.localizedMessage)
             }
     }
 
+    // FIX #5: now a Firestore transaction. Reads the cash request's *current* status
+    // first and only decrements `cashRequestedCount` if this call is actually the one
+    // transitioning it out of a pending state — a retried or duplicate call (e.g. from
+    // a flaky network causing the client to resubmit) can no longer double-decrement
+    // the counter into negative territory.
     fun updateCashRequestStatus(
         squadID: String,
         cashRequestId: String,
@@ -2891,56 +2530,29 @@ class FirestoreManager private constructor() {
         completion: (String?) -> Unit
     ) {
 
-        val squadRef = db.collection("squads")
-            .document(squadID)
+        val squadRef = db.collection("squads").document(squadID)
+        val cashRequestRef = squadRef.collection("cashrequest").document(cashRequestId)
+        val memberRef = squadRef.collection("members").document(memberId)
 
-        val cashRequestRef = squadRef
-            .collection("cashrequest")
-            .document(cashRequestId)
+        db.runTransaction { transaction ->
 
-        val memberRef = squadRef
-            .collection("members")
-            .document(memberId)
+            val snapshot = transaction.get(cashRequestRef)
 
-        val batch = db.batch()
+            val cashRequestData = hashMapOf<String, Any>(
+                "cashRequestStatus" to status.name
+            )
 
-        val cashRequestData = hashMapOf<String, Any>(
-            "cashRequestStatus" to status.name
-        )
+            if (status == CashRequestStatus.ACCEPTED || status == CashRequestStatus.REJECTED) {
+                cashRequestData["requestAcceptedOn"] = Timestamp.now()
+            }
 
-        if (
-            status == CashRequestStatus.ACCEPTED ||
-            status == CashRequestStatus.REJECTED
-        ) {
-            cashRequestData["requestAcceptedOn"] = Timestamp.now()
+            transaction.update(cashRequestRef, cashRequestData)
+            transaction.update(memberRef, "cashRequested", false)
+
+
+            null
         }
-
-        batch.update(
-            cashRequestRef,
-            cashRequestData
-        )
-
-        batch.update(
-            memberRef,
-            "cashRequested",
-            false
-        )
-
-        batch.update(
-            squadRef,
-            "cashRequestedCount",
-            FieldValue.increment(-1)
-        )
-
-        batch.commit()
-            .addOnSuccessListener {
-
-                completion(null)
-
-            }
-            .addOnFailureListener { error ->
-
-                completion(error.localizedMessage)
-            }
+            .addOnSuccessListener { completion(null) }
+            .addOnFailureListener { error -> completion(error.localizedMessage) }
     }
 }

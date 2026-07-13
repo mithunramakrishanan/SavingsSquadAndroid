@@ -33,7 +33,7 @@ import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.yourapp.utils.CommonFunctions
-import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.singleton.LoaderManager
 import java.util.Date
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign

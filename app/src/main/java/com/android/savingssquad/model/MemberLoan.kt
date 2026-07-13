@@ -155,6 +155,25 @@ data class Installment(
 }
 
 @Keep
+enum class InterestType(val label: String) {
+    @PropertyName("DAILY") DAILY("DAILY"),
+    @PropertyName("MONTHLY") MONTHLY("MONTHLY"),
+    @PropertyName("YEARLY") YEARLY("YEARLY");
+
+    /** Converts the entered rate into an effective monthly rate for EMI math. */
+    fun monthlyRate(rate: Double): Double = when (this) {
+        YEARLY -> (rate / 100) / 12
+        MONTHLY -> rate / 100
+        DAILY -> (rate / 100) * 30 // simple approximation: daily rate * 30 days
+    }
+
+    companion object {
+        fun fromLabelOrDefault(value: String?): InterestType =
+            entries.firstOrNull { it.name == value } ?: YEARLY
+    }
+}
+
+@Keep
 data class EMIConfiguration(
 
     @get:PropertyName("id") @set:PropertyName("id")
@@ -168,6 +187,9 @@ data class EMIConfiguration(
 
     @get:PropertyName("emiInterestRate") @set:PropertyName("emiInterestRate")
     var emiInterestRate: Double = 0.0,
+
+    @get:PropertyName("interestType") @set:PropertyName("interestType")
+    var interestType: InterestType = InterestType.YEARLY, // 🔹 NEW
 
     @get:PropertyName("emiAmount") @set:PropertyName("emiAmount")
     var emiAmount: Int = 0,
@@ -193,6 +215,7 @@ data class EMIConfiguration(
         loanAmount = 0,
         emiMonths = 0,
         emiInterestRate = 0.0,
+        interestType = InterestType.YEARLY,
         emiAmount = 0,
         interestAmount = 0,
         emiDate = null,
@@ -202,7 +225,13 @@ data class EMIConfiguration(
     )
 
     fun calculateEMIAndInterest(): Pair<Int, Int> {
-        val monthlyRate = (emiInterestRate / 100) / 12
+        val monthlyRate = interestType.monthlyRate(emiInterestRate)
+
+        if (monthlyRate == 0.0) {
+            val simpleEMI = loanAmount.toDouble() / emiMonths
+            return Pair(simpleEMI.toInt(), 0)
+        }
+
         val numerator = loanAmount * monthlyRate * (1 + monthlyRate).pow(emiMonths.toDouble())
         val denominator = (1 + monthlyRate).pow(emiMonths.toDouble()) - 1
 

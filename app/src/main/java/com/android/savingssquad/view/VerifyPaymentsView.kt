@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
@@ -47,7 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.android.savingssquad.viewmodel.SquadViewModel
-import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
@@ -152,9 +153,9 @@ fun VerifyPaymentsViewOld(
             ) {
                 if (screenType != SquadUserType.SQUAD_MEMBER) {
                     DropdownMenuPicker(
-                        label = "",
                         selected = selectedUser,
                         items = userList,
+                        icon = Icons.Default.Tune,
                         modifier = Modifier.weight(1f)
                     ) { selectedUser = it }
                 }

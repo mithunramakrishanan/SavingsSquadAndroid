@@ -76,7 +76,6 @@ import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.delay
-import com.android.savingssquad.viewmodel.LoaderManager
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
@@ -98,6 +97,7 @@ import com.android.savingssquad.R
 import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.color
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
@@ -2130,20 +2130,36 @@ fun InstallmentPopupView(
                         isEnabled = isEnabled,
                         index = index,
                         appearDelayMillis = index * 40L,
-                        onClick = { if (isEnabled) onSelect(installment) }
+                        onClick = {
+                            // 🔹 FIXED — mirrors iOS's withAnimation { onSelect(...); isShowing = false }
+                            if (isEnabled) {
+                                onSelect(installment)
+                                onCancel()
+                            }
+                        }
                     )
                 }
             }
 
             HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.15f))
 
-            // 🔹 Footer
-            SSCancelButton(title = "Close") {
-                onCancel()
+            // 🔹 Footer — FIXED: plain text button, matches iOS (was SSCancelButton)
+            TextButton(
+                onClick = onCancel,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RectangleShape,
+                contentPadding = PaddingValues(vertical = 14.dp)
+            ) {
+                Text(
+                    text = "Close",
+                    style = AppFont.ibmPlexSans(15, FontWeight.SemiBold),
+                    color = AppColors.secondaryText
+                )
             }
         }
     }
 }
+
 
 @Composable
 private fun InstallmentRow(
@@ -2182,6 +2198,10 @@ private fun InstallmentRow(
         label = "pressScale"
     )
 
+    // 🔹 FIXED — mirrors iOS's unconditional `.scaleEffect(isEnabled ? 1.0 : 0.99)`,
+    // independent of the press-scale above. Combined multiplicatively below.
+    val disabledScale = if (isEnabled) 1f else 0.99f
+
     val rowAlpha = if (isEnabled || isPaid) 1f else 0.55f
 
     Column(
@@ -2190,8 +2210,8 @@ private fun InstallmentRow(
             .graphicsLayer {
                 this.alpha = alpha * rowAlpha
                 translationY = offsetY
-                scaleX = pressScale
-                scaleY = pressScale
+                scaleX = pressScale * disabledScale
+                scaleY = pressScale * disabledScale
             }
             .clip(RoundedCornerShape(16.dp))
             .background(AppColors.surface)
@@ -2299,7 +2319,7 @@ private fun InstallmentRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             DetailChip(
-                icon = Icons.Default.Info,
+                icon = Icons.Default.Percent, // 🔹 FIXED — was Icons.Default.Info, iOS uses "percent"
                 caption = "Interest",
                 value = installment.interestAmount.currencyFormattedWithCommas(),
                 modifier = Modifier.weight(1f)
@@ -2309,13 +2329,15 @@ private fun InstallmentRow(
                 DetailChip(
                     icon = Icons.Default.DateRange,
                     caption = "Due date",
-                    value = CommonFunctions.dateToString(it.toDate() , format = "MMM dd yyyy"),
+                    value = CommonFunctions.dateToString(it.toDate(), format = "MMM dd yyyy"),
                     modifier = Modifier.weight(1f)
                 )
             } ?: Spacer(modifier = Modifier.weight(1f))
         }
     }
 }
+
+
 
 @Composable
 private fun DetailChip(

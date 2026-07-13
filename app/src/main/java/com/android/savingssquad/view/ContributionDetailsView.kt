@@ -69,7 +69,6 @@ import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.delay
-import com.android.savingssquad.viewmodel.LoaderManager
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
@@ -87,6 +86,7 @@ import com.android.savingssquad.R
 import com.android.savingssquad.model.ContributionDetail
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.viewmodel.AppDestination

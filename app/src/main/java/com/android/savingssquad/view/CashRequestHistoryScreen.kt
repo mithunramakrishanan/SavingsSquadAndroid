@@ -79,7 +79,6 @@ import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.delay
-import com.android.savingssquad.viewmodel.LoaderManager
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
@@ -149,6 +148,9 @@ fun CashRequestHistoryScreen(
 
     var hasLoaded by rememberSaveable { mutableStateOf(false) }
 
+    val activity = LocalContext.current as Activity
+    val appContext = LocalContext.current.applicationContext
+
     fun configureInitialFilter() {
 
         if (screenType == SquadUserType.SQUAD_MEMBER) {
@@ -210,12 +212,12 @@ fun CashRequestHistoryScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-                if (screenType != SquadUserType.SQUAD_MEMBER) {
+//                if (screenType != SquadUserType.SQUAD_MEMBER) {
 
                     DropdownMenuPicker(
-                        label = "",
                         selected = selectedUser,
                         items = userList,
+                        icon = Icons.Default.Tune,
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
                             .fillMaxWidth()
@@ -235,7 +237,7 @@ fun CashRequestHistoryScreen(
                             reloadCashRequests()
                         }
 
-                }
+//                }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -307,14 +309,45 @@ fun CashRequestHistoryScreen(
 
                                 onAccept = {
 
-                                    squadViewModel.updateCashRequestStatus(
+                                    val member = Member(
+                                        id = cashRequest.requestedByID,
+                                        name = cashRequest.requestedByName,
+                                        profileImage = "",
+                                        phoneNumber = cashRequest.requestedByPhone,
+                                        password = "",
                                         squadID = squadViewModel.squad.value?.squadID ?: "",
-                                        cashRequestId = cashRequest.id ?: "",
-                                        memberId = cashRequest.requestedByID,
-                                        status = CashRequestStatus.ACCEPTED
-                                    ) { _, _ ->
+                                        role = SquadUserType.SQUAD_MEMBER,
+                                        memberCreatedDate = Timestamp.now(),
+                                        upiBeneId = "",
+                                        bankBeneId = "",
+                                        upiID = cashRequest.requestedByUPI,
+                                        fcmToken = "",
+                                        currentLoanApproveStatus = EMIStatus.INVERIFICATION,
+                                        cashRequested = true
+                                    )
 
-                                        reloadCashRequests()
+                                    cashRequest.requestedEMIConfig?.let { emi ->
+
+                                        cashRequest.id?.let { cashRequestId ->
+
+                                            squadViewModel.makeLoanPayment(
+                                                activity = activity,
+                                                appContext,
+                                                selectedMember = member,
+                                                selectedLoan = emi,
+                                                cashRequestId = cashRequestId
+                                            ) { success, error ->
+
+                                                if (success) {
+
+                                                    println("✅ Payment added successfully!")
+
+                                                } else {
+
+                                                    println("❌ Error adding payment: ${error ?: "Unknown error"}")
+                                                }
+                                            }
+                                        }
                                     }
                                 },
 
@@ -711,6 +744,10 @@ fun RequestCashEMIListView(
 
     var appeared by remember { mutableStateOf(false) }
 
+    var expandedIndex by rememberSaveable {
+        mutableStateOf<Int?>(null)
+    }
+
     LaunchedEffect(Unit) {
         appeared = true
     }
@@ -718,7 +755,7 @@ fun RequestCashEMIListView(
     Column(
         modifier = Modifier
             .width(330.dp)
-            .heightIn(max = 400.dp)
+            .heightIn(max = 700.dp)
             .shadow(
                 elevation = 24.dp,
                 shape = RoundedCornerShape(24.dp),
@@ -812,24 +849,6 @@ fun RequestCashEMIListView(
                     )
                 }
             }
-
-            IconButton(
-                onClick = { onDismiss() },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .size(30.dp)
-                    .background(
-                        color = AppColors.background,
-                        shape = RoundedCornerShape(50)
-                    )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = AppColors.secondaryText,
-                    modifier = Modifier.size(13.dp)
-                )
-            }
         }
 
         HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.12f))
@@ -874,6 +893,13 @@ fun RequestCashEMIListView(
                     ) {
                         EMIRequestRow(
                             emi = emi,
+                            index = index,
+                            expanded = expandedIndex == index,
+                            onExpand = {
+                                expandedIndex =
+                                    if (expandedIndex == index) null
+                                    else index
+                            },
                             onRequestCash = {
                                 onRequestCash(emi)
                                 onDismiss()
@@ -907,52 +933,111 @@ fun RequestCashEMIListView(
 
 @Composable
 private fun EMIRequestRow(
+
     emi: EMIConfiguration,
+
+    index: Int,
+
+    expanded: Boolean,
+
+    onExpand: () -> Unit,
+
     onRequestCash: () -> Unit
+
 ) {
+
+    val memberLoan = remember(emi) {
+        CommonFunctions.generateMemberLoan(
+            emiConfig = emi,
+            memberID = "",
+            memberName = ""
+        )
+    }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(
                 color = AppColors.background,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(18.dp)
             )
             .border(
                 width = 1.dp,
                 color = AppColors.border.copy(alpha = 0.25f),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(18.dp)
             )
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // MARK: Header row — loan amount + request button
 
-            Column(modifier = Modifier.weight(1f)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+
                 Text(
-                    text = "Loan Amount",
-                    style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Medium),
+                    "Loan Amount",
+                    style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                     color = AppColors.secondaryText
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+
+                Spacer(Modifier.height(4.dp))
+
                 Text(
-                    text = emi.loanAmount.currencyFormattedWithCommas(),
-                    style = AppFont.ibmPlexSans(size = 18, weight = FontWeight.Bold),
+                    emi.loanAmount.currencyFormattedWithCommas(),
+                    style = AppFont.ibmPlexSans(20, FontWeight.Bold),
                     color = AppColors.headerText
                 )
+
+                Spacer(Modifier.height(4.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+
+                    Text(
+                        "${emi.emiMonths} Months",
+                        style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                        color = AppColors.primaryBrand
+                    )
+
+                    Spacer(Modifier.width(6.dp))
+
+                    Box(
+                        Modifier
+                            .size(3.dp)
+                            .background(
+                                AppColors.border,
+                                CircleShape
+                            )
+                    )
+
+                    Spacer(Modifier.width(6.dp))
+
+                    Text(
+                        "${"%.2f".format(emi.emiInterestRate)}% ${emi.interestType}",
+                        style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                        color = AppColors.secondaryText
+                    )
+                }
             }
 
             Button(
                 onClick = onRequestCash,
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.primaryBrand),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 3.dp)
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppColors.primaryBrand
+                )
             ) {
+
                 Text(
-                    text = "Request",
-                    style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.SemiBold),
+                    "Request",
+                    style = AppFont.ibmPlexSans(12, FontWeight.SemiBold),
                     color = Color.White
                 )
             }
@@ -960,15 +1045,12 @@ private fun EMIRequestRow(
 
         HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.12f))
 
+        // MARK: Monthly EMI / Interest / Total — mirrors iOS infoView row
+
         Row(modifier = Modifier.fillMaxWidth()) {
             InfoView(
                 modifier = Modifier.weight(1f),
-                title = "Months",
-                value = "${emi.emiMonths}"
-            )
-            InfoView(
-                modifier = Modifier.weight(1f),
-                title = "EMI",
+                title = "Monthly EMI",
                 value = emi.emiAmount.currencyFormattedWithCommas()
             )
             InfoView(
@@ -976,6 +1058,117 @@ private fun EMIRequestRow(
                 title = "Interest",
                 value = emi.interestAmount.currencyFormattedWithCommas()
             )
+            InfoView(
+                modifier = Modifier.weight(1f),
+                title = "Total",
+                value = (emi.loanAmount + emi.interestAmount).currencyFormattedWithCommas()
+            )
+        }
+
+        HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.12f))
+
+        // MARK: Installment Schedule toggle — mirrors iOS expandable button
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onExpand() },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Icon(
+                imageVector = Icons.Default.CalendarMonth,
+                contentDescription = null,
+                tint = AppColors.primaryBrand,
+                modifier = Modifier.size(14.dp)
+            )
+
+            Spacer(Modifier.width(6.dp))
+
+            Text(
+                "Installment Schedule",
+                style = AppFont.ibmPlexSans(12, FontWeight.SemiBold),
+                color = AppColors.primaryBrand
+            )
+
+            Spacer(Modifier.weight(1f))
+
+            Icon(
+                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = AppColors.primaryBrand
+            )
+        }
+
+        // MARK: Expanded installment list
+
+        AnimatedVisibility(visible = expanded) {
+
+            Column {
+
+                HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.12f))
+
+                Spacer(Modifier.height(8.dp))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = AppColors.surface,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+
+                    memberLoan.installments.forEachIndexed { i, installment ->
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            Column(modifier = Modifier.weight(1f)) {
+
+                                Text(
+                                    installment.installmentNumber,
+                                    style = AppFont.ibmPlexSans(12, FontWeight.SemiBold),
+                                    color = AppColors.headerText
+                                )
+
+                                installment.dueDate?.toDate()?.let { date ->
+                                    Text(
+                                        CommonFunctions.dateToString(date),
+                                        style = AppFont.ibmPlexSans(10, FontWeight.Normal),
+                                        color = AppColors.secondaryText
+                                    )
+                                }
+                            }
+
+                            Column(horizontalAlignment = Alignment.End) {
+
+                                Text(
+                                    installment.installmentAmount.currencyFormattedWithCommas(),
+                                    style = AppFont.ibmPlexSans(12, FontWeight.Bold),
+                                    color = AppColors.headerText
+                                )
+
+                                Text(
+                                    "Interest ${installment.interestAmount.currencyFormattedWithCommas()}",
+                                    style = AppFont.ibmPlexSans(10, FontWeight.Normal),
+                                    color = AppColors.secondaryText
+                                )
+                            }
+                        }
+
+                        if (i != memberLoan.installments.lastIndex) {
+                            HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.12f))
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -1068,7 +1261,7 @@ fun CashRequestButton(
                         else
                             "No Pending"
                     } else {
-                        "Your Cash Requests"
+                        "Squad Cash Requests"
                     },
                 style = AppFont.ibmPlexSans(
                     11,

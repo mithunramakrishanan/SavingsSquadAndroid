@@ -26,7 +26,7 @@ import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.UPIPaymentManager
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.AppNavHost
-import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.viewmodel.SSToast
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.google.gson.Gson
@@ -146,14 +146,19 @@ fun SavingsSquadRoot() {
 
     LaunchedEffect(Unit) {
 
-        squadViewModel.fetchUserLogins(
-            showLoader = false,
-            phoneNumber = squadViewModel.loginMember?.phoneNumber.orEmpty()
-        ) { success, loginList,error ->
-            if (loginList != null) {
-                Log.d("FCMUPATED", if (success) "✅ Logins fetched: ${loginList.size}" else "❌ $error")
+        if (UserDefaultsManager.getIsLoggedIn()) {
+
+            squadViewModel.fetchUserLogins(
+                showLoader = false,
+                phoneNumber = squadViewModel.loginMember?.phoneNumber.orEmpty()
+            ) { success, loginList,error ->
+                if (loginList != null) {
+                    Log.d("FCMUPATED", if (success) "✅ Logins fetched: ${loginList.size}" else "❌ $error")
+                }
             }
         }
+
+
     }
 
     Box(

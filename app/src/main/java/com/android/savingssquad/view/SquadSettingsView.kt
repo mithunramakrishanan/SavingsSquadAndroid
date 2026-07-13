@@ -53,7 +53,7 @@ import androidx.navigation.NavController
 import androidx.room.util.copy
 import com.android.savingssquad.model.Login
 import com.android.savingssquad.viewmodel.SquadViewModel
-import com.android.savingssquad.viewmodel.LoaderManager
+import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.singleton.AppShadows
