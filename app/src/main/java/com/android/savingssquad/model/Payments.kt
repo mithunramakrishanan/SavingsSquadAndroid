@@ -9,6 +9,7 @@ import com.android.savingssquad.singleton.RecordStatus
 import com.google.firebase.Timestamp
 import java.util.Date
 import androidx.annotation.Keep
+import com.android.savingssquad.model.forceCloseSummary
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PayoutStatus
 import com.google.firebase.firestore.PropertyName
@@ -203,8 +204,13 @@ data class PaymentsDetails(
     var selectedEMIConfig: EMIConfiguration? = null,
 
     @get:PropertyName("cashRequestId") @set:PropertyName("cashRequestId")
-    var cashRequestId: String? = null
+    var cashRequestId: String? = null,
 
+    @get:PropertyName("isLoanForceClosed") @set:PropertyName("isLoanForceClosed")
+    var isLoanForceClosed: Boolean? = null,
+
+    @get:PropertyName("forceCloseSummary") @set:PropertyName("forceCloseSummary")
+    var forceCloseSummary: ForceCloseSummary? = null
 
 )
 {
@@ -242,7 +248,9 @@ data class PaymentsDetails(
         recordStatus = RecordStatus.ACTIVE,
         recordDate = Timestamp(Date()),
         selectedEMIConfig = null,
-        cashRequestId = ""
+        cashRequestId = "",
+        isLoanForceClosed = null,
+        forceCloseSummary = null
     )
 
     fun toMap(): Map<String, Any?> = mapOf(
@@ -279,7 +287,9 @@ data class PaymentsDetails(
         "recordStatus" to recordStatus.name,
         "recordDate" to recordDate,
         "selectedEMIConfig" to selectedEMIConfig,
-        "cashRequestId" to cashRequestId
+        "cashRequestId" to cashRequestId,
+        "isLoanForceClosed" to isLoanForceClosed,
+        "forceCloseSummary" to forceCloseSummary
     )
 }
 

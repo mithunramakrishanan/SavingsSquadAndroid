@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -39,6 +41,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -284,11 +287,9 @@ private fun handleAddEditEMI(
 
         if (success) {
             val desc = if (selectedEMI == null) {
-                "Created EMI Config - Loan Amount ${newEmi.loanAmount} with interest of ${newEmi.emiInterestRate}"
+                "EMI configuration created (Loan ₹${newEmi.loanAmount}, Interest ${newEmi.emiInterestRate}% - ${newEmi.interestType.name})"
             } else {
-                "Edited EMI Config - From Loan Amount ${oldEMIConfig?.loanAmount ?: 0} " +
-                        "with interest of ${oldEMIConfig?.emiInterestRate ?: 0} " +
-                        "to Loan Amount ${newEmi.loanAmount} with interest of ${newEmi.emiInterestRate}"
+                "EMI configuration updated: Loan ₹${oldEMIConfig?.loanAmount ?: 0} → ₹${newEmi.loanAmount}, Interest ${oldEMIConfig?.emiInterestRate ?: 0}% (${oldEMIConfig?.interestType?.name ?: "-"}) → ${newEmi.emiInterestRate}% (${newEmi.interestType.name})"
             }
 
             // Create Activity Log
@@ -582,72 +583,253 @@ fun EMIListRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Row(
+
+    var isExpanded by remember { mutableStateOf(false) }
+
+    val memberLoan = remember(emi) {
+        CommonFunctions.generateMemberLoan(
+            emiConfig = emi,
+            memberID = "",
+            memberName = ""
+        )
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)   // ← Leading + Trailing padding added
+            .padding(horizontal = 16.dp, vertical = 6.dp)
             .appShadow(AppShadows.card)
             .background(
                 color = AppColors.surface,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(18.dp)
             )
-            .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .border(
+                width = 1.dp,
+                color = AppColors.border.copy(alpha = 0.25f),
+                shape = RoundedCornerShape(18.dp)
+            )
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        // MARK: Header row — loan amount + edit/delete (manager view, no request button)
 
-            Text(
-                "Loan Amount: ${emi.loanAmount.currencyFormattedWithCommas()}",
-                style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
-                color = AppColors.headerText
+        Row(verticalAlignment = Alignment.CenterVertically) {
+
+            Column(modifier = Modifier.weight(1f)) {
+
+                Text(
+                    "Loan Amount",
+                    style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                    color = AppColors.secondaryText
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                Text(
+                    emi.loanAmount.currencyFormattedWithCommas(),
+                    style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                    color = AppColors.headerText
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Text(
+                        "${emi.emiMonths} Months",
+                        style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                        color = AppColors.primaryBrand
+                    )
+
+                    Spacer(Modifier.width(6.dp))
+
+                    Box(
+                        Modifier
+                            .size(3.dp)
+                            .background(AppColors.border, CircleShape)
+                    )
+
+                    Spacer(Modifier.width(6.dp))
+
+                    Text(
+                        "${"%.2f".format(emi.emiInterestRate)}% ${emi.interestType}",
+                        style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                        color = AppColors.secondaryText
+                    )
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(30.dp)) {
+
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier
+                        .size(30.dp)
+                        .background(AppColors.primaryButton.copy(alpha = 0.12f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit EMI",
+                        tint = AppColors.primaryButton,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier
+                        .size(30.dp)
+                        .background(AppColors.errorAccent.copy(alpha = 0.12f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete EMI",
+                        tint = AppColors.errorAccent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+
+        HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.12f))
+
+        // MARK: Monthly EMI / Interest / Total
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+            InfoView(
+                modifier = Modifier.weight(1f),
+                title = "Monthly EMI",
+                value = emi.emiAmount.currencyFormattedWithCommas()
             )
-
-            Text(
-                "Tenure: ${emi.emiMonths} months @ ${emi.emiInterestRate}% interest",
-                style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                color = AppColors.secondaryText
+            InfoView(
+                modifier = Modifier.weight(1f),
+                title = "Interest",
+                value = emi.interestAmount.currencyFormattedWithCommas()
             )
-
-            Text(
-                "EMI: ${emi.emiAmount.currencyFormattedWithCommas()} / month",
-                style = AppFont.ibmPlexSans(13, FontWeight.Medium),
-                color = AppColors.infoAccent
-            )
-
-            Text(
-                "Total Interest: ${emi.interestAmount.currencyFormattedWithCommas()}",
-                style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
-                color = AppColors.successAccent
+            InfoView(
+                modifier = Modifier.weight(1f),
+                title = "Total",
+                value = (emi.loanAmount + emi.interestAmount).currencyFormattedWithCommas()
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.12f))
 
-            IconButton(onClick = onEdit) {
-                Icon(
-                    Icons.Default.Edit,
-                    contentDescription = "Edit EMI",
-                    tint = AppColors.primaryButton,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .background(AppColors.primaryButton.copy(alpha = 0.15f), CircleShape)
-                        .padding(8.dp)
-                )
-            }
+        // MARK: Installment Details toggle (manager view — no dates)
 
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Delete EMI",
-                    tint = AppColors.errorAccent,
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isExpanded = !isExpanded },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ListAlt,
+                contentDescription = null,
+                tint = AppColors.primaryBrand,
+                modifier = Modifier.size(14.dp)
+            )
+
+            Spacer(Modifier.width(6.dp))
+
+            Text(
+                "Installment Details",
+                style = AppFont.ibmPlexSans(12, FontWeight.SemiBold),
+                color = AppColors.primaryBrand
+            )
+
+            Spacer(Modifier.weight(1f))
+
+            Icon(
+                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = AppColors.primaryBrand
+            )
+        }
+
+        // MARK: Expanded installment list — details only, no due dates
+
+        AnimatedVisibility(visible = isExpanded) {
+
+            Column {
+
+                HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.12f))
+
+                Spacer(Modifier.height(8.dp))
+
+                Column(
                     modifier = Modifier
-                        .size(32.dp)
-                        .background(AppColors.errorAccent.copy(alpha = 0.15f), CircleShape)
-                        .padding(8.dp)
-                )
+                        .fillMaxWidth()
+                        .background(
+                            color = AppColors.background,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+
+                    memberLoan.installments.forEachIndexed { i, installment ->
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            Text(
+                                installment.installmentNumber,
+                                style = AppFont.ibmPlexSans(12, FontWeight.SemiBold),
+                                color = AppColors.headerText,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            Column(horizontalAlignment = Alignment.End) {
+
+                                Text(
+                                    installment.installmentAmount.currencyFormattedWithCommas(),
+                                    style = AppFont.ibmPlexSans(12, FontWeight.Bold),
+                                    color = AppColors.headerText
+                                )
+
+                                Text(
+                                    "Interest ${installment.interestAmount.currencyFormattedWithCommas()}",
+                                    style = AppFont.ibmPlexSans(10, FontWeight.Normal),
+                                    color = AppColors.secondaryText
+                                )
+                            }
+                        }
+
+                        if (i != memberLoan.installments.lastIndex) {
+                            HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.12f))
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun InfoView(
+    modifier: Modifier = Modifier,
+    title: String,
+    value: String
+) {
+    Column(modifier = modifier) {
+        Text(
+            title,
+            style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+            color = AppColors.secondaryText
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            value,
+            style = AppFont.ibmPlexSans(13, FontWeight.Bold),
+            color = AppColors.headerText
+        )
     }
 }
 

@@ -2,6 +2,8 @@ package com.android.savingssquad.view
 
 import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -76,6 +78,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Schedule
@@ -84,9 +87,13 @@ import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.savingssquad.model.ForceCloseSummary
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.viewmodel.SSToast
@@ -374,30 +381,43 @@ fun PaymentApprovalRow(
     onApprove: () -> Unit,
     onReject: () -> Unit
 ) {
-
     val hasDescription = approval.description.isNotEmpty()
+    val isForceClosed = approval.isLoanForceClosed == true
+    var showForceCloseDetails by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .appShadow(AppShadows.card)
-            .background(
-                AppColors.surface,
-                RoundedCornerShape(18.dp)
-            )
-            .border(
-                0.5.dp,
-                AppColors.border.copy(alpha = 0.4f),
-                RoundedCornerShape(18.dp)
-            )
+            .shadow(6.dp, RoundedCornerShape(20.dp), ambientColor = Color.Black.copy(alpha = 0.06f))
+            .background(AppColors.surface, RoundedCornerShape(20.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
             .padding(18.dp)
     ) {
 
         // ================= HEADER =================
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(verticalAlignment = Alignment.Top) {
+
+            // Avatar with initials
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(AppColors.primaryBrand, AppColors.primaryBrand.copy(alpha = 0.7f))
+                        ),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = initials(approval.memberName),
+                    style = AppFont.ibmPlexSans(15, FontWeight.Bold),
+                    color = Color.White
+                )
+            }
+
+            Spacer(Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
 
@@ -409,25 +429,47 @@ fun PaymentApprovalRow(
 
                 Spacer(Modifier.height(4.dp))
 
-                Text(
-                    text = getPaymentLabel(approval.paymentSubType),
-                    style = AppFont.ibmPlexSans(13, FontWeight.Medium),
-                    color = AppColors.secondaryText
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Text(
+                        text = getPaymentLabel(approval.paymentSubType),
+                        style = AppFont.ibmPlexSans(12, FontWeight.Medium),
+                        color = AppColors.secondaryText
+                    )
+
+                    if (isForceClosed) {
+                        Spacer(Modifier.width(6.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .background(Color(0xFFFF9800).copy(alpha = 0.14f), RoundedCornerShape(50))
+                                .padding(horizontal = 7.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Bolt,
+                                contentDescription = null,
+                                tint = Color(0xFFFF9800),
+                                modifier = Modifier.size(9.dp)
+                            )
+                            Spacer(Modifier.width(3.dp))
+                            Text(
+                                text = "Force Closed",
+                                style = AppFont.ibmPlexSans(10, FontWeight.Bold),
+                                color = Color(0xFFFF9800)
+                            )
+                        }
+                    }
+                }
             }
 
-            // ================= PREMIUM AMOUNT CHIP =================
             Box(
                 modifier = Modifier
-                    .background(
-                        AppColors.primaryBrand.copy(alpha = 0.12f),
-                        RoundedCornerShape(20.dp)
-                    )
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .background(AppColors.primaryBrand.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
             ) {
                 Text(
                     text = "₹${approval.amount}",
-                    style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+                    style = AppFont.ibmPlexSans(16, FontWeight.Bold),
                     color = AppColors.primaryBrand
                 )
             }
@@ -435,22 +477,36 @@ fun PaymentApprovalRow(
 
         // ================= DESCRIPTION =================
         if (hasDescription) {
+            Spacer(Modifier.height(14.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AppColors.secondaryText.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = "DESCRIPTION",
+                    style = AppFont.ibmPlexSans(10, FontWeight.Bold),
+                    color = AppColors.secondaryText.copy(alpha = 0.7f),
+                    letterSpacing = 0.5.sp
+                )
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    text = approval.description,
+                    style = AppFont.ibmPlexSans(14),
+                    color = AppColors.headerText,
+                    lineHeight = 20.sp
+                )
+            }
+        }
 
-            Spacer(Modifier.height(12.dp))
-
-            Text(
-                text = "Description",
-                style = AppFont.ibmPlexSans(12, FontWeight.Medium),
-                color = AppColors.secondaryText
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            Text(
-                text = approval.description,
-                style = AppFont.ibmPlexSans(14),
-                color = AppColors.headerText,
-                lineHeight = 20.sp
+        // ================= FORCE CLOSE EXPANDABLE SUMMARY =================
+        if (isForceClosed && approval.forceCloseSummary != null) {
+            Spacer(Modifier.height(14.dp))
+            ForceCloseDropdown(
+                summary = approval.forceCloseSummary!!,
+                expanded = showForceCloseDetails,
+                onToggle = { showForceCloseDetails = !showForceCloseDetails }
             )
         }
 
@@ -458,18 +514,15 @@ fun PaymentApprovalRow(
 
         // ================= STATUS CHIP =================
         Row(verticalAlignment = Alignment.CenterVertically) {
-
             Box(
                 modifier = Modifier
-                    .size(8.dp)
-                    .background(Color(0xFFFFB300), CircleShape)
+                    .size(7.dp)
+                    .background(Color(0xFFFF9800), CircleShape)
             )
-
-            Spacer(Modifier.width(8.dp))
-
+            Spacer(Modifier.width(7.dp))
             Text(
                 text = "Pending Verification",
-                style = AppFont.ibmPlexSans(12, FontWeight.Medium),
+                style = AppFont.ibmPlexSans(12, FontWeight.SemiBold),
                 color = Color(0xFFFF9800)
             )
         }
@@ -477,54 +530,144 @@ fun PaymentApprovalRow(
         Spacer(Modifier.height(16.dp))
 
         // ================= ACTION BUTTONS =================
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+
+            Button(
+                onClick = onReject,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = AppColors.errorAccent.copy(alpha = 0.1f)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                elevation = ButtonDefaults.buttonElevation(0.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Cancel,
+                    contentDescription = null,
+                    tint = AppColors.errorAccent,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = "Not Received",
+                    style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
+                    color = AppColors.errorAccent
+                )
+            }
 
             Button(
                 onClick = onApprove,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = AppColors.successAccent
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
-
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
                 )
-
-                Spacer(Modifier.width(8.dp))
-
+                Spacer(Modifier.width(6.dp))
                 Text(
-                    text = "Amount Received",
-                    style = AppFont.ibmPlexSans(15, FontWeight.SemiBold)
-                )
-            }
-
-            Button(
-                onClick = onReject,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = AppColors.errorAccent
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-
-                Icon(
-                    imageVector = Icons.Default.Cancel,
-                    contentDescription = null
-                )
-
-                Spacer(Modifier.width(8.dp))
-
-                Text(
-                    text = "Amount Not Received",
-                    style = AppFont.ibmPlexSans(15, FontWeight.SemiBold)
+                    text = "Received",
+                    style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
+                    color = Color.White
                 )
             }
         }
     }
 }
+
+@Composable
+private fun ForceCloseDropdown(
+    summary: ForceCloseSummary,
+    expanded: Boolean,
+    onToggle: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFFF9800).copy(alpha = 0.06f), RoundedCornerShape(14.dp))
+            .border(1.dp, Color(0xFFFF9800).copy(alpha = 0.2f), RoundedCornerShape(14.dp))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggle)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Bolt,
+                contentDescription = null,
+                tint = Color(0xFFFF9800),
+                modifier = Modifier.size(14.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = "Force Close Summary",
+                style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
+                color = AppColors.headerText,
+                modifier = Modifier.weight(1f)
+            )
+            val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "chevronRotate")
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = AppColors.secondaryText.copy(alpha = 0.6f),
+                modifier = Modifier
+                    .size(18.dp)
+                    .graphicsLayer { rotationZ = rotation }
+            )
+        }
+
+        AnimatedVisibility(visible = expanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SummaryRow("Outstanding Principal", "₹${summary.outstandingPrincipal}")
+                SummaryRow("Days Elapsed", "${summary.daysElapsed}")
+                SummaryRow("Recalculated Interest", "₹${summary.recalculatedInterest}")
+                HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.15f))
+                SummaryRow("Total Payable", "₹${summary.totalPayable}", bold = true)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryRow(label: String, value: String, bold: Boolean = false) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = AppFont.ibmPlexSans(12, if (bold) FontWeight.Bold else FontWeight.Normal),
+            color = if (bold) AppColors.headerText else AppColors.secondaryText
+        )
+        Text(
+            text = value,
+            style = AppFont.ibmPlexSans(12, if (bold) FontWeight.Bold else FontWeight.SemiBold),
+            color = AppColors.headerText
+        )
+    }
+}
+
+private fun initials(name: String): String {
+    return name.split(" ")
+        .mapNotNull { it.firstOrNull() }
+        .take(2)
+        .joinToString("")
+        .uppercase()
+}
+
 
 fun getPaymentLabel(type: PaymentSubType): String {
     return when (type) {

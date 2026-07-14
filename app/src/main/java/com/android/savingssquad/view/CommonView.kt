@@ -26,6 +26,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -68,6 +69,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.Login
 import com.android.savingssquad.singleton.SquadUserType
@@ -83,6 +85,8 @@ import com.google.firebase.auth.PhoneAuthProvider
 import java.util.Date
 import java.util.concurrent.TimeUnit
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -90,12 +94,17 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.android.savingssquad.R
 import com.android.savingssquad.SquadSubscription.SubscriptionManager
+import com.android.savingssquad.model.ForceCloseSummary
+import com.android.savingssquad.model.InterestType
 import com.android.savingssquad.model.Member
+import com.android.savingssquad.model.MemberLoan
+import com.android.savingssquad.model.forceCloseSummary
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.RecordStatus
@@ -107,6 +116,7 @@ import com.google.firebase.auth.PhoneAuthOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 
 // ---------- SSNavigationBar ----------
@@ -1261,65 +1271,139 @@ fun ModernSegmentedPickerView(
     selectedSegment: String,
     onSegmentSelected: (String) -> Unit
 ) {
-    val transition = updateTransition(selectedSegment, label = "segment")
 
-    Row(
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .appShadow(AppShadows.card)
-            .background(
-                AppColors.secondaryText.copy(alpha = 0.08f),
-                RoundedCornerShape(14.dp)
-            )
-            .border(
-                0.8.dp,
-                AppColors.border.copy(alpha = 0.4f),
-                RoundedCornerShape(14.dp)
-            )
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
     ) {
 
-        segments.forEach { segment ->
+        val segmentWidth = maxWidth / segments.size
 
-            val isSelected = segment == selectedSegment
+        val selectedIndex = segments.indexOf(selectedSegment).coerceAtLeast(0)
 
+        val indicatorOffset by animateDpAsState(
+            targetValue = segmentWidth * selectedIndex,
+            animationSpec = spring(
+                dampingRatio = 0.72f,
+                stiffness = Spring.StiffnessMedium
+            ),
+            label = "indicator"
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(46.dp)
+                .background(
+                    AppColors.secondaryText.copy(alpha = 0.08f),
+                    RoundedCornerShape(14.dp)
+                )
+                .border(
+                    0.8.dp,
+                    AppColors.border.copy(alpha = 0.4f),
+                    RoundedCornerShape(14.dp)
+                )
+                .padding(4.dp)
+        ) {
+
+            // Sliding Indicator
             Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .height(38.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { onSegmentSelected(segment) },
-                contentAlignment = Alignment.Center
+                    .offset(x = indicatorOffset)
+                    .width(segmentWidth - 8.dp)
+                    .fillMaxHeight()
+                    .shadow(
+                        elevation = 8.dp,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                AppColors.primaryButton,
+                                AppColors.successAccent.copy(alpha = 0.85f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+            )
+
+            Row(
+                modifier = Modifier.fillMaxSize()
             ) {
 
-                // ================= SLIDING PILL =================
-                if (isSelected) {
+                segments.forEach { segment ->
+
+                    val selected = segment == selectedSegment
+
+                    var pressed by remember {
+                        mutableStateOf(false)
+                    }
+
+                    val scale by animateFloatAsState(
+                        if (pressed) 0.96f else 1f,
+                        animationSpec = spring(),
+                        label = "scale"
+                    )
+
+                    val textColor by animateColorAsState(
+                        if (selected)
+                            AppColors.primaryButtonText
+                        else
+                            AppColors.secondaryText,
+                        label = "text"
+                    )
+
                     Box(
                         modifier = Modifier
-                            .matchParentSize()
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        AppColors.primaryButton,
-                                        AppColors.successAccent.copy(alpha = 0.85f)
-                                    )
-                                ),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                    )
-                }
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            }
+                            .pointerInput(Unit) {
 
-                // ================= LABEL =================
-                Text(
-                    text = segment,
-                    style = AppFont.ibmPlexSans(13, FontWeight.Medium),
-                    color = if (isSelected)
-                        AppColors.primaryButtonText
-                    else
-                        AppColors.secondaryText
-                )
+                                detectTapGestures(
+
+                                    onPress = {
+
+                                        pressed = true
+
+                                        tryAwaitRelease()
+
+                                        pressed = false
+                                    },
+
+                                    onTap = {
+
+                                        haptic.performHapticFeedback(
+                                            HapticFeedbackType.TextHandleMove
+                                        )
+
+                                        onSegmentSelected(segment)
+                                    }
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+
+                        Text(
+                            text = segment,
+                            style = AppFont.ibmPlexSans(
+                                13,
+                                if (selected)
+                                    FontWeight.SemiBold
+                                else
+                                    FontWeight.Medium
+                            ),
+                            color = textColor
+                        )
+                    }
+                }
             }
         }
     }
@@ -2040,51 +2124,62 @@ fun StatCardHome(
 @Composable
 fun InstallmentPopupView(
     title: String = "Select Installment",
+    loan: MemberLoan,
     installments: List<Installment>,
+    interestType: InterestType,
+    interestRate: Double,
     onSelect: (Installment) -> Unit,
+    onForceClose: (ForceCloseSummary) -> Unit,
     onCancel: () -> Unit
 ) {
+    var showForceCloseConfirm by remember { mutableStateOf(false) }
     val today = remember { Date() }
 
-    Box(
-        modifier = Modifier
-            .padding(16.dp)
-            .widthIn(max = 360.dp)
-            .heightIn(max = 470.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .appShadow(AppShadows.elevated)
-            .background(AppColors.surface)
-            .border(
-                width = 1.dp,
-                brush = Brush.verticalGradient(
-                    listOf(Color.White.copy(alpha = 0.25f), Color.Transparent)
-                ),
-                shape = RoundedCornerShape(24.dp)
-            )
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+//    val testDate = Calendar.getInstance().apply {
+//        time = Date()
+//        add(Calendar.DAY_OF_YEAR, 30) // 🔹 push forward 30 days
+//    }.time
 
-            // 🔹 Header
-            Box(modifier = Modifier.fillMaxWidth()) {
+    val forceCloseSummary = remember(loan, interestType, interestRate) {
+        loan.forceCloseSummary(interestType, interestRate, today)
+    }
+
+    Box(contentAlignment = Alignment.Center) {
+
+        Column(
+            modifier = Modifier
+                .widthIn(max = 360.dp)
+                .heightIn(max = 500.dp)
+                .graphicsLayer {
+                    alpha = if (showForceCloseConfirm) 0.15f else 1f
+                }
+                .clip(RoundedCornerShape(24.dp))
+                .background(AppColors.surface)
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.25f), Color.Transparent)
+                    ),
+                    shape = RoundedCornerShape(24.dp)
+                )
+        ) {
+            // MARK: - Header
+            Box(modifier = Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 14.dp)) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 22.dp, bottom = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
                         text = title,
-                        style = AppFont.ibmPlexSans(20, FontWeight.Bold),
-                        color = AppColors.headerText,
-                        textAlign = TextAlign.Center
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppColors.headerText
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "${installments.size} payment${if (installments.size == 1) "" else "s"} total",
-                        style = AppFont.ibmPlexSans(12, FontWeight.Medium),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
                         color = AppColors.secondaryText
                     )
                 }
@@ -2095,8 +2190,7 @@ fun InstallmentPopupView(
                         .align(Alignment.TopEnd)
                         .padding(14.dp)
                         .size(28.dp)
-                        .clip(CircleShape)
-                        .background(AppColors.surface.copy(alpha = 0.6f))
+                        .background(AppColors.surface.copy(alpha = 0.6f), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
@@ -2107,62 +2201,235 @@ fun InstallmentPopupView(
                 }
             }
 
+            // MARK: - Force Close Banner
+            ForceCloseBanner(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 12.dp),
+                onClick = { showForceCloseConfirm = true }
+            )
+
             HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.15f))
 
-            // 🔹 Installments List
+            // MARK: - Installment List
             LazyColumn(
                 modifier = Modifier
-                    .heightIn(max = 320.dp)
+                    .heightIn(max = 280.dp)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                itemsIndexed(installments, key = { _, item -> item.installmentNumber }) { index, installment ->
+                itemsIndexed(installments, key = { _, item -> item.id ?: item.installmentNumber }) { index, installment ->
                     val status = computedStatus(installment, today)
+                    val isEnabled = isEnabled(installments, index, status)
 
-                    val isEnabled = if (status == EMIStatus.PENDING) {
-                        if (index == 0) true
-                        else installments[index - 1].status == EMIStatus.PAID
-                    } else false
-
-                    InstallmentRow(
+                    InstallmentDetailsRow(
                         installment = installment,
                         status = status,
                         isEnabled = isEnabled,
                         index = index,
-                        appearDelayMillis = index * 40L,
-                        onClick = {
-                            // 🔹 FIXED — mirrors iOS's withAnimation { onSelect(...); isShowing = false }
-                            if (isEnabled) {
-                                onSelect(installment)
-                                onCancel()
-                            }
+                        appearDelayMillis = index * 40L
+                    ) {
+                        if (isEnabled) {
+                            onSelect(installment)
                         }
-                    )
+                    }
                 }
             }
 
             HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.15f))
 
-            // 🔹 Footer — FIXED: plain text button, matches iOS (was SSCancelButton)
+            // MARK: - Footer
             TextButton(
                 onClick = onCancel,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RectangleShape,
-                contentPadding = PaddingValues(vertical = 14.dp)
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             ) {
                 Text(
                     text = "Close",
-                    style = AppFont.ibmPlexSans(15, FontWeight.SemiBold),
-                    color = AppColors.secondaryText
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AppColors.secondaryText,
+                    modifier = Modifier.padding(vertical = 10.dp)
                 )
+            }
+        }
+
+        // MARK: - Force Close Confirmation Card
+        AnimatedVisibility(
+            visible = showForceCloseConfirm,
+            enter = scaleIn() + fadeIn(),
+            exit = scaleOut() + fadeOut()
+        ) {
+            ForceCloseConfirmationCard(
+                summary = forceCloseSummary,
+                interestType = interestType,
+                onCancel = { showForceCloseConfirm = false },
+                onConfirm = {
+                    onForceClose(forceCloseSummary)
+                    onCancel() // closes the whole popup after confirming
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ForceCloseBanner(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                Brush.horizontalGradient(
+                    listOf(Color(0xFFFF9800).copy(alpha = 0.12f), Color(0xFFFF9800).copy(alpha = 0.05f))
+                )
+            )
+            .border(1.dp, Color(0xFFFF9800).copy(alpha = 0.25f), RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .background(Color(0xFFFF9800).copy(alpha = 0.15f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Bolt,
+                contentDescription = null,
+                tint = Color(0xFFFF9800),
+                modifier = Modifier.size(16.dp)
+            )
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Force Close Loan",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = AppColors.headerText
+            )
+            Text(
+                text = "Pay off early with updated interest",
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = AppColors.secondaryText
+            )
+        }
+
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = AppColors.secondaryText.copy(alpha = 0.6f),
+            modifier = Modifier.size(16.dp)
+        )
+    }
+}
+
+private fun isEnabled(installments: List<Installment>, index: Int, status: EMIStatus): Boolean {
+    if (status != EMIStatus.PENDING) return false
+    if (index == 0) return true
+    return installments[index - 1].status == EMIStatus.PAID
+}
+
+@Composable
+private fun ForceCloseConfirmationCard(
+    summary: ForceCloseSummary,
+    interestType: InterestType,
+    onCancel: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .widthIn(max = 320.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(AppColors.surface)
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text(
+            text = "Force Close Loan",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = AppColors.headerText
+        )
+
+        Text(
+            text = "Interest recalculated as of today (${interestType.displayName()} basis, ${summary.daysElapsed} day${if (summary.daysElapsed == 1) "" else "s"}).",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = AppColors.secondaryText,
+            textAlign = TextAlign.Center
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(AppColors.surface.copy(alpha = 0.6f))
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SummaryRow("Outstanding Principal", summary.outstandingPrincipal)
+            SummaryRow("Recalculated Interest", summary.recalculatedInterest)
+            HorizontalDivider()
+            SummaryRow("Total Payable", summary.totalPayable, bold = true)
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            TextButton(
+                onClick = onCancel,
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AppColors.surface.copy(alpha = 0.4f))
+            ) {
+                Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = AppColors.secondaryText)
+            }
+
+            Button(
+                onClick = onConfirm,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+            ) {
+                Text("Confirm", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
             }
         }
     }
 }
 
+@Composable
+private fun SummaryRow(label: String, value: Int, bold: Boolean = false) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            fontSize = 13.sp,
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+            color = if (bold) AppColors.headerText else AppColors.secondaryText
+        )
+        Text(
+            text = "₹$value",
+            fontSize = 13.sp,
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.SemiBold,
+            color = AppColors.headerText
+        )
+    }
+}
 
 @Composable
-private fun InstallmentRow(
+private fun InstallmentDetailsRow(
     installment: Installment,
     status: EMIStatus,
     isEnabled: Boolean,

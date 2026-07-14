@@ -696,13 +696,13 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - 🔹 Update Loan Status
-    fun updateLoanStatus(
+    fun updateLoanStatusPaid(
         squadID: String,
         memberID: String,
         loanID: String,
-        status: String,
         completion: (Boolean, String?) -> Unit
     ) {
+
         val loanRef = db.collection("squads")
             .document(squadID)
             .collection("members")
@@ -710,17 +710,41 @@ class FirestoreManager private constructor() {
             .collection("loans")
             .document(loanID)
 
-        val updateData = mapOf(
-            "duePaidDate" to FieldValue.serverTimestamp(),
-            "loanStatus" to status
+        loanRef.update(
+            mapOf(
+                "duePaidDate" to FieldValue.serverTimestamp(),
+                "loanStatus" to EMIStatus.PAID.name
+            )
         )
-
-        loanRef.update(updateData)
             .addOnSuccessListener {
-                completion(true, "Loan status updated successfully")
+
+                val memberRef = db.collection("squads")
+                    .document(squadID)
+                    .collection("members")
+                    .document(memberID)
+
+                memberRef.set(
+                    mapOf(
+                        "currentLoanApproveStatus" to EMIStatus.CREATED.name,
+                        "cashRequested" to false
+                    ),
+                    SetOptions.merge()
+                )
+                    .addOnSuccessListener {
+                        completion(true, "Loan closed successfully.")
+                    }
+                    .addOnFailureListener { e ->
+                        completion(
+                            false,
+                            "Loan updated but failed to update member: ${e.localizedMessage}"
+                        )
+                    }
             }
             .addOnFailureListener { e ->
-                completion(false, "Failed to update loan status: ${e.localizedMessage}")
+                completion(
+                    false,
+                    "Failed to update loan status: ${e.localizedMessage}"
+                )
             }
     }
 

@@ -58,6 +58,8 @@ import kotlinx.coroutines.launch
 import java.util.Date
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
+import com.android.savingssquad.model.InterestType
+import com.android.savingssquad.model.LoanPaidType
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.model.PaymentsDetails
@@ -86,6 +88,7 @@ import com.android.savingssquad.viewmodel.SSToast
 import com.android.savingssquad.viewmodel.ToastManager
 import com.android.savingssquad.viewmodel.ToastType
 import com.google.api.Context
+import com.google.firebase.Timestamp
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -686,21 +689,52 @@ fun ManualEntryView(
         val isShowEMIMonthList = squadViewModel.showEMIMonthPopup.collectAsStateWithLifecycle()
 
         if (isShowEMIMonthList.value) {
+            val loan = memberPendingLoans?.firstOrNull()
             OverlayBackgroundView(
                 showPopup = remember { mutableStateOf(true) },
                 onDismiss = {  squadViewModel.setShowEMIMonthPopup(false)}
             ) {
-                InstallmentPopupView(
-                    title = memberPendingLoans?.firstOrNull()?.loanNumber ?: "",
-                    installments = memberPendingLoans?.firstOrNull()?.installments ?: emptyList(),
-                    onSelect = { installment ->
-                        selectedInstallment = installment
-                        emiSelectedMonthYear = CommonFunctions.dateToString(date = installment.dueDate?.toDate() ?: Date(), format = "MMM yyyy")
-                        selectedEMIInstallmentAmount = (installment.installmentAmount + installment.interestAmount).toString()
-                        squadViewModel.setShowEMIMonthPopup(false)
-                    },
-                    onCancel = {squadViewModel.setShowEMIMonthPopup(false)}
-                )
+
+                if (loan != null) {
+
+                    InstallmentPopupView(
+                        title = loan.loanNumber,
+                        loan = loan,
+                        installments = loan.installments,
+                        interestType = loan.emiConfiguration?.interestType ?: InterestType.YEARLY,
+                        interestRate = loan.interest,
+                        onSelect = { installment ->
+                            selectedInstallment = installment
+                            emiSelectedMonthYear = CommonFunctions.dateToString(date = installment.dueDate?.toDate() ?: Date(), format = "MMM yyyy")
+                            selectedEMIInstallmentAmount = (installment.installmentAmount + installment.interestAmount).toString()
+                            squadViewModel.setShowEMIMonthPopup(false)
+                        },
+                        onForceClose = { summary ->
+                            val updatedLoan = loan.copy(
+                                loanStatus = EMIStatus.PAID,
+                                paidType = LoanPaidType.FORCECLOSED,
+                                loanClosedDate = Timestamp.now()
+                            )
+
+                            squadViewModel.makeLoanForceClose(
+                                activity = activity,
+                                context = appContext,
+                                member = emiSelectedMember,
+                                loan = updatedLoan,
+                                forceClosedInterest = summary.recalculatedInterest,
+                                paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
+                                forceCloseSummary = summary
+                            ) { success, error ->
+
+                                emiSelectedMemberName = ""
+                                emiSelectedMonthYear = ""
+                            }
+                        },
+                        onCancel = { squadViewModel.setShowEMIMonthPopup(false) }
+                    )
+
+                }
+                
             }
         }
     }

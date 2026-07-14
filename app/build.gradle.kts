@@ -60,6 +60,7 @@ android {
 dependencies {
     // Compose
     implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.animation.core)
     implementation(libs.androidx.camera.camera2.pipe)
     implementation(libs.androidx.compose.animation.core)
     implementation(libs.androidx.compose.foundation)
@@ -68,6 +69,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.androidx.datastore.core)
+    implementation(libs.androidx.foundation)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)

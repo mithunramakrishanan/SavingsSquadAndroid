@@ -8,6 +8,8 @@ import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.android.savingssquad.viewmodel.SquadViewModel
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -35,6 +38,7 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,6 +56,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -587,32 +592,145 @@ fun PaymentEMIListRow(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0.99f,
+        animationSpec = tween(300),
+        label = "cardScale"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .appShadow(AppShadows.card)
-            .background(AppColors.surface)
-            .border(1.dp, AppColors.border, RoundedCornerShape(14.dp))
-            .padding(14.dp)
-            .clickable { onClick() },
-        verticalAlignment = Alignment.CenterVertically
+            .background(
+                color = if (isSelected) AppColors.primaryButton.copy(alpha = 0.06f) else AppColors.surface,
+                shape = RoundedCornerShape(18.dp)
+            )
+            .border(
+                width = if (isSelected) 1.6.dp else 1.dp,
+                color = if (isSelected) AppColors.primaryButton else AppColors.border.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(18.dp)
+            )
+            .clickable { onClick() }
+            .padding(16.dp),
+        verticalAlignment = Alignment.Top
     ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(text = emi.loanAmount.currencyFormattedWithCommas(), style = AppFont.ibmPlexSans(15, FontWeight.SemiBold), color = AppColors.headerText)
-            Text(text = "${emi.emiMonths} months @ ${"%.2f".format(emi.emiInterestRate)}% interest", style = AppFont.ibmPlexSans(13, FontWeight.Normal), color = AppColors.secondaryText)
-            Text(text = "EMI: ${emi.emiAmount.currencyFormattedWithCommas()} / month", style = AppFont.ibmPlexSans(13, FontWeight.Medium), color = AppColors.infoAccent)
-            Text(text = "Total Interest: ${emi.interestAmount.currencyFormattedWithCommas()}", style = AppFont.ibmPlexSans(13, FontWeight.Medium), color = AppColors.errorAccent)
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+
+            // MARK: Loan Amount + Tenure/Interest
+
+            Column {
+
+                Text(
+                    "Loan Amount",
+                    style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                    color = AppColors.secondaryText
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                Text(
+                    emi.loanAmount.currencyFormattedWithCommas(),
+                    style = AppFont.ibmPlexSans(19, FontWeight.Bold),
+                    color = AppColors.headerText
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Text(
+                        "${emi.emiMonths} Months",
+                        style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                        color = if (isSelected) AppColors.primaryButton else AppColors.primaryBrand
+                    )
+
+                    Spacer(Modifier.width(6.dp))
+
+                    Box(
+                        Modifier
+                            .size(3.dp)
+                            .background(AppColors.border, CircleShape)
+                    )
+
+                    Spacer(Modifier.width(6.dp))
+
+                    Text(
+                        "${"%.2f".format(emi.emiInterestRate)}% ${emi.interestType}",
+                        style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                        color = AppColors.secondaryText
+                    )
+                }
+            }
+
+            HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.12f))
+
+            // MARK: EMI / Interest / Total
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+
+                InfoView(
+                    modifier = Modifier.weight(1f),
+                    title = "Monthly EMI",
+                    value = emi.emiAmount.currencyFormattedWithCommas(),
+                    valueColor = AppColors.infoAccent
+                )
+
+                InfoView(
+                    modifier = Modifier.weight(1f),
+                    title = "Total Interest",
+                    value = emi.interestAmount.currencyFormattedWithCommas(),
+                    valueColor = AppColors.errorAccent
+                )
+
+                InfoView(
+                    modifier = Modifier.weight(1f),
+                    title = "Total Payable",
+                    value = (emi.loanAmount + emi.interestAmount).currencyFormattedWithCommas(),
+                    valueColor = AppColors.headerText
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(Modifier.width(8.dp))
 
         Icon(
             imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.Circle,
             contentDescription = null,
             tint = if (isSelected) AppColors.primaryButton else AppColors.border,
             modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
+@Composable
+private fun InfoView(
+    modifier: Modifier = Modifier,
+    title: String,
+    value: String,
+    valueColor: Color
+) {
+    Column(modifier = modifier) {
+        Text(
+            title,
+            style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+            color = AppColors.secondaryText
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            value,
+            style = AppFont.ibmPlexSans(12, FontWeight.SemiBold),
+            color = valueColor
         )
     }
 }

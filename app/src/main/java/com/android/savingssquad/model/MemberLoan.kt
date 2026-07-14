@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.PropertyName
 import kotlin.math.pow
+import kotlin.math.roundToInt
 
 //import com.google.firebase.firestore.FirebaseFirestore
 
@@ -43,6 +44,12 @@ data class MemberLoan(
     @get:PropertyName("interest") @set:PropertyName("interest")
     var interest: Double = 0.0,
 
+    @get:PropertyName("forceClosedAmount") @set:PropertyName("forceClosedAmount")
+    var forceClosedAmount: Int = 0,
+
+    @get:PropertyName("forceClosedDate") @set:PropertyName("forceClosedDate")
+    var forceClosedDate: Timestamp? = null,
+
     @get:PropertyName("amountSentDate") @set:PropertyName("amountSentDate")
     var amountSentDate: Timestamp? = null,
 
@@ -55,11 +62,20 @@ data class MemberLoan(
     @get:PropertyName("installments") @set:PropertyName("installments")
     var installments: List<Installment> = emptyList(),
 
+    @get:PropertyName("emiConfiguration") @set:PropertyName("emiConfiguration")
+    var emiConfiguration: EMIConfiguration? = null,
+
     @get:PropertyName("recordStatus") @set:PropertyName("recordStatus")
     var recordStatus: RecordStatus = RecordStatus.ACTIVE,
 
     @get:PropertyName("recordDate") @set:PropertyName("recordDate")
-    var recordDate: Timestamp? = Timestamp.now()
+    var recordDate: Timestamp? = Timestamp.now(),
+
+    @get:PropertyName("paidType") @set:PropertyName("paidType")
+    var paidType: LoanPaidType = LoanPaidType.REGULAR,
+
+    @get:PropertyName("isForceClosed") @set:PropertyName("isForceClosed")
+    var isForceClosed: Boolean = false
 ) {
     constructor() : this(
         id = null,
@@ -70,12 +86,58 @@ data class MemberLoan(
         loanAmount = 0,
         loanMonth = 0,
         interest = 0.0,
+        forceClosedAmount = 0,
+        forceClosedDate = null,
         amountSentDate = null,
         loanStatus = EMIStatus.FAILED,
         loanClosedDate = null,
         installments = emptyList(),
+        emiConfiguration = null,
         recordStatus = RecordStatus.ACTIVE,
-        recordDate = Timestamp.now()
+        recordDate = Timestamp.now(),
+        paidType = LoanPaidType.REGULAR,
+        isForceClosed = false
+    )
+}
+
+data class ForceCloseSummary(
+    var outstandingPrincipal: Int = 0,
+    var daysElapsed: Int = 0,
+    var recalculatedInterest: Int = 0,
+    var totalPayable: Int = 0,
+    var asOfDate: Date = Date()
+)
+
+fun List<Installment>.pending(): List<Installment> = filter { it.status == EMIStatus.PENDING }
+fun List<Installment>.paid(): List<Installment> = filter { it.status == EMIStatus.PAID }
+
+fun MemberLoan.forceCloseSummary(
+    interestType: InterestType,
+    rate: Double,
+    asOf: Date = Date()
+): ForceCloseSummary {
+    val pendingInstallments = installments.pending()
+    val outstandingPrincipal = pendingInstallments.sumOf { it.installmentAmount }
+
+    // Interest accrues from the day after the last paid installment (or loan start) to today.
+    // 🔹 duePaidDate / amountSentDate are Timestamp?, convert to Date before time math
+    val lastPaidDate: Date? = installments.paid()
+        .mapNotNull { it.duePaidDate?.toDate() }
+        .maxOrNull()
+
+    val startDate: Date = lastPaidDate ?: amountSentDate?.toDate() ?: asOf
+
+    val days = TimeUnit.MILLISECONDS.toDays(asOf.time - startDate.time).coerceAtLeast(0)
+    val dailyRate = interestType.dailyRate(rate)
+    val recalculatedInterest = outstandingPrincipal * dailyRate * days
+    val total = outstandingPrincipal + recalculatedInterest.roundToInt()
+
+    return ForceCloseSummary(
+        outstandingPrincipal = outstandingPrincipal,
+        daysElapsed = days.toInt(),
+        recalculatedInterest = recalculatedInterest.roundToInt(),
+        totalPayable = total,
+        asOfDate = asOf
     )
 }
 
@@ -167,10 +229,22 @@ enum class InterestType(val label: String) {
         DAILY -> (rate / 100) * 30 // simple approximation: daily rate * 30 days
     }
 
+    fun dailyRate(rate: Double): Double = when (this) {
+        DAILY -> rate / 100
+        MONTHLY -> (rate / 100) / 30
+        YEARLY -> (rate / 100) / 365
+    }
+
+    fun displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
+
     companion object {
         fun fromLabelOrDefault(value: String?): InterestType =
             entries.firstOrNull { it.name == value } ?: YEARLY
     }
+}
+
+enum class LoanPaidType {
+    REGULAR, FORCECLOSED
 }
 
 @Keep

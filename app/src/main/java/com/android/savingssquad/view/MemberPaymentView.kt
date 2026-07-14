@@ -9,7 +9,6 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Verified
@@ -32,6 +31,8 @@ import com.android.savingssquad.singleton.AppFont
 import java.util.Date
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
+import com.android.savingssquad.model.InterestType
+import com.android.savingssquad.model.LoanPaidType
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.unpaidMonths
@@ -44,14 +45,10 @@ import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.RemainderType
 import com.android.savingssquad.singleton.SquadStrings
-import com.android.savingssquad.singleton.UPIPaymentManager
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
-import com.android.savingssquad.viewmodel.AlertManager
 import com.google.firebase.Timestamp
 import com.yourapp.utils.CommonFunctions
-import com.android.savingssquad.singleton.UPIPaymentStatus
-import com.android.savingssquad.viewmodel.SSToast
 import com.android.savingssquad.viewmodel.ToastManager
 import com.android.savingssquad.viewmodel.ToastType
 
@@ -483,19 +480,51 @@ fun MemberPaymentView(
         val isShowEMIMonthList = squadViewModel.showEMIMonthPopup.collectAsStateWithLifecycle()
 
         if (isShowEMIMonthList.value) {
+            val loan = memberPendingLoans?.firstOrNull()
+
             OverlayBackgroundView(
                 showPopup = remember { mutableStateOf(true) },
-                onDismiss = {  squadViewModel.setShowEMIMonthPopup(false)}
+                onDismiss = { squadViewModel.setShowEMIMonthPopup(false) }
             ) {
-                InstallmentPopupView(
-                    title = memberPendingLoans?.firstOrNull()?.loanNumber ?: "",
-                    installments = memberPendingLoans?.firstOrNull()?.installments ?: emptyList(),
-                    onSelect = { installment ->
-                        selectedInstallment = installment
-                        emiSelectedMonthYear = CommonFunctions.dateToString(date = installment.dueDate?.toDate() ?: Date(), format = "MMM yyyy")
-                        squadViewModel.setShowEMIMonthPopup(false)
-                    },
-                     onCancel = {squadViewModel.setShowEMIMonthPopup(false)})
+                if (loan != null) {
+                    InstallmentPopupView(
+                        title = loan.loanNumber,
+                        loan = loan,
+                        installments = loan.installments,
+                        interestType = loan.emiConfiguration?.interestType ?: InterestType.YEARLY,
+                        interestRate = loan.interest,
+                        onSelect = { installment ->
+                            selectedInstallment = installment
+                            emiSelectedMonthYear = CommonFunctions.dateToString(
+                                date = installment.dueDate?.toDate() ?: Date(),
+                                format = "MMM yyyy"
+                            )
+                            squadViewModel.setShowEMIMonthPopup(false)
+                        },
+                        onForceClose = { summary ->
+                            val updatedLoan = loan.copy(
+                                loanStatus = EMIStatus.PAID,
+                                paidType = LoanPaidType.FORCECLOSED,
+                                loanClosedDate = Timestamp.now()
+                            )
+
+                            squadViewModel.makeLoanForceClose(
+                                activity = activity,
+                                context = appContext,
+                                member = squadViewModel.currentMember.value,
+                                loan = updatedLoan,
+                                forceClosedInterest = summary.recalculatedInterest,
+                                paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
+                                forceCloseSummary = summary
+                            ) { success, error ->
+
+                                selectedInstallment = null
+                                emiSelectedMonthYear = ""
+                            }
+                        },
+                        onCancel = { squadViewModel.setShowEMIMonthPopup(false) }
+                    )
+                }
             }
         }
     }

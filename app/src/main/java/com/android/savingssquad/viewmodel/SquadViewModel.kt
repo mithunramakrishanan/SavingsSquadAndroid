@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.model.CashRequest
 import com.android.savingssquad.model.CashRequestStatus
 import com.android.savingssquad.model.Squad
@@ -17,6 +18,7 @@ import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.ContributionDetail
 import com.android.savingssquad.model.SquadActivity
 import com.android.savingssquad.model.EMIConfiguration
+import com.android.savingssquad.model.ForceCloseSummary
 import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.SquadRule
@@ -24,7 +26,6 @@ import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.ReminderRequest
 import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.model.pendingInstallments
-import com.android.savingssquad.model.pendingLoans
 import com.android.savingssquad.singleton.AlertType
 import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.EMIStatus
@@ -48,17 +49,16 @@ import com.android.savingssquad.singleton.RazorpayPaymentAction
 import com.android.savingssquad.singleton.SessionManager
 import com.android.savingssquad.singleton.UPIPaymentManager
 import com.android.savingssquad.singleton.UPIPaymentStatus
+import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.google.firebase.firestore.*
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.yourapp.utils.CommonFunctions
 import com.yourapp.utils.IDGenerator
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import java.util.Date
-import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -859,8 +859,24 @@ class SquadViewModel : ViewModel() {
                     if (showLoader) LoaderManager.shared.hideLoader()
 
                     if (success) {
-                        _squadMembers.value += newMember
-                        _squadMembersCount.value += 1
+
+                        val index = squadMembers.value.indexOfFirst { it.id == newMember.id }
+
+                        if (index >= 0) {
+
+                            val updatedMembers = squadMembers.value.toMutableList()
+
+                            updatedMembers[index] = newMember
+
+                            setSquadMembers(updatedMembers)
+
+
+                        } else {
+
+                            setSquadMembers(squadMembers.value + newMember)
+                            setSquadMembersCount(_squadMembersCount.value + 1)
+                        }
+
                         addUserLogin(false, newMember)
                         completion(true, null)
                     } else {
@@ -1566,14 +1582,13 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-    fun updateLoanStatus(
+    fun updateLoanStatusPaid(
         squadID: String,
         memberID: String,
         loanID: String,
-        status: String,
         showLoader: Boolean = true,
         completion: (Boolean, String?) -> Unit
-    ) {
+    )  {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
                 title = SquadStrings.appName,
@@ -1587,7 +1602,7 @@ class SquadViewModel : ViewModel() {
 
         if (showLoader) LoaderManager.shared.showLoader()
 
-        manager.updateLoanStatus(squadID, memberID, loanID, status) { success, message ->
+        manager.updateLoanStatusPaid(squadID, memberID, loanID) { success, message ->
             if (showLoader) LoaderManager.shared.hideLoader()
             completion(success, message)
         }
@@ -2243,26 +2258,46 @@ class SquadViewModel : ViewModel() {
             }
             else if (payment.paymentSubType == PaymentSubType.EMI_AMOUNT) {
 
-                when (status) {
+                if (payment.isLoanForceClosed == true) {
 
-                    PaymentApproveStatus.ACCEPTED -> {
-                        updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.value, showLoader = false){ success, error ->
-                            if (!success) {
-                                println("Error updating: $error")
-                            }
+                    when (status) {
+
+                        PaymentApproveStatus.ACCEPTED -> {
+                            updateLoanStatusPaid(payment.squadId,payment.memberId,payment.loanId,false) {_,_->}
                         }
-                    }
 
-                    PaymentApproveStatus.REJECTED -> {
-                        updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PENDING.value, showLoader = false){ success, error ->
-                            if (!success) {
-                                println("Error updating: $error")
-                            }
+                        PaymentApproveStatus.REJECTED -> {
+
                         }
-                    }
 
-                    else -> {}
+                        else -> {}
+                    }
                 }
+                else {
+
+                    when (status) {
+
+                        PaymentApproveStatus.ACCEPTED -> {
+                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.value, showLoader = false){ success, error ->
+                                if (!success) {
+                                    println("Error updating: $error")
+                                }
+                            }
+                        }
+
+                        PaymentApproveStatus.REJECTED -> {
+                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PENDING.value, showLoader = false){ success, error ->
+                                if (!success) {
+                                    println("Error updating: $error")
+                                }
+                            }
+                        }
+
+                        else -> {}
+                    }
+                }
+
+
 
 
             }
@@ -3970,6 +4005,88 @@ class SquadViewModel : ViewModel() {
             showLoader = showLoader,
             squadID = squad.value?.squadID ?: "",
             payment = listOf(newPayment)
+        ) { success, error ->
+
+            completion(success, error)
+        }
+    }
+
+    fun makeLoanForceClose(
+        activity: Activity,
+        context: Context,
+        member: Member?,
+        loan: MemberLoan,
+        forceClosedInterest: Int,
+        paymentEntryType: PaymentEntryType,
+        forceCloseSummary: ForceCloseSummary,
+        showLoader: Boolean = true,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (!SubscriptionManager.shared.canUseLoan()) {
+            setShowUpgradePlan(true)
+            completion(false, "UPGRADE_REQUIRED")
+            return
+        }
+
+        val loanNumber = loan.loanNumber
+        val loanId = loan.id ?: ""
+
+        val pending = loan.installments.filter {
+            it.status == EMIStatus.PENDING
+        }
+
+        val outstandingPrincipal = pending.sumOf {
+            it.installmentAmount
+        }
+
+        val total = outstandingPrincipal + forceClosedInterest
+
+        LoaderManager.shared.showLoader()
+
+        val payment = PaymentsDetails(
+            id = CommonFunctions.generatePaymentID(squad.value?.squadID ?: ""),
+            paymentUpdatedDate = Timestamp.now(),
+
+            memberId = member?.id ?: "",
+            memberName = member?.name ?: "",
+            paymentPhone = member?.phoneNumber ?: "",
+            paymentEmail = member?.mailID ?: "",
+
+            userType = SquadUserType.SQUAD_MEMBER,
+
+            amount = outstandingPrincipal,
+            intrestAmount = forceClosedInterest,
+
+            paymentEntryType = paymentEntryType,
+            paymentType = PaymentType.PAYMENT_CREDIT,
+            paymentSubType = PaymentSubType.EMI_AMOUNT,
+
+            paymentStatus = PaymentStatus.INVERIFICATION,
+            paymentApproveStatus = if (paymentEntryType == PaymentEntryType.AUTOMATIC_ENTRY){PaymentApproveStatus.REQUESTED}else {PaymentApproveStatus.ACCEPTED},
+
+            description = "Force Closed #$loanNumber ${total.currencyFormattedWithCommas()}",
+            squadId = squad.value?.squadID ?: "",
+
+            order_id = loanNumber,
+            contributionId = "",
+            loanId = loanId,
+            installmentId = "",
+
+            paymentResponseMessage = "Pending admin verification.",
+            transferReferenceId = loanNumber,
+            upiID = squad.value?.upiID ?: "",
+
+            isLoanForceClosed = true,
+            forceCloseSummary = forceCloseSummary
+        )
+
+        savePayments(
+            activity = activity,
+            context = context,
+            showLoader = showLoader,
+            squadID = squad.value?.squadID ?: "",
+            payment = listOf(payment)
         ) { success, error ->
 
             completion(success, error)
