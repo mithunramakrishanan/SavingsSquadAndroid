@@ -1,6 +1,8 @@
 package com.android.savingssquad.viewmodel
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -1776,43 +1778,62 @@ class SquadViewModel : ViewModel() {
             firstPayment.paymentApproveStatus != PaymentApproveStatus.ACCEPTED && showUPIIntent
         ) {
             LoaderManager.shared.hideLoader()
-            // No loader was shown yet on this branch — nothing to hide.
-            UPIPaymentManager.shared.pay(
-                activity =  activity,
+
+            copyToClipboard(
                 context = context,
-                upiID = firstPayment.upiID,
-                name = squad.value?.squadName ?: "",
-                amount = firstPayment.amount.toDouble(),
-                note = firstPayment.description,
-                transactionRef = "TXN_${firstPayment.id ?: UUID.randomUUID().toString()}",
-                completion = { initiated ->
-                    println("Initiated: $initiated")
-                    if (initiated) {
+                label = "UPI ID",
+                text = firstPayment.upiID
+            )
 
-                        UserDefaultsManager.savePendingPayment(firstPayment)
-                        completion(true, "UPI_OPENED")
-                    }
-                },
-                onReturn = { status ->
-                    when (status) {
-                        UPIPaymentStatus.SUCCESS -> {
-                            println("✅ Success")
-                        }
+            AlertManager.shared.showAlert(
+                title = firstPayment.upiID,
+                message = "UPI ID copied to clipboard. Paste it if your UPI app doesn't auto-fill it.",
+                type = AlertType.INFO,
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {
 
-                        UPIPaymentStatus.FAILED -> {
-                            println("❌ Failed")
-                        }
+                    UPIPaymentManager.shared.pay(
+                        activity =  activity,
+                        context = context,
+                        upiID = firstPayment.upiID,
+                        name = squad.value?.squadName ?: "",
+                        amount = firstPayment.amount.toDouble(),
+                        note = firstPayment.description,
+                        transactionRef = "TXN_${firstPayment.id ?: UUID.randomUUID().toString()}",
+                        completion = { initiated ->
+                            println("Initiated: $initiated")
+                            LoaderManager.shared.hideLoader()
+                            if (initiated) {
 
-                        UPIPaymentStatus.PENDING -> {
-                            println("⏳ Pending — verify with backend")
-                        }
+                                UserDefaultsManager.savePendingPayment(firstPayment)
+                                completion(true, "UPI_OPENED")
+                            }
+                        },
+                        onReturn = { status ->
+                            LoaderManager.shared.hideLoader()
+                            when (status) {
+                                UPIPaymentStatus.SUCCESS -> {
+                                    println("✅ Success")
+                                }
 
-                        UPIPaymentStatus.CANCELLED -> {
-                            println("🚫 Cancelled")
+                                UPIPaymentStatus.FAILED -> {
+                                    println("❌ Failed")
+                                }
+
+                                UPIPaymentStatus.PENDING -> {
+                                    println("⏳ Pending — verify with backend")
+                                }
+
+                                UPIPaymentStatus.CANCELLED -> {
+                                    println("🚫 Cancelled")
+                                }
+                            }
                         }
-                    }
+                    )
                 }
             )
+
+
 
             return
         }
@@ -1992,6 +2013,19 @@ class SquadViewModel : ViewModel() {
             if (showLoader) LoaderManager.shared.hideLoader()
             completion(true, null)
         }
+    }
+
+    fun copyToClipboard(
+        context: Context,
+        label: String,
+        text: String
+    ) {
+        val clipboard =
+            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(label, text)
+        )
     }
 
     fun updateContributionApproveStatus(
