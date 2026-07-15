@@ -207,10 +207,10 @@ data class PaymentsDetails(
     var cashRequestId: String? = null,
 
     @get:PropertyName("isLoanForceClosed") @set:PropertyName("isLoanForceClosed")
-    var isLoanForceClosed: Boolean? = null,
+    var isLoanForceClosed: Boolean = false,
 
     @get:PropertyName("forceCloseSummary") @set:PropertyName("forceCloseSummary")
-    var forceCloseSummary: ForceCloseSummary? = null
+    var forceCloseSummary: ForceCloseSummary = ForceCloseSummary()
 
 )
 {
@@ -249,8 +249,8 @@ data class PaymentsDetails(
         recordDate = Timestamp(Date()),
         selectedEMIConfig = null,
         cashRequestId = "",
-        isLoanForceClosed = null,
-        forceCloseSummary = null
+        isLoanForceClosed = false,
+        forceCloseSummary = ForceCloseSummary()
     )
 
     fun toMap(): Map<String, Any?> = mapOf(
