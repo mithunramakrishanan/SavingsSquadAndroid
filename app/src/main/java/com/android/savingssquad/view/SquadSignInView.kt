@@ -38,6 +38,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.android.savingssquad.R
 import java.util.concurrent.TimeUnit
@@ -73,7 +74,6 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
     val verificationID = remember { mutableStateOf("") }
     var isOTPSent by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isButtonLoading by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -165,7 +165,6 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
 
                 // 🔹 Action Button (Send/Verify OTP)
                 SSButton(
-                    isButtonLoading = isButtonLoading,
                     title = if (isOTPSent) SquadStrings.verifyOTP else SquadStrings.sendOTP
                 ) {
                     coroutineScope.launch {
@@ -181,9 +180,9 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                             verifyOTP(
                                 verificationID = verificationID.value,
                                 otpCode = otpCode.value,
-                                onStart = { isButtonLoading = true },
+                                onStart = { squadViewModel.setIsVerifyingOTP(true) },
                                 onSuccess = {
-                                    isButtonLoading = false
+                                    squadViewModel.setIsVerifyingOTP(false)
 
                                     // 🔥 Call ViewModel function
                                     squadViewModel.fetchUserLogins(
@@ -230,7 +229,7 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                                     }
                                 },
                                 onError = {
-                                    isButtonLoading = false
+                                    squadViewModel.setIsVerifyingOTP(true)
                                     errorMessage = it
                                 }
                             )
@@ -248,14 +247,14 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                             sendOTP(
                                 context = context,
                                 phoneNumber = phoneNumber.value,
-                                onStart = { isButtonLoading = true },
+                                onStart = { squadViewModel.setIsSendingOTP(true)},
                                 onSuccess = { id ->
                                     verificationID.value = id
                                     isOTPSent = true
-                                    isButtonLoading = false
+                                    squadViewModel.setIsSendingOTP(false)
                                 },
                                 onError = {
-                                    isButtonLoading = false
+                                    squadViewModel.setIsSendingOTP(false)
                                     errorMessage = it
                                 }
                             )
@@ -342,6 +341,14 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                     users = squadViewModel.users.collectAsState().value
                 )
             }
+        }
+
+        val isSendingOTP by squadViewModel.isSendingOTP.collectAsStateWithLifecycle()
+        val isVerifyingOTP by squadViewModel.isVerifyingOTP.collectAsStateWithLifecycle()
+
+        when {
+            isSendingOTP -> OTPOverlayView(state = OTPOverlayState.SENDING)
+            isVerifyingOTP -> OTPOverlayView(state = OTPOverlayState.VERIFYING)
         }
     }
 }

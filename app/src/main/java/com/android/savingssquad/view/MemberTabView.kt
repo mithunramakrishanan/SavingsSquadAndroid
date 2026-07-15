@@ -67,6 +67,8 @@ import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SSToast
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -263,6 +265,16 @@ fun MemberTabView(
                 }
             }
         }
+
+        val isSendingOTP by squadViewModel.isSendingOTP.collectAsStateWithLifecycle()
+        val isVerifyingOTP by squadViewModel.isVerifyingOTP.collectAsStateWithLifecycle()
+
+        when {
+            isSendingOTP -> OTPOverlayView(state = OTPOverlayState.SENDING)
+            isVerifyingOTP -> OTPOverlayView(state = OTPOverlayState.VERIFYING)
+        }
+
+
         if (showPayment && squad != null) {
             RazorpayPaymentView(
                 orderId = paymentOrderId,

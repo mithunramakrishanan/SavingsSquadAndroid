@@ -213,6 +213,15 @@ class SquadViewModel : ViewModel() {
     fun setShowPopup(value: Boolean) { _showPopup.value = value }
 
 
+    private val _isSendingOTP = MutableStateFlow(false)
+    val isSendingOTP: StateFlow<Boolean> = _isSendingOTP
+    fun setIsSendingOTP(value: Boolean) { _isSendingOTP.value = value }
+
+    private val _isVerifyingOTP = MutableStateFlow(false)
+    val isVerifyingOTP: StateFlow<Boolean> = _isVerifyingOTP
+    fun setIsVerifyingOTP(value: Boolean) { _isVerifyingOTP.value = value }
+
+
     private val _showRequestCashPopup = MutableStateFlow(false)
     val showRequestCashPopup: StateFlow<Boolean> = _showRequestCashPopup
     fun setShowRequestCashPopup(value: Boolean) { _showRequestCashPopup.value = value }
@@ -1876,16 +1885,25 @@ class SquadViewModel : ViewModel() {
 
                     if (payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
 
-                        updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.value, showLoader = false){ success, error ->
-                            if (!success) {
-                                println("Error updating: $error")
-                            }
-                            else {
+                        if (payment.isLoanForceClosed) {
 
-                                updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), payment.memberId)
+                            updateLoanStatusPaid(payment.squadId,payment.memberId,payment.loanId,false) {_,_->}
+                        }
+                        else {
 
+                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.value, showLoader = false){ success, error ->
+                                if (!success) {
+                                    println("Error updating: $error")
+                                }
+                                else {
+
+                                    updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), payment.memberId)
+
+                                }
                             }
                         }
+
+
                     }
                     else {
 
@@ -1917,8 +1935,7 @@ class SquadViewModel : ViewModel() {
                             PaymentSubType.CONTRIBUTION_AMOUNT ->
                                 "Squad Manager updated your contribution for ${payment.transferReferenceId}"
 
-                            PaymentSubType.EMI_AMOUNT ->
-                                "Squad Manager updated your EMI for ${payment.transferReferenceId}"
+                            PaymentSubType.EMI_AMOUNT -> if (payment.isLoanForceClosed) {"Squad Manager force closed your Loan ${payment.loanId}"}else {"Squad Manager updated your EMI for ${payment.transferReferenceId}"}
 
                             else -> ""
                         }
@@ -2258,7 +2275,7 @@ class SquadViewModel : ViewModel() {
             }
             else if (payment.paymentSubType == PaymentSubType.EMI_AMOUNT) {
 
-                if (payment.isLoanForceClosed == true) {
+                if (payment.isLoanForceClosed) {
 
                     when (status) {
 
@@ -2336,6 +2353,19 @@ class SquadViewModel : ViewModel() {
 
                         FirestoreManager.shared.updateCurrentLoanApproveStatus(payment.squadId,payment.memberId,
                             EMIStatus.PENDING) {_,_ -> }
+
+                        val index = _squadCashRequests.value.indexOfFirst {
+                            it.id == payment.cashRequestId
+                        }
+
+                        if (index < 0) return@updatePaymentApproveStatus
+
+                        val updated = _squadCashRequests.value.toMutableList()
+
+                        updated[index] = updated[index].copy(
+                            cashRequestStatus = CashRequestStatus.ACCEPTED,
+                            requestAcceptedOn = Timestamp.now() )
+                        setSquadCashRequests(updated)
                     }
 
                     PaymentApproveStatus.REJECTED -> {

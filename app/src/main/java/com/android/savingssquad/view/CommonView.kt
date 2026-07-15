@@ -11,9 +11,14 @@ import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
@@ -65,6 +70,7 @@ import com.android.savingssquad.singleton.ShadowStyle
 import com.android.savingssquad.singleton.appShadow
 
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -117,6 +123,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import kotlin.time.Duration.Companion.milliseconds
 
 
 // ---------- SSNavigationBar ----------
@@ -931,67 +938,169 @@ fun SSLoaderView(
     val isLoading = loaderManager.isLoading
     val loadingMessage = loaderManager.loadingMessage
 
-    var rotationAngle by remember { mutableStateOf(0f) }
+    if (!isLoading) return
 
-    // 🔹 Animate rotation continuously
-    LaunchedEffect(isLoading) {
-        if (isLoading) {
-            while (true) {
-                rotationAngle = (rotationAngle + 5f) % 360f
-                delay(16L)
-            }
+    // 🔹 Smooth continuous rotation via infinite transition instead of a manual 16ms delay loop
+    val infiniteTransition = rememberInfiniteTransition(label = "ssLoaderAnim")
+
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1100, easing = LinearEasing)
+        ),
+        label = "rotation"
+    )
+
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.92f,
+        targetValue = 1.12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1300, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseScale"
+    )
+
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 0.35f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1300, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+
+    val symbolScale by infiniteTransition.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.06f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1300, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "symbolScale"
+    )
+
+    var dotPhase by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(400.milliseconds)
+            dotPhase = (dotPhase + 1) % 4
         }
     }
 
-    if (isLoading) {
-        Box(
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.35f))
+            .pointerInput(Unit) {
+                detectTapGestures { /* swallow taps — disables interaction underneath */ }
+            }
+    ) {
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.3f))
-                .pointerInput(Unit) {} // disable user interaction
+                .align(Alignment.Center)
+                .padding(24.dp)
+                .background(AppColors.background, RoundedCornerShape(22.dp))
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        listOf(Color.White.copy(alpha = 0.22f), Color.Transparent)
+                    ),
+                    shape = RoundedCornerShape(22.dp)
+                )
+                .padding(vertical = 26.dp, horizontal = 30.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(24.dp)
-                    .appShadow(AppShadows.elevated, RoundedCornerShape(20.dp))
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(AppColors.background)
-                    .padding(vertical = 20.dp, horizontal = 30.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+
+            Box(
+                modifier = Modifier.size(78.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    // 🔹 Rotating circular stroke
-                    Canvas(modifier = Modifier.size(50.dp)) {
+
+                // Outer breathing glow
+                Box(
+                    modifier = Modifier
+                        .size(78.dp)
+                        .graphicsLayer {
+                            scaleX = pulseScale
+                            scaleY = pulseScale
+                            alpha = pulseAlpha
+                        }
+                        .background(AppColors.loaderColor.copy(alpha = 0.12f), CircleShape)
+                )
+
+                // Static track ring — depth layer beneath the moving arc
+                Canvas(modifier = Modifier.size(54.dp)) {
+                    drawArc(
+                        color = AppColors.loaderColor.copy(alpha = 0.08f),
+                        startAngle = 0f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        style = Stroke(width = 4.5.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                }
+
+                // Rotating gradient arc
+                Canvas(modifier = Modifier.size(54.dp)) {
+                    rotate(rotation) {
                         drawArc(
                             brush = Brush.sweepGradient(
-                                listOf(
+                                colors = listOf(
                                     AppColors.loaderColor,
-                                    AppColors.loaderColor.copy(alpha = 0.3f)
+                                    AppColors.loaderColor.copy(alpha = 0.15f),
+                                    AppColors.loaderColor
                                 )
                             ),
                             startAngle = 0f,
                             sweepAngle = 270f,
                             useCenter = false,
-                            style = Stroke(width = 4f, cap = StrokeCap.Round)
+                            style = Stroke(width = 4.5.dp.toPx(), cap = StrokeCap.Round)
                         )
                     }
-
-                    // 🔹 Currency symbol rotating in opposite direction
-                    Text(
-                        text = "₹",
-                        style = AppFont.ibmPlexSans(20, FontWeight.Bold),
-                        color = AppColors.loaderColor,
-                        modifier = Modifier.graphicsLayer(rotationZ = -rotationAngle)
-                    )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                // ₹ symbol — held upright, gently breathing (no counter-rotation)
+                Text(
+                    text = "₹",
+                    style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                    color = AppColors.loaderColor,
+                    modifier = Modifier
+                        .graphicsLayer {
+                            scaleX = symbolScale
+                            scaleY = symbolScale
+                        }
+                        .drawBehind {
+                            // manual glow instead of a tinted shadow — avoids the emulator white-box bug
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        AppColors.loaderColor.copy(alpha = 0.35f),
+                                        Color.Transparent
+                                    )
+                                ),
+                                radius = size.maxDimension
+                            )
+                        }
+                )
+            }
+
+            // Message + animated dots
+            Row(verticalAlignment = Alignment.CenterVertically) {
 
                 Text(
                     text = loadingMessage,
                     style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
                     color = AppColors.headerText
+                )
+
+                Text(
+                    text = ".".repeat(dotPhase),
+                    style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
+                    color = AppColors.headerText,
+                    modifier = Modifier.width(16.dp)
                 )
             }
         }
@@ -1618,8 +1727,6 @@ fun AddMemberPopup(
     val otpCodeState = remember { mutableStateOf("") }
     val verificationIDState = remember { mutableStateOf("") }
 
-    var sendOTPLoading by remember { mutableStateOf(false) }
-    var verifyOTPLoading by remember { mutableStateOf(false) }
     var isOTPSent by remember { mutableStateOf(false) }
     var otpVerified by remember { mutableStateOf(false) }
     var otpProcessStarted by remember { mutableStateOf(false) }
@@ -1734,7 +1841,9 @@ fun AddMemberPopup(
         } else {
             // ✅ OTP not yet verified -> send OTP
             val phoneWithCode = "+91${phoneNumberState.value}"
-            sendOTPLoading = true
+
+            squadViewModel.setIsSendingOTP(true)
+
             otpProcessStarted = true
 
             val auth = FirebaseAuth.getInstance()
@@ -1748,13 +1857,13 @@ fun AddMemberPopup(
                         override fun onVerificationCompleted(credential: PhoneAuthCredential) {
                             otpVerified = true
                             verifyOTPError = ""
-                            verifyOTPLoading = false
+                            squadViewModel.setIsVerifyingOTP(false)
                             Log.d("AddMember", "OTP auto-verified")
                         }
 
                         override fun onVerificationFailed(e: FirebaseException) {
                             sendOTPError = e.localizedMessage ?: "OTP failed"
-                            sendOTPLoading = false
+                            squadViewModel.setIsSendingOTP(false)
                             otpProcessStarted = false
                             Log.d("AddMember", "OTP verification failed: ${e.localizedMessage}")
                         }
@@ -1764,7 +1873,7 @@ fun AddMemberPopup(
                             token: PhoneAuthProvider.ForceResendingToken
                         ) {
                             verificationIDState.value = verificationId
-                            sendOTPLoading = false
+                            squadViewModel.setIsSendingOTP(false)
                             otpProcessStarted = false
                             isOTPSent = true
                             Log.d("AddMember", "OTP code sent: $verificationId")
@@ -1782,11 +1891,11 @@ fun AddMemberPopup(
         otpCodeState.value = newValue
         verifyOTPError = ""
         if (newValue.length == 6) {
-            verifyOTPLoading = true
+            squadViewModel.setIsVerifyingOTP(true)
             val credential = PhoneAuthProvider.getCredential(verificationIDState.value, newValue)
             FirebaseAuth.getInstance().signInWithCredential(credential)
                 .addOnCompleteListener { task ->
-                    verifyOTPLoading = false
+                    squadViewModel.setIsVerifyingOTP(false)
                     otpVerified = task.isSuccessful
                     if (!task.isSuccessful) {
                         verifyOTPError = task.exception?.localizedMessage ?: "Verification failed"
@@ -1844,8 +1953,6 @@ fun AddMemberPopup(
                     placeholder = "Member Mobile.No",
                     textState = phoneNumberState,
                     keyboardType = KeyboardType.Number,
-                    showDropdown = sendOTPLoading,
-                    isLoading = sendOTPLoading,
                     error = phoneError
                 )
 
@@ -1873,10 +1980,9 @@ fun AddMemberPopup(
                             placeholder = "Enter OTP",
                             textState = otpCodeState,
                             keyboardType = KeyboardType.Number,
-                            showDropdown = verifyOTPLoading || otpVerified,
+                            showDropdown =  otpVerified,
                             dropdownIcon = Icons.Default.CheckCircle,
                             dropdownColor = AppColors.primaryButton,
-                            isLoading = verifyOTPLoading,
                             error = verifyOTPError,
                             onDropdownTap = null
                         )
@@ -1892,7 +1998,7 @@ fun AddMemberPopup(
             // Button
             SSButton(
                 title = if (otpVerified) "Add Member" else "Send OTP",
-                isDisabled = (otpProcessStarted || sendOTPLoading) || phoneError.isNotEmpty() || memberNameError.isNotEmpty() || verifyOTPLoading,
+                isDisabled = (otpProcessStarted) || phoneError.isNotEmpty() || memberNameError.isNotEmpty(),
                 action = { handleAddMember() }
             )
 
@@ -2687,6 +2793,7 @@ object AppIcons {
 
 @Composable
 fun EditAmountPopup(
+    squadViewModel: SquadViewModel,
     phoneNumber: String,
     currentAmount: Int,
     onDismiss: () -> Unit,
@@ -2701,9 +2808,6 @@ fun EditAmountPopup(
 
     var verificationID by remember { mutableStateOf("") }
 
-    var sendOTPLoading by remember { mutableStateOf(false) }
-    var verifyOTPLoading by remember { mutableStateOf(false) }
-
     var isOTPSent by remember { mutableStateOf(false) }
     var otpVerified by remember { mutableStateOf(false) }
     var otpProcessStarted by remember { mutableStateOf(false) }
@@ -2713,7 +2817,8 @@ fun EditAmountPopup(
 
     fun sendOTP() {
 
-        sendOTPLoading = true
+        squadViewModel.setIsSendingOTP(true)
+
         otpProcessStarted = true
 
         PhoneAuthProvider.verifyPhoneNumber(
@@ -2733,7 +2838,7 @@ fun EditAmountPopup(
                             e: FirebaseException
                         ) {
 
-                            sendOTPLoading = false
+                            squadViewModel.setIsSendingOTP(false)
                             otpProcessStarted = false
                             otpError = e.localizedMessage ?: "Failed to send OTP"
                         }
@@ -2743,7 +2848,7 @@ fun EditAmountPopup(
                             token: PhoneAuthProvider.ForceResendingToken
                         ) {
 
-                            sendOTPLoading = false
+                            squadViewModel.setIsSendingOTP(false)
                             otpProcessStarted = false
 
                             verificationID = verificationId
@@ -2763,7 +2868,8 @@ fun EditAmountPopup(
             return
         }
 
-        verifyOTPLoading = true
+
+        squadViewModel.setIsVerifyingOTP(true)
 
         val credential =
             PhoneAuthProvider.getCredential(
@@ -2775,7 +2881,7 @@ fun EditAmountPopup(
             .signInWithCredential(credential)
             .addOnCompleteListener { task ->
 
-                verifyOTPLoading = false
+                squadViewModel.setIsVerifyingOTP(false)
 
                 if (task.isSuccessful) {
 
@@ -2831,10 +2937,9 @@ fun EditAmountPopup(
                         placeholder = "Enter OTP",
                         textState = otpCode,
                         keyboardType = KeyboardType.Number,
-                        showDropdown = verifyOTPLoading || otpVerified,
+                        showDropdown = otpVerified,
                         dropdownIcon = Icons.Default.CheckCircle,
                         dropdownColor = AppColors.primaryButton,
-                        isLoading = verifyOTPLoading,
                         error = otpError
                     )
 
@@ -2879,7 +2984,6 @@ fun EditAmountPopup(
                     isOTPSent -> "Verify OTP"
                     else -> "Send OTP"
                 },
-                isButtonLoading = sendOTPLoading || verifyOTPLoading,
                 isDisabled = otpProcessStarted
             ) {
 

@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.savingssquad.SquadSubscription.RemoteConfig
 import com.android.savingssquad.SquadSubscription.SubscriptionFirebaseManager
 import com.android.savingssquad.SquadSubscription.SubscriptionModel
@@ -102,8 +103,6 @@ fun SquadSignUpView(
     var OTPVerified by rememberSaveable { mutableStateOf(false) }
     var OTPProcessStarted by rememberSaveable { mutableStateOf(false) }
     var isTermsAccepted by rememberSaveable { mutableStateOf(false) }
-    var sendOTPLoading by remember { mutableStateOf(false) }
-    var verifyOTPLoading by remember { mutableStateOf(false) }
 
 // UI Button state
     var isButtonLoading by remember { mutableStateOf(false) }
@@ -217,8 +216,6 @@ fun SquadSignUpView(
                         LaunchedEffect(s.value) { phoneNumber = s.value }
                     },
                     keyboardType = KeyboardType.Number,
-                    showDropdown = sendOTPLoading,
-                    isLoading = sendOTPLoading,
                     error = phoneError + if (sendOTPError.isNotEmpty()) "\n$sendOTPError" else ""
                 )
 
@@ -232,24 +229,26 @@ fun SquadSignUpView(
                         textState = remember { mutableStateOf(otpCode) }.also { state ->
                             LaunchedEffect(state.value) { otpCode = state.value
                                 // auto verify when 6 digits entered
-                                if (otpCode.length == 6 && !verifyOTPLoading && !OTPVerified) {
+                                if (otpCode.length == 6  && !OTPVerified) {
                                     // trigger verify with small delay
                                     coroutineScope.launch {
-                                        verifyOTPLoading = true
+
+                                        squadViewModel.setIsVerifyingOTP(true)
+
                                         verifyOTP(
                                             context = context,
                                             verificationID = verificationID,
                                             otpCode = otpCode,
                                             onSuccess = {
-                                                verifyOTPLoading = false
+                                                squadViewModel.setIsVerifyingOTP(false)
                                                 OTPVerified = true
                                                 OTPProcessStarted = false
                                                 Toast.makeText(context, "OTP verified", Toast.LENGTH_SHORT).show()
                                             },
                                             onError = { err ->
-                                                verifyOTPLoading = false
+                                                squadViewModel.setIsVerifyingOTP(true)
                                                 verifyOTPError = err
-                                                verifyOTPLoading = false
+
                                             }
                                         )
                                     }
@@ -257,10 +256,8 @@ fun SquadSignUpView(
                             }
                         },
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
-                        showDropdown = verifyOTPLoading || OTPVerified,
                         dropdownIcon = Icons.Default.CheckCircle,
                         dropdownColor = androidx.compose.ui.graphics.Color.Blue,
-                        isLoading = verifyOTPLoading,
                         error = verifyOTPError
                     )
 
@@ -426,20 +423,20 @@ fun SquadSignUpView(
                         // Send OTP if not sent
                         if (!isOTPSent) {
                             OTPProcessStarted = true
-                            sendOTPLoading = true
+                            squadViewModel.setIsSendingOTP(true)
                             sendOTPError = ""
 
                             sendOTPSignUp(
                                 context = context,
                                 phoneNumber = phoneNumber,
                                 onCodeSent = { vid ->
-                                    sendOTPLoading = false
+                                    squadViewModel.setIsSendingOTP(false)
                                     isOTPSent = true
                                     verificationID = vid ?: ""
                                     OTPProcessStarted = false
                                 },
                                 onError = { err ->
-                                    sendOTPLoading = false
+                                    squadViewModel.setIsSendingOTP(false)
                                     sendOTPError = err        // ⬅️ ERROR SHOWN IN TEXTFIELD
                                     OTPProcessStarted = false
                                 }
@@ -457,7 +454,8 @@ fun SquadSignUpView(
                                 return@launch
                             }
 
-                            verifyOTPLoading = true
+
+                            squadViewModel.setIsVerifyingOTP(true)
                             verifyOTPError = ""
 
                             verifyOTP(
@@ -465,11 +463,11 @@ fun SquadSignUpView(
                                 verificationID = verificationID,
                                 otpCode = otpCode,
                                 onSuccess = {
-                                    verifyOTPLoading = false
+                                    squadViewModel.setIsVerifyingOTP(false)
                                     OTPVerified = true
                                 },
                                 onError = { err ->
-                                    verifyOTPLoading = false
+                                    squadViewModel.setIsVerifyingOTP(false)
                                     verifyOTPError = err      // ⬅️ ERROR SHOWN IN TEXTFIELD
                                     isButtonLoading = false
                                 }
@@ -507,6 +505,14 @@ fun SquadSignUpView(
                     }
                 }
             }
+        }
+
+        val isSendingOTP by squadViewModel.isSendingOTP.collectAsStateWithLifecycle()
+        val isVerifyingOTP by squadViewModel.isVerifyingOTP.collectAsStateWithLifecycle()
+
+        when {
+            isSendingOTP -> OTPOverlayView(state = OTPOverlayState.SENDING)
+            isVerifyingOTP -> OTPOverlayView(state = OTPOverlayState.VERIFYING)
         }
 
     }

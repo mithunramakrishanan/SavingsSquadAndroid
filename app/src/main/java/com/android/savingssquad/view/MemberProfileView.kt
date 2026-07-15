@@ -301,7 +301,7 @@ fun MemberProfileView(
             ) {
 
                 EditAmountPopup(
-
+                    squadViewModel,
                     phoneNumber = member!!.phoneNumber,
 
                     currentAmount = selectedEditAmount,
@@ -683,8 +683,6 @@ fun UpdateMemberPopup(
     var otpCode by remember { mutableStateOf("") }
     var verificationID by remember { mutableStateOf("") }
 
-    var sendOTPLoading by remember { mutableStateOf(false) }
-    var verifyOTPLoading by remember { mutableStateOf(false) }
     var isOTPSent by remember { mutableStateOf(false) }
     var otpVerified by remember { mutableStateOf(false) }
     var otpProcessStarted by remember { mutableStateOf(false) }
@@ -707,10 +705,10 @@ fun UpdateMemberPopup(
     fun verifyOTP() {
         val credential = PhoneAuthProvider.getCredential(verificationID, otpCode)
 
-        verifyOTPLoading = true
+        squadViewModel.setIsVerifyingOTP(true)
         FirebaseAuth.getInstance().signInWithCredential(credential)
             .addOnCompleteListener { task ->
-                verifyOTPLoading = false
+                squadViewModel.setIsVerifyingOTP(false)
                 if (task.isSuccessful) {
                     otpVerified = true
                 } else {
@@ -728,7 +726,7 @@ fun UpdateMemberPopup(
 
     fun sendOTP() {
         val phoneWithCode = "+91$phoneNumber"
-        sendOTPLoading = true
+        squadViewModel.setIsSendingOTP(true)
         otpProcessStarted = true
 
         PhoneAuthProvider.getInstance().verifyPhoneNumber(
@@ -741,13 +739,13 @@ fun UpdateMemberPopup(
                 override fun onVerificationCompleted(credential: PhoneAuthCredential) {}
 
                 override fun onVerificationFailed(e: FirebaseException) {
-                    sendOTPLoading = false
+                    squadViewModel.setIsSendingOTP(false)
                     otpProcessStarted = false
                     sendOTPError = e.localizedMessage ?: "OTP failed"
                 }
 
                 override fun onCodeSent(id: String, token: PhoneAuthProvider.ForceResendingToken) {
-                    sendOTPLoading = false
+                    squadViewModel.setIsSendingOTP(false)
                     otpProcessStarted = false
                     verificationID = id
                     isOTPSent = true
@@ -869,8 +867,6 @@ fun UpdateMemberPopup(
                     placeholder = "Mobile.No",
                     textState = phoneState,
                     keyboardType = KeyboardType.Number,
-                    showDropdown = sendOTPLoading,
-                    isLoading = sendOTPLoading,
                     error = phoneError
                 )
 
@@ -894,10 +890,9 @@ fun UpdateMemberPopup(
                         placeholder = "Enter OTP",
                         textState = otpState,
                         keyboardType = KeyboardType.Number,
-                        showDropdown = verifyOTPLoading || otpVerified,
+                        showDropdown =  otpVerified,
                         dropdownIcon = Icons.Default.CheckCircle,
                         dropdownColor = AppColors.primaryButton,
-                        isLoading = verifyOTPLoading,
                         error = verifyOTPError
                     )
 

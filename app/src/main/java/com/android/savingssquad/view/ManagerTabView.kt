@@ -28,6 +28,7 @@ import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -314,6 +315,15 @@ fun ManagerTabView(
             ) {
                 squadViewModel.setShowUpgradeSuccess(false)
             }
+        }
+
+
+        val isSendingOTP by squadViewModel.isSendingOTP.collectAsStateWithLifecycle()
+        val isVerifyingOTP by squadViewModel.isVerifyingOTP.collectAsStateWithLifecycle()
+
+        when {
+            isSendingOTP -> OTPOverlayView(state = OTPOverlayState.SENDING)
+            isVerifyingOTP -> OTPOverlayView(state = OTPOverlayState.VERIFYING)
         }
     }
 }
