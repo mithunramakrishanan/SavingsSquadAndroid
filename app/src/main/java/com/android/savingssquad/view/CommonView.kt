@@ -2308,12 +2308,15 @@ fun InstallmentPopupView(
             }
 
             // MARK: - Force Close Banner
-            ForceCloseBanner(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 12.dp),
-                onClick = { showForceCloseConfirm = true }
-            )
+
+            if (installments.isNotEmpty()){
+                ForceCloseBanner(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 12.dp),
+                    onClick = { showForceCloseConfirm = true }
+                )
+            }
 
             HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.15f))
 

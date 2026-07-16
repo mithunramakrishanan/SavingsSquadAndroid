@@ -486,7 +486,10 @@ class SquadViewModel : ViewModel() {
 
                     currentMember.let { member ->
                         setCurrentMember( fetchedMembers.find { it.id == member.value?.id })
-                        setVerifySquadMemberAmountBadgeCount(member.value?.verifyAmountCount ?: 0)
+
+                        fetchedMembers.find { it.id == member.value?.id }?.verifyAmountCount.let { count ->
+                                    setVerifySquadMemberAmountBadgeCount(count ?: 0)
+                        }
                     }
 
                     loginMember?.squadUsername?.let { username ->
@@ -1949,62 +1952,26 @@ class SquadViewModel : ViewModel() {
 
                 if (payment.paymentSubType == PaymentSubType.OTHERS_AMOUNT || payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
                     updatePaymentCalculations(listOf(payment), PaymentApproveStatus.ACCEPTED)
-
-                    if (payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
-
-                        val message = when (payment.paymentSubType) {
-                            PaymentSubType.CONTRIBUTION_AMOUNT ->
-                                "Squad Manager updated your contribution for ${payment.transferReferenceId}"
-
-                            PaymentSubType.EMI_AMOUNT -> if (payment.isLoanForceClosed) {"Squad Manager force closed your Loan ${payment.loanId}"}else {"Squad Manager updated your EMI for ${payment.transferReferenceId}"}
-
-                            else -> ""
-                        }
-
-                        if (message.isNotEmpty()) {
-
-                            NotificationService.shared.sendMemberReminder(
-
-                                request = ReminderRequest(
-
-                                    squadId = squad.value?.squadID
-                                        ?: "",
-
-                                    memberIds = listOf(payment.memberId) ,
-
-                                    title = "Payment Updated",
-
-                                    message = message,
-
-                                    data = mapOf(
-
-                                        "screen" to "PAYMENT"
-
-                                    )
-
-                                ),
-
-                                onSuccess = { response ->
-                                    ToastManager.show(
-                                        title = "Reminder Sent",
-                                        message = "Notification sent to ${response.sentTo} member(s)",
-                                        type = ToastType.SUCCESS
-                                    )
-                                },
-
-                                onError = { error ->
-                                    ToastManager.show(
-                                        title = "Failed",
-                                        message = error.localizedMessage ?: "Unable to send reminder.",
-                                        type = ToastType.ERROR
-                                    )
-                                }
-
-                            )
-
-                        }
-                    }
                 }
+
+
+
+                if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT && payment.paymentEntryType == PaymentEntryType.AUTOMATIC_ENTRY) {
+
+                    val index = _squadCashRequests.value.indexOfFirst {
+                        it.id == payment.cashRequestId
+                    }
+
+                    if (index < 0) return@savePayments
+
+                    val updated = _squadCashRequests.value.toMutableList()
+
+                    updated[index] = updated[index].copy(
+                        cashRequestStatus = CashRequestStatus.ACCEPTED,
+                        requestAcceptedOn = Timestamp.now() )
+                    setSquadCashRequests(updated)
+                }
+
             }
 
             // FIX: this used to call showLoader() again (a straight typo) instead of
@@ -2387,19 +2354,6 @@ class SquadViewModel : ViewModel() {
 
                         FirestoreManager.shared.updateCurrentLoanApproveStatus(payment.squadId,payment.memberId,
                             EMIStatus.PENDING) {_,_ -> }
-
-                        val index = _squadCashRequests.value.indexOfFirst {
-                            it.id == payment.cashRequestId
-                        }
-
-                        if (index < 0) return@updatePaymentApproveStatus
-
-                        val updated = _squadCashRequests.value.toMutableList()
-
-                        updated[index] = updated[index].copy(
-                            cashRequestStatus = CashRequestStatus.ACCEPTED,
-                            requestAcceptedOn = Timestamp.now() )
-                        setSquadCashRequests(updated)
                     }
 
                     PaymentApproveStatus.REJECTED -> {
@@ -4129,7 +4083,7 @@ class SquadViewModel : ViewModel() {
             paymentStatus = PaymentStatus.INVERIFICATION,
             paymentApproveStatus = if (paymentEntryType == PaymentEntryType.AUTOMATIC_ENTRY){PaymentApproveStatus.REQUESTED}else {PaymentApproveStatus.ACCEPTED},
 
-            description = "Force Closed #$loanNumber ${total.currencyFormattedWithCommas()}",
+            description = "Squad Manager Force Closed ${loan.loanNumber}",
             squadId = squad.value?.squadID ?: "",
 
             order_id = loanNumber,

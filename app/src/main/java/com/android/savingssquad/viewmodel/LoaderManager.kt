@@ -32,6 +32,12 @@ class LoaderManager private constructor() {
      * disappears once every matching hideLoader() has been called.
      */
     fun showLoader(message: String = "Loading...") {
+
+        val countOld = refCount.updateAndGet { (it - 1).coerceAtLeast(0) }
+        if (countOld == 0) {
+            runOnMain { isLoading = false }
+        }
+
         val count = refCount.incrementAndGet()
         runOnMain {
             loadingMessage = message
