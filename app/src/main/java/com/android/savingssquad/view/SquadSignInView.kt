@@ -229,7 +229,7 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                                     }
                                 },
                                 onError = {
-                                    squadViewModel.setIsVerifyingOTP(true)
+                                    squadViewModel.setIsVerifyingOTP(false)
                                     errorMessage = it
                                 }
                             )

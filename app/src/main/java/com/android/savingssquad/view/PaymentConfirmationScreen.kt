@@ -91,6 +91,7 @@ fun PaymentConfirmationView(
     var isProcessing by rememberSaveable { mutableStateOf(false) }
     var didCopyReference by remember { mutableStateOf(false) }
     var didCopyUPI by remember { mutableStateOf(false) }
+    var showSuccessScreen by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
 
     val context = LocalContext.current
@@ -153,7 +154,8 @@ fun PaymentConfirmationView(
 
         Column(
             modifier = Modifier.fillMaxSize()
-        ) {
+        )
+        {
 
             //====================================================
             // Header
@@ -261,7 +263,7 @@ fun PaymentConfirmationView(
                             if (success) {
 
                                 UserDefaultsManager.clearPendingPayment()
-                                navController.popBackStack()
+                                showSuccessScreen = true
 
                             } else {
 
@@ -282,6 +284,16 @@ fun PaymentConfirmationView(
                     }
                 )
             }
+        }
+
+        if (showSuccessScreen && payment != null) {
+            PaymentSuccessView(
+                payment = payment!!,
+                onDone = {
+                    showSuccessScreen = false
+                    navController.popBackStack()
+                }
+            )
         }
     }
 }
