@@ -70,8 +70,7 @@ import com.android.savingssquad.viewmodel.ToastType
 @Composable
 fun MembersListView(
     navController: NavController,
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared
+    squadViewModel: SquadViewModel
 ) {
     var didFetchMembers by remember { mutableStateOf(false) }
 

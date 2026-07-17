@@ -748,6 +748,36 @@ class FirestoreManager private constructor() {
             }
     }
 
+    fun updateLoanForceCloseVerification(
+        squadID: String,
+        memberID: String,
+        loanID: String,
+        isForceCloseVerification: Boolean,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val loanRef = db.collection("squads")
+            .document(squadID)
+            .collection("members")
+            .document(memberID)
+            .collection("loans")
+            .document(loanID)
+
+        loanRef.update(
+            "isForceCloseVerification",
+            isForceCloseVerification
+        )
+            .addOnSuccessListener {
+                completion(true, "Loan force close verification updated successfully.")
+            }
+            .addOnFailureListener { exception ->
+                completion(
+                    false,
+                    "Failed to update loan force close verification: ${exception.localizedMessage}"
+                )
+            }
+    }
+
     // FIX #5: transactionalized to remove the read-modify-write race on the
     // `installments` array field.
     fun updateLoanAndAllInstallmentsStatus(

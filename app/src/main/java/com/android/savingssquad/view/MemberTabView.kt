@@ -74,9 +74,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun MemberTabView(
     navController: NavController,
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared
-) {
+    squadViewModel: SquadViewModel) {
     var selectedTab by rememberSaveable { mutableStateOf(0) }  // 0 = Home, 1 = Pay
 
     // Shared State from ViewModel

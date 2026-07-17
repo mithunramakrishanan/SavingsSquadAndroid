@@ -55,7 +55,6 @@ import java.util.Calendar
 fun ManageSquadView(
     navController: NavController,
     squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared,
     onDismiss: (() -> Unit)? = null // optional callback, like SwiftUI dismiss
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -241,7 +240,6 @@ fun ManageSquadView(
 
                                 saveChanges(
                                     squadViewModel = squadViewModel,
-                                    loaderManager = loaderManager,
                                     currentDuration = squadDuration.value,
                                     currentAmount = squadAmount.value,
                                     phone = squadPhoneNumber.value,
@@ -321,7 +319,6 @@ fun ManageSquadView(
  */
 private fun saveChanges(
     squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager,
     currentDuration: Int,
     currentAmount: Int,
     phone: String,
@@ -343,7 +340,7 @@ private fun saveChanges(
     val squadAmountEdited = gf.monthlyContribution != currentAmount
     if (!squadDurationEdited && !squadAmountEdited) return
 
-    loaderManager.showLoader()
+    LoaderManager.shared.showLoader()
 
     val endDate: Date? = CommonFunctions.getFutureMonthYearDate(
         from = gf.squadStartDate?.toDate() ?: Date(),
@@ -365,7 +362,7 @@ private fun saveChanges(
                 squadEndDate = endDate ?: Date(),
                 amount = updatedGF.monthlyContribution.toString()
             ) { contSuccess, message ->
-                loaderManager.hideLoader()
+                LoaderManager.shared.hideLoader()
                 if (contSuccess) {
                     val description = createActivityDescription(
                         oldDuration = originalDuration,
@@ -387,7 +384,7 @@ private fun saveChanges(
                 }
             }
         } else {
-            loaderManager.hideLoader()
+            LoaderManager.shared.hideLoader()
             println("❌ Error: ${error ?: "Unknown error"}")
         }
     }

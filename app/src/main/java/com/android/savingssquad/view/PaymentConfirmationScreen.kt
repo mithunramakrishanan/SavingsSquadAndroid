@@ -86,7 +86,6 @@ import kotlin.time.Duration.Companion.milliseconds
 fun PaymentConfirmationView(
     navController: NavController,
     squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager
 ) {
     var payment by remember { mutableStateOf<PaymentsDetails?>(null) }
     var isProcessing by rememberSaveable { mutableStateOf(false) }
@@ -257,7 +256,7 @@ fun PaymentConfirmationView(
                         ) { success, error ->
 
                             isProcessing = false
-                            loaderManager.hideLoader()
+                            LoaderManager.shared.hideLoader()
 
                             if (success) {
 

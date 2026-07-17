@@ -61,9 +61,7 @@ fun MemberHomeView(
     selectedTab: Int,
     onChangeTab: (Int) -> Unit,
     navController: NavController,
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared
-) {
+    squadViewModel: SquadViewModel) {
     // Observe state from ViewModel
     val squad by squadViewModel.squad.collectAsStateWithLifecycle()
     val currentMember by squadViewModel.currentMember.collectAsStateWithLifecycle()
@@ -522,16 +520,16 @@ fun MemberHomeView(
                         }
                     }
 
-                    FirestoreManager.shared.updateLastActiveDate(fetchedMember.squadID,fetchedMember.id ?: "", SquadUserType.SQUAD_MEMBER) { success,error ->
-                    }
+//                    FirestoreManager.shared.updateLastActiveDate(fetchedMember.squadID,fetchedMember.id ?: "", SquadUserType.SQUAD_MEMBER) { success,error ->
+//                    }
 
-                    loaderManager.hideLoader()
+                    LoaderManager.shared.hideLoader()
                 }
 
                 Log.d("MemberHomeView", "✅ Member fetched: ${fetchedMember.name}")
             } else {
                 Log.e("MemberHomeView", "❌ Error: $error")
-                loaderManager.hideLoader()
+                LoaderManager.shared.hideLoader()
             }
         }
     }

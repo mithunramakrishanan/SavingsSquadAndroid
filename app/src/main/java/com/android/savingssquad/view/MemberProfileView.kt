@@ -96,7 +96,6 @@ import java.util.concurrent.TimeUnit
 fun MemberProfileView(
     navController: NavController,
     squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared
 ) {
     val scope = rememberCoroutineScope()
     val showUpdatePhoneNumberPopup by squadViewModel.showUpdateMemberPopup.collectAsStateWithLifecycle()

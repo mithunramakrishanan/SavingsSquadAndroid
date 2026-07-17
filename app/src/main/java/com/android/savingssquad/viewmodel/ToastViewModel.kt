@@ -3,9 +3,11 @@ package com.android.savingssquad.viewmodel
 import android.R.attr.alpha
 import android.R.attr.scaleX
 import android.R.attr.scaleY
+import android.annotation.SuppressLint
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,6 +50,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -121,6 +124,7 @@ object ToastManager {
 
 }
 
+@SuppressLint("UseOfNonLambdaOffsetOverload")
 @Composable
 fun SSToast() {
 
@@ -136,11 +140,11 @@ fun SSToast() {
             animateTick = false
             showContent = false
 
-            delay(100)
+            delay(100.milliseconds)
 
             animateTick = true
 
-            delay(150)
+            delay(150.milliseconds)
 
             showContent = true
         }
@@ -155,7 +159,12 @@ fun SSToast() {
         }
 
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                // Block all touches/clicks to whatever is behind the toast
+                .pointerInput(Unit) {
+                    detectTapGestures { /* consume, do nothing */ }
+                },
             contentAlignment = Alignment.Center
         ) {
 

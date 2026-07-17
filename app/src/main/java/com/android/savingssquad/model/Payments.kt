@@ -204,7 +204,7 @@ data class PaymentsDetails(
     var selectedEMIConfig: EMIConfiguration? = null,
 
     @get:PropertyName("cashRequestId") @set:PropertyName("cashRequestId")
-    var cashRequestId: String? = null,
+    var cashRequestId: String = "",
 
     @get:PropertyName("isLoanForceClosed") @set:PropertyName("isLoanForceClosed")
     var isLoanForceClosed: Boolean = false,

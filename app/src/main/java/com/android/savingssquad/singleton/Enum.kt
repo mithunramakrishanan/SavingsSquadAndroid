@@ -7,6 +7,149 @@ import com.android.savingssquad.model.PaymentsDetails
 
 import com.google.firebase.firestore.PropertyName
 
+object ManualEntrySquadMessages {
+
+    object PaymentDescription {
+
+        fun contribution(
+            memberName: String,
+            monthYear: String
+        ): String {
+            return "Contribution payment for $memberName ($monthYear) updated by the squad manager."
+        }
+
+        fun emi(
+            memberName: String,
+            installment: String,
+            loanNumber: String
+        ): String {
+            return "EMI payment for $memberName - $installment of Loan #$loanNumber updated by the squad manager."
+        }
+
+        fun forceClose(
+            memberName: String,
+            loanNumber: String
+        ): String {
+            return "Loan #$loanNumber for $memberName was force closed by the squad manager."
+        }
+
+        fun otherPayment(
+            note: String,
+            amount: Int
+        ): String {
+            return "$note - ${amount.currencyFormattedWithCommas()}"
+        }
+    }
+
+    object Contribution {
+
+        const val TOAST_TITLE = "Contribution Updated"
+        const val NOTIFICATION_TITLE = "Contribution Updated"
+
+        fun toast(
+            memberName: String,
+            monthYear: String
+        ): String {
+            return "Contribution for $memberName ($monthYear) has been recorded successfully."
+        }
+
+        fun notification(
+            monthYear: String
+        ): String {
+            return "Your contribution for $monthYear has been updated by the squad manager."
+        }
+
+        fun activity(
+            memberName: String,
+            monthYear: String,
+            amount: Int
+        ): String {
+            return "Updated contribution for $memberName ($monthYear) — Amount: ${amount.currencyFormattedWithCommas()}."
+        }
+    }
+
+    object EMI {
+
+        const val TOAST_TITLE = "EMI Payment Updated"
+        const val NOTIFICATION_TITLE = "EMI Payment Updated"
+
+        fun toast(
+            memberName: String,
+            installment: String
+        ): String {
+            return "EMI payment for $memberName ($installment) has been recorded successfully."
+        }
+
+        fun notification(
+            installment: String
+        ): String {
+            return "Your EMI payment for $installment has been updated by the squad manager."
+        }
+
+        fun activity(
+            memberName: String,
+            installment: String,
+            loanNumber: String,
+            amount: Int
+        ): String {
+            return "Updated EMI payment for $memberName — $installment for Loan #$loanNumber. Amount: ${amount.currencyFormattedWithCommas()}."
+        }
+    }
+
+    object ForceClose {
+
+        const val TOAST_TITLE = "Loan Closed"
+        const val NOTIFICATION_TITLE = "Loan Closed"
+
+        fun toast(
+            memberName: String,
+            loanNumber: String
+        ): String {
+            return "Loan #$loanNumber for $memberName has been force closed successfully."
+        }
+
+        fun notification(
+            loanNumber: String
+        ): String {
+            return "Your loan #$loanNumber has been force closed by the squad manager."
+        }
+
+        fun activity(
+            memberName: String,
+            loanNumber: String,
+            total: Int
+        ): String {
+            return "Force closed Loan #$loanNumber for $memberName. Total settlement: ${total.currencyFormattedWithCommas()}."
+        }
+    }
+
+    object OtherPayment {
+
+        const val TOAST_TITLE = "Payment Recorded"
+        const val NOTIFICATION_TITLE = "New Payment Recorded"
+
+        fun toast(
+            amount: Int
+        ): String {
+            return "Payment of ${amount.currencyFormattedWithCommas()} has been recorded successfully."
+        }
+
+        fun notification(
+            amount: Int,
+            note: String
+        ): String {
+            return "A payment of ${amount.currencyFormattedWithCommas()} has been recorded by the squad manager. Note: $note"
+        }
+
+        fun activity(
+            amount: Int,
+            note: String
+        ): String {
+            return "Recorded payment of ${amount.currencyFormattedWithCommas()}. Note: $note."
+        }
+    }
+}
+
 // ------------------------------
 // MARK: - Payment Type
 // ------------------------------

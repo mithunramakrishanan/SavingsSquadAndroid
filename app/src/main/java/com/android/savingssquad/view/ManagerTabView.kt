@@ -45,9 +45,7 @@ import com.android.savingssquad.viewmodel.SSToast
 @Composable
 fun ManagerTabView(
     navController: NavController,
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager
-) {
+    squadViewModel: SquadViewModel) {
 
     var selectedTab by rememberSaveable { mutableStateOf(0) }
 
@@ -96,9 +94,7 @@ fun ManagerTabView(
 
                     0 -> ManagerHomeView(
                         navController = navController,
-                        squadViewModel = squadViewModel,
-                        loaderManager = loaderManager
-                    )
+                        squadViewModel = squadViewModel)
 
                     1 -> ManagerPaymentView(
                         navController = navController,

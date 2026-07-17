@@ -1622,6 +1622,44 @@ class SquadViewModel : ViewModel() {
         }
     }
 
+    fun updateLoanForceCloseVerification(
+        squadID: String,
+        memberID: String,
+        loanID: String,
+        isForceCloseVerification: Boolean,
+        showLoader: Boolean = true,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            ToastManager.show(
+                title = SquadStrings.appName,
+                message = SquadStrings.networkError,
+                type = ToastType.ERROR
+            )
+            completion(false, SquadStrings.networkError)
+            return
+        }
+
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        manager.updateLoanForceCloseVerification(
+            squadID = squadID,
+            memberID = memberID,
+            loanID = loanID,
+            isForceCloseVerification = isForceCloseVerification
+        ) { success, message ->
+
+            if (showLoader) {
+                LoaderManager.shared.hideLoader()
+            }
+
+            completion(success, message)
+        }
+    }
+
     fun updateLoanAndAllInstallmentsStatus(
         squadID: String,
         memberID: String,
@@ -1931,16 +1969,25 @@ class SquadViewModel : ViewModel() {
                     }
                     else {
 
-                        updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.INVERIFICATION.value, showLoader = false){ success, error ->
-                            if (!success) {
-                                println("Error updating: $error")
-                            }
-                            else {
+                        if (payment.isLoanForceClosed) {
 
-                                updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), payment.memberId)
-
-                            }
+                            updateLoanForceCloseVerification(payment.squadId,payment.memberId,payment.loanId,true) {_,_->}
                         }
+                        else {
+
+                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.INVERIFICATION.value, showLoader = false){ success, error ->
+                                if (!success) {
+                                    println("Error updating: $error")
+                                }
+                                else {
+
+                                    updateLoanPaidAfterInstallmentSettled(_memberPendingLoans.value ?: emptyList(), payment.memberId)
+
+                                }
+                            }
+
+                        }
+
                     }
 
                 }
@@ -2285,6 +2332,8 @@ class SquadViewModel : ViewModel() {
                         }
 
                         PaymentApproveStatus.REJECTED -> {
+
+                            updateLoanForceCloseVerification(payment.squadId,payment.memberId,payment.loanId,false) {_,_->}
 
                         }
 
@@ -4038,6 +4087,7 @@ class SquadViewModel : ViewModel() {
         paymentEntryType: PaymentEntryType,
         forceCloseSummary: ForceCloseSummary,
         showLoader: Boolean = true,
+        description: String,
         completion: (Boolean, String?) -> Unit
     ) {
 
@@ -4083,7 +4133,7 @@ class SquadViewModel : ViewModel() {
             paymentStatus = PaymentStatus.INVERIFICATION,
             paymentApproveStatus = if (paymentEntryType == PaymentEntryType.AUTOMATIC_ENTRY){PaymentApproveStatus.REQUESTED}else {PaymentApproveStatus.ACCEPTED},
 
-            description = "Squad Manager Force Closed ${loan.loanNumber}",
+            description = description,
             squadId = squad.value?.squadID ?: "",
 
             order_id = loanNumber,

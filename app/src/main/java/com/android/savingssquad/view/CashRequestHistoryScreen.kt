@@ -518,24 +518,36 @@ fun CashRequestRow(
                     ) {
 
                         Text(
-                            "Interest",
-                            style = AppFont.ibmPlexSans(
-                                11,
-                                FontWeight.Normal
-                            ),
+                            text = "Interest",
+                            style = AppFont.ibmPlexSans(11, FontWeight.Normal),
                             color = AppColors.secondaryText
                         )
 
-                        Spacer(Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
 
                         Text(
-                            "${emi.emiInterestRate}%",
-                            style = AppFont.ibmPlexSans(
-                                18,
-                                FontWeight.Bold
-                            ),
+                            text = "${emi.emiInterestRate}%",
+                            style = AppFont.ibmPlexSans(18, FontWeight.Bold),
                             color = AppColors.headerText
                         )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    color = AppColors.primaryBrand.copy(alpha = 0.12f),
+                                    shape = RoundedCornerShape(50)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = emi.interestType.name.lowercase()
+                                    .replaceFirstChar { it.uppercase() },
+                                style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                                color = AppColors.primaryBrand
+                            )
+                        }
                     }
                 }
             }
@@ -561,7 +573,7 @@ fun CashRequestRow(
                 Spacer(Modifier.weight(1f))
 
                 InfoItem(
-                    title = "Interest",
+                    title = "Total Interest",
                     value = "₹${emi.interestAmount}"
                 )
             }

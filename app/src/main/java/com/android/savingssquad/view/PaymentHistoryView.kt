@@ -164,14 +164,15 @@ fun PaymentHistoryView(
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(bottom = 20.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(bottom = 10.dp)
                 ) {
 
                     items(
                         items = payments.value,
                         key = { it.id ?: "" }
-                    ) { payment ->
+                    )
+                    { payment ->
 
                         PaymentRow(
                             payment = payment

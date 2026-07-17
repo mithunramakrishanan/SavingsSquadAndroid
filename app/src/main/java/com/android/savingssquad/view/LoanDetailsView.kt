@@ -100,9 +100,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun LoanDetailsView(
     navController: NavController,
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared
-) {
+    squadViewModel: SquadViewModel) {
     val squad = squadViewModel.squad
 
     val screenType = if (UserDefaultsManager.getSquadManagerLogged()) {

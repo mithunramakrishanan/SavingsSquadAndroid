@@ -66,7 +66,7 @@ import kotlinx.coroutines.withContext
 
 
 @Composable
-fun SquadSignInView( navController: NavController, squadViewModel: SquadViewModel, loaderManager: LoaderManager) {
+fun SquadSignInView( navController: NavController, squadViewModel: SquadViewModel) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope() // ✅ define this
     val phoneNumber  = remember { mutableStateOf("") }

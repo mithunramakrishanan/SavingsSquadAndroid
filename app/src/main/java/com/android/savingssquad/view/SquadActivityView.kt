@@ -42,9 +42,7 @@ import com.android.savingssquad.viewmodel.SSToast
 @Composable
 fun SquadActivityView(
     navController: NavController,
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared,
-) {
+    squadViewModel: SquadViewModel) {
 
     var selectedUser by remember { mutableStateOf("All") }
     var selectedMemberId by remember { mutableStateOf<String?>(null) }

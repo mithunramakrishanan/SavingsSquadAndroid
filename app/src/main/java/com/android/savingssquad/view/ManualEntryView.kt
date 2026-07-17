@@ -67,6 +67,7 @@ import com.android.savingssquad.model.ReminderRequest
 import com.android.savingssquad.model.unpaidMonths
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.ManualEntrySquadMessages
 import com.android.savingssquad.singleton.NotificationService
 import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadUserType
@@ -101,9 +102,7 @@ import java.util.Calendar
 @Composable
 fun ManualEntryView(
     navController: NavController?,
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared
-) {
+    squadViewModel: SquadViewModel) {
     val coroutineScope = rememberCoroutineScope()
 
     // ===== state (same names as SwiftUI) =====
@@ -283,12 +282,12 @@ fun ManualEntryView(
                             return@SSButton
                         }
 
-                        loaderManager.showLoader()
+                        LoaderManager.shared.showLoader()
                         coroutineScope.launch(Dispatchers.IO) {
                             val contribution = selectedContributions.find { it.monthYear == contributionSelectedMonthYear }
                             val contributionID = contribution?.id
                             if (contribution == null || contributionID == null) {
-                                loaderManager.hideLoader()
+                                LoaderManager.shared.hideLoader()
                                 return@launch
                             }
 
@@ -331,7 +330,7 @@ fun ManualEntryView(
                                             paymentStatus = PaymentStatus.SUCCESS,
                                             payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
                                             paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
-                                            description = "Squad Manager updated $contributionSelectedMemberName contribution for $contributionSelectedMonthYear",
+                                            description = ManualEntrySquadMessages.PaymentDescription.contribution(contributionSelectedMemberName,contributionSelectedMonthYear),
                                             squadId = squadLocal.squadID,
                                             order_id = contributionID,
                                             contributionId = contributionID,
@@ -353,14 +352,14 @@ fun ManualEntryView(
 
                                         squadViewModel.createSquadActivity(
                                             activityType = SquadActivityType.AMOUNT_CREDIT,
-                                            userName = "CHIT MANAGER",
+                                            userName = newPayment.memberName,
                                             memberId = newPayment.memberId,
                                             amount = squadLocal.monthlyContribution,
-                                            description = "Updated $contributionSelectedMemberName contribution for $contributionSelectedMonthYear"
+                                            description = ManualEntrySquadMessages.Contribution.activity(contributionSelectedMemberName,contributionSelectedMonthYear,newPayment.amount)
                                         ) { success, error ->
                                             coroutineScope.launch(Dispatchers.Main) {
-                                                loaderManager.hideLoader()
-                                                ToastManager.show(title = SquadStrings.appName, message = "Updated ${contributionSelectedMemberName} contribution for ${contributionSelectedMonthYear}",
+                                                LoaderManager.shared.hideLoader()
+                                                ToastManager.show(title = ManualEntrySquadMessages.Contribution.TOAST_TITLE, message = ManualEntrySquadMessages.Contribution.toast(contributionSelectedMemberName,contributionSelectedMonthYear),
                                                     ToastType.SUCCESS)
 
                                                 squadViewModel.squad?.let { squad ->
@@ -374,9 +373,9 @@ fun ManualEntryView(
 
                                                             memberIds = listOf(newPayment.memberId) ,
 
-                                                            title = "Squad manager updated the payment",
+                                                            title = ManualEntrySquadMessages.Contribution.NOTIFICATION_TITLE,
 
-                                                            message = "Your contribution amount updated by manager",
+                                                            message = ManualEntrySquadMessages.Contribution.notification(contributionSelectedMonthYear),
 
                                                             data = mapOf(
 
@@ -401,7 +400,7 @@ fun ManualEntryView(
                                         }
                                     } else {
                                         coroutineScope.launch(Dispatchers.Main) {
-                                            loaderManager.hideLoader()
+                                            LoaderManager.shared.hideLoader()
                                         }
                                     }
                                 }
@@ -501,7 +500,7 @@ fun ManualEntryView(
                                     onSetMonthError = { emiSelectedMonthYearError = it }
                                 )
                             ) {
-                                loaderManager.showLoader()
+                                LoaderManager.shared.showLoader()
                                 selectedInstallment?.let { installment ->
                                     installment.status = EMIStatus.PAID
                                     installment.duePaidDate = Date().asTimestamp
@@ -531,7 +530,7 @@ fun ManualEntryView(
                                                 paymentStatus = PaymentStatus.SUCCESS,
                                                 payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
                                                 paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
-                                                description = "Squad Manager updated EMI and Interest amount to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber",
+                                                description = ManualEntrySquadMessages.PaymentDescription.emi(emiSelectedMemberName,selectedInstallment?.installmentNumber ?: "",loanNumber),
                                                 squadId = squad?.squadID ?: "",
                                                 loanId = loanId,
                                                 installmentId = selectedInstallment?.id ?: "",
@@ -545,21 +544,18 @@ fun ManualEntryView(
                                             }
 
                                             val total = (selectedInstallment?.installmentAmount ?: 0) + (selectedInstallment?.interestAmount ?: 0)
-                                            val description = "Updated EMI and Interest to $emiSelectedMemberName - ${selectedInstallment?.installmentNumber ?: ""} for #$loanNumber ${total.currencyFormattedWithCommas()}"
 
                                             squadViewModel.createSquadActivity(
                                                 activityType = SquadActivityType.AMOUNT_CREDIT,
-                                                userName = "SQUAD MANAGER",
-                                                memberId = "",
+                                                userName = emiSelectedMemberName,
+                                                memberId = loanPayment.memberId,
                                                 amount = total,
-                                                description =description
+                                                description = ManualEntrySquadMessages.EMI.activity(emiSelectedMemberName,selectedInstallment?.installmentNumber ?: "",loanNumber,total)
                                             ) { success, error ->
                                                 coroutineScope.launch(Dispatchers.Main) {
-                                                    emiSelectedMemberName = ""
-                                                    emiSelectedMonthYear = ""
-                                                    loaderManager.hideLoader()
+                                                    LoaderManager.shared.hideLoader()
 
-                                                    ToastManager.show(title = SquadStrings.appName, message = description,
+                                                    ToastManager.show(title = ManualEntrySquadMessages.EMI.TOAST_TITLE, message = ManualEntrySquadMessages.EMI.toast(emiSelectedMemberName,selectedInstallment?.installmentNumber ?: ""),
                                                         ToastType.SUCCESS)
 
                                                     squadViewModel.squad?.let { squad ->
@@ -573,9 +569,9 @@ fun ManualEntryView(
 
                                                                 memberIds = listOf(loanPayment.memberId) ,
 
-                                                                title = "Squad manager updated the payment",
+                                                                title = ManualEntrySquadMessages.EMI.NOTIFICATION_TITLE,
 
-                                                                message = "Your emi amount updated by manager",
+                                                                message = ManualEntrySquadMessages.EMI.notification(selectedInstallment?.installmentNumber ?: ""),
 
                                                                 data = mapOf(
 
@@ -593,10 +589,15 @@ fun ManualEntryView(
 
                                                         )
                                                     }
+
+                                                    emiSelectedMemberName = ""
+                                                    emiSelectedMonthYear = ""
+                                                    emiSelectedMember = null
+                                                    emiSelectedMemberNameError = ""
                                                 }
                                             }
                                         } else {
-                                            loaderManager.hideLoader()
+                                            LoaderManager.shared.hideLoader()
                                         }
                                     }
                                 }
@@ -631,9 +632,9 @@ fun ManualEntryView(
                                 /* handle other payment */
 
                                 if (validateFields()) {
-                                    handleOtherPayment(squadViewModel = squadViewModel, loaderManager = loaderManager,  amountStr = paymentAmount.value, notes = paymentNotes , activity = activity, context = appContext,  action = {
+                                    handleOtherPayment(squadViewModel = squadViewModel,  amountStr = paymentAmount.value, notes = paymentNotes , activity = activity, context = appContext,  action = {
                                         LoaderManager.shared.hideLoader()
-                                        ToastManager.show(title = SquadStrings.appName, message = "Updated amount ${paymentAmount.value} - ${paymentNotes}" ,
+                                        ToastManager.show(title = ManualEntrySquadMessages.OtherPayment.TOAST_TITLE, message = ManualEntrySquadMessages.OtherPayment.toast(paymentAmount.value.toInt()),
                                             ToastType.SUCCESS)
 
 
@@ -643,8 +644,8 @@ fun ManualEntryView(
                                                 request = ReminderRequest(
                                                     squadId = squad.value?.squadID ?: "",
                                                     memberIds = squadViewModel.squadMembers.value.mapNotNull { it.id },
-                                                    title = "Squad manager updated the payment",
-                                                    message = "$paymentNotes - $paymentAmount",
+                                                    title = ManualEntrySquadMessages.OtherPayment.NOTIFICATION_TITLE,
+                                                    message = ManualEntrySquadMessages.OtherPayment.notification(paymentAmount.value.toInt(),paymentNotes),
                                                     data = mapOf(
                                                         "screen" to "PAYMENT"
                                                     )
@@ -691,9 +692,9 @@ fun ManualEntryView(
                         val member = contributionSelectedMember
                         val groupId = squad?.squadID
                         if (member != null && groupId != null) {
-                            loaderManager.showLoader()
+                            LoaderManager.shared.showLoader()
                             squadViewModel.fetchContributionsForMember(showLoader = true, squadID = groupId, memberID = member.id ?: "") { contributions, error ->
-                                loaderManager.hideLoader()
+                                LoaderManager.shared.hideLoader()
                                 if (contributions != null) {
                                     availableContributionMonths = contributions.unpaidMonths()
                                 } else {
@@ -741,10 +742,16 @@ fun ManualEntryView(
                         squadViewModel.setShowEMIMemberPopup(false)
                         emiSelectedMemberName = selectedValue
                         emiSelectedMember = CommonFunctions.getMember(by = selectedValue, from = squadMembers)
-                        if (emiSelectedMember != null) {
-                            loaderManager.showLoader()
+                        if (emiSelectedMemberName.isEmpty()) {
+
+                            ToastManager.show(title = SquadStrings.appName, message =  "Please select a member", type = ToastType.ERROR)
+
+                        }
+                        else {
+
+                            LoaderManager.shared.showLoader()
                             squadViewModel.fetchMemberLoans(showLoader = true, memberID = emiSelectedMember?.id ?: "") { success, error ->
-                                loaderManager.hideLoader()
+                                LoaderManager.shared.hideLoader()
                                 // memberPendingLoans will be updated via viewmodel state
                             }
                         }
@@ -793,15 +800,11 @@ fun ManualEntryView(
                                 loan = updatedLoan,
                                 forceClosedInterest = summary.recalculatedInterest,
                                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
-                                forceCloseSummary = summary
-                            ) { success, error ->
-
-                                emiSelectedMemberName = ""
-                                emiSelectedMonthYear = ""
-                                emiSelectedMember = null
-                                emiSelectedMemberNameError = ""
-
-
+                                forceCloseSummary = summary,
+                                description = ManualEntrySquadMessages.PaymentDescription.forceClose(
+                                    emiSelectedMember?.name ?: "",updatedLoan.loanNumber)
+                            )
+                            { success, error ->
 
                                 val pending = loan.installments.filter {
                                     it.status == EMIStatus.PENDING
@@ -814,16 +817,14 @@ fun ManualEntryView(
                                 val total = outstandingPrincipal + summary.recalculatedInterest
                                 squadViewModel.createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_CREDIT,
-                                    userName = "SQUAD MANAGER",
+                                    userName = emiSelectedMember?.name ?: "",
                                     memberId = loan.memberID,
                                     amount = total,
-                                    description ="Squad Manager Force Closed ${loan.loanNumber}"
+                                    description = ManualEntrySquadMessages.ForceClose.activity(emiSelectedMember?.name ?: "",updatedLoan.loanNumber,total)
                                 ) { success, error ->
                                     coroutineScope.launch(Dispatchers.Main) {
-                                        emiSelectedMemberName = ""
-                                        emiSelectedMonthYear = ""
                                         LoaderManager.shared.hideLoader()
-                                        ToastManager.show(title = SquadStrings.appName, message = "Updated force close amount",
+                                        ToastManager.show(title = ManualEntrySquadMessages.ForceClose.TOAST_TITLE, message = ManualEntrySquadMessages.ForceClose.toast(emiSelectedMember?.name ?: "",updatedLoan.loanNumber),
                                             ToastType.SUCCESS)
 
 
@@ -838,9 +839,9 @@ fun ManualEntryView(
 
                                                     memberIds = listOf(loan.memberID),
 
-                                                    title = "Squad manager updated the payment",
+                                                    title = ManualEntrySquadMessages.ForceClose.NOTIFICATION_TITLE,
 
-                                                    message = "Your loan has been force closed by manager",
+                                                    message = ManualEntrySquadMessages.ForceClose.notification(updatedLoan.loanNumber),
 
                                                     data = mapOf(
 
@@ -858,10 +859,15 @@ fun ManualEntryView(
 
                                             )
                                         }
-
-
                                     }
                                 }
+
+                                emiSelectedMemberName = ""
+                                emiSelectedMonthYear = ""
+                                emiSelectedMember = null
+                                emiSelectedMemberNameError = ""
+
+
                             }
                         },
                         onCancel = { squadViewModel.setShowEMIMonthPopup(false) }
@@ -876,14 +882,13 @@ fun ManualEntryView(
 
 private fun handleOtherPayment(
     squadViewModel: SquadViewModel,
-    loaderManager : LoaderManager,
     amountStr: String,
     notes: String,
     activity: Activity,
     context: android.content.Context,
     action : () -> Unit
 ) {
-    loaderManager.showLoader()
+    LoaderManager.shared.showLoader()
     val squad = squadViewModel.squad.value ?: return
     val amount = amountStr.toIntOrNull() ?: 0
 
@@ -910,7 +915,7 @@ private fun handleOtherPayment(
             paymentStatus = PaymentStatus.SUCCESS,
             payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
             paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
-            description = notes,
+            description = ManualEntrySquadMessages.PaymentDescription.otherPayment(notes,amount),
             squadId = squad.squadID,
             contributionId = "",
             loanId = "",
@@ -939,14 +944,14 @@ private fun handleOtherPayment(
         ) { success, error ->
             if (success) {
                 println("✅ Payment added successfully!")
-                loaderManager.hideLoader()
+                LoaderManager.shared.hideLoader()
                 // 🔹 Record activity entry
                 squadViewModel.createSquadActivity(
                     activityType = SquadActivityType.AMOUNT_CREDIT,
                     userName = "CHIT MANAGER",
                     memberId = newPayment.memberId,
                     amount = amount,
-                    description = "Updated amount $amountStr - $notes"
+                    description = ManualEntrySquadMessages.OtherPayment.activity(amountStr.toInt(),notes)
                 ) { success, error ->
                     action()
                 }

@@ -6,12 +6,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.android.savingssquad.singleton.AppColors
+import com.android.savingssquad.view.AppBackgroundGradient
 import com.android.savingssquad.viewmodel.SquadViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -66,157 +70,170 @@ fun RestorePurchasesScreen(
 
     val sub by viewModel.subscription.collectAsState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(AppColors.background)
-    ) {
 
-        // NAV BAR
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = { navController.popBackStack() }) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = null,
-                    tint = AppColors.headerText
+    Box(
+        modifier = Modifier
+
+            .fillMaxSize()
+
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    )
+    {
+        AppBackgroundGradient()
+        Column(
+            modifier = Modifier.fillMaxSize()
+        )
+        {
+
+            // NAV BAR
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = null,
+                        tint = AppColors.headerText
+                    )
+                }
+
+                Text(
+                    "Restore Purchases",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
 
-            Text(
-                "Restore Purchases",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 18.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
 
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 18.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
+                Spacer(Modifier.height(10.dp))
 
-            Spacer(Modifier.height(10.dp))
+                // HEADER CARD
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(AppColors.surface, RoundedCornerShape(20.dp))
+                        .border(1.dp, AppColors.border, RoundedCornerShape(20.dp))
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
 
-            // HEADER CARD
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .background(AppColors.primaryBrand.copy(alpha = 0.12f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Restore,
+                            contentDescription = null,
+                            tint = AppColors.primaryBrand,
+                            modifier = Modifier.size(34.dp)
+                        )
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Text(
+                        "Restore Purchases",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        "Already subscribed on another device?\nRestore your active plan here.",
+                        fontSize = 14.sp,
+                        color = AppColors.secondaryText,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // CURRENT PLAN CARD
+                sub?.let {
+                    CurrentPlanCard(it, viewModel)
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                // INFO CARDS
+                InfoCard()
+
+                Spacer(Modifier.height(12.dp))
+
+                // RESULT BANNER
+                if (showResult) {
+                    ResultBanner(resultSuccess, resultMessage)
+                }
+
+                Spacer(Modifier.height(20.dp))
+            }
+
+            // BUTTONS
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AppColors.surface, RoundedCornerShape(20.dp))
-                    .border(1.dp, AppColors.border, RoundedCornerShape(20.dp))
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .background(AppColors.background)
+                    .padding(16.dp)
             ) {
 
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .background(AppColors.primaryBrand.copy(alpha = 0.12f), CircleShape),
-                    contentAlignment = Alignment.Center
+                Button(
+                    onClick = {
+
+                        val squadID = squadViewModel.squad.value?.squadID ?: return@Button
+
+                        isRestoring = true
+                        showResult = false
+
+                        SubscriptionManager.shared.restorePurchases(squadID) { success, error ->
+
+                            isRestoring = false
+                            resultSuccess = success
+
+                            resultMessage =
+                                if (success)
+                                    "Your ${viewModel.subscription.value?.plan} plan has been restored."
+                                else
+                                    error ?: "Something went wrong"
+
+                            showResult = true
+
+                            if (success) {
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    delay(2000.milliseconds)
+                                    navController.popBackStack()
+                                }
+                            }
+                        }
+                    },
+                    enabled = !isRestoring,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Restore,
-                        contentDescription = null,
-                        tint = AppColors.primaryBrand,
-                        modifier = Modifier.size(34.dp)
-                    )
+                    Text(if (isRestoring) "Restoring..." else "Restore Purchases")
                 }
 
                 Spacer(Modifier.height(10.dp))
 
-                Text(
-                    "Restore Purchases",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Text(
-                    "Already subscribed on another device?\nRestore your active plan here.",
-                    fontSize = 14.sp,
-                    color = AppColors.secondaryText,
-                    textAlign = TextAlign.Center
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // CURRENT PLAN CARD
-            sub?.let {
-                CurrentPlanCard(it, viewModel)
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // INFO CARDS
-            InfoCard()
-
-            Spacer(Modifier.height(12.dp))
-
-            // RESULT BANNER
-            if (showResult) {
-                ResultBanner(resultSuccess, resultMessage)
-            }
-
-            Spacer(Modifier.height(20.dp))
-        }
-
-        // BUTTONS
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(AppColors.background)
-                .padding(16.dp)
-        ) {
-
-            Button(
-                onClick = {
-
-                    val squadID = squadViewModel.squad.value?.squadID ?: return@Button
-
-                    isRestoring = true
-                    showResult = false
-
-                    SubscriptionManager.shared.restorePurchases(squadID) { success, error ->
-
-                        isRestoring = false
-                        resultSuccess = success
-
-                        resultMessage =
-                            if (success)
-                                "Your ${viewModel.subscription.value?.plan} plan has been restored."
-                            else
-                                error ?: "Something went wrong"
-
-                        showResult = true
-
-                        if (success) {
-                            CoroutineScope(Dispatchers.Main).launch {
-                                delay(2000.milliseconds)
-                                navController.popBackStack()
-                            }
-                        }
-                    }
-                },
-                enabled = !isRestoring,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (isRestoring) "Restoring..." else "Restore Purchases")
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            OutlinedButton(
-                onClick = { navController.popBackStack() },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Cancel")
+                OutlinedButton(
+                    onClick = { navController.popBackStack() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Cancel")
+                }
             }
         }
+
     }
+
+
 }
 
 @Composable

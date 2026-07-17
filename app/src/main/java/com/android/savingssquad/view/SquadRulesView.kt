@@ -45,10 +45,7 @@ fun SquadRulesView(
 
     navController: NavController,
 
-    squadViewModel: SquadViewModel,
-
-    loaderManager: LoaderManager = LoaderManager.shared,
-
+    squadViewModel: SquadViewModel
     ) {
 
     var newRuleText by remember { mutableStateOf("") }
@@ -160,7 +157,7 @@ fun SquadRulesView(
 
                 }
 
-                if (loaderManager.isLoading) {
+                if (LoaderManager.shared.isLoading) {
 
                     item {
 

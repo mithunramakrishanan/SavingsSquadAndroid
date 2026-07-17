@@ -57,9 +57,7 @@ import com.android.savingssquad.viewmodel.ToastType
 @Composable
 fun MemberPaymentView(
     navController: NavController, // if you need nav actions, else pass null
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared
-) {
+    squadViewModel: SquadViewModel) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     // UI state
@@ -120,11 +118,11 @@ fun MemberPaymentView(
 //                        format = "MMM yyyy"
 //                    )
 
-                    loaderManager.showLoader()
+                    LoaderManager.shared.showLoader()
                     val gfId = currentMember?.squadID ?: ""
                     val memberId = currentMember?.id ?: ""
                     squadViewModel.fetchContributionsForMember(showLoader = true, squadID = gfId, memberID = memberId) { contributions, error ->
-                        loaderManager.hideLoader()
+                        LoaderManager.shared.hideLoader()
                         if (contributions != null) {
                             availableContributionMonths = contributions.unpaidMonths()
                             squadViewModel.setShowContributionMonthPopup(true)
@@ -200,11 +198,11 @@ fun MemberPaymentView(
                         contributionSelectedMonthYear = contributionSelectedMonthYear,
                         onOpenMonthList = {
                             // fetch contributions for member and show list
-                            loaderManager.showLoader()
+                            LoaderManager.shared.showLoader()
                             val gfId = currentMember?.squadID ?: ""
                             val memberId = currentMember?.id ?: ""
                             squadViewModel.fetchContributionsForMember(showLoader = true, squadID = gfId, memberID = memberId) { contributions, error ->
-                                loaderManager.hideLoader()
+                                LoaderManager.shared.hideLoader()
                                 if (contributions != null) {
                                     availableContributionMonths = contributions.unpaidMonths()
                                     squadViewModel.setShowContributionMonthPopup(true)
@@ -515,7 +513,8 @@ fun MemberPaymentView(
                                 loan = updatedLoan,
                                 forceClosedInterest = summary.recalculatedInterest,
                                 paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
-                                forceCloseSummary = summary
+                                forceCloseSummary = summary,
+                                description = "Force Closed ${loan.loanNumber})"
                             ) { success, error ->
 
                                 selectedInstallment = null

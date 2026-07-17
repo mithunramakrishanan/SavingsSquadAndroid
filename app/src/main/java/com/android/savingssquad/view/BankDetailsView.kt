@@ -90,9 +90,7 @@ import java.util.Calendar
 @Composable
 fun BankDetailsView(
     navController: NavController?,
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared
-) {
+    squadViewModel: SquadViewModel) {
     // ---------- State Mapping ----------
     var accountHoldernameState = remember { mutableStateOf("") }
     var accountHoldernameError by remember { mutableStateOf("") }
@@ -195,7 +193,6 @@ fun BankDetailsView(
                             saveAccountToFirestore(
                                 screenType = screenType,
                                 squadViewModel = squadViewModel,
-                                loaderManager = loaderManager,
                                 accountHoldername = accountHoldername,
                                 upiID = upiID
                             )
@@ -254,7 +251,6 @@ private fun validateFields(
 private fun saveAccountToFirestore(
     screenType: SquadUserType?,
     squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager,
     accountHoldername: String,
     upiID: String
 ) {
@@ -271,7 +267,7 @@ private fun saveAccountToFirestore(
     } else {
         member!!.id
     }
-    loaderManager.showLoader()
+    LoaderManager.shared.showLoader()
     FirestoreManager.shared.updateUPIID(
 
         squadId = squadID,
@@ -283,7 +279,7 @@ private fun saveAccountToFirestore(
         vpa = upiID
 
     ) { result ->
-        loaderManager.hideLoader()
+        LoaderManager.shared.hideLoader()
         result.onSuccess {
 
             Log.d("UPI", "✅ UPI Updated: $it")

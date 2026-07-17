@@ -70,9 +70,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SquadSignUpView(
     navController: NavController,
-    squadViewModel: SquadViewModel, // keep for parity; not used here but present in SwiftUI signature
-    loaderManager: LoaderManager = LoaderManager.shared
-) {
+    squadViewModel: SquadViewModel) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val activity = LocalContext.current as Activity
@@ -480,7 +478,6 @@ fun SquadSignUpView(
                         if (OTPVerified) {
                             saveSquadData(
                                 squadViewModel = squadViewModel,
-                                loaderManager = loaderManager,
                                 squadName = squadName,
                                 email = email,
                                 phoneNumber = phoneNumber,
@@ -600,7 +597,6 @@ private fun verifyOTP(
 
 private fun saveSquadData(
     squadViewModel : SquadViewModel,
-    loaderManager: LoaderManager,
     squadName: String,
     email: String,
     phoneNumber: String,
@@ -613,7 +609,7 @@ private fun saveSquadData(
     onComplete: () -> Unit,
     onError: (String) -> Unit
 ) {
-    loaderManager.showLoader()
+    LoaderManager.shared.showLoader()
 
     val squadID = IDGenerator.generateSquadID()
     val squadStartDate = java.util.Date()
@@ -665,7 +661,7 @@ private fun saveSquadData(
     // Using FirestoreManager (assumed present in your project)
     FirestoreManager.shared.addSquad(squad) { success, error ->
 
-        loaderManager.hideLoader()
+        LoaderManager.shared.hideLoader()
 
         if (!success) {
 
@@ -692,7 +688,7 @@ private fun saveSquadData(
             if (counter.decrementAndGet() == 0) {
                 // ⭐ THIS = group.notify (FINAL BLOCK)
 
-                    loaderManager.hideLoader()
+                LoaderManager.shared.hideLoader()
 
                     AlertManager.shared.showAlert(
                         title = SquadStrings.appName,

@@ -98,9 +98,7 @@ import java.util.Locale
 @Composable
 fun ContributionDetailsView(
     navController: NavController,
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared,
-) {
+    squadViewModel: SquadViewModel) {
     val context = LocalContext.current
     val dismiss = { navController.popBackStack() }
 

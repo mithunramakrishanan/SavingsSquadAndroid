@@ -932,11 +932,9 @@ fun ActionButton(
 }
 
 @Composable
-fun SSLoaderView(
-    loaderManager: LoaderManager = LoaderManager.shared
-) {
-    val isLoading = loaderManager.isLoading
-    val loadingMessage = loaderManager.loadingMessage
+fun SSLoaderView() {
+    val isLoading = LoaderManager.shared.isLoading
+    val loadingMessage = LoaderManager.shared.loadingMessage
 
     if (!isLoading) return
 
@@ -2241,10 +2239,8 @@ fun InstallmentPopupView(
     var showForceCloseConfirm by remember { mutableStateOf(false) }
     val today = remember { Date() }
 
-//    val testDate = Calendar.getInstance().apply {
-//        time = Date()
-//        add(Calendar.DAY_OF_YEAR, 30) // 🔹 push forward 30 days
-//    }.time
+    // Locked whenever a force close verification is pending on this loan
+    val isLocked = loan.isForceCloseVerification
 
     val forceCloseSummary = remember(loan, interestType, interestRate) {
         loan.forceCloseSummary(interestType, interestRate, today)
@@ -2307,14 +2303,25 @@ fun InstallmentPopupView(
                 }
             }
 
-            // MARK: - Force Close Banner
+            // MARK: - Verification Pending Banner
+            if (isLocked) {
+                VerificationPendingBanner(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 12.dp)
+                )
+            }
 
-            if (installments.isNotEmpty()){
+            // MARK: - Force Close Banner
+            if (installments.isNotEmpty()) {
                 ForceCloseBanner(
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
-                        .padding(bottom = 12.dp),
-                    onClick = { showForceCloseConfirm = true }
+                        .padding(bottom = 12.dp)
+                        .graphicsLayer { alpha = if (isLocked) 0.6f else 1f },
+                    onClick = {
+                        if (!isLocked) showForceCloseConfirm = true
+                    }
                 )
             }
 
@@ -2329,7 +2336,8 @@ fun InstallmentPopupView(
             ) {
                 itemsIndexed(installments, key = { _, item -> item.id ?: item.installmentNumber }) { index, installment ->
                     val status = computedStatus(installment, today)
-                    val isEnabled = isEnabled(installments, index, status)
+                    // 🔒 locked while force close verification pending
+                    val isEnabled = !isLocked && isEnabled(installments, index, status)
 
                     InstallmentDetailsRow(
                         installment = installment,
@@ -2376,6 +2384,50 @@ fun InstallmentPopupView(
                     onForceClose(forceCloseSummary)
                     onCancel() // closes the whole popup after confirming
                 }
+            )
+        }
+    }
+}
+
+// MARK: - Verification Pending Banner
+@Composable
+private fun VerificationPendingBanner(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFF2196F3).copy(alpha = 0.08f))
+            .border(1.dp, Color(0xFF2196F3).copy(alpha = 0.2f), RoundedCornerShape(14.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(32.dp)
+                .background(Color(0xFF2196F3).copy(alpha = 0.15f), CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.Default.HourglassEmpty,
+                contentDescription = null,
+                tint = Color(0xFF2196F3),
+                modifier = Modifier.size(16.dp)
+            )
+        }
+
+        Column {
+            Text(
+                text = "Force Close Verification Pending",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = AppColors.headerText
+            )
+            Text(
+                text = "EMI selection and force close are locked until verified",
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = AppColors.secondaryText
             )
         }
     }

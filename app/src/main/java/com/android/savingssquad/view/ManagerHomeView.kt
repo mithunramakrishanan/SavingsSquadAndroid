@@ -60,9 +60,7 @@ import kotlinx.coroutines.selects.select
 @Composable
 fun ManagerHomeView(
     navController: NavController,
-    squadViewModel: SquadViewModel = viewModel(),
-    loaderManager: LoaderManager = LoaderManager.shared
-) {
+    squadViewModel: SquadViewModel = viewModel()) {
     val context = LocalContext.current
 
     // 🔹 Navigation states
@@ -169,8 +167,8 @@ fun ManagerHomeView(
             }
         }
 
-        FirestoreManager.shared.updateLastActiveDate(squadID,"", SquadUserType.SQUAD_MANAGER) { success,error ->
-        }
+//        FirestoreManager.shared.updateLastActiveDate(squadID,"", SquadUserType.SQUAD_MANAGER) { success,error ->
+//        }
     }
     // 🔹 Main Layout
     Box(

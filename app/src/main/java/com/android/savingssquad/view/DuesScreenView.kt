@@ -84,9 +84,7 @@ NotificationService.shared.sendMemberReminder(
 @Composable
 fun DuesScreenView(
     navController: NavController,
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared
-) {
+    squadViewModel: SquadViewModel) {
     // replace these collects with actual flows/state from your ViewModel
     val squadPayments by remember { derivedStateOf { squadViewModel.squadPayments } } // placeholder
     var payments by remember { mutableStateOf(listOf<PaymentsDetails>()) }
@@ -185,11 +183,15 @@ fun DuesScreenView(
 
                         SectionView(title = "Recent Payments") {
                             LazyColumn(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp)
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                contentPadding = PaddingValues(bottom = 10.dp)
                             ) {
-                                items(payments) { payment ->
+                                items(
+                                    items = payments,
+                                    key = { it.id ?: "" }
+                                )
+                                { payment ->
                                     PaymentRow(
                                         payment = payment
                                     )

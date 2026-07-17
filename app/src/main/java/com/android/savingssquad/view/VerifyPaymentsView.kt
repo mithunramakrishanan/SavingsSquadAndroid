@@ -76,9 +76,7 @@ import java.util.Calendar
 @Composable
 fun VerifyPaymentsViewOld(
     navController: NavController,
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared
-) {
+    squadViewModel: SquadViewModel) {
 
     val dismiss = { navController.popBackStack() }
 

@@ -110,9 +110,7 @@ import kotlin.math.pow
 @Composable
 fun ManageLoanView(
     navController: NavController,
-    squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager = LoaderManager.shared
-) {
+    squadViewModel: SquadViewModel) {
     var selectedEMI by remember { mutableStateOf<EMIConfiguration?>(null) }
     var oldEMIConfig by remember { mutableStateOf<EMIConfiguration?>(null) }
 
@@ -223,7 +221,6 @@ fun ManageLoanView(
                             interest = interest,
                             type = type,
                             squadViewModel = squadViewModel,
-                            loaderManager = loaderManager,
                             selectedEMI = selectedEMI,
                             oldEMIConfig = oldEMIConfig,
                             onCompleted = {
@@ -248,12 +245,11 @@ private fun handleAddEditEMI(
     interest: Double,
     type: InterestType,
     squadViewModel: SquadViewModel,
-    loaderManager: LoaderManager,
     selectedEMI: EMIConfiguration?,
     oldEMIConfig: EMIConfiguration?,
     onCompleted: () -> Unit
 ) {
-    loaderManager.showLoader()
+    LoaderManager.shared.showLoader()
 
     val squadId = squadViewModel.squad.value?.squadID ?: ""
 
@@ -283,7 +279,7 @@ private fun handleAddEditEMI(
         squadID = squadId,
         emi = newEmi
     ) { success, error ->
-        loaderManager.hideLoader()
+        LoaderManager.shared.hideLoader()
 
         if (success) {
             val desc = if (selectedEMI == null) {

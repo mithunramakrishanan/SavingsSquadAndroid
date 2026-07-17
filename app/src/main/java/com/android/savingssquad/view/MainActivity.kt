@@ -173,7 +173,6 @@ fun SavingsSquadRoot() {
         AppNavHost(
             navController = navController,
             squadViewModel = squadViewModel,
-            loaderManager = loaderManager,
             startDestination = startDestination
         )
 

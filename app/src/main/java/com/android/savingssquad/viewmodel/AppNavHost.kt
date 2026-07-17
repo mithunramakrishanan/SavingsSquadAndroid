@@ -27,9 +27,7 @@ import com.android.savingssquad.singleton.LoaderManager
 @Composable
 fun AppNavHost(
     navController: NavHostController,
-    squadViewModel: SquadViewModel = viewModel(),
-    loaderManager: LoaderManager = LoaderManager.shared,
-    startDestination: String = AppDestination.SIGN_IN.route
+    squadViewModel: SquadViewModel = viewModel() , startDestination: String = AppDestination.SIGN_IN.route
 ) {
     NavHost(
         navController = navController,
@@ -61,19 +59,19 @@ fun AppNavHost(
     ) {
 
         composable(AppDestination.SIGN_IN.route) {
-            SquadSignInView(navController, squadViewModel, loaderManager)
+            SquadSignInView(navController, squadViewModel)
         }
 
         composable(AppDestination.SIGN_UP.route) {
-            SquadSignUpView(navController, squadViewModel, loaderManager)
+            SquadSignUpView(navController, squadViewModel)
         }
 
         composable(AppDestination.MANAGER_HOME.route) {
-            ManagerTabView(navController, squadViewModel, loaderManager)
+            ManagerTabView(navController, squadViewModel)
         }
 
         composable(AppDestination.MEMBER_HOME.route) {
-            MemberTabView(navController, squadViewModel, loaderManager)
+            MemberTabView(navController, squadViewModel)
         }
 
         composable(AppDestination.ACCOUNT_SUMMARY.route) {
@@ -160,10 +158,7 @@ fun AppNavHost(
 
                 navController = navController,
 
-                squadViewModel = squadViewModel,
-
-                loaderManager = loaderManager
-            )
+                squadViewModel = squadViewModel)
 
         }
     }
