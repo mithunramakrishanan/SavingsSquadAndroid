@@ -700,6 +700,7 @@ class FirestoreManager private constructor() {
         squadID: String,
         memberID: String,
         loanID: String,
+        isForceClosed : Boolean,
         completion: (Boolean, String?) -> Unit
     ) {
 
@@ -713,7 +714,8 @@ class FirestoreManager private constructor() {
         loanRef.update(
             mapOf(
                 "duePaidDate" to FieldValue.serverTimestamp(),
-                "loanStatus" to EMIStatus.PAID.name
+                "loanStatus" to EMIStatus.PAID.name,
+                "isForceClosed" to isForceClosed
             )
         )
             .addOnSuccessListener {

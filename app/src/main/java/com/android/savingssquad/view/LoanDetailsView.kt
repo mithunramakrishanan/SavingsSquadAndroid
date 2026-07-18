@@ -405,6 +405,7 @@ fun LoanCard(loan: MemberLoan) {
     val progressFraction = if (loan.installments.isEmpty()) 0f
     else paidCount.toFloat() / loan.installments.size.toFloat()
     val progressColor = if (loan.loanStatus == EMIStatus.PAID) AppColors.successAccent else AppColors.primaryBrand
+    val canForeclose = paidCount >= 1 && loan.loanStatus != EMIStatus.PAID && !loan.isForceClosed
 
     val chevronRotation by animateFloatAsState(
         targetValue = if (showInstallments) 180f else 0f,
@@ -582,6 +583,69 @@ fun LoanCard(loan: MemberLoan) {
                 else "—",
                 small = true
             )
+        }
+
+        // MARK: Foreclosure
+
+        if (loan.isForceClosed) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(color = AppColors.successAccent.copy(alpha = 0.08f), shape = RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .background(color = AppColors.successAccent.copy(alpha = 0.15f), shape = CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.VerifiedUser,
+                        contentDescription = null,
+                        tint = AppColors.successAccent,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
+
+                Text(
+                    text = "Loan Foreclosed",
+                    style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Bold),
+                    color = AppColors.successAccent,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        } else if (canForeclose) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { /* TODO: hook up your foreclose action, e.g. onForeclose(loan) */ }
+                    .background(color = AppColors.primaryBrand.copy(alpha = 0.08f), shape = RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Bolt,
+                    contentDescription = null,
+                    tint = AppColors.primaryBrand,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Foreclose Loan",
+                    style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Bold),
+                    color = AppColors.primaryBrand,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = AppColors.primaryBrand,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
 
         // MARK: Installment Toggle
