@@ -182,6 +182,9 @@ fun CashRequestHistoryScreen(
 
     LaunchedEffect(Unit) {
 
+        UserDefaultsManager.saveIsFromnotification(false)
+        UserDefaultsManager.saveIsCashReqNotification(false)
+
         if (!hasLoaded) {
 
             hasLoaded = true

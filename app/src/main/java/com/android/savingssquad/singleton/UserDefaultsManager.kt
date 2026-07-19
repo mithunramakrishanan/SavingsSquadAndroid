@@ -28,6 +28,9 @@ object UserDefaultsManager {
 
         const val IS_FROM_NOTIFICATION_IN = "IS_FROM_NOTIFICATION_IN"
 
+        const val IS_CASH_REQUEST_NOTIFICATION = "IS_CASH_REQUEST_NOTIFICATION"
+        const val savedSquadLogins = "SAVEDSQUADLOGINS"
+
         const val IS_MULTIPLE_ACCOUNT = "ISMULTIPLEACCOUNT"
         const val LOGGED_USER = "LOGGEDUSER"
         const val SAVED_SQUAD = "SAVEDCHIT"
@@ -137,6 +140,18 @@ object UserDefaultsManager {
         removeObject(Keys.PENDING_PAYMENT)
     }
 
+
+    fun saveSquadLogins(logins: List<Login>) {
+        saveObject(Keys.savedSquadLogins, logins)
+    }
+
+    fun getSquadLogins(): List<Login> {
+        return getObject(Keys.savedSquadLogins) ?: emptyList()
+    }
+
+    fun saveIsCashReqNotification(isManager: Boolean) = saveBool(Keys.IS_CASH_REQUEST_NOTIFICATION, isManager)
+    fun getIsCashReqnotification(): Boolean = getBool(Keys.IS_CASH_REQUEST_NOTIFICATION)
+
     // 🔹 Clear All
     fun clearAll() {
         listOf(
@@ -148,7 +163,9 @@ object UserDefaultsManager {
             Keys.IS_MANAGER_LOGIN,
             Keys.LOGGED_GROUP_ID,
             Keys.IS_MULTIPLE_ACCOUNT,
-            Keys.PENDING_PAYMENT
+            Keys.PENDING_PAYMENT,
+            Keys.IS_CASH_REQUEST_NOTIFICATION,
+            Keys.savedSquadLogins
         ).forEach { key -> removeObject(key) }
 
         Log.d("UserDefaultsManager", "🔄 All user data cleared successfully!")

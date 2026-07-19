@@ -588,7 +588,7 @@ class SquadViewModel : ViewModel() {
 
                     if (loginList != null && loginList.isNotEmpty()) {
                         var multipleAccount = false
-
+                        UserDefaultsManager.saveSquadLogins(loginList)
                         SessionManager.logins = loginList.toMutableList()
                         FirestoreManager.shared.updateFCMTokenForAllUser()
 

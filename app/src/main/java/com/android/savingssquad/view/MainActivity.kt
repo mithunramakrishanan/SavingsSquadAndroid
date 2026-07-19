@@ -27,6 +27,7 @@ import com.android.savingssquad.singleton.UPIPaymentManager
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.AppNavHost
 import com.android.savingssquad.singleton.LoaderManager
+import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.SSToast
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.google.gson.Gson
@@ -38,7 +39,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         UPIPaymentManager.shared.register(this)
-        handleNotification(intent) // 🔥 IMPORTANT (cold start)
+        handleNotification(intent)
         BillingHelper.init(this)
         setContent {
             SavingsSquadRoot()
@@ -48,71 +49,74 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
 
-        setIntent(intent) // 🔥 update latest intent
+        setIntent(intent)
         handleNotification(intent)
     }
 
     private fun handleNotification(intent: Intent) {
 
-        /*if (UserDefaultsManager.getIsLoggedIn()) {
+        if (!UserDefaultsManager.getIsLoggedIn()) return
 
-            val navigate = intent.getStringExtra("navigate")
-            val notificationType = intent.getStringExtra("notificationType")
 
-            if (notificationType == "REMAINDER") {
-                return
+        val navigate = intent.getStringExtra("navigate") ?: return
+
+        val notificationType = intent.getStringExtra("notificationType")
+
+        if (notificationType == "REMAINDER" || notificationType == "REJECTED" || notificationType == "ACCEPTED") {
+            return
+        }
+
+        val squadId = intent.getStringExtra("squadId")
+
+        Log.d("NOTI", "navigate = $navigate")
+        Log.d("NOTI", "squadId = $squadId")
+        Log.d("NOTI", "notificationType = $notificationType")
+
+        // Cash Request Notification
+        UserDefaultsManager.saveIsCashReqNotification(
+            navigate == "CASH_REQUEST"
+        )
+
+        // Load all saved squad logins
+        val loginList = UserDefaultsManager.getSquadLogins()
+
+        if (loginList.isNotEmpty()) {
+
+            val selectedLogin = if (
+                navigate == SquadUserType.SQUAD_MANAGER.value ||
+                navigate == "CASH_REQUEST"
+            ) {
+
+                loginList.firstOrNull {
+                    it.squadID == squadId &&
+                            it.role == SquadUserType.SQUAD_MANAGER
+                }
+
+            } else {
+
+                loginList.firstOrNull {
+                    it.squadID == squadId &&
+                            it.role == SquadUserType.SQUAD_MEMBER
+                }
             }
-            val gson = Gson()
-            val paymentJson = intent.getStringExtra("payment_data") ?: return
-            val payment = gson.fromJson(paymentJson, PaymentsDetails::class.java)
 
-            Log.d("NOTI", "navigate = $navigate")
-            Log.d("NOTI", "payment = $payment")
-            Log.d("NOTI", "notificationType = $notificationType")
+            selectedLogin?.let {
 
-            if (notificationType == "REQUESTED") {
+                UserDefaultsManager.saveLogin(it)
+                UserDefaultsManager.saveIsLoggedIn(true)
                 UserDefaultsManager.saveIsFromnotification(true)
+
+                val isManager = it.role == SquadUserType.SQUAD_MANAGER
+
+                UserDefaultsManager.saveSquadManagerLogged(isManager)
+
+                if (isManager) {
+                    AppDestination.MANAGER_HOME.route
+                } else {
+                    AppDestination.MEMBER_HOME.route
+                }
             }
-            else {
-                UserDefaultsManager.saveIsFromnotification(false)
-            }
-            if (navigate == SquadUserType.SQUAD_MANAGER.value) {
-
-                UserDefaultsManager.saveSquadManagerLogged(true)
-
-                val login = Login(
-                    squadID = payment.squadId,
-                    squadName = "",
-                    squadUsername = payment.memberName,
-                    squadUserId = payment.memberId ?: "",
-                    phoneNumber = payment.paymentPhone,
-                    role = SquadUserType.SQUAD_MANAGER,
-                    squadCreatedDate = null,
-                    userCreatedDate = null
-                )
-                UserDefaultsManager.saveLogin(login)
-            }
-            else {
-                UserDefaultsManager.saveSquadManagerLogged(false)
-                val login = Login(
-                    squadID = payment.squadId,
-                    squadName = "",
-                    squadUsername = payment.memberName,
-                    squadUserId = payment.memberId ?: "",
-                    phoneNumber = payment.paymentPhone,
-                    role = SquadUserType.SQUAD_MEMBER,
-                    squadCreatedDate = null,
-                    userCreatedDate = null
-                )
-                UserDefaultsManager.saveLogin(login)
-
-            }
-        } */
-
-
-
-
-
+        }
     }
 }
 

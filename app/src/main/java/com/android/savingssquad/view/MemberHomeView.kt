@@ -282,6 +282,22 @@ fun MemberHomeView(
 
                                 val member = squadViewModel.currentMember ?: return@MemberTwoButtons
 
+                                if (squadViewModel.currentMember.value?.upiID.isNullOrBlank()) {
+
+                                    AlertManager.shared.showAlert(
+                                        title = SquadStrings.appName,
+                                        message = "Update your UPI to make a cash request",
+                                        type = AlertType.INFO,
+                                        primaryButtonTitle = SquadStrings.ok,
+                                        primaryAction = {
+
+                                            navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
+
+                                        }
+                                    )
+                                    return@MemberTwoButtons
+                                }
+
                                 if (member.value?.cashRequested == true || member.value?.currentLoanApproveStatus != EMIStatus.CREATED) {
 
                                     AlertManager.shared.showAlert(

@@ -129,6 +129,7 @@ fun PaymentApprovalView(
     LaunchedEffect(Unit) {
 
         UserDefaultsManager.saveIsFromnotification(false)
+        UserDefaultsManager.saveIsCashReqNotification(false)
 
         if (screenType == SquadUserType.SQUAD_MANAGER) {
 
