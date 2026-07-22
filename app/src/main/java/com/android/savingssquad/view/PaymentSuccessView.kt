@@ -597,6 +597,8 @@ private fun paymentTitle(payment: PaymentsDetails): String {
         PaymentSubType.LOAN_AMOUNT -> "Loan Disbursement"
         PaymentSubType.OTHERS_AMOUNT -> "Payment"
         PaymentSubType.INTEREST_AMOUNT -> "Interest Payment"
+        PaymentSubType.RE_PAYMENT -> "Repayment"
+        PaymentSubType.SETTLEMENT -> "Settlement"
     }
 }
 

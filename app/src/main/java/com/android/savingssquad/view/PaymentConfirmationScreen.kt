@@ -880,25 +880,21 @@ private fun paymentTitle(payment: PaymentsDetails?): String = when (payment?.pay
     PaymentSubType.EMI_AMOUNT -> "EMI Amount"
     PaymentSubType.LOAN_AMOUNT -> "Loan Disbursement"
     PaymentSubType.OTHERS_AMOUNT -> "Payment"
-    PaymentSubType.INTEREST_AMOUNT -> ""
-    else -> {""}
+    else -> {"Payment"}
 }
 
 private fun directionText(payment: PaymentsDetails?): String = when (payment?.paymentSubType) {
     PaymentSubType.CONTRIBUTION_AMOUNT, PaymentSubType.EMI_AMOUNT -> "Member → Manager"
     PaymentSubType.LOAN_AMOUNT -> "Manager → Member"
     PaymentSubType.OTHERS_AMOUNT -> if (payment.paymentType == PaymentType.PAYMENT_CREDIT) "Credit to Squad" else "Debit from Squad"
-    PaymentSubType.INTEREST_AMOUNT -> "Transaction"
-    else -> {""}
+    else -> {"Transaction"}
 }
 
 private fun infoMessage(payment: PaymentsDetails?): String = when (payment?.paymentSubType) {
     PaymentSubType.CONTRIBUTION_AMOUNT -> "Contribution will be verified after payment confirmation."
     PaymentSubType.EMI_AMOUNT -> "EMI will be automatically reconciled once payment is completed."
     PaymentSubType.LOAN_AMOUNT -> "Loan disbursement will be confirmed after successful transfer."
-    PaymentSubType.OTHERS_AMOUNT -> "This transaction will be verified before final approval."
-    PaymentSubType.INTEREST_AMOUNT -> ""
-    else -> {""}
+    else -> {"This transaction will be verified before final approval."}
 }
 
 // Timestamp the confirmation flow started. Swap for a real field on

@@ -25,6 +25,7 @@ import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.SquadRule
 import com.android.savingssquad.model.Installment
+import com.android.savingssquad.model.MemberOtherPayments
 import com.android.savingssquad.model.ReminderRequest
 import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.model.pendingInstallments
@@ -32,6 +33,7 @@ import com.android.savingssquad.singleton.AlertType
 import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.LoaderManager
+import com.android.savingssquad.singleton.MemberPaymentSubType
 import com.android.savingssquad.singleton.NotificationService
 import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadUserType
@@ -202,6 +204,12 @@ class SquadViewModel : ViewModel() {
     private val _memberPendingLoans = MutableStateFlow<List<MemberLoan>?>(null)
     val memberPendingLoans: StateFlow<List<MemberLoan>?> = _memberPendingLoans
     fun setMemberPendingLoans(list: List<MemberLoan>?) { _memberPendingLoans.value = list }
+
+    private val _memberOtherPayments = MutableStateFlow<List<MemberOtherPayments>?>(null)
+    val memberOtherPayments: StateFlow<List<MemberOtherPayments>?> = _memberOtherPayments
+    fun setMemberOtherPayments(list: List<MemberOtherPayments>?) { _memberOtherPayments.value = list }
+
+
 
     private val _selectedLoan = MutableStateFlow<MemberLoan?>(null)
     val selectedLoan: StateFlow<MemberLoan?> = _selectedLoan
@@ -2999,6 +3007,77 @@ class SquadViewModel : ViewModel() {
                     completion(true, null)
                 }
             }
+        }
+    }
+
+    fun fetchMemberOtherPayments(
+        showLoader: Boolean,
+        memberID: String,
+        paidStatus: PaidStatus?,
+        type: MemberPaymentSubType?,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            AlertManager.shared.showAlert(
+                title = SquadStrings.appName,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+            completion(false, SquadStrings.networkError)
+            return
+        }
+
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        val squadID = squad.value?.squadID
+        if (squadID.isNullOrEmpty()) {
+
+            if (showLoader) {
+                LoaderManager.shared.hideLoader()
+            }
+
+            completion(false, "Squad information missing")
+            return
+        }
+
+        manager.fetchMemberOtherPayments(
+            squadID = squadID,
+            memberID = memberID,
+            paidStatus = paidStatus,
+            type = type
+        ) { memberOtherPayments, error ->
+
+            if (memberOtherPayments == null) {
+
+                if (showLoader) {
+                    LoaderManager.shared.hideLoader()
+                }
+
+                val errorMsg = error ?: "Failed to fetch Member Other Payments"
+
+                handleFetchError(errorMsg) {
+
+                    fetchMemberLoans(
+                        showLoader = showLoader,
+                        memberID = memberID,
+                        completion = completion
+                    )
+                }
+
+                completion(false, errorMsg)
+                return@fetchMemberOtherPayments
+            }
+
+            setMemberOtherPayments(memberOtherPayments)
+            if (showLoader) {
+                LoaderManager.shared.hideLoader()
+            }
+
+            completion(true, null)
         }
     }
 

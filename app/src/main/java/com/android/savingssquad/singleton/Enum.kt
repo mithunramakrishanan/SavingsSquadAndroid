@@ -171,7 +171,9 @@ enum class PaymentSubType(@get:PropertyName("value") val value: String) {
     @PropertyName("EMI_AMOUNT") EMI_AMOUNT("EMI_AMOUNT"),
     @PropertyName("CONTRIBUTION_AMOUNT") CONTRIBUTION_AMOUNT("CONTRIBUTION_AMOUNT"),
     @PropertyName("LOAN_AMOUNT") LOAN_AMOUNT("LOAN_AMOUNT"),
-    @PropertyName("OTHERS_AMOUNT") OTHERS_AMOUNT("OTHERS_AMOUNT");
+    @PropertyName("OTHERS_AMOUNT") OTHERS_AMOUNT("OTHERS_AMOUNT"),
+    @PropertyName("RE_PAYMENT") RE_PAYMENT("RE_PAYMENT"),
+    @PropertyName("SETTLEMENT") SETTLEMENT("SETTLEMENT");
 
     companion object {
         fun fromValue(value: String?): PaymentSubType =
@@ -527,4 +529,14 @@ enum class PaymentFilter(val displayName: String) {
     ALL("All"),
     CREDIT("Credit"),
     DEBIT("Debit")
+}
+
+enum class MemberPaymentType(val value: String) {
+    Loan("Loan"),
+    Others("Others")
+}
+
+enum class MemberPaymentSubType(val value: String) {
+    Repayment("RE_PAYMENT"),
+    Settlement("SETTLEMENT")
 }

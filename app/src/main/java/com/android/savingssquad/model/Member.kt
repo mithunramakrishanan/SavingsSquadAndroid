@@ -2,6 +2,8 @@ package com.android.savingssquad.model
 import com.google.firebase.firestore.PropertyName
 import androidx.annotation.Keep
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.MemberPaymentSubType
+import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
 
 import com.android.savingssquad.singleton.SquadUserType
@@ -131,3 +133,25 @@ data class Member(
         cashRequested = null
     )
 }
+
+data class MemberOtherPayments(
+
+    var id: String? = null,
+
+    var memberOtherPaymentType: MemberPaymentSubType = MemberPaymentSubType.Repayment,
+
+    var amount: Int = 0,
+
+    var description: String = "",
+
+    var memberName: String = "",
+
+    var memberId: String = "",
+
+    var paidStatus: PaidStatus = PaidStatus.NOT_PAID,
+
+    var amountReceivedDate: Timestamp? = null,
+
+    var amountRepaidDate: Timestamp? = null
+
+)

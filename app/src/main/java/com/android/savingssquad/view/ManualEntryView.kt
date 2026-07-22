@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
@@ -133,7 +134,10 @@ fun ManualEntryView(
     var notes by remember { mutableStateOf("") }
     var notesError by remember { mutableStateOf("") }
 
-    var selectedSegment by remember { mutableStateOf(SquadStrings.manualEntryContribution) }
+    var selectedSegment by remember { mutableStateOf(SquadStrings.toMemberPayment) }
+
+    var memberSubType by remember { mutableStateOf(SquadStrings.manualEntryContribution) }
+
 
     // ===== viewmodel state (collected safely) =====
     val squad by squadViewModel.squad.collectAsState() // nullable
@@ -198,364 +202,179 @@ fun ManualEntryView(
             Spacer(modifier = Modifier.height(12.dp))
 
             ModernSegmentedPickerView(
-                segments = listOf(SquadStrings.manualEntryContribution, SquadStrings.manualEntryEMI,SquadStrings.manualEntryOthers),
+                segments = listOf(SquadStrings.toMemberPayment, SquadStrings.manualEntryEMI,SquadStrings.manualEntryOthers),
                 selectedSegment = selectedSegment,
                 onSegmentSelected = { newSegment -> selectedSegment = newSegment }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (selectedSegment == SquadStrings.manualEntryContribution) {
-                // Contribution Section
-                SectionView(title = "Contribution Entry") {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        // Member selection field (readonly but dropdown active)
-                        SSTextField(
-                            icon = Icons.Default.Person,
-                            placeholder = if (contributionSelectedMemberName.isEmpty()) "Select Squad Member" else contributionSelectedMemberName,
-                            textState = remember { mutableStateOf(contributionSelectedMemberName) }, // keep display, but won't edit directly
-                            keyboardType = KeyboardType.Text,
-                            showDropdown = true,
-                            error = contributionSelectedMemberNameError,
-                            onDropdownTap = {
-                                squadViewModel.setShowContributionMemberPopup(true)
-                            },
-                            disabled = true
-
-                        )
-
-                        // Contribution month selector
-                        SSTextField(
-                            icon = Icons.Default.CalendarToday,
-                            placeholder = if (contributionSelectedMonthYear.isEmpty()) "Select Contribution Date" else contributionSelectedMonthYear,
-                            textState = remember { mutableStateOf(contributionSelectedMonthYear) },
-                            keyboardType = KeyboardType.Text,
-                            showDropdown = true,
-                            error = contributionSelectedMonthYearError,
-                            onDropdownTap = {
-                                if (contributionSelectedMemberName.isEmpty()) {
-                                    ToastManager.show(title = SquadStrings.appName, message =  "Please select a member", type = ToastType.ERROR)
+            if (selectedSegment == SquadStrings.toMemberPayment) {
 
 
-                                } else {
-                                    if (availableContributionMonths.isEmpty()) {
+                DropdownMenuPicker(
+                    selected = memberSubType,
+                    items = listOf(SquadStrings.manualEntryContribution,SquadStrings.manualEntryEMI,SquadStrings.manualEntryRePayment),
+                    icon = Icons.Default.Tune,
+                ) { memberSubType = it }
 
-                                        ToastManager.show(title = SquadStrings.appName, message =  "No outstanding dues for $contributionSelectedMemberName", type = ToastType.SUCCESS)
 
 
-                                    } else {
-                                        squadViewModel.setShowContributionMonthPopup(true)
-                                    }
-                                }
-                            },
-                            disabled = true
+                if (memberSubType == SquadStrings.manualEntryContribution)  {
 
-                        )
-
-                        // Contribution Amount readonly
-                        SSTextField(
-                            icon = Icons.Default.CheckCircle,
-                            placeholder = (squad?.monthlyContribution ?: 0).toString(),
-                            textState = remember { mutableStateOf((squad?.monthlyContribution ?: 0).toString()) },
-                            keyboardType = KeyboardType.Number,
-                            disabled = true)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                SSButton(title = "Add Contribution", isDisabled = false) {
-                    // handleManualContribution mapping
-                    if (validateContributionFields(
-                            contributionSelectedMemberName,
-                            contributionSelectedMonthYear,
-                            contributionAmountError,
-                            onSetMemberError = { contributionSelectedMemberNameError = it },
-                            onSetMonthError = { contributionSelectedMonthYearError = it }
-                        )
-                    ) {
-                        // performing the same async flow as SwiftUI
-                        val selectedMember = contributionSelectedMember
-                        val squadLocal = squad
-                        if (selectedMember == null || squadLocal == null) {
-                            // show error
-                            return@SSButton
-                        }
-
-                        LoaderManager.shared.showLoader()
-                        coroutineScope.launch(Dispatchers.IO) {
-                            val contribution = selectedContributions.find { it.monthYear == contributionSelectedMonthYear }
-                            val contributionID = contribution?.id
-                            if (contribution == null || contributionID == null) {
-                                LoaderManager.shared.hideLoader()
-                                return@launch
-                            }
-
-                            val updatedContribution = ContributionDetail(
-                                id = contributionID,
-                                orderId = "",
-                                memberID = selectedMember.id ?: "",
-                                memberName = selectedMember.name,
-                                monthYear = contributionSelectedMonthYear,
-                                amount = squadLocal.monthlyContribution,
-                                paidOn = Date().asTimestamp,
-                                paidStatus = PaidStatus.PAID, // adjust enum mapping to your model
-                                paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
-                                dueDate = CommonFunctions.getContributionDue(monthYear = contributionSelectedMonthYear).asTimestamp
-                            )
-
-                            squadViewModel.editContribution(
-                                showLoader = true,
-                                squadID = squadLocal.squadID,
-                                memberID = selectedMember.id ?: "",
-                                contributionID = contributionID,
-                                updatedContribution = updatedContribution
-                            ) { success, message ->
-                                coroutineScope.launch(Dispatchers.IO) {
-                                    if (success) {
-                                        // async: create payments and activity like SwiftUI
-                                        val newPayment = PaymentsDetails(
-                                            id = CommonFunctions.generatePaymentID(squadId = squadLocal.squadID),
-                                            paymentUpdatedDate = Date().asTimestamp,
-                                            memberId = selectedMember.id ?: "",
-                                            memberName = contributionSelectedMemberName,
-                                            paymentPhone = selectedMember.phoneNumber,
-                                            paymentEmail = selectedMember.mailID ?: "",
-                                            userType = SquadUserType.SQUAD_MEMBER,
-                                            amount = squadLocal.monthlyContribution,
-                                            intrestAmount = 0,
-                                            paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
-                                            paymentType = PaymentType.PAYMENT_CREDIT,
-                                            paymentSubType = PaymentSubType.CONTRIBUTION_AMOUNT,
-                                            paymentStatus = PaymentStatus.SUCCESS,
-                                            payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
-                                            paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
-                                            description = ManualEntrySquadMessages.PaymentDescription.contribution(contributionSelectedMemberName,contributionSelectedMonthYear),
-                                            squadId = squadLocal.squadID,
-                                            order_id = contributionID,
-                                            contributionId = contributionID,
-                                            loanId = "",
-                                            installmentId = "",
-                                            paymentSuccess = true,
-                                            payoutSuccess = true,
-                                            transferReferenceId = contributionID.split("-").lastOrNull() ?: ""
-                                        )
-
-                                        squadViewModel.savePayments(
-                                            activity = activity,
-                                            context = appContext,
-                                            squadID = squadLocal.squadID,
-                                            payment = listOf(newPayment)
-                                        ) { pSuccess, pError ->
-                                            // no-op logging
-                                        }
-
-                                        squadViewModel.createSquadActivity(
-                                            activityType = SquadActivityType.AMOUNT_CREDIT,
-                                            userName = newPayment.memberName,
-                                            memberId = newPayment.memberId,
-                                            amount = squadLocal.monthlyContribution,
-                                            description = ManualEntrySquadMessages.Contribution.activity(contributionSelectedMemberName,contributionSelectedMonthYear,newPayment.amount)
-                                        ) { success, error ->
-                                            coroutineScope.launch(Dispatchers.Main) {
-                                                LoaderManager.shared.hideLoader()
-                                                ToastManager.show(title = ManualEntrySquadMessages.Contribution.TOAST_TITLE, message = ManualEntrySquadMessages.Contribution.toast(contributionSelectedMemberName,contributionSelectedMonthYear),
-                                                    ToastType.SUCCESS)
-
-                                                squadViewModel.squad?.let { squad ->
-
-                                                    NotificationService.shared.sendMemberReminder(
-
-                                                        request = ReminderRequest(
-
-                                                            squadId = squad.value?.squadID
-                                                                ?: "",
-
-                                                            memberIds = listOf(newPayment.memberId) ,
-
-                                                            title = ManualEntrySquadMessages.Contribution.NOTIFICATION_TITLE,
-
-                                                            message = ManualEntrySquadMessages.Contribution.notification(contributionSelectedMonthYear),
-
-                                                            data = mapOf(
-
-                                                                "screen" to "PAYMENT"
-
-                                                            )
-
-                                                        ),
-
-                                                        onSuccess = { response ->
-                                                        },
-
-                                                        onError = { error ->
-                                                        }
-
-                                                    )
-                                                }
-
-                                                contributionSelectedMemberName = ""
-                                                contributionSelectedMonthYear = ""
-                                            }
-                                        }
-                                    } else {
-                                        coroutineScope.launch(Dispatchers.Main) {
-                                            LoaderManager.shared.hideLoader()
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            else if (selectedSegment == SquadStrings.manualEntryEMI) {
-                // EMI Entry
-                SectionView(title = SquadStrings.emiEntry) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        // Member selection
-                        SSTextField(
-                            icon = Icons.Default.Person,
-                            placeholder = if (emiSelectedMemberName.isEmpty()) "Select Squad Member" else emiSelectedMemberName,
-                            textState = remember { mutableStateOf(emiSelectedMemberName) },
-                            keyboardType = KeyboardType.Text,
-                            showDropdown = true,
-                            error = emiSelectedMemberNameError,
-                            onDropdownTap = { squadViewModel.setShowEMIMemberPopup(true) },
-                            disabled = true)
-
-                        if (emiSelectedMember?.currentLoanApproveStatus == EMIStatus.PENDING) {
+                    SectionView(title = "Contribution Entry") {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            // Member selection field (readonly but dropdown active)
                             SSTextField(
-                                icon = Icons.Default.CalendarToday,
-                                placeholder = if (emiSelectedMonthYear.isEmpty()) "Select EMI" else emiSelectedMonthYear,
-                                textState = remember { mutableStateOf(emiSelectedMonthYear) },
+                                icon = Icons.Default.Person,
+                                placeholder = if (contributionSelectedMemberName.isEmpty()) "Select Squad Member" else contributionSelectedMemberName,
+                                textState = remember { mutableStateOf(contributionSelectedMemberName) }, // keep display, but won't edit directly
                                 keyboardType = KeyboardType.Text,
                                 showDropdown = true,
-                                error = emiSelectedMonthYearError,
-                                onDropdownTap = { squadViewModel.setShowEMIMonthPopup(true) },
-                                disabled = true)
+                                error = contributionSelectedMemberNameError,
+                                onDropdownTap = {
+                                    squadViewModel.setShowContributionMemberPopup(true)
+                                },
+                                disabled = true
 
+                            )
+
+                            // Contribution month selector
+                            SSTextField(
+                                icon = Icons.Default.CalendarToday,
+                                placeholder = if (contributionSelectedMonthYear.isEmpty()) "Select Contribution Date" else contributionSelectedMonthYear,
+                                textState = remember { mutableStateOf(contributionSelectedMonthYear) },
+                                keyboardType = KeyboardType.Text,
+                                showDropdown = true,
+                                error = contributionSelectedMonthYearError,
+                                onDropdownTap = {
+                                    if (contributionSelectedMemberName.isEmpty()) {
+                                        ToastManager.show(title = SquadStrings.appName, message =  "Please select a member", type = ToastType.ERROR)
+
+
+                                    } else {
+                                        if (availableContributionMonths.isEmpty()) {
+
+                                            ToastManager.show(title = SquadStrings.appName, message =  "No outstanding dues for $contributionSelectedMemberName", type = ToastType.SUCCESS)
+
+
+                                        } else {
+                                            squadViewModel.setShowContributionMonthPopup(true)
+                                        }
+                                    }
+                                },
+                                disabled = true
+
+                            )
+
+                            // Contribution Amount readonly
                             SSTextField(
                                 icon = Icons.Default.CheckCircle,
-                                placeholder = selectedEMIInstallmentAmount,
-                                textState = remember { mutableStateOf(selectedEMIInstallmentAmount) },
+                                placeholder = (squad?.monthlyContribution ?: 0).toString(),
+                                textState = remember { mutableStateOf((squad?.monthlyContribution ?: 0).toString()) },
                                 keyboardType = KeyboardType.Number,
                                 disabled = true)
                         }
-                        else {
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 24.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    modifier = Modifier.padding(horizontal = 24.dp)
-                                ) {
-
-                                    Icon(
-                                        imageVector = Icons.Default.Verified,
-                                        contentDescription = null,
-                                        tint = AppColors.primaryBrand,
-                                        modifier = Modifier.size(60.dp)
-                                    )
-
-                                    Text(
-                                        text = "No Pending Loans",
-                                        style = AppFont.ibmPlexSans(20, FontWeight.Bold),
-                                        color = AppColors.headerText,
-                                        textAlign = TextAlign.Center
-                                    )
-
-                                    Text(
-                                        text = "Great! ${emiSelectedMemberName.ifEmpty { "Member" }} don't have any pending loan payments at the moment.",
-                                        style = AppFont.ibmPlexSans(14),
-                                        color = AppColors.secondaryText,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
-                        }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                SSButton(
-                    title = "Pay EMI",
-                    isDisabled = emiSelectedMember?.currentLoanApproveStatus != EMIStatus.PENDING,
-                    action = {
-                        if (emiSelectedMember?.currentLoanApproveStatus != EMIStatus.PENDING) return@SSButton
-                        // handleManualEMIPayment replicate similar to SwiftUI flow
-                        coroutineScope.launch {
-                            if (validateEMIFields(
-                                    emiSelectedMemberName,
-                                    emiSelectedMonthYear,
-                                    emiAmountError,
-                                    onSetMemberError = { emiSelectedMemberNameError = it },
-                                    onSetMonthError = { emiSelectedMonthYearError = it }
+                    SSButton(title = "Update Contribution", isDisabled = false) {
+                        // handleManualContribution mapping
+                        if (validateContributionFields(
+                                contributionSelectedMemberName,
+                                contributionSelectedMonthYear,
+                                contributionAmountError,
+                                onSetMemberError = { contributionSelectedMemberNameError = it },
+                                onSetMonthError = { contributionSelectedMonthYearError = it }
+                            )
+                        ) {
+                            // performing the same async flow as SwiftUI
+                            val selectedMember = contributionSelectedMember
+                            val squadLocal = squad
+                            if (selectedMember == null || squadLocal == null) {
+                                // show error
+                                return@SSButton
+                            }
+
+                            LoaderManager.shared.showLoader()
+                            coroutineScope.launch(Dispatchers.IO) {
+                                val contribution = selectedContributions.find { it.monthYear == contributionSelectedMonthYear }
+                                val contributionID = contribution?.id
+                                if (contribution == null || contributionID == null) {
+                                    LoaderManager.shared.hideLoader()
+                                    return@launch
+                                }
+
+                                val updatedContribution = ContributionDetail(
+                                    id = contributionID,
+                                    orderId = "",
+                                    memberID = selectedMember.id ?: "",
+                                    memberName = selectedMember.name,
+                                    monthYear = contributionSelectedMonthYear,
+                                    amount = squadLocal.monthlyContribution,
+                                    paidOn = Date().asTimestamp,
+                                    paidStatus = PaidStatus.PAID, // adjust enum mapping to your model
+                                    paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
+                                    dueDate = CommonFunctions.getContributionDue(monthYear = contributionSelectedMonthYear).asTimestamp
                                 )
-                            ) {
-                                LoaderManager.shared.showLoader()
-                                selectedInstallment?.let { installment ->
-                                    installment.status = EMIStatus.PAID
-                                    installment.duePaidDate = Date().asTimestamp
-                                    squadViewModel.addOrUpdateInstallment(
-                                        showLoader = true,
-                                        memberID = emiSelectedMember?.id ?: "",
-                                        loanID = memberPendingLoans?.firstOrNull()?.id ?: "",
-                                        installment = installment
-                                    ) { success, error ->
+
+                                squadViewModel.editContribution(
+                                    showLoader = true,
+                                    squadID = squadLocal.squadID,
+                                    memberID = selectedMember.id ?: "",
+                                    contributionID = contributionID,
+                                    updatedContribution = updatedContribution
+                                ) { success, message ->
+                                    coroutineScope.launch(Dispatchers.IO) {
                                         if (success) {
-                                            // create payments and activity similar to SwiftUI
-                                            val loanNumber = memberPendingLoans?.firstOrNull()?.loanNumber ?: "N/A"
-                                            val loanId = memberPendingLoans?.firstOrNull()?.id ?: "N/A"
-                                            val loanPayment = PaymentsDetails(
-                                                id = CommonFunctions.generatePaymentID(squadId = squad?.squadID ?: ""),
+                                            // async: create payments and activity like SwiftUI
+                                            val newPayment = PaymentsDetails(
+                                                id = CommonFunctions.generatePaymentID(squadId = squadLocal.squadID),
                                                 paymentUpdatedDate = Date().asTimestamp,
-                                                memberId = emiSelectedMember?.id ?: "",
-                                                memberName = emiSelectedMemberName,
-                                                paymentPhone = emiSelectedMember?.phoneNumber ?: "",
-                                                paymentEmail = emiSelectedMember?.mailID ?: "",
-                                                userType = SquadUserType.SQUAD_MANAGER,
-                                                amount = (selectedInstallment?.installmentAmount ?: 0),
-                                                intrestAmount = (selectedInstallment?.interestAmount ?: 0),
+                                                memberId = selectedMember.id ?: "",
+                                                memberName = contributionSelectedMemberName,
+                                                paymentPhone = selectedMember.phoneNumber,
+                                                paymentEmail = selectedMember.mailID ?: "",
+                                                userType = SquadUserType.SQUAD_MEMBER,
+                                                amount = squadLocal.monthlyContribution,
+                                                intrestAmount = 0,
                                                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                                                 paymentType = PaymentType.PAYMENT_CREDIT,
-                                                paymentSubType = PaymentSubType.EMI_AMOUNT,
+                                                paymentSubType = PaymentSubType.CONTRIBUTION_AMOUNT,
                                                 paymentStatus = PaymentStatus.SUCCESS,
                                                 payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
                                                 paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
-                                                description = ManualEntrySquadMessages.PaymentDescription.emi(emiSelectedMemberName,selectedInstallment?.installmentNumber ?: "",loanNumber),
-                                                squadId = squad?.squadID ?: "",
-                                                loanId = loanId,
-                                                installmentId = selectedInstallment?.id ?: "",
+                                                description = ManualEntrySquadMessages.PaymentDescription.contribution(contributionSelectedMemberName,contributionSelectedMonthYear),
+                                                squadId = squadLocal.squadID,
+                                                order_id = contributionID,
+                                                contributionId = contributionID,
+                                                loanId = "",
+                                                installmentId = "",
                                                 paymentSuccess = true,
-                                                payoutSuccess = true
+                                                payoutSuccess = true,
+                                                transferReferenceId = contributionID.split("-").lastOrNull() ?: ""
                                             )
-//
 
-                                            squadViewModel.savePayments(activity = activity, context = appContext, squadID = squad?.squadID ?: "", payment = listOf(loanPayment)) { psuccess, perror ->
-                                                // no-op
+                                            squadViewModel.savePayments(
+                                                activity = activity,
+                                                context = appContext,
+                                                squadID = squadLocal.squadID,
+                                                payment = listOf(newPayment)
+                                            ) { pSuccess, pError ->
+                                                // no-op logging
                                             }
-
-                                            val total = (selectedInstallment?.installmentAmount ?: 0) + (selectedInstallment?.interestAmount ?: 0)
 
                                             squadViewModel.createSquadActivity(
                                                 activityType = SquadActivityType.AMOUNT_CREDIT,
-                                                userName = emiSelectedMemberName,
-                                                memberId = loanPayment.memberId,
-                                                amount = total,
-                                                description = ManualEntrySquadMessages.EMI.activity(emiSelectedMemberName,selectedInstallment?.installmentNumber ?: "",loanNumber,total)
+                                                userName = newPayment.memberName,
+                                                memberId = newPayment.memberId,
+                                                amount = squadLocal.monthlyContribution,
+                                                description = ManualEntrySquadMessages.Contribution.activity(contributionSelectedMemberName,contributionSelectedMonthYear,newPayment.amount)
                                             ) { success, error ->
                                                 coroutineScope.launch(Dispatchers.Main) {
                                                     LoaderManager.shared.hideLoader()
-
-                                                    ToastManager.show(title = ManualEntrySquadMessages.EMI.TOAST_TITLE, message = ManualEntrySquadMessages.EMI.toast(emiSelectedMemberName,selectedInstallment?.installmentNumber ?: ""),
+                                                    ToastManager.show(title = ManualEntrySquadMessages.Contribution.TOAST_TITLE, message = ManualEntrySquadMessages.Contribution.toast(contributionSelectedMemberName,contributionSelectedMonthYear),
                                                         ToastType.SUCCESS)
 
                                                     squadViewModel.squad?.let { squad ->
@@ -567,11 +386,11 @@ fun ManualEntryView(
                                                                 squadId = squad.value?.squadID
                                                                     ?: "",
 
-                                                                memberIds = listOf(loanPayment.memberId) ,
+                                                                memberIds = listOf(newPayment.memberId) ,
 
-                                                                title = ManualEntrySquadMessages.EMI.NOTIFICATION_TITLE,
+                                                                title = ManualEntrySquadMessages.Contribution.NOTIFICATION_TITLE,
 
-                                                                message = ManualEntrySquadMessages.EMI.notification(selectedInstallment?.installmentNumber ?: ""),
+                                                                message = ManualEntrySquadMessages.Contribution.notification(contributionSelectedMonthYear),
 
                                                                 data = mapOf(
 
@@ -590,21 +409,222 @@ fun ManualEntryView(
                                                         )
                                                     }
 
-                                                    emiSelectedMemberName = ""
-                                                    emiSelectedMonthYear = ""
-                                                    emiSelectedMember = null
-                                                    emiSelectedMemberNameError = ""
+                                                    contributionSelectedMemberName = ""
+                                                    contributionSelectedMonthYear = ""
                                                 }
                                             }
                                         } else {
-                                            LoaderManager.shared.hideLoader()
+                                            coroutineScope.launch(Dispatchers.Main) {
+                                                LoaderManager.shared.hideLoader()
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                )
+                }
+                else if (memberSubType == SquadStrings.manualEntryEMI)  {
+
+                    SectionView(title = SquadStrings.emiEntry) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            // Member selection
+                            SSTextField(
+                                icon = Icons.Default.Person,
+                                placeholder = if (emiSelectedMemberName.isEmpty()) "Select Squad Member" else emiSelectedMemberName,
+                                textState = remember { mutableStateOf(emiSelectedMemberName) },
+                                keyboardType = KeyboardType.Text,
+                                showDropdown = true,
+                                error = emiSelectedMemberNameError,
+                                onDropdownTap = { squadViewModel.setShowEMIMemberPopup(true) },
+                                disabled = true)
+
+                            if (emiSelectedMember?.currentLoanApproveStatus == EMIStatus.PENDING) {
+                                SSTextField(
+                                    icon = Icons.Default.CalendarToday,
+                                    placeholder = if (emiSelectedMonthYear.isEmpty()) "Select EMI" else emiSelectedMonthYear,
+                                    textState = remember { mutableStateOf(emiSelectedMonthYear) },
+                                    keyboardType = KeyboardType.Text,
+                                    showDropdown = true,
+                                    error = emiSelectedMonthYearError,
+                                    onDropdownTap = { squadViewModel.setShowEMIMonthPopup(true) },
+                                    disabled = true)
+
+                                SSTextField(
+                                    icon = Icons.Default.CheckCircle,
+                                    placeholder = selectedEMIInstallmentAmount,
+                                    textState = remember { mutableStateOf(selectedEMIInstallmentAmount) },
+                                    keyboardType = KeyboardType.Number,
+                                    disabled = true)
+                            }
+                            else {
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.padding(horizontal = 24.dp)
+                                    ) {
+
+                                        Icon(
+                                            imageVector = Icons.Default.Verified,
+                                            contentDescription = null,
+                                            tint = AppColors.primaryBrand,
+                                            modifier = Modifier.size(60.dp)
+                                        )
+
+                                        Text(
+                                            text = "No Pending Loans",
+                                            style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                                            color = AppColors.headerText,
+                                            textAlign = TextAlign.Center
+                                        )
+
+                                        Text(
+                                            text = "Great! ${emiSelectedMemberName.ifEmpty { "Member" }} don't have any pending loan payments at the moment.",
+                                            style = AppFont.ibmPlexSans(14),
+                                            color = AppColors.secondaryText,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    SSButton(
+                        title = "Update EMI",
+                        isDisabled = emiSelectedMember?.currentLoanApproveStatus != EMIStatus.PENDING,
+                        action = {
+                            if (emiSelectedMember?.currentLoanApproveStatus != EMIStatus.PENDING) return@SSButton
+                            // handleManualEMIPayment replicate similar to SwiftUI flow
+                            coroutineScope.launch {
+                                if (validateEMIFields(
+                                        emiSelectedMemberName,
+                                        emiSelectedMonthYear,
+                                        emiAmountError,
+                                        onSetMemberError = { emiSelectedMemberNameError = it },
+                                        onSetMonthError = { emiSelectedMonthYearError = it }
+                                    )
+                                ) {
+                                    LoaderManager.shared.showLoader()
+                                    selectedInstallment?.let { installment ->
+                                        installment.status = EMIStatus.PAID
+                                        installment.duePaidDate = Date().asTimestamp
+                                        squadViewModel.addOrUpdateInstallment(
+                                            showLoader = true,
+                                            memberID = emiSelectedMember?.id ?: "",
+                                            loanID = memberPendingLoans?.firstOrNull()?.id ?: "",
+                                            installment = installment
+                                        ) { success, error ->
+                                            if (success) {
+                                                // create payments and activity similar to SwiftUI
+                                                val loanNumber = memberPendingLoans?.firstOrNull()?.loanNumber ?: "N/A"
+                                                val loanId = memberPendingLoans?.firstOrNull()?.id ?: "N/A"
+                                                val loanPayment = PaymentsDetails(
+                                                    id = CommonFunctions.generatePaymentID(squadId = squad?.squadID ?: ""),
+                                                    paymentUpdatedDate = Date().asTimestamp,
+                                                    memberId = emiSelectedMember?.id ?: "",
+                                                    memberName = emiSelectedMemberName,
+                                                    paymentPhone = emiSelectedMember?.phoneNumber ?: "",
+                                                    paymentEmail = emiSelectedMember?.mailID ?: "",
+                                                    userType = SquadUserType.SQUAD_MANAGER,
+                                                    amount = (selectedInstallment?.installmentAmount ?: 0),
+                                                    intrestAmount = (selectedInstallment?.interestAmount ?: 0),
+                                                    paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
+                                                    paymentType = PaymentType.PAYMENT_CREDIT,
+                                                    paymentSubType = PaymentSubType.EMI_AMOUNT,
+                                                    paymentStatus = PaymentStatus.SUCCESS,
+                                                    payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
+                                                    paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
+                                                    description = ManualEntrySquadMessages.PaymentDescription.emi(emiSelectedMemberName,selectedInstallment?.installmentNumber ?: "",loanNumber),
+                                                    squadId = squad?.squadID ?: "",
+                                                    loanId = loanId,
+                                                    installmentId = selectedInstallment?.id ?: "",
+                                                    paymentSuccess = true,
+                                                    payoutSuccess = true
+                                                )
+//
+
+                                                squadViewModel.savePayments(activity = activity, context = appContext, squadID = squad?.squadID ?: "", payment = listOf(loanPayment)) { psuccess, perror ->
+                                                    // no-op
+                                                }
+
+                                                val total = (selectedInstallment?.installmentAmount ?: 0) + (selectedInstallment?.interestAmount ?: 0)
+
+                                                squadViewModel.createSquadActivity(
+                                                    activityType = SquadActivityType.AMOUNT_CREDIT,
+                                                    userName = emiSelectedMemberName,
+                                                    memberId = loanPayment.memberId,
+                                                    amount = total,
+                                                    description = ManualEntrySquadMessages.EMI.activity(emiSelectedMemberName,selectedInstallment?.installmentNumber ?: "",loanNumber,total)
+                                                ) { success, error ->
+                                                    coroutineScope.launch(Dispatchers.Main) {
+                                                        LoaderManager.shared.hideLoader()
+
+                                                        ToastManager.show(title = ManualEntrySquadMessages.EMI.TOAST_TITLE, message = ManualEntrySquadMessages.EMI.toast(emiSelectedMemberName,selectedInstallment?.installmentNumber ?: ""),
+                                                            ToastType.SUCCESS)
+
+                                                        squadViewModel.squad?.let { squad ->
+
+                                                            NotificationService.shared.sendMemberReminder(
+
+                                                                request = ReminderRequest(
+
+                                                                    squadId = squad.value?.squadID
+                                                                        ?: "",
+
+                                                                    memberIds = listOf(loanPayment.memberId) ,
+
+                                                                    title = ManualEntrySquadMessages.EMI.NOTIFICATION_TITLE,
+
+                                                                    message = ManualEntrySquadMessages.EMI.notification(selectedInstallment?.installmentNumber ?: ""),
+
+                                                                    data = mapOf(
+
+                                                                        "screen" to "PAYMENT"
+
+                                                                    )
+
+                                                                ),
+
+                                                                onSuccess = { response ->
+                                                                },
+
+                                                                onError = { error ->
+                                                                }
+
+                                                            )
+                                                        }
+
+                                                        emiSelectedMemberName = ""
+                                                        emiSelectedMonthYear = ""
+                                                        emiSelectedMember = null
+                                                        emiSelectedMemberNameError = ""
+                                                    }
+                                                }
+                                            } else {
+                                                LoaderManager.shared.hideLoader()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    )
+                }
+                else {
+
+                }
+
             }
             else {
 
@@ -628,7 +648,7 @@ fun ManualEntryView(
                                 maxCharacters = 200
                             )
 
-                            SSButton(title = "Make Payment") {
+                            SSButton(title = "Update Payment") {
                                 /* handle other payment */
 
                                 if (validateFields()) {

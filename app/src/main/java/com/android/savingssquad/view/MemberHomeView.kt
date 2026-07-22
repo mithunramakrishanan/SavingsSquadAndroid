@@ -505,7 +505,8 @@ fun MemberHomeView(
                 squadViewModel.fetchMemberLoans(
                     showLoader = false,
                     memberID = fetchedMember.id ?: ""
-                ) { _, _ ->
+                )
+                { _, _ ->
                     val pendingUnpaidInstallments =
                         (squadViewModel.memberPendingLoans.value?.firstOrNull()?.installments?.currentAndOverdueUnpaid()
                             ?: emptyList()) +
@@ -541,6 +542,36 @@ fun MemberHomeView(
 
                     LoaderManager.shared.hideLoader()
                 }
+
+                squadViewModel.fetchMemberOtherPayments(false,fetchedMember.id ?: "", paidStatus = PaidStatus.NOT_PAID, type = MemberPaymentSubType.Repayment, completion = {success, error ->
+                if (squadViewModel.memberOtherPayments.value?.size != 0) {
+
+
+                    val otherPaymentsRemainder =
+
+                        squadViewModel.memberOtherPayments.value?.map { payment ->
+
+                            RemainderModel(
+
+                                remainderTitle = payment.description,
+
+                                remainderSubTitle = "",
+
+                                remainderType = RemainderType.OTHER_REMAINDER,
+
+                                remainderAmount = payment.amount,
+
+                                remainderID = payment.id ?: "",
+
+                                remainderDueDate = Timestamp.now()
+
+                            )
+
+                        } ?: emptyList()
+                    remainders = remainders + otherPaymentsRemainder
+                }
+
+                })
 
                 Log.d("MemberHomeView", "✅ Member fetched: ${fetchedMember.name}")
             } else {

@@ -43,9 +43,11 @@ import com.google.firebase.firestore.SetOptions
 import com.yourapp.utils.CommonFunctions
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
+import com.android.savingssquad.model.MemberOtherPayments
 import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.LoaderManager
+import com.android.savingssquad.singleton.MemberPaymentSubType
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentEntryType
@@ -1919,6 +1921,50 @@ class FirestoreManager private constructor() {
             }
             .addOnFailureListener { e ->
                 completion(null, "Error fetching loans: ${e.localizedMessage}")
+            }
+    }
+
+
+    fun fetchMemberOtherPayments(
+        squadID: String,
+        memberID: String,
+        paidStatus: PaidStatus?,
+        type: MemberPaymentSubType?,
+        completion: (List<MemberOtherPayments>?, String?) -> Unit
+    ) {
+
+        var query: Query = FirebaseFirestore.getInstance()
+            .collection("squads")
+            .document(squadID)
+            .collection("members")
+            .document(memberID)
+            .collection("otherPayments")
+
+        paidStatus?.let {
+            query = query.whereEqualTo("paidStatus", it.value)
+        }
+
+        type?.let {
+            query = query.whereEqualTo("memberOtherPaymentType", it.value)
+        }
+
+        query.get()
+            .addOnSuccessListener { snapshot ->
+
+                val payments = snapshot.documents.mapNotNull { doc ->
+                    try {
+                        doc.toObject(MemberOtherPayments::class.java)?.apply {
+                            id = doc.id
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+
+                completion(payments, null)
+            }
+            .addOnFailureListener { e ->
+                completion(null, "Error fetching other payments: ${e.localizedMessage}")
             }
     }
 
