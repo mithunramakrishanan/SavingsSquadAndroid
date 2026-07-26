@@ -20,6 +20,7 @@ import androidx.navigation.NavController
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
+import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SSToast
@@ -40,12 +41,12 @@ fun PaymentHistoryView(
     val payments = squadViewModel.squadPayments.collectAsStateWithLifecycle()
     val members = squadViewModel.squadMembers.collectAsStateWithLifecycle()
 
-    var selectedUser by remember { mutableStateOf("All") }
+    var selectedUser by remember { mutableStateOf(SquadStrings.all) }
     var selectedMemberId by remember { mutableStateOf<String?>(null) }
 
     // MARK: - User List (iOS style)
     val userList = remember(members.value) {
-        listOf("All") + members.value.map { it.name }.distinct()
+        listOf(SquadStrings.all) + members.value.map { it.name }.distinct()
     }
 
     // MARK: - INIT LOAD GUARD (iOS equivalent)
@@ -166,7 +167,8 @@ fun PaymentHistoryView(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(bottom = 10.dp)
-                ) {
+                )
+                {
 
                     items(
                         items = payments.value,

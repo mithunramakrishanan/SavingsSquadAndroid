@@ -1,9 +1,10 @@
 package com.android.savingssquad.view
 
 import android.app.Activity
+import android.util.Log
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavHostController
-import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,40 +12,24 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -57,12 +42,11 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import java.util.Date
-import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.InterestType
 import com.android.savingssquad.model.LoanPaidType
 import com.android.savingssquad.model.Member
-import com.android.savingssquad.model.MemberLoan
+import com.android.savingssquad.model.MemberOtherPayments
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.ReminderRequest
 import com.android.savingssquad.model.unpaidMonths
@@ -81,23 +65,19 @@ import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.SquadStrings
-import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
 import com.android.savingssquad.singleton.asTimestamp
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
-import com.android.savingssquad.singleton.displayText
-import com.android.savingssquad.viewmodel.AlertManager
-import com.android.savingssquad.viewmodel.AppDestination
-import com.android.savingssquad.viewmodel.SSToast
 import com.android.savingssquad.viewmodel.ToastManager
 import com.android.savingssquad.viewmodel.ToastType
-import com.google.api.Context
 import com.google.firebase.Timestamp
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.util.Calendar
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.graphicsLayer
+import com.android.savingssquad.singleton.MemberPaymentSubType
 
 
 @Composable
@@ -129,6 +109,12 @@ fun ManualEntryView(
     var emiSelectedMonthYearError by remember { mutableStateOf("") }
     var selectedInstallment by remember { mutableStateOf<Installment?>(null) }
     var selectedEMIInstallmentAmount by remember { mutableStateOf("") }
+
+
+    var otherMemberPaymentSelectedMember by remember { mutableStateOf<Member?>(null) }
+    var otherMemberPaymentSelectedMemberName by remember { mutableStateOf("") }
+    var otherMemberPaymentSelectedMemberNameError by remember { mutableStateOf("") }
+    var selectedMemberOtherPayment by remember { mutableStateOf<MemberOtherPayments?>(null) }
 
 
     var notes by remember { mutableStateOf("") }
@@ -623,8 +609,224 @@ fun ManualEntryView(
                 }
                 else {
 
-                }
+                    SectionView(title = "") {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            // Member selection field (readonly but dropdown active)
+                            SSTextField(
+                                icon = Icons.Default.Person,
+                                placeholder = if (otherMemberPaymentSelectedMemberName.isEmpty()) "Select Squad Member" else otherMemberPaymentSelectedMemberName,
+                                textState = remember { mutableStateOf(otherMemberPaymentSelectedMemberName) }, // keep display, but won't edit directly
+                                keyboardType = KeyboardType.Text,
+                                showDropdown = true,
+                                error = otherMemberPaymentSelectedMemberNameError,
+                                onDropdownTap = {
+                                    squadViewModel.setOtherPaymentMemberPopup(true)
+                                },
+                                disabled = true
 
+                            )
+
+                            val memberOtherPayments by squadViewModel.memberOtherPayments.collectAsState()
+
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            {
+
+                                if (!memberOtherPayments.isNullOrEmpty()) {
+
+                                    items(
+                                        items = memberOtherPayments!!,
+                                        key = { it.id ?: "" }
+                                    ) { payment ->
+
+                                        ManualMemberOtherPaymentRow(
+                                            payments = payment,
+                                            isSelected = selectedMemberOtherPayment?.id == payment.id,
+                                            onClick = {
+                                                selectedMemberOtherPayment =
+                                                    if (selectedMemberOtherPayment?.id == payment.id) null
+                                                    else payment
+                                            }
+                                        )
+                                    }
+                                }
+                                else {
+
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 24.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                                modifier = Modifier.padding(horizontal = 24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Verified,
+                                                    contentDescription = null,
+                                                    tint = AppColors.primaryBrand,
+                                                    modifier = Modifier.size(60.dp)
+                                                )
+
+                                                Text(
+                                                    text = "No Pending Payments",
+                                                    style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                                                    color = AppColors.headerText,
+                                                    textAlign = TextAlign.Center
+                                                )
+
+                                                Text(
+                                                    text = "Great! ${emiSelectedMemberName.ifEmpty { "Member" }} doesn't have any pending payments.",
+                                                    style = AppFont.ibmPlexSans(14),
+                                                    color = AppColors.secondaryText,
+                                                    textAlign = TextAlign.Center
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            SSButton(title = "Update Payment", isDisabled = selectedMemberOtherPayment == null, action =   {
+
+                                val squad = squadViewModel.squad ?: return@SSButton
+
+                                LoaderManager.shared.showLoader()
+
+                                CoroutineScope(Dispatchers.IO).launch {
+
+                                    val otherID = CommonFunctions.generatePaymentID(squad.value?.squadID
+                                        ?: "")
+
+                                    val payment = PaymentsDetails(
+                                        id = otherID,
+                                        paymentUpdatedDate = Timestamp.now(),
+
+                                        memberId = selectedMemberOtherPayment?.memberId ?: "",
+                                        memberName = selectedMemberOtherPayment?.memberName ?: "",
+                                        paymentPhone = "",
+                                        paymentEmail = "",
+
+                                        userType = SquadUserType.SQUAD_MANAGER,
+
+                                        amount = selectedMemberOtherPayment?.amount ?: 0,
+                                        intrestAmount = 0,
+
+                                        paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
+                                        paymentType = PaymentType.PAYMENT_CREDIT,
+                                        paymentSubType = PaymentSubType.RE_PAYMENT,
+
+                                        paymentStatus = PaymentStatus.SUCCESS,
+                                        payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
+                                        paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
+
+                                        description = ManualEntrySquadMessages.PaymentDescription.otherPayment(
+                                            note = selectedMemberOtherPayment?.description ?: "",
+                                            amount = selectedMemberOtherPayment?.amount ?: 0
+                                        ),
+
+                                        squadId = squad.value?.squadID ?: "",
+
+                                        order_id = otherID,
+                                        contributionId = "",
+                                        loanId = "",
+                                        installmentId = "",
+
+                                        paymentSuccess = true,
+                                        payoutSuccess = true,
+
+                                        transferReferenceId = selectedMemberOtherPayment?.description ?: "",
+                                        memberOtherPaymentId = selectedMemberOtherPayment?.id ?: ""
+                                    )
+
+                                    squadViewModel.savePayments(
+                                        activity = activity,
+                                        context = appContext,
+                                        squadID = squad.value?.squadID ?: "",
+                                        payment = listOf(payment)
+                                    ) { success, error ->
+
+                                        if (success) {
+
+                                            squadViewModel.createSquadActivity(
+                                                activityType = SquadActivityType.AMOUNT_CREDIT,
+                                                userName = selectedMemberOtherPayment?.memberName ?: "",
+                                                memberId = payment.memberId,
+                                                amount = selectedMemberOtherPayment?.amount ?: 0,
+                                                description = ManualEntrySquadMessages.OtherPayment.activity(
+                                                    amount = selectedMemberOtherPayment?.amount ?: 0,
+                                                    note = selectedMemberOtherPayment?.description ?: ""
+                                                )
+                                            ) { _, _ ->
+
+                                                CoroutineScope(Dispatchers.Main).launch {
+
+                                                    LoaderManager.shared.hideLoader()
+
+                                                    ToastManager.show(
+                                                        title = ManualEntrySquadMessages.OtherPayment.TOAST_TITLE,
+                                                        message = ManualEntrySquadMessages.OtherPayment.toast(
+                                                            selectedMemberOtherPayment?.amount ?: 0
+                                                        )
+                                                    )
+
+                                                    NotificationService.shared.sendMemberReminder(
+                                                        request = ReminderRequest(
+                                                            squadId = squad.value?.squadID ?: "",
+                                                            memberIds = squadViewModel.squadMembers.value.mapNotNull { it.id },
+                                                            title = ManualEntrySquadMessages.OtherPayment.NOTIFICATION_TITLE,
+                                                            message = ManualEntrySquadMessages.OtherPayment.notification(
+                                                                selectedMemberOtherPayment?.amount
+                                                                    ?: 0,
+                                                                selectedMemberOtherPayment?.description
+                                                                    ?: ""
+                                                            ),
+                                                            data = mapOf(
+                                                                "screen" to "PAYMENT"
+                                                            )
+                                                        ),
+                                                        onSuccess = {
+                                                            // Optional: Log.d("Notification", "Reminder sent")
+                                                        },
+                                                        onError = { error ->
+
+                                                        }
+                                                    )
+
+                                                    squadViewModel.fetchMemberOtherPayments(
+                                                        showLoader = true,
+                                                        memberID = selectedMemberOtherPayment?.memberId ?: "",
+                                                        paidStatus = PaidStatus.NOT_PAID,
+                                                        type = MemberPaymentSubType.RE_PAYMENT
+                                                    ) { _, _ ->
+
+                                                        LoaderManager.shared.hideLoader()
+                                                    }
+
+                                                    selectedMemberOtherPayment = null
+                                                    otherMemberPaymentSelectedMemberName = ""
+                                                    otherMemberPaymentSelectedMember = null
+                                                }
+                                            }
+
+                                        } else {
+
+                                            CoroutineScope(Dispatchers.Main).launch {
+                                                LoaderManager.shared.hideLoader()
+                                                Log.e("Payment", error ?: "Unknown Error")
+                                            }
+                                        }
+                                    }
+                                }
+                            } )
+
+                        }
+                    }
+                }
             }
             else {
 
@@ -1007,4 +1209,104 @@ private fun validateEMIFields(
     onSetMemberError(if (memberName.trim().isEmpty()) "Member Name is required" else "")
     onSetMonthError(if (monthYear.trim().isEmpty()) "Month-Year is required" else "")
     return memberName.trim().isNotEmpty() && monthYear.trim().isNotEmpty() && emiAmountError.isEmpty()
+}
+
+@Composable
+fun ManualMemberOtherPaymentRow(
+    payments: MemberOtherPayments,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0.99f,
+        animationSpec = tween(300),
+        label = "cardScale"
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .appShadow(AppShadows.card)
+            .background(
+                color = if (isSelected) AppColors.primaryButton.copy(alpha = 0.06f) else AppColors.surface,
+                shape = RoundedCornerShape(18.dp)
+            )
+            .border(
+                width = if (isSelected) 1.6.dp else 1.dp,
+                color = if (isSelected) AppColors.primaryButton else AppColors.border.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(18.dp)
+            )
+            .clickable { onClick() }
+            .padding(16.dp),
+        verticalAlignment = Alignment.Top
+    )
+    {
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+
+            // MARK: Loan Amount + Tenure/Interest
+
+            Column {
+
+                Text(
+                    payments.description,
+                    style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                    color = AppColors.secondaryText
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                Text(
+                    payments.amount.currencyFormattedWithCommas(),
+                    style = AppFont.ibmPlexSans(19, FontWeight.Bold),
+                    color = AppColors.headerText
+                )
+
+                Spacer(Modifier.height(4.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+
+                    Text(
+                        "Payment sent on",
+                        style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                        color = if (isSelected) AppColors.primaryButton else AppColors.primaryBrand
+                    )
+
+                    Spacer(Modifier.width(6.dp))
+
+                    Box(
+                        Modifier
+                            .size(3.dp)
+                            .background(AppColors.border, CircleShape)
+                    )
+
+                    Spacer(Modifier.width(6.dp))
+
+                    Text(
+                        CommonFunctions.dateToString(payments.amountReceivedDate?.toDate() ?: Date()),
+                        style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                        color = AppColors.secondaryText
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.width(8.dp))
+
+        Icon(
+            imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.Circle,
+            contentDescription = null,
+            tint = if (isSelected) AppColors.primaryButton else AppColors.border,
+            modifier = Modifier.size(22.dp)
+        )
+    }
 }

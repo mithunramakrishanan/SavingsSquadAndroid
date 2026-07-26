@@ -1,16 +1,13 @@
 package com.android.savingssquad.SquadSubscription
 
-import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.android.savingssquad.singleton.UserDefaultsManager
 import kotlinx.coroutines.launch
-import com.google.firebase.Timestamp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.resumeWithException
 
 class SubscriptionManager private constructor() : ViewModel() {
 
@@ -66,16 +63,24 @@ class SubscriptionManager private constructor() : ViewModel() {
 
 
     fun canUseLoan(): Boolean {
-        val sub = _subscription.value ?: return false
-        val config = remoteConfig
 
-        // If still loading, be safe → block access
-        if (!isSubscriptionLoaded.value) return false
+        if (UserDefaultsManager.getSquadManagerLogged()) {
 
-        // Trial override
-        if (isTrialActive()) return true
+            val sub = _subscription.value ?: return false
+            val config = remoteConfig
 
-        return sub.features.loan || sub.loanAddon
+            // If still loading, be safe → block access
+            if (!isSubscriptionLoaded.value) return false
+
+            // Trial override
+            if (isTrialActive()) return true
+
+            return sub.features.loan || sub.loanAddon
+        }
+        else {
+            return  true
+        }
+
     }
 
 
@@ -130,7 +135,7 @@ class SubscriptionManager private constructor() : ViewModel() {
         }
     }
 
-    // MARK: - REFRESH (Store-style sync equivalent)
+    // MARK: - REFRESH (Store-style sync equivalent) ⭐ CHANGED — now plan + period
     fun refreshFromServer(
         squadID: String,
         completion: (Boolean, String?) -> Unit
@@ -139,8 +144,8 @@ class SubscriptionManager private constructor() : ViewModel() {
 
             try {
 
-                val activePlan = withContext(Dispatchers.IO) {
-                    BillingHelper.getCurrentPlan()
+                val (activePlan, activePeriod) = withContext(Dispatchers.IO) {
+                    BillingHelper.getCurrentPlanAndPeriod()
                 }
 
                 val loanAddon =
@@ -153,6 +158,7 @@ class SubscriptionManager private constructor() : ViewModel() {
                 SubscriptionFirebaseManager.shared.updateSubscription(
                     squadID,
                     activePlan,
+                    activePeriod,   // ⭐ NEW
                     loanAddon
                 ) { success, error ->
 

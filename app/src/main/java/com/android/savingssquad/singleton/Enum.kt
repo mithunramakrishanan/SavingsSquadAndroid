@@ -537,6 +537,6 @@ enum class MemberPaymentType(val value: String) {
 }
 
 enum class MemberPaymentSubType(val value: String) {
-    Repayment("RE_PAYMENT"),
-    Settlement("SETTLEMENT")
+    RE_PAYMENT("RE_PAYMENT"),
+    SETTLEMENT("SETTLEMENT")
 }

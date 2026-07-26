@@ -1,11 +1,11 @@
 package com.android.savingssquad.SquadSubscription
 
 import com.google.firebase.Timestamp
-import java.util.Calendar
-import java.util.Date
+
 data class SubscriptionModel(
 
     var plan: Plan = Plan.FREE,
+    var billingPeriod: BillingPeriod = BillingPeriod.MONTHLY,   // ⭐ NEW
     var loanAddon: Boolean = false,
 
     var isTrialActive: Boolean = true,
@@ -27,23 +27,80 @@ data class SubscriptionModel(
         BUSINESS("BUSINESS")
     }
 
+    // ⭐ NEW — mirrors iOS SubscriptionModel.BillingPeriod
+    enum class BillingPeriod(val value: String) {
+        MONTHLY("MONTHLY"),
+        SIX_MONTH("SIX_MONTH"),
+        YEARLY("YEARLY");
+
+        val displayName: String
+            get() = when (this) {
+                MONTHLY -> "Monthly"
+                SIX_MONTH -> "6 Months"
+                YEARLY -> "Yearly"
+            }
+
+        companion object {
+            fun fromValue(value: String?): BillingPeriod =
+                entries.firstOrNull { it.value == value } ?: MONTHLY
+        }
+    }
+
     data class Features(
         var contribution: Boolean = true,
         var loan: Boolean = false
     )
 }
 
+// ⭐ NEW — per-period pricing block, reused for BASIC and BUSINESS
+// NOTE: every param needs a default value, or Firestore's POJO mapper can't
+// synthesize a no-arg constructor for this nested object and deserialization
+// throws "does not define a no-argument constructor".
+data class PlanPricing(
+    var monthly: Int = 0,
+    var sixMonth: Int = 0,
+    var yearly: Int = 0,
+
+    var monthlyText: String = "",
+    var sixMonthText: String = "",
+    var yearlyText: String = "",
+
+    // Optional badges like "Save 16%" shown next to the period picker
+    var sixMonthSavingsText: String = "",
+    var yearlySavingsText: String = ""
+) {
+
+    fun price(period: SubscriptionModel.BillingPeriod): Int =
+        when (period) {
+            SubscriptionModel.BillingPeriod.MONTHLY -> monthly
+            SubscriptionModel.BillingPeriod.SIX_MONTH -> sixMonth
+            SubscriptionModel.BillingPeriod.YEARLY -> yearly
+        }
+
+    fun priceText(period: SubscriptionModel.BillingPeriod): String =
+        when (period) {
+            SubscriptionModel.BillingPeriod.MONTHLY -> monthlyText
+            SubscriptionModel.BillingPeriod.SIX_MONTH -> sixMonthText
+            SubscriptionModel.BillingPeriod.YEARLY -> yearlyText
+        }
+
+    fun savingsText(period: SubscriptionModel.BillingPeriod): String? =
+        when (period) {
+            SubscriptionModel.BillingPeriod.MONTHLY -> null
+            SubscriptionModel.BillingPeriod.SIX_MONTH -> sixMonthSavingsText.ifEmpty { null }
+            SubscriptionModel.BillingPeriod.YEARLY -> yearlySavingsText.ifEmpty { null }
+        }
+}
 
 data class RemoteConfig(
 
     // Trial
     var trialDays: Int = 45,
 
-    // Free
+    // Free (no billing period — always free)
     var free_maxMembers: Int = 10,
     var free_contribution: Boolean = true,
     var free_loan: Boolean = false,
-    var free_price: Int = 0,
     var free_priceText: String = "Free",
     var free_tagline: String = "Perfect for families and small squads",
 
@@ -51,22 +108,32 @@ data class RemoteConfig(
     var basic_maxMembers: Int = 50,
     var basic_contribution: Boolean = true,
     var basic_loan: Boolean = false,
-    var basic_price: Int = 99,
-    var basic_priceText: String = "₹99/month",
     var basic_tagline: String = "Ideal for growing squads with more members",
+
+    // ⭐ NEW — replaces basic_price / basic_priceText
+    var basic_pricing: PlanPricing = PlanPricing(
+        monthly = 99, sixMonth = 499, yearly = 899,
+        monthlyText = "₹99/month", sixMonthText = "₹499/6 months", yearlyText = "₹899/year",
+        sixMonthSavingsText = "Save 16%", yearlySavingsText = "Save 24%"
+    ),
 
     // Business
     var biz_maxMembers: Int = 200,
     var biz_contribution: Boolean = true,
     var biz_loan: Boolean = true,
-    var biz_price: Int = 199,
-    var biz_priceText: String = "₹199/month",
     var biz_tagline: String = "Complete solution for large squads and organizations",
 
-    // Loan Add-on
+    // ⭐ NEW — replaces biz_price / biz_priceText
+    var biz_pricing: PlanPricing = PlanPricing(
+        monthly = 199, sixMonth = 999, yearly = 1799,
+        monthlyText = "₹199/month", sixMonthText = "₹999/6 months", yearlyText = "₹1799/year",
+        sixMonthSavingsText = "Save 16%", yearlySavingsText = "Save 25%"
+    ),
+
+    // Loan Add-on (kept monthly-only for now)
     var addon_loan_enabled: Boolean = true,
     var addon_loan_price: Int = 49,
-    var addon_loan_priceText: String = "49/month",
+    var addon_loan_priceText: String = "₹49/month",
     var addon_loan_tagline: String = "Add loan management to your FREE or BASIC plan"
 ) {
 
@@ -98,18 +165,26 @@ data class RemoteConfig(
                 )
         }
 
-    fun price(plan: SubscriptionModel.Plan): Int =
+    // ⭐ NEW — price now needs a period. Free plan ignores it.
+    fun price(plan: SubscriptionModel.Plan, period: SubscriptionModel.BillingPeriod): Int =
         when (plan) {
-            SubscriptionModel.Plan.FREE -> free_price
-            SubscriptionModel.Plan.BASIC -> basic_price
-            SubscriptionModel.Plan.BUSINESS -> biz_price
+            SubscriptionModel.Plan.FREE -> 0
+            SubscriptionModel.Plan.BASIC -> basic_pricing.price(period)
+            SubscriptionModel.Plan.BUSINESS -> biz_pricing.price(period)
         }
 
-    fun priceText(plan: SubscriptionModel.Plan): String =
+    fun priceText(plan: SubscriptionModel.Plan, period: SubscriptionModel.BillingPeriod): String =
         when (plan) {
             SubscriptionModel.Plan.FREE -> free_priceText
-            SubscriptionModel.Plan.BASIC -> basic_priceText
-            SubscriptionModel.Plan.BUSINESS -> biz_priceText
+            SubscriptionModel.Plan.BASIC -> basic_pricing.priceText(period)
+            SubscriptionModel.Plan.BUSINESS -> biz_pricing.priceText(period)
+        }
+
+    fun savingsText(plan: SubscriptionModel.Plan, period: SubscriptionModel.BillingPeriod): String? =
+        when (plan) {
+            SubscriptionModel.Plan.FREE -> null
+            SubscriptionModel.Plan.BASIC -> basic_pricing.savingsText(period)
+            SubscriptionModel.Plan.BUSINESS -> biz_pricing.savingsText(period)
         }
 
     fun tagline(plan: SubscriptionModel.Plan): String =

@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.automirrored.filled.Rule
@@ -78,6 +79,8 @@ sealed class SquadSettingsEvent {
     data object PaymentHistory : SquadSettingsEvent()
     data object ChitRules : SquadSettingsEvent()
     data object ContactUs : SquadSettingsEvent()
+
+    data object RePayment : SquadSettingsEvent()
 }
 
 // =========================================================
@@ -126,6 +129,9 @@ fun SquadSettingsView(
 
             is SquadSettingsEvent.YourSquads ->
                 navController.navigate(AppDestination.OPEN_YOUR_SQUADS.route)
+
+            is SquadSettingsEvent.RePayment ->
+                navController.navigate(AppDestination.MEMBER_OTHER_PAYMENT.route)
 
             null -> Unit
         }
@@ -242,6 +248,20 @@ fun SquadSettingsView(
                         icon = Icons.Default.History,
                         gradient = listOf(Color(0xFF6366F1), Color(0xFF818CF8))
                     ) { navigationEvent = SquadSettingsEvent.PaymentHistory }
+                }
+
+                item {
+                    SettingsDashboardCard(
+                        title = "Repayments & Settlements",
+                        subtitle = "Track member payments",
+                        icon = Icons.AutoMirrored.Filled.CompareArrows,
+                        gradient = listOf(
+                            Color(0xFF6366F1),
+                            Color(0xFF818CF8)
+                        )
+                    ) {
+                        navigationEvent = SquadSettingsEvent.RePayment
+                    }
                 }
 
                 item {

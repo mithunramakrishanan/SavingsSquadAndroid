@@ -2,6 +2,7 @@ package com.android.savingssquad.singleton
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.compose.foundation.gestures.detectTapGestures
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Login
 import com.android.savingssquad.model.RemainderModel
@@ -18,6 +19,7 @@ import java.text.NumberFormat
 import java.util.Locale
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -51,4 +53,21 @@ fun Int.currencyFormattedWithCommas(symbol: String = "₹ "): String {
 object JsonUtil {
     private val gson = com.google.gson.Gson()
     fun <T> fromJson(json: String, clazz: Class<T>): T = gson.fromJson(json, clazz)
+}
+
+@Composable
+fun Modifier.clearFocusOnTapOutside(): Modifier {
+
+    val focusManager = LocalFocusManager.current
+
+    return this.pointerInput(Unit) {
+
+        detectTapGestures {
+
+            focusManager.clearFocus()
+
+        }
+
+    }
+
 }

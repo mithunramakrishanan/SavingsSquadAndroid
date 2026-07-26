@@ -14,7 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -38,17 +37,10 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.ui.draw.scale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.savingssquad.R
 import com.android.savingssquad.viewmodel.AppDestination
-import com.android.savingssquad.viewmodel.FirestoreManager
-import com.android.savingssquad.viewmodel.SSToast
 import androidx.compose.runtime.collectAsState
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.ToastManager
@@ -356,7 +348,8 @@ fun MemberHomeView(
                         Column(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.padding(horizontal = 8.dp)
-                        ) {
+                        )
+                        {
                             lastFivePayments.forEach { payment ->
                                 PaymentRow(
                                     payment = payment,
@@ -543,7 +536,7 @@ fun MemberHomeView(
                     LoaderManager.shared.hideLoader()
                 }
 
-                squadViewModel.fetchMemberOtherPayments(false,fetchedMember.id ?: "", paidStatus = PaidStatus.NOT_PAID, type = MemberPaymentSubType.Repayment, completion = {success, error ->
+                squadViewModel.fetchMemberOtherPayments(false,fetchedMember.id ?: "", paidStatus = PaidStatus.NOT_PAID, type = MemberPaymentSubType.RE_PAYMENT, completion = { success, error ->
                 if (squadViewModel.memberOtherPayments.value?.size != 0) {
 
 

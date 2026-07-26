@@ -3,8 +3,6 @@ package com.android.savingssquad.SquadSubscription
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingResult
@@ -19,9 +17,7 @@ import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import android.util.Log
 import com.android.billingclient.api.PurchasesResponseListener
-import kotlinx.coroutines.time.withTimeoutOrNull
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.milliseconds
 
 @SuppressLint("StaticFieldLeak")
@@ -32,6 +28,7 @@ object BillingHelper : PurchasesUpdatedListener {
 
     private var pendingSquadId: String? = null
     private var pendingPlan: SubscriptionModel.Plan? = null
+    private var pendingPeriod: SubscriptionModel.BillingPeriod = SubscriptionModel.BillingPeriod.MONTHLY   // ⭐ NEW
     private var pendingLoanAddon = false
 
     private val pendingProducts = mutableListOf<String>()
@@ -46,9 +43,26 @@ object BillingHelper : PurchasesUpdatedListener {
     private var isConnecting = false
     private var purchaseInProgress = false
 
-    const val BASIC_PRODUCT_ID = "basic_monthly"
-    const val BUSINESS_PRODUCT_ID = "business_monthly"
+    // ⭐ NEW — full period-aware product catalog, mirrors iOS product IDs
+    const val BASIC_MONTHLY = "basic_monthly"
+    const val BASIC_6MONTH = "basic_6month"
+    const val BASIC_YEARLY = "basic_yearly"
+
+    const val BUSINESS_MONTHLY = "business_monthly"
+    const val BUSINESS_6MONTH = "business_6month"
+    const val BUSINESS_YEARLY = "business_yearly"
+
     const val LOAN_ADDON_PRODUCT_ID = "loan_addon_monthly"
+
+    // Kept for any legacy call sites still referencing the old monthly-only constants
+    const val BASIC_PRODUCT_ID = BASIC_MONTHLY
+    const val BUSINESS_PRODUCT_ID = BUSINESS_MONTHLY
+
+    private val ALL_VALID_PRODUCT_IDS = setOf(
+        BASIC_MONTHLY, BASIC_6MONTH, BASIC_YEARLY,
+        BUSINESS_MONTHLY, BUSINESS_6MONTH, BUSINESS_YEARLY,
+        LOAN_ADDON_PRODUCT_ID
+    )
 
     // ─────────────────────────────────────────────
     // INIT & CONNECTION
@@ -136,6 +150,7 @@ object BillingHelper : PurchasesUpdatedListener {
         activity: Activity,
         squadID: String,
         selectedPlan: SubscriptionModel.Plan,
+        selectedPeriod: SubscriptionModel.BillingPeriod,   // ⭐ NEW
         enableLoanAddon: Boolean,
         onLoading: (Boolean) -> Unit,
         onError: (String) -> Unit,
@@ -143,6 +158,7 @@ object BillingHelper : PurchasesUpdatedListener {
     ) {
         val productIds = buildProductList(
             selectedPlan = selectedPlan,
+            selectedPeriod = selectedPeriod,
             enableLoanAddon = enableLoanAddon
         )
 
@@ -161,6 +177,7 @@ object BillingHelper : PurchasesUpdatedListener {
         currentActivity = activity
         pendingSquadId = squadID
         pendingPlan = selectedPlan
+        pendingPeriod = selectedPeriod
         pendingLoanAddon = enableLoanAddon
 
         pendingProducts.clear()
@@ -180,13 +197,17 @@ object BillingHelper : PurchasesUpdatedListener {
     // PURCHASE FLOW
     // ─────────────────────────────────────────────
 
-    private fun buildProductList(selectedPlan: SubscriptionModel.Plan, enableLoanAddon: Boolean): List<String> {
+    private fun buildProductList(
+        selectedPlan: SubscriptionModel.Plan,
+        selectedPeriod: SubscriptionModel.BillingPeriod,
+        enableLoanAddon: Boolean
+    ): List<String> {
         return when (selectedPlan) {
             SubscriptionModel.Plan.BASIC -> buildList {
-                add(BASIC_PRODUCT_ID)
+                add(getProductId(selectedPlan, selectedPeriod))
                 if (enableLoanAddon) add(LOAN_ADDON_PRODUCT_ID)
             }
-            SubscriptionModel.Plan.BUSINESS -> listOf(BUSINESS_PRODUCT_ID)
+            SubscriptionModel.Plan.BUSINESS -> listOf(getProductId(selectedPlan, selectedPeriod))
             SubscriptionModel.Plan.FREE -> emptyList()
         }
     }
@@ -371,6 +392,7 @@ object BillingHelper : PurchasesUpdatedListener {
     private fun updateFirestore() {
         val squadId = pendingSquadId
         val plan = pendingPlan
+        val period = pendingPeriod
 
         if (squadId == null || plan == null) {
             failWith("Purchase info missing — cannot update subscription.")
@@ -380,6 +402,7 @@ object BillingHelper : PurchasesUpdatedListener {
         SubscriptionFirebaseManager.shared.updateSubscription(
             squadID = squadId,
             plan = plan,
+            billingPeriod = period,   // ⭐ NEW
             loanAddon = pendingLoanAddon
         ) { success, error ->
 
@@ -434,14 +457,15 @@ object BillingHelper : PurchasesUpdatedListener {
     }
 
     // ─────────────────────────────────────────────
-    // GET CURRENT PLAN
+    // GET CURRENT PLAN + PERIOD  ⭐ NEW — mirrors iOS getCurrentPlanAndPeriod()
     // ─────────────────────────────────────────────
 
-    suspend fun getCurrentPlan(): SubscriptionModel.Plan {
+    suspend fun getCurrentPlanAndPeriod(): Pair<SubscriptionModel.Plan, SubscriptionModel.BillingPeriod> {
 
-        val client = billingClient ?: return SubscriptionModel.Plan.FREE
+        val client = billingClient
+            ?: return SubscriptionModel.Plan.FREE to SubscriptionModel.BillingPeriod.MONTHLY
 
-        return withTimeoutOrNull(5000.milliseconds) { // 🔥 prevents infinite hang
+        return withTimeoutOrNull(5000.milliseconds) {
 
             suspendCancellableCoroutine { cont ->
 
@@ -454,56 +478,103 @@ object BillingHelper : PurchasesUpdatedListener {
                     if (!cont.isActive) return@PurchasesResponseListener
 
                     if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                        cont.resume(SubscriptionModel.Plan.FREE)
+                        cont.resume(
+                            SubscriptionModel.Plan.FREE to SubscriptionModel.BillingPeriod.MONTHLY
+                        ) { _, _, _ -> }
                         return@PurchasesResponseListener
                     }
 
                     var plan = SubscriptionModel.Plan.FREE
+                    var period = SubscriptionModel.BillingPeriod.MONTHLY
 
                     for (purchase in purchases) {
 
-                        if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED)
+                        if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) {
                             continue
+                        }
 
                         when {
-                            purchase.products.contains(BUSINESS_PRODUCT_ID) -> {
-                                cont.resume(SubscriptionModel.Plan.BUSINESS)
+
+                            purchase.products.contains(BUSINESS_YEARLY) -> {
+                                cont.resume(
+                                    SubscriptionModel.Plan.BUSINESS to SubscriptionModel.BillingPeriod.YEARLY
+                                ) { _, _, _ -> }
                                 return@PurchasesResponseListener
                             }
 
-                            purchase.products.contains(BASIC_PRODUCT_ID) -> {
+                            purchase.products.contains(BUSINESS_6MONTH) -> {
+                                cont.resume(
+                                    SubscriptionModel.Plan.BUSINESS to SubscriptionModel.BillingPeriod.SIX_MONTH
+                                ) { _, _, _ -> }
+                                return@PurchasesResponseListener
+                            }
+
+                            purchase.products.contains(BUSINESS_MONTHLY) -> {
+                                cont.resume(
+                                    SubscriptionModel.Plan.BUSINESS to SubscriptionModel.BillingPeriod.MONTHLY
+                                ) { _, _, _ -> }
+                                return@PurchasesResponseListener
+                            }
+
+                            purchase.products.contains(BASIC_YEARLY) -> {
                                 plan = SubscriptionModel.Plan.BASIC
+                                period = SubscriptionModel.BillingPeriod.YEARLY
+                            }
+
+                            purchase.products.contains(BASIC_6MONTH) -> {
+                                plan = SubscriptionModel.Plan.BASIC
+                                period = SubscriptionModel.BillingPeriod.SIX_MONTH
+                            }
+
+                            purchase.products.contains(BASIC_MONTHLY) -> {
+                                plan = SubscriptionModel.Plan.BASIC
+                                period = SubscriptionModel.BillingPeriod.MONTHLY
                             }
                         }
                     }
 
-                    cont.resume(plan)
+                    if (cont.isActive) {
+                        cont.resume(plan to period) { _, _, _ -> }
+                    }
                 }
 
                 try {
                     client.queryPurchasesAsync(params, listener)
                 } catch (e: Exception) {
                     if (cont.isActive) {
-                        cont.resume(SubscriptionModel.Plan.FREE)
+                        cont.resume(
+                            SubscriptionModel.Plan.FREE to SubscriptionModel.BillingPeriod.MONTHLY
+                        ) { _, _, _ -> }
                     }
                 }
 
                 cont.invokeOnCancellation {
-                    // no-op (safe cleanup if needed)
+                    // Optional cleanup
                 }
             }
 
-        } ?: SubscriptionModel.Plan.FREE
+        } ?: (SubscriptionModel.Plan.FREE to SubscriptionModel.BillingPeriod.MONTHLY)
     }
+    // Backward-compatible convenience wrapper (plan only)
+    suspend fun getCurrentPlan(): SubscriptionModel.Plan = getCurrentPlanAndPeriod().first
 
     // ─────────────────────────────────────────────
     // HELPERS
     // ─────────────────────────────────────────────
 
-    fun getProductId(plan: SubscriptionModel.Plan): String {
+    // ⭐ CHANGED — now takes a period, mirrors iOS getProductID(for:period:)
+    fun getProductId(plan: SubscriptionModel.Plan, period: SubscriptionModel.BillingPeriod): String {
         return when (plan) {
-            SubscriptionModel.Plan.BASIC -> BASIC_PRODUCT_ID
-            SubscriptionModel.Plan.BUSINESS -> BUSINESS_PRODUCT_ID
+            SubscriptionModel.Plan.BASIC -> when (period) {
+                SubscriptionModel.BillingPeriod.MONTHLY -> BASIC_MONTHLY
+                SubscriptionModel.BillingPeriod.SIX_MONTH -> BASIC_6MONTH
+                SubscriptionModel.BillingPeriod.YEARLY -> BASIC_YEARLY
+            }
+            SubscriptionModel.Plan.BUSINESS -> when (period) {
+                SubscriptionModel.BillingPeriod.MONTHLY -> BUSINESS_MONTHLY
+                SubscriptionModel.BillingPeriod.SIX_MONTH -> BUSINESS_6MONTH
+                SubscriptionModel.BillingPeriod.YEARLY -> BUSINESS_YEARLY
+            }
             SubscriptionModel.Plan.FREE -> ""
         }
     }
@@ -519,6 +590,7 @@ object BillingHelper : PurchasesUpdatedListener {
         currentActivity = null
         pendingSquadId = null
         pendingPlan = null
+        pendingPeriod = SubscriptionModel.BillingPeriod.MONTHLY
         pendingLoanAddon = false
         pendingProducts.clear()
         currentPurchaseIndex = 0

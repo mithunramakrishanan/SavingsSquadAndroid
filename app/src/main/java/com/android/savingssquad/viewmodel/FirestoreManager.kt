@@ -1,34 +1,11 @@
 package com.android.savingssquad.viewmodel
 
-/*
- * PRODUCTION-SAFE REVISION
- *
- * Summary of production fixes applied in this revision (search "FIX:" for each spot):
- * 1. observePayments now returns a ListenerRegistration (leak fix) — callers MUST hold
- *    onto it and call .remove() in onCleared()/onDestroy(), or the listener lives forever.
- * 2. All println()/print debug logging routed through fmLog(), gated by BuildConfig.DEBUG
- *    and never dumping raw documents, phone numbers, or tokens.
- * 3. Empty-result vs. error-result semantics made consistent: "no members found" / "no
- *    squads" / "not managing any squads" are no longer reported as errors.
- * 4. fetchAllLoansInSquad no longer treats an empty member list as an error.
- * 5. updateCashRequestStatus and updateInstallmentStatus / updateLoanAndAllInstallmentsStatus
- *    moved into Firestore transactions to remove read-modify-write races and guard
- *    cashRequestedCount against double-decrementing on retried/duplicate calls.
- * 6. updateSquadRule guards against writing to a document with an empty/blank ID.
- * 7. fetchAllLoansInSquad's dispatchGroup variable (unused/dead code) removed; the
- *    per-member latch is used correctly and completion is guaranteed to fire exactly once.
- *
- * NOTE: Business-critical mutations (payment approval, cash request approval, balance
- * updates) are still directly callable by any authenticated client. For a true release-safe
- * posture, move these into Cloud Functions and lock down direct writes to these fields via
- * Firestore Security Rules — this file alone cannot enforce server-side trust.
- */
-
 import android.util.Log
 import com.android.savingssquad.model.CashRequest
 import com.android.savingssquad.model.CashRequestStatus
 import com.android.savingssquad.model.ContributionDetail
 import com.android.savingssquad.model.EMIConfiguration
+import com.android.savingssquad.model.ForceCloseSummary
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.SquadActivity
 import com.android.savingssquad.model.SquadRule
@@ -72,8 +49,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
-/** FIX #2: Centralized, release-safe logging. Never logs raw documents, phone numbers,
- *  or tokens, and is compiled out of behavior entirely when BuildConfig.DEBUG is false. */
 private object FmLog {
     private const val TAG = "FirestoreManager"
     fun d(message: String) {
@@ -756,6 +731,7 @@ class FirestoreManager private constructor() {
         squadID: String,
         memberID: String,
         loanID: String,
+        forceCloseSummary : ForceCloseSummary,
         isForceCloseVerification: Boolean,
         completion: (Boolean, String?) -> Unit
     ) {
@@ -768,10 +744,11 @@ class FirestoreManager private constructor() {
             .document(loanID)
 
         loanRef.update(
-            "isForceCloseVerification",
-            isForceCloseVerification
-        )
-            .addOnSuccessListener {
+            mapOf(
+                "isForceCloseVerification" to isForceCloseVerification,
+                "forceCloseSummary" to forceCloseSummary
+            )
+        ).addOnSuccessListener {
                 completion(true, "Loan force close verification updated successfully.")
             }
             .addOnFailureListener { exception ->
@@ -1035,14 +1012,6 @@ class FirestoreManager private constructor() {
             }
     }
 
-    // MARK: - 🔹 Observe Payments (Realtime)
-    /**
-     * FIX #1: Returns the [ListenerRegistration] so the caller can stop the listener
-     * (e.g. in `onCleared()` / `onDestroy()`). Previously this leaked a live listener
-     * on every call since nothing was ever returned to allow `.remove()`.
-     * Callers MUST retain the returned registration and call `.remove()` when the
-     * observing screen/view model goes away.
-     */
     fun observePayments(squadID: String, completion: (List<PaymentsDetails>?, String?) -> Unit): ListenerRegistration {
         val paymentsRef = db.collection("squads")
             .document(squadID)
@@ -1927,18 +1896,24 @@ class FirestoreManager private constructor() {
 
     fun fetchMemberOtherPayments(
         squadID: String,
-        memberID: String,
+        memberID: String? = null,
         paidStatus: PaidStatus?,
         type: MemberPaymentSubType?,
-        completion: (List<MemberOtherPayments>?, String?) -> Unit
+        lastDocument: DocumentSnapshot? = null,
+        limit: Int,
+        completion: (List<MemberOtherPayments>?, DocumentSnapshot?, String?) -> Unit
     ) {
 
         var query: Query = FirebaseFirestore.getInstance()
             .collection("squads")
             .document(squadID)
-            .collection("members")
-            .document(memberID)
             .collection("otherPayments")
+            .orderBy("amountReceivedDate", Query.Direction.DESCENDING)
+            .limit(limit.toLong())
+
+        if (!memberID.isNullOrEmpty()) {
+            query = query.whereEqualTo("memberId", memberID)
+        }
 
         paidStatus?.let {
             query = query.whereEqualTo("paidStatus", it.value)
@@ -1946,6 +1921,10 @@ class FirestoreManager private constructor() {
 
         type?.let {
             query = query.whereEqualTo("memberOtherPaymentType", it.value)
+        }
+
+        if (lastDocument != null) {
+            query = query.startAfter(lastDocument)
         }
 
         query.get()
@@ -1961,10 +1940,10 @@ class FirestoreManager private constructor() {
                     }
                 }
 
-                completion(payments, null)
+                completion(payments, snapshot.documents.lastOrNull(), null)
             }
             .addOnFailureListener { e ->
-                completion(null, "Error fetching other payments: ${e.localizedMessage}")
+                completion(null, null, "Error fetching other payments: ${e.localizedMessage}")
             }
     }
 
@@ -2656,5 +2635,38 @@ class FirestoreManager private constructor() {
         }
             .addOnSuccessListener { completion(null) }
             .addOnFailureListener { error -> completion(error.localizedMessage) }
+    }
+
+
+    fun updateMemberOtherPaymentStatus(
+        squadID: String,
+        memberID: String,
+        otherPaymentsId: String,
+        paidStatus: PaidStatus,
+        updateDate: Boolean = true,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val otherPaymentRef = FirebaseFirestore.getInstance()
+            .collection("squads")
+            .document(squadID)
+            .collection("otherPayments")
+            .document(otherPaymentsId)
+
+        val updates: MutableMap<String, Any> = mutableMapOf(
+            "paidStatus" to paidStatus.value
+        )
+
+        if (updateDate) {
+            updates["amountRepaidDate"] = FieldValue.serverTimestamp()
+        }
+
+        otherPaymentRef.update(updates)
+            .addOnSuccessListener {
+                completion(true, null)
+            }
+            .addOnFailureListener { e ->
+                completion(false, "Failed to updateMemberOtherPaymentStatus: ${e.localizedMessage}")
+            }
     }
 }

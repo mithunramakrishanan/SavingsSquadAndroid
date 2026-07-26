@@ -80,12 +80,12 @@ fun VerifyPaymentsViewOld(
 
     val dismiss = { navController.popBackStack() }
 
-    var selectedUser by remember { mutableStateOf("All") }
+    var selectedUser by remember { mutableStateOf(SquadStrings.all) }
     var selectedPayment by remember { mutableStateOf<PaymentsDetails?>(null) }
     var showPayoutOptions by remember { mutableStateOf(false) }
 
     val userList = remember {
-        listOf("All") + squadViewModel.squadMembers.value
+        listOf(SquadStrings.all) + squadViewModel.squadMembers.value
             .map { it.name }
             .distinct()
     }
@@ -106,7 +106,7 @@ fun VerifyPaymentsViewOld(
                         it.paymentType == PaymentType.PAYMENT_CREDIT
             }
 
-            if (selectedUser == "All") base
+            if (selectedUser == SquadStrings.all) base
             else base.filter { it.memberName == selectedUser }
 
         } else {

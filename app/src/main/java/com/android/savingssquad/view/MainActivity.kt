@@ -27,6 +27,7 @@ import com.android.savingssquad.singleton.UPIPaymentManager
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.AppNavHost
 import com.android.savingssquad.singleton.LoaderManager
+import com.android.savingssquad.singleton.clearFocusOnTapOutside
 import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.SSToast
 import com.android.savingssquad.viewmodel.SquadViewModel
@@ -168,6 +169,7 @@ fun SavingsSquadRoot() {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .clearFocusOnTapOutside()
             .background(AppColors.background),
         contentAlignment = Alignment.Center
     ) {

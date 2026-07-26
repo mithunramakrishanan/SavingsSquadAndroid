@@ -32,6 +32,7 @@ class SubscriptionFirebaseManager private constructor() {
 
                 val subscription = SubscriptionModel(
                     plan = SubscriptionModel.Plan.FREE,
+                    billingPeriod = SubscriptionModel.BillingPeriod.MONTHLY,   // ⭐ NEW
                     loanAddon = false,
                     isTrialActive = true,
                     trialStartDate = start,
@@ -127,6 +128,7 @@ class SubscriptionFirebaseManager private constructor() {
     fun updateSubscription(
         squadID: String,
         plan: SubscriptionModel.Plan,
+        billingPeriod: SubscriptionModel.BillingPeriod,   // ⭐ NEW
         loanAddon: Boolean,
         completion: (Boolean, String?) -> Unit
     ) {
@@ -135,6 +137,7 @@ class SubscriptionFirebaseManager private constructor() {
 
         val data = hashMapOf(
             "plan" to plan.value,
+            "billingPeriod" to billingPeriod.value,   // ⭐ NEW
             "loanAddon" to effectiveLoan,
             "updatedAt" to Timestamp.now()
         )

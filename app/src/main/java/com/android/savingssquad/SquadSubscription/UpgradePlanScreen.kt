@@ -1,7 +1,6 @@
 package com.android.savingssquad.SquadSubscription
 
 import android.app.Activity
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,7 +27,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.SegmentedButtonDefaults.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,7 +35,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -46,19 +43,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.SquadStrings
-import com.android.savingssquad.singleton.SquadUserType
-import com.android.savingssquad.singleton.UserDefaultsManager
-import com.android.savingssquad.view.SSAlert
-import com.android.savingssquad.view.SSLoaderView
-import com.android.savingssquad.viewmodel.AlertManager
-import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.viewmodel.ToastManager
 import com.android.savingssquad.viewmodel.ToastType
-import kotlinx.coroutines.launch
 
 @Composable
 fun UpgradePlanScreen(
@@ -68,13 +57,17 @@ fun UpgradePlanScreen(
 ) {
 
     val activity = LocalContext.current as Activity
-    val scope = rememberCoroutineScope()
 
     val cfg by viewModel.remoteConfig.collectAsState()
     val sub by viewModel.subscription.collectAsState()
 
     var selectedPlan by remember {
         mutableStateOf(SubscriptionModel.Plan.FREE)
+    }
+
+    // ⭐ NEW — mirrors iOS selectedPeriod
+    var selectedPeriod by remember {
+        mutableStateOf(SubscriptionModel.BillingPeriod.MONTHLY)
     }
 
     var expandedPlan by remember {
@@ -112,6 +105,7 @@ fun UpgradePlanScreen(
                 selectedPlan = it.plan
             }
 
+            selectedPeriod = it.billingPeriod   // ⭐ NEW
             enableLoanAddon = it.loanAddon
         }
     }
@@ -195,6 +189,19 @@ fun UpgradePlanScreen(
                 Spacer(Modifier.height(12.dp))
             }
 
+            // ---------------- BILLING PERIOD PICKER ⭐ NEW ----------------
+            // Only matters for paid plans, same rule as iOS
+            if (selectedPlan != SubscriptionModel.Plan.FREE) {
+                BillingPeriodPicker(
+                    selectedPlan = selectedPlan,
+                    selectedPeriod = selectedPeriod,
+                    cfg = cfg,
+                    onSelect = { selectedPeriod = it }
+                )
+
+                Spacer(Modifier.height(16.dp))
+            }
+
             // ---------------- FREE PLAN ----------------
             PlanCard(
                 title = "FREE",
@@ -223,7 +230,7 @@ fun UpgradePlanScreen(
             PlanCard(
                 title = "BASIC",
                 subtitle = "Advanced tracking for growing squads (up to 50 members)",
-                price = cfg.basic_priceText,
+                price = cfg.priceText(SubscriptionModel.Plan.BASIC, selectedPeriod),   // ⭐ CHANGED
                 isSelected = selectedPlan == SubscriptionModel.Plan.BASIC,
                 isExpanded = expandedPlan == SubscriptionModel.Plan.BASIC,
                 included = listOf(
@@ -246,7 +253,7 @@ fun UpgradePlanScreen(
             PlanCard(
                 title = "BUSINESS",
                 subtitle = "Full tracking + loans + analytics",
-                price = cfg.biz_priceText,
+                price = cfg.priceText(SubscriptionModel.Plan.BUSINESS, selectedPeriod),   // ⭐ CHANGED
                 isSelected = selectedPlan == SubscriptionModel.Plan.BUSINESS,
                 isExpanded = expandedPlan == SubscriptionModel.Plan.BUSINESS,
                 included = listOf(
@@ -314,6 +321,7 @@ fun UpgradePlanScreen(
                     BillingHelper.startPurchaseFlow(
                         activity = activity,
                         selectedPlan = selectedPlan,
+                        selectedPeriod = selectedPeriod,   // ⭐ NEW
                         enableLoanAddon = enableLoanAddon,
                         squadID = squadID,
 
@@ -352,6 +360,59 @@ fun UpgradePlanScreen(
             }
 
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+// ⭐ NEW — mirrors iOS billingPeriodPicker
+@Composable
+fun BillingPeriodPicker(
+    selectedPlan: SubscriptionModel.Plan,
+    selectedPeriod: SubscriptionModel.BillingPeriod,
+    cfg: RemoteConfig,
+    onSelect: (SubscriptionModel.BillingPeriod) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SubscriptionModel.BillingPeriod.entries.forEach { period ->
+
+            val isSelected = selectedPeriod == period
+            val savings = cfg.savingsText(selectedPlan, period)
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(
+                        if (isSelected) AppColors.primaryBrand else AppColors.surface,
+                        RoundedCornerShape(12.dp)
+                    )
+                    .border(
+                        1.dp,
+                        if (isSelected) Color.Transparent else AppColors.border,
+                        RoundedCornerShape(12.dp)
+                    )
+                    .clickable { onSelect(period) }
+                    .padding(vertical = 10.dp),
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+            ) {
+                Text(
+                    period.displayName,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isSelected) Color.White else AppColors.headerText
+                )
+
+                if (savings != null) {
+                    Text(
+                        savings,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isSelected) Color.White.copy(alpha = 0.85f) else AppColors.successAccent
+                    )
+                }
+            }
         }
     }
 }

@@ -65,6 +65,7 @@ import kotlinx.coroutines.launch
 import java.util.Date
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -205,9 +206,17 @@ class SquadViewModel : ViewModel() {
     val memberPendingLoans: StateFlow<List<MemberLoan>?> = _memberPendingLoans
     fun setMemberPendingLoans(list: List<MemberLoan>?) { _memberPendingLoans.value = list }
 
-    private val _memberOtherPayments = MutableStateFlow<List<MemberOtherPayments>?>(null)
-    val memberOtherPayments: StateFlow<List<MemberOtherPayments>?> = _memberOtherPayments
-    fun setMemberOtherPayments(list: List<MemberOtherPayments>?) { _memberOtherPayments.value = list }
+    private val _memberOtherPayments = MutableStateFlow<List<MemberOtherPayments>>(emptyList())
+    val memberOtherPayments: StateFlow<List<MemberOtherPayments>> = _memberOtherPayments
+    fun setMemberOtherPayments(list: List<MemberOtherPayments>) { _memberOtherPayments.value = list }
+
+    private var otherPaymentsLastDocument: DocumentSnapshot? = null
+
+    var otherPaymentsIsLoadingMore: Boolean = false
+
+    private var otherPaymentsHasMoreData: Boolean = true
+
+    private val otherPaymentsPageSize: Int = 20
 
 
 
@@ -254,6 +263,9 @@ class SquadViewModel : ViewModel() {
     val showContributionMemberPopup: StateFlow<Boolean> = _showContributionMemberPopup
     fun setShowContributionMemberPopup(value: Boolean) { _showContributionMemberPopup.value = value }
 
+    private val _showOtherPaymentMemberPopup = MutableStateFlow(false)
+    val showOtherPaymentMemberPopup: StateFlow<Boolean> = _showOtherPaymentMemberPopup
+    fun setOtherPaymentMemberPopup(value: Boolean) { _showOtherPaymentMemberPopup.value = value }
 
     private val _showEMIMemberPopup = MutableStateFlow(false)
     val showEMIMemberPopup: StateFlow<Boolean> = _showEMIMemberPopup
@@ -1635,6 +1647,7 @@ class SquadViewModel : ViewModel() {
         squadID: String,
         memberID: String,
         loanID: String,
+        forceCloseSummary : ForceCloseSummary,
         isForceCloseVerification: Boolean,
         showLoader: Boolean = true,
         completion: (Boolean, String?) -> Unit
@@ -1658,6 +1671,7 @@ class SquadViewModel : ViewModel() {
             squadID = squadID,
             memberID = memberID,
             loanID = loanID,
+            forceCloseSummary = forceCloseSummary,
             isForceCloseVerification = isForceCloseVerification
         ) { success, message ->
 
@@ -1980,7 +1994,7 @@ class SquadViewModel : ViewModel() {
 
                         if (payment.isLoanForceClosed) {
 
-                            updateLoanForceCloseVerification(payment.squadId,payment.memberId,payment.loanId,true) {_,_->}
+                            updateLoanForceCloseVerification(payment.squadId,payment.memberId,payment.loanId,payment.forceCloseSummary, true) {_,_->}
                         }
                         else {
 
@@ -2005,11 +2019,42 @@ class SquadViewModel : ViewModel() {
                     FirestoreManager.shared.updateCurrentLoanApproveStatus(payment.squadId,payment.memberId,
                         EMIStatus.INVERIFICATION) {_,_ -> }
                 }
+                else if (payment.paymentSubType == PaymentSubType.RE_PAYMENT && payment.paymentType == PaymentType.PAYMENT_CREDIT) {
+
+                    if (payment.memberOtherPaymentId.isNotEmpty()) {
+                        FirestoreManager.shared.updateMemberOtherPaymentStatus(squadID = payment.squadId, memberID = payment.memberId, otherPaymentsId = payment.memberOtherPaymentId, paidStatus = PaidStatus.INVERIFICATION, updateDate = false) { success, _ ->
+
+                            if (success) {
+
+                                val index = _memberOtherPayments.value?.indexOfFirst {
+                                    it.id == payment.memberOtherPaymentId
+                                }
+
+                                if (index != null) {
+                                    if (index < 0) return@updateMemberOtherPaymentStatus
+
+                                    val updated = _memberOtherPayments.value.toMutableList()
+
+                                    updated.set(index, updated[index].copy(
+                                        paidStatus = PaidStatus.INVERIFICATION)
+                                    )
+                                    setMemberOtherPayments(updated)
+                                }
+                            }
+
+
+                        }
+                    }
+                }
 
                 if (payment.paymentSubType == PaymentSubType.OTHERS_AMOUNT || payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
                     updatePaymentCalculations(listOf(payment), PaymentApproveStatus.ACCEPTED)
                 }
 
+                if (payment.paymentSubType == PaymentSubType.RE_PAYMENT && payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
+
+                    FirestoreManager.shared.updateMemberOtherPaymentStatus(squadID = payment.squadId, memberID = payment.memberId, otherPaymentsId = payment.memberOtherPaymentId, paidStatus = PaidStatus.PAID) { _, _ ->}
+                }
 
 
                 if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT && payment.paymentEntryType == PaymentEntryType.AUTOMATIC_ENTRY) {
@@ -2342,7 +2387,7 @@ class SquadViewModel : ViewModel() {
 
                         PaymentApproveStatus.REJECTED -> {
 
-                            updateLoanForceCloseVerification(payment.squadId,payment.memberId,payment.loanId,false) {_,_->}
+                            updateLoanForceCloseVerification(payment.squadId,payment.memberId,payment.loanId,payment.forceCloseSummary, false) {_,_->}
 
                         }
 
@@ -2424,6 +2469,72 @@ class SquadViewModel : ViewModel() {
                 }
 
 
+            }
+            else if (payment.paymentSubType == PaymentSubType.RE_PAYMENT && payment.paymentType == PaymentType.PAYMENT_CREDIT) {
+
+                if (payment.memberOtherPaymentId.isNotEmpty()) {
+
+
+                    when (status) {
+
+                        PaymentApproveStatus.ACCEPTED ->
+                        {
+                            FirestoreManager.shared.updateMemberOtherPaymentStatus(squadID = payment.squadId, memberID = payment.memberId, otherPaymentsId = payment.memberOtherPaymentId, paidStatus = PaidStatus.PAID, updateDate = true) { success, _ ->
+
+                                if (success) {
+
+                                    val index = _memberOtherPayments.value?.indexOfFirst {
+                                        it.id == payment.memberOtherPaymentId
+                                    }
+
+                                    if (index != null) {
+                                        if (index < 0) return@updateMemberOtherPaymentStatus
+
+                                        val updated = _memberOtherPayments.value.toMutableList()
+
+                                        updated.set(index, updated[index].copy(
+                                            paidStatus = PaidStatus.PAID, amountRepaidDate = Timestamp.now())
+                                        )
+                                        setMemberOtherPayments(updated)
+                                    }
+                                }
+
+
+                            }
+
+                        }
+
+                        PaymentApproveStatus.REJECTED -> {
+
+                            FirestoreManager.shared.updateMemberOtherPaymentStatus(squadID = payment.squadId, memberID = payment.memberId, otherPaymentsId = payment.memberOtherPaymentId, paidStatus = PaidStatus.NOT_PAID, updateDate = false) { success, _ ->
+
+                                if (success) {
+
+                                    val index = _memberOtherPayments.value?.indexOfFirst {
+                                        it.id == payment.memberOtherPaymentId
+                                    }
+
+                                    if (index != null) {
+                                        if (index < 0) return@updateMemberOtherPaymentStatus
+
+                                        val updated = _memberOtherPayments.value.toMutableList()
+
+                                        updated.set(index, updated[index].copy(
+                                            paidStatus = PaidStatus.NOT_PAID)
+                                        )
+                                        setMemberOtherPayments(updated)
+                                    }
+                                }
+
+
+                            }
+
+                        }
+
+                        else -> {}
+                    }
+
+                }
             }
 
             if (showLoader) LoaderManager.shared.hideLoader()
@@ -3012,7 +3123,7 @@ class SquadViewModel : ViewModel() {
 
     fun fetchMemberOtherPayments(
         showLoader: Boolean,
-        memberID: String,
+        memberID: String? = null,
         paidStatus: PaidStatus?,
         type: MemberPaymentSubType?,
         completion: (Boolean, String?) -> Unit
@@ -3048,22 +3159,26 @@ class SquadViewModel : ViewModel() {
             squadID = squadID,
             memberID = memberID,
             paidStatus = paidStatus,
-            type = type
-        ) { memberOtherPayments, error ->
+            type = type,
+            lastDocument = null,
+            limit = otherPaymentsPageSize
+        ) { memberOtherPayments, newLastDoc, error ->
+
+            if (showLoader) {
+                LoaderManager.shared.hideLoader()
+            }
 
             if (memberOtherPayments == null) {
-
-                if (showLoader) {
-                    LoaderManager.shared.hideLoader()
-                }
 
                 val errorMsg = error ?: "Failed to fetch Member Other Payments"
 
                 handleFetchError(errorMsg) {
 
-                    fetchMemberLoans(
+                    fetchMemberOtherPayments(
                         showLoader = showLoader,
                         memberID = memberID,
+                        paidStatus = paidStatus,
+                        type = type,
                         completion = completion
                     )
                 }
@@ -3073,12 +3188,79 @@ class SquadViewModel : ViewModel() {
             }
 
             setMemberOtherPayments(memberOtherPayments)
-            if (showLoader) {
-                LoaderManager.shared.hideLoader()
-            }
+
+            otherPaymentsLastDocument = newLastDoc
+
+            otherPaymentsHasMoreData =
+                memberOtherPayments.size == otherPaymentsPageSize
 
             completion(true, null)
         }
+    }
+
+    fun resetOtherPaymentsPagination() {
+
+        setMemberOtherPayments(emptyList())
+
+        otherPaymentsLastDocument = null
+
+        otherPaymentsHasMoreData = true
+
+        otherPaymentsIsLoadingMore = false
+    }
+
+    fun loadMoreOtherPayments(
+        memberId: String? = null,
+        paidStatus: PaidStatus?,
+        type: MemberPaymentSubType?
+    ) {
+
+        if (otherPaymentsIsLoadingMore) return
+        if (!otherPaymentsHasMoreData) return
+        val last = otherPaymentsLastDocument ?: return
+
+        val squadID = squad.value?.squadID
+        if (squadID.isNullOrEmpty()) return
+
+        otherPaymentsIsLoadingMore = true
+
+        manager.fetchMemberOtherPayments(
+            squadID = squadID,
+            memberID = memberId,
+            paidStatus = paidStatus,
+            type = type,
+            lastDocument = last,
+            limit = otherPaymentsPageSize
+        ) { payments, newLastDoc, _ ->
+
+            otherPaymentsIsLoadingMore = false
+
+            if (payments != null) {
+
+                val current = memberOtherPayments.value.toMutableList()
+                current.addAll(payments)
+                setMemberOtherPayments(current)
+
+                otherPaymentsLastDocument = newLastDoc
+
+                otherPaymentsHasMoreData =
+                    payments.size == otherPaymentsPageSize
+            }
+        }
+    }
+
+    fun loadMoreOtherPaymentsIfNeeded(
+        currentPayment: MemberOtherPayments,
+        filterType: MemberPaymentSubType? = MemberPaymentSubType.RE_PAYMENT,
+        paidStatus: PaidStatus? = null,
+        memberId: String? = null,
+    ) {
+
+        val last = memberOtherPayments.value.lastOrNull() ?: return
+
+        if (currentPayment.id != last.id) return
+
+        loadMoreOtherPayments(memberId, paidStatus, filterType)
     }
 
     private fun updateLoanPaidAfterInstallmentSettled(loans: List<MemberLoan>, memberID: String) {
@@ -4237,6 +4419,67 @@ class SquadViewModel : ViewModel() {
             payment = listOf(payment)
         ) { success, error ->
 
+            completion(success, error)
+        }
+    }
+
+    fun makeMemberRepay(
+        member: Member,
+        payment: MemberOtherPayments,
+        activity: Activity,
+        context: Context,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        LoaderManager.shared.showLoader()
+
+        val squad = this.squad.value
+
+        val newPayment = PaymentsDetails(
+            id = CommonFunctions.generatePaymentID(squad?.squadID ?: ""),
+            paymentUpdatedDate = Timestamp.now(),
+
+            memberId = member.id ?: "",
+            memberName = member.name,
+            paymentPhone = member.phoneNumber,
+            paymentEmail = member.mailID ?: "",
+
+            userType = SquadUserType.SQUAD_MEMBER,
+
+            amount = payment.amount,
+            intrestAmount = 0,
+
+            paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
+            paymentType = PaymentType.PAYMENT_CREDIT,
+            paymentSubType = PaymentSubType.RE_PAYMENT,
+
+            paymentStatus = PaymentStatus.INVERIFICATION,
+            paymentApproveStatus = PaymentApproveStatus.REQUESTED,
+
+            description = "Repaying ${payment.description}.",
+
+            squadId = squad?.squadID ?: "",
+            order_id = payment.id ?: "",
+
+            contributionId = "",
+            loanId = "",
+            installmentId = "",
+
+            paymentResponseMessage = "Pending admin verification.",
+            transferReferenceId = "Repaying ${payment.description}.",
+
+            upiID = squad?.upiID ?: "",
+            memberOtherPaymentId = payment.id ?: ""
+        )
+
+        savePayments(
+            activity = activity,
+            context = context,
+            squadID = squad?.squadID ?: "",
+            payment = listOf(newPayment)
+        ) { success, error ->
+
+            LoaderManager.shared.hideLoader()
             completion(success, error)
         }
     }

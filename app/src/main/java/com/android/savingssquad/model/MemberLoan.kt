@@ -77,7 +77,12 @@ data class MemberLoan(
     @get:PropertyName("isForceClosed") @set:PropertyName("isForceClosed")
     var isForceClosed: Boolean = false,
     @get:PropertyName("isForceCloseVerification") @set:PropertyName("isForceCloseVerification")
-    var isForceCloseVerification: Boolean = false
+    var isForceCloseVerification: Boolean = false,
+
+    @get:PropertyName("forceCloseSummary") @set:PropertyName("forceCloseSummary")
+    var forceCloseSummary: ForceCloseSummary
+
+
 
 ) {
     constructor() : this(
@@ -100,7 +105,8 @@ data class MemberLoan(
         recordDate = Timestamp.now(),
         paidType = LoanPaidType.REGULAR,
         isForceClosed = false,
-        isForceCloseVerification = false
+        isForceCloseVerification = false,
+        forceCloseSummary =  ForceCloseSummary()
     )
 }
 

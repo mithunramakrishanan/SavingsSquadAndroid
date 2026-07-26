@@ -6,13 +6,28 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavController
 import com.android.savingssquad.viewmodel.SquadViewModel
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -34,9 +49,12 @@ import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.InterestType
 import com.android.savingssquad.model.LoanPaidType
 import com.android.savingssquad.model.Member
+import com.android.savingssquad.model.MemberOtherPayments
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.unpaidMonths
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.MemberPaymentSubType
+import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaymentEntryType
@@ -47,6 +65,7 @@ import com.android.savingssquad.singleton.RemainderType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
+import com.android.savingssquad.viewmodel.AppDestination
 import com.google.firebase.Timestamp
 import com.yourapp.utils.CommonFunctions
 import com.android.savingssquad.viewmodel.ToastManager
@@ -81,6 +100,9 @@ fun MemberPaymentView(
     val memberPendingLoans by squadViewModel.memberPendingLoans.collectAsStateWithLifecycle()
     val selectedContributions by squadViewModel.selectedContributions.collectAsStateWithLifecycle()
     val squadPayments by squadViewModel.squadPayments.collectAsStateWithLifecycle()
+
+    val memberOtherPayments by squadViewModel.memberOtherPayments.collectAsStateWithLifecycle()
+
 
     // Payments list for "Recent Payments" similar to SwiftUI logic (current month)
     var payments by remember { mutableStateOf(listOf<PaymentsDetails>()) }
@@ -160,7 +182,15 @@ fun MemberPaymentView(
 //                    }
                 }
 
-                RemainderType.OTHER_REMAINDER -> TODO()
+                RemainderType.OTHER_REMAINDER -> {
+
+                    memberPaymentSegment = SquadStrings.otherPayments
+
+                    squadViewModel.fetchMemberOtherPayments(showLoader = true, memberID = currentMember?.id
+                        ?: "", paidStatus = PaidStatus.NOT_PAID, type = MemberPaymentSubType.RE_PAYMENT) { _, _ ->
+                        LoaderManager.shared.hideLoader()
+                    }
+                }
             }
         }
     }
@@ -182,9 +212,21 @@ fun MemberPaymentView(
             Spacer(modifier = Modifier.height(12.dp))
 
             ModernSegmentedPickerView(
-                segments = listOf(SquadStrings.manualEntryContribution, SquadStrings.manualEntryEMI),
+                segments = listOf(SquadStrings.manualEntryContribution, SquadStrings.manualEntryEMI,
+                    SquadStrings.otherPayments),
                 selectedSegment = memberPaymentSegment,
-                onSegmentSelected = { memberPaymentSegment = it }
+                onSegmentSelected = {
+
+                    memberPaymentSegment = it
+
+                    if (memberPaymentSegment == SquadStrings.otherPayments) {
+
+                        squadViewModel.fetchMemberOtherPayments(showLoader = true, memberID = currentMember?.id
+                            ?: "", paidStatus = PaidStatus.NOT_PAID, type = MemberPaymentSubType.RE_PAYMENT) { _, _ ->
+                            LoaderManager.shared.hideLoader()
+                        }
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -322,7 +364,8 @@ fun MemberPaymentView(
                             }
                         }
                     )
-                } else {
+                }
+                else if (memberPaymentSegment == SquadStrings.manualEntryEMI) {
                     // EMI flow
                     EMISection(
                         currentMember = currentMember,
@@ -450,6 +493,93 @@ fun MemberPaymentView(
                             }
                         }
                     )
+                }
+                else {
+
+                    if (memberOtherPayments.isEmpty()) {
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            contentAlignment = Alignment.Center
+                        )
+                        {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.padding(horizontal = 24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Verified,
+                                    contentDescription = null,
+                                    tint = AppColors.primaryBrand,
+                                    modifier = Modifier.size(60.dp)
+                                )
+
+                                Text(
+                                    text = "No Pending Payments",
+                                    style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                                    color = AppColors.headerText,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                Text(
+                                    text = "Great! you doesn't have any pending payments.",
+                                    style = AppFont.ibmPlexSans(14),
+                                    color = AppColors.secondaryText,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                    else {
+
+                        LazyColumn {
+
+                            items(
+
+                                items = memberOtherPayments,
+
+                                key = { it.id ?: "" }
+
+                            ) { payment ->
+
+                                MemberOtherPaymentRow(payment = payment, onPay = {
+
+                                    squadViewModel.currentMember.value?.let { member ->
+
+                                        squadViewModel.makeMemberRepay(
+                                            member = member,
+                                            payment = payment,
+                                            activity = activity,
+                                            context = appContext
+                                        ) { success, error ->
+
+                                        }
+                                    }
+                                })
+
+                            }
+
+                        }
+                    }
+
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    )
+                    {
+                        ViewAllButton("Check all payments") {
+
+                            navController.navigate(AppDestination.MEMBER_OTHER_PAYMENT.route)
+                        }
+
+                    }
+
                 }
             }
 
@@ -778,5 +908,319 @@ private fun validateEMIFields(
     } else {
         onSetError("")
         true
+    }
+}
+
+@Composable
+fun MemberOtherPaymentRow(
+    payment: MemberOtherPayments,
+    onPay: (() -> Unit)? = null
+) {
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = AppColors.surface
+        ),
+        border = BorderStroke(
+            1.dp,
+            AppColors.border.copy(alpha = 0.35f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+
+            // Description
+
+            Text(
+                text = payment.description,
+                style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                color = AppColors.secondaryText
+            )
+
+            // Amount
+
+            Text(
+                text = payment.amount.currencyFormattedWithCommas(),
+                style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                color = AppColors.headerText
+            )
+
+            // Received Date
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                Icon(
+                    imageVector = Icons.Default.DateRange,
+                    contentDescription = null,
+                    tint = AppColors.secondaryText,
+                    modifier = Modifier.size(14.dp)
+                )
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                Text(
+                    "Received",
+                    style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                    color = AppColors.secondaryText
+                )
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                Box(
+                    modifier = Modifier
+                        .size(3.dp)
+                        .background(AppColors.border, CircleShape)
+                )
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                Text(
+                    CommonFunctions.dateToString(payment.amountReceivedDate?.toDate() ?: Date()),
+                    style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                    color = AppColors.secondaryText
+                )
+            }
+
+            HorizontalDivider()
+
+            when (payment.memberOtherPaymentType) {
+
+                MemberPaymentSubType.RE_PAYMENT -> {
+
+                    when (payment.paidStatus) {
+
+                        PaidStatus.PAID -> {
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2E7D32),
+                                    modifier = Modifier.size(15.dp)
+                                )
+
+                                Spacer(Modifier.width(4.dp))
+
+                                Text(
+                                    "Repaid",
+                                    style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
+                                    color = Color(0xFF2E7D32)
+                                )
+
+                                Spacer(Modifier.width(6.dp))
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(3.dp)
+                                        .background(AppColors.border, CircleShape)
+                                )
+
+                                Spacer(Modifier.width(6.dp))
+
+                                Text(
+                                    CommonFunctions.dateToString(
+                                        payment.amountRepaidDate?.toDate() ?: Date()
+                                    ),
+                                    style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                                    color = Color(0xFF2E7D32)
+                                )
+                            }
+                        }
+
+                        PaidStatus.INVERIFICATION -> {
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+
+                                    Icon(
+                                        imageVector = Icons.Default.HourglassTop,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFF9800),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+
+                                    Spacer(Modifier.width(4.dp))
+
+                                    Text(
+                                        "In Verification",
+                                        style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
+                                        color = Color(0xFFFF9800)
+                                    )
+                                }
+
+                                Button(
+                                    onClick = {},
+                                    enabled = false,
+                                    shape = RoundedCornerShape(50),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color.LightGray,
+                                        disabledContainerColor = Color.LightGray
+                                    )
+                                ) {
+
+                                    Text(
+                                        "Pay",
+                                        style = AppFont.ibmPlexSans(13, FontWeight.Bold),
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+
+                        PaidStatus.NOT_PAID -> {
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+
+                                    Icon(
+                                        imageVector = Icons.Default.Schedule,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFF9800),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+
+                                    Spacer(Modifier.width(4.dp))
+
+                                    Text(
+                                        "Pending Repayment",
+                                        style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
+                                        color = Color(0xFFFF9800)
+                                    )
+                                }
+
+                                Button(
+                                    onClick = { onPay?.invoke() },
+                                    shape = RoundedCornerShape(50),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = AppColors.primaryButton
+                                    )
+                                ) {
+
+                                    Text(
+                                        "Pay",
+                                        style = AppFont.ibmPlexSans(13, FontWeight.Bold),
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                MemberPaymentSubType.SETTLEMENT -> {
+
+                    when (payment.paidStatus) {
+
+                        PaidStatus.NOT_PAID -> {
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFF9800),
+                                    modifier = Modifier.size(15.dp)
+                                )
+
+                                Spacer(Modifier.width(4.dp))
+
+                                Text(
+                                    "Settlement Pending",
+                                    style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
+                                    color = Color(0xFFFF9800)
+                                )
+                            }
+                        }
+
+                        PaidStatus.INVERIFICATION -> {
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+
+                                Icon(
+                                    imageVector = Icons.Default.HourglassTop,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFF9800),
+                                    modifier = Modifier.size(15.dp)
+                                )
+
+                                Spacer(Modifier.width(4.dp))
+
+                                Text(
+                                    "Settlement In Verification",
+                                    style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
+                                    color = Color(0xFFFF9800)
+                                )
+                            }
+                        }
+
+                        PaidStatus.PAID -> {
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+
+                                Icon(
+                                    imageVector = Icons.Default.Verified,
+                                    contentDescription = null,
+                                    tint = AppColors.primaryBrand,
+                                    modifier = Modifier.size(16.dp)
+                                )
+
+                                Spacer(Modifier.width(4.dp))
+
+                                Text(
+                                    "Settlement Completed",
+                                    style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
+                                    color = AppColors.primaryBrand
+                                )
+
+                                Spacer(Modifier.width(6.dp))
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(3.dp)
+                                        .background(AppColors.border, CircleShape)
+                                )
+
+                                Spacer(Modifier.width(6.dp))
+
+                                Text(
+                                    CommonFunctions.dateToString(
+                                        payment.amountRepaidDate?.toDate()
+                                            ?: payment.amountReceivedDate?.toDate()
+                                            ?: Date()
+                                    ),
+                                    style = AppFont.ibmPlexSans(10, FontWeight.Medium),
+                                    color = AppColors.primaryBrand
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

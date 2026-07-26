@@ -108,7 +108,7 @@ fun PaymentApprovalView(
     squadViewModel: SquadViewModel
 ) {
 
-    var selectedUser by remember { mutableStateOf("All") }
+    var selectedUser by remember { mutableStateOf(SquadStrings.all) }
 
     val screenType =
         if (UserDefaultsManager.getSquadManagerLogged())
@@ -120,7 +120,7 @@ fun PaymentApprovalView(
     val pendingPayments by squadViewModel.pendingApprovalPayments.collectAsStateWithLifecycle()
 
     val userList = remember(squadMembers) {
-        listOf("All") + squadMembers.map { it.name }.distinct()
+        listOf(SquadStrings.all) + squadMembers.map { it.name }.distinct()
     }
 
     // ❌ NO FILTERING HERE (Firestore already does it)
@@ -133,7 +133,7 @@ fun PaymentApprovalView(
 
         if (screenType == SquadUserType.SQUAD_MANAGER) {
 
-            val memberId = if (selectedUser == "All") {
+            val memberId = if (selectedUser == SquadStrings.all) {
                 null
             } else {
                 squadViewModel.squadMembers.value.firstOrNull { it.name == selectedUser }?.id
@@ -221,7 +221,7 @@ fun PaymentApprovalView(
 
                         selectedUser = selected
 
-                        val memberId = if (selected == "All") null else {
+                        val memberId = if (selected == SquadStrings.all) null else {
                             squadMembers.firstOrNull { m -> m.name == selected }?.id
                         }
 

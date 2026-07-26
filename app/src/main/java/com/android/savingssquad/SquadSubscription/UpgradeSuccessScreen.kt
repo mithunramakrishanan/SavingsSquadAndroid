@@ -51,10 +51,15 @@ fun UpgradeSuccessScreen(
 ) {
 
     val remoteConfig by viewModel.remoteConfig.collectAsState()
+    val sub by viewModel.subscription.collectAsState()
+
+    // ⭐ NEW — the period the squad is actually billed on, mirrors iOS
+    // (config.price(for:period:) using SubscriptionManager.shared.subscription.billingPeriod)
+    val billingPeriod = sub?.billingPeriod ?: SubscriptionModel.BillingPeriod.MONTHLY
 
     val features = remoteConfig.features(plan)
     val maxMembers = remoteConfig.maxMembers(plan)
-    val price = remoteConfig.priceText(plan)
+    val price = remoteConfig.priceText(plan, billingPeriod)   // ⭐ CHANGED
 
     LaunchedEffect(plan) {
         kotlinx.coroutines.delay(2500)
@@ -115,6 +120,8 @@ fun UpgradeSuccessScreen(
             ) {
 
                 Column(modifier = Modifier.padding(16.dp)) {
+
+                    FeatureRow("Billing Period", billingPeriod.displayName)   // ⭐ NEW
 
                     FeatureRow("Max Members", maxMembers.toString())
 

@@ -44,7 +44,7 @@ fun SquadActivityView(
     navController: NavController,
     squadViewModel: SquadViewModel) {
 
-    var selectedUser by remember { mutableStateOf("All") }
+    var selectedUser by remember { mutableStateOf(SquadStrings.all) }
     var selectedMemberId by remember { mutableStateOf<String?>(null) }
     var hasLoaded by remember { mutableStateOf(false) }
 
@@ -67,7 +67,7 @@ fun SquadActivityView(
             SquadUserType.SQUAD_MEMBER
 
     val userList = remember(squadMembers) {
-        listOf("All") + squadMembers
+        listOf(SquadStrings.all) + squadMembers
             .map { it.name }
             .distinct()
     }
@@ -84,12 +84,12 @@ fun SquadActivityView(
 //            selectedMemberId = currentMember?.id
 //            selectedUser = currentMember?.name ?: ""
 
-            selectedUser = "All"
+            selectedUser = SquadStrings.all
             selectedMemberId = null
 
         } else {
 
-            selectedUser = "All"
+            selectedUser = SquadStrings.all
             selectedMemberId = null
         }
 
@@ -138,7 +138,7 @@ fun SquadActivityView(
                     selectedUser = selected
 
                     selectedMemberId =
-                        if (selected == "All") {
+                        if (selected == SquadStrings.all) {
                             null
                         } else {
                             squadMembers.firstOrNull {

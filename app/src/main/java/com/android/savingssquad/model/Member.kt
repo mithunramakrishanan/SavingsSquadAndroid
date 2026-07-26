@@ -4,14 +4,10 @@ import androidx.annotation.Keep
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.MemberPaymentSubType
 import com.android.savingssquad.singleton.PaidStatus
-import com.android.savingssquad.singleton.PaymentApproveStatus
 
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.RecordStatus
 import com.google.firebase.Timestamp
-import com.google.firebase.firestore.DocumentId
-import com.google.firebase.firestore.IgnoreExtraProperties
-import com.google.gson.annotations.SerializedName
 import java.util.Date
 
 data class UpiVerificationResult(
@@ -138,7 +134,7 @@ data class MemberOtherPayments(
 
     var id: String? = null,
 
-    var memberOtherPaymentType: MemberPaymentSubType = MemberPaymentSubType.Repayment,
+    var memberOtherPaymentType: MemberPaymentSubType = MemberPaymentSubType.RE_PAYMENT,
 
     var amount: Int = 0,
 
@@ -152,6 +148,8 @@ data class MemberOtherPayments(
 
     var amountReceivedDate: Timestamp? = null,
 
-    var amountRepaidDate: Timestamp? = null
+    var amountRepaidDate: Timestamp? = null,
+
+    var recordDate: Date = Date()
 
 )

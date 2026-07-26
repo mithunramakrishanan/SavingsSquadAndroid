@@ -123,7 +123,7 @@ fun CashRequestHistoryScreen(
     squadViewModel: SquadViewModel
 ) {
 
-    var selectedUser by remember { mutableStateOf("All") }
+    var selectedUser by remember { mutableStateOf(SquadStrings.all) }
     var selectedMemberId by remember { mutableStateOf<String?>(null) }
 
     val screenType =
@@ -141,7 +141,7 @@ fun CashRequestHistoryScreen(
 
     val userList = remember(members) {
         buildList {
-            add("All")
+            add(SquadStrings.all)
             addAll(members.map { it.name }.distinct())
         }
     }
@@ -160,7 +160,7 @@ fun CashRequestHistoryScreen(
 
         } else {
 
-            selectedUser = "All"
+            selectedUser = SquadStrings.all
             selectedMemberId = null
         }
     }
@@ -224,12 +224,13 @@ fun CashRequestHistoryScreen(
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
                             .fillMaxWidth()
-                    ) { newUser ->
+                    )
+                    { newUser ->
 
                             selectedUser = newUser
 
                             selectedMemberId =
-                                if (newUser == "All") {
+                                if (newUser == SquadStrings.all) {
                                     null
                                 } else {
                                     members.firstOrNull {

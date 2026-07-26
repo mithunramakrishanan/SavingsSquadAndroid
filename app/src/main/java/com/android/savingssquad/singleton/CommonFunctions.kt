@@ -25,6 +25,7 @@ import android.os.Build
 import android.util.Log
 import android.util.Patterns
 import androidx.annotation.RequiresApi
+import com.android.savingssquad.model.ForceCloseSummary
 import com.android.savingssquad.model.SquadActivity
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.singleton.CashfreeBeneficiaryType
@@ -274,7 +275,8 @@ object CommonFunctions {
             amountSentDate = today.asTimestamp,
             loanStatus = EMIStatus.PENDING,
             loanClosedDate = null,
-            installments = installments
+            installments = installments,
+            forceCloseSummary = ForceCloseSummary()
         )
     }
 

@@ -1,7 +1,6 @@
 package com.android.savingssquad.viewmodel
 
 import android.os.Build
-import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.runtime.Composable
@@ -9,18 +8,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import com.android.savingssquad.view.*
-import com.android.savingssquad.singleton.SquadUserType
-import com.google.accompanist.navigation.animation.rememberAnimatedNavController
 
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.platform.LocalContext
 import com.android.savingssquad.SquadSubscription.RestorePurchasesScreen
-import com.android.savingssquad.singleton.LoaderManager
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalAnimationApi::class)
@@ -82,6 +75,10 @@ fun AppNavHost(
             ManageSquadView(navController, squadViewModel)
         }
 
+        composable(AppDestination.MEMBER_OTHER_PAYMENT.route) {
+            MemberOtherPaymentsView(navController, squadViewModel)
+        }
+
         composable(AppDestination.OPEN_MEMBERS_LIST.route) {
             MembersListView(navController, squadViewModel)
         }
@@ -95,7 +92,7 @@ fun AppNavHost(
         }
 
         composable(AppDestination.OPEN_LOAD_DETAILS.route) {
-            LoanDetailsView(navController, squadViewModel)
+            LoanListView(navController, squadViewModel)
         }
 
         composable(AppDestination.OPEN_VERIFY_PAYMENTS.route) {
@@ -174,6 +171,9 @@ sealed class AppDestination(val route: String) {
 
     object CASH_REQUEST_LIST : AppDestination("cash_req_list")
     object MANAGE_SQUAD : AppDestination("manager_group_fund")
+
+    object MEMBER_OTHER_PAYMENT : AppDestination("member_other_payment")
+
     object OPEN_MEMBERS_LIST : AppDestination("open_members_list")
     object OPEN_MEMBER_PROFILE : AppDestination("open_member_profile")
     object OPEN_CONTRUBUTION_DETAILS : AppDestination("open_contribution_detail")
