@@ -1,5 +1,7 @@
 package com.android.savingssquad.view
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,6 +44,7 @@ import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.SSToast
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 fun ManagerTabView(
     navController: NavController,
@@ -52,6 +55,7 @@ fun ManagerTabView(
     val showPayment by squadViewModel.showPayment.collectAsState()
     val showUpgradePlan by squadViewModel.showUpgradePlan.collectAsState()
     val showUpgradeSuccess by squadViewModel.showUpgradeSuccess.collectAsState()
+    val showWaitingForPayment by squadViewModel.showWaitingForPayment.collectAsState()
     val paymentOrderId by squadViewModel.paymentOrderId.collectAsState()
     val squad by squadViewModel.squad.collectAsState()
 
@@ -310,6 +314,30 @@ fun ManagerTabView(
                 viewModel = SubscriptionManager.shared
             ) {
                 squadViewModel.setShowUpgradeSuccess(false)
+            }
+        }
+
+
+        if (showWaitingForPayment) {
+
+            val pendingPayment = UserDefaultsManager.getPendingPayment()
+
+            if (pendingPayment != null) {
+
+                PaymentWaitingView(
+
+                    payment = pendingPayment,
+
+                    squadViewModel = squadViewModel,
+
+                    onCancel = {
+
+                        UserDefaultsManager.clearPendingPayment()
+                        squadViewModel.setShowWaitingForPayment(false)
+                    }
+
+                )
+
             }
         }
 

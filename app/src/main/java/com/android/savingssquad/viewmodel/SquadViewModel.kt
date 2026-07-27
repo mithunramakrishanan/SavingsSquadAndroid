@@ -317,6 +317,10 @@ class SquadViewModel : ViewModel() {
     val showUpgradeSuccess: StateFlow<Boolean> = _showUpgradeSuccess
     fun setShowUpgradeSuccess(value: Boolean) { _showUpgradeSuccess.value = value }
 
+    private val _showWaitingForPayment = MutableStateFlow(false)
+    val showWaitingForPayment: StateFlow<Boolean> = _showWaitingForPayment
+    fun setShowWaitingForPayment(value: Boolean) { _showWaitingForPayment.value = value }
+
 
     private val _managerLogins = MutableStateFlow<List<Login>>(emptyList())
     val managerLogins: StateFlow<List<Login>> = _managerLogins
@@ -1849,7 +1853,7 @@ class SquadViewModel : ViewModel() {
                 text = firstPayment.upiID
             )
 
-            AlertManager.shared.showAlert(
+            /*AlertManager.shared.showAlert(
                 title = firstPayment.upiID,
                 message = "UPI ID copied to clipboard. Paste it if your UPI app doesn't auto-fill it.",
                 type = AlertType.INFO,
@@ -1861,8 +1865,8 @@ class SquadViewModel : ViewModel() {
                         context = context,
                         upiID = firstPayment.upiID,
                         name = squad.value?.squadName ?: "",
-                        amount = firstPayment.amount.toDouble(),
-                        note = firstPayment.description,
+                        amount = if (firstPayment.paymentSubType == PaymentSubType.EMI_AMOUNT) {firstPayment.amount.toDouble() + firstPayment.intrestAmount.toDouble()} else {firstPayment.amount.toDouble()},
+                        note = "savings squad payment",
                         transactionRef = "TXN_${firstPayment.id ?: UUID.randomUUID().toString()}",
                         completion = { initiated ->
                             println("Initiated: $initiated")
@@ -1895,10 +1899,12 @@ class SquadViewModel : ViewModel() {
                         }
                     )
                 }
-            )
+            ) */
 
 
-
+            UserDefaultsManager.savePendingPayment(firstPayment)
+            completion(true, "UPI_OPENED")
+            setShowWaitingForPayment(true)
             return
         }
 

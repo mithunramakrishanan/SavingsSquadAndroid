@@ -152,6 +152,8 @@ fun PaymentConfirmationView(
             .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
 
+        AppBackgroundGradient()
+
         Column(
             modifier = Modifier.fillMaxSize()
         )
@@ -167,7 +169,8 @@ fun PaymentConfirmationView(
                     .background(Color.Transparent)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
-            ) {
+            )
+            {
 
                 Text(
                     text = "Payment Confirmation",

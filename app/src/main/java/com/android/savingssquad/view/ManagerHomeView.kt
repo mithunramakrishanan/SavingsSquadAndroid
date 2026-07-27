@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.AppColors
-import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.singleton.appShadow
 
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -53,6 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
+import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.viewmodel.FirestoreManager
 import com.android.savingssquad.viewmodel.SSToast
 import kotlinx.coroutines.selects.select
@@ -138,7 +138,14 @@ fun ManagerHomeView(
             UserDefaultsManager.getLogin()?.let { user ->
                 if (user.role == SquadUserType.SQUAD_MANAGER) {
                     UserDefaultsManager.saveSquadManagerLogged(true)
-                    openVerifyPayment = true
+
+                    if (UserDefaultsManager.getIsCashReqnotification()) {
+                        openCashRequestList = true
+                    }
+                    else {
+                        openVerifyPayment = true
+                    }
+
                 }else {
                     UserDefaultsManager.saveSquadManagerLogged(false)
                     navController.navigate(AppDestination.MEMBER_HOME.route) {
@@ -325,8 +332,9 @@ fun ManagerHomeView(
                     item {
 
                         Box(
-                            modifier = Modifier.padding(top = 15.dp)
-                            .fillMaxWidth()
+                            modifier = Modifier
+                                .padding(top = 15.dp)
+                                .fillMaxWidth()
                                 .padding(vertical = 0.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -1118,74 +1126,98 @@ fun LoanStatViewIOS(
     }
 }
 
+
 @Composable
 fun UpdateUPIHintCard(
     onClick: () -> Unit,
-    selectedUserType : SquadUserType
-
+    selectedUserType: SquadUserType
 ) {
 
     Row(
         modifier = Modifier
+
             .fillMaxWidth()
+
             .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(AppColors.warningAccent.copy(alpha = 0.12f))
+
+            .clip(RoundedCornerShape(14.dp))
+
+            .background(Color.White)
+
             .border(
+
                 1.dp,
+
                 AppColors.warningAccent.copy(alpha = 0.25f),
-                RoundedCornerShape(18.dp)
+
+                RoundedCornerShape(14.dp)
+
             )
+
             .clickable { onClick() }
-            .padding(16.dp),
+
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
-    ) {
+    )
+    {
 
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .background(
-                    AppColors.warningAccent.copy(alpha = 0.18f),
-                    CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.AccountBalanceWallet,
-                contentDescription = null,
-                tint = AppColors.warningAccent,
-                modifier = Modifier.size(22.dp)
-            )
-        }
+        Icon(
+            imageVector = Icons.Default.Warning,
+            contentDescription = null,
+            tint = AppColors.warningAccent,
+            modifier = Modifier.size(18.dp)
+        )
 
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
         Column(
             modifier = Modifier.weight(1f)
         ) {
 
             Text(
-                text = "Add your UPI ID",
-                style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+                text = "UPI ID Required",
+                style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
                 color = AppColors.headerText
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             Text(
                 text = if (selectedUserType == SquadUserType.SQUAD_MANAGER)
-                    "Members can't send contributions until your UPI ID is added."
+                    "Add your UPI ID so members can send payments."
                 else
-                    "Complete your payment setup to contribute securely and effortlessly." ,
-                style = AppFont.ibmPlexSans(13),
-                color = AppColors.secondaryText
+                    "Add your UPI ID to make secure contributions.",
+                style = AppFont.ibmPlexSans(10),
+                color = AppColors.secondaryText,
+                maxLines = 2
             )
         }
 
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = AppColors.warningAccent
-        )
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Box(
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(AppColors.warningAccent.copy(alpha = 0.15f))
+                .clickable { onClick() }
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Update",
+                style = AppFont.ibmPlexSans(11, FontWeight.SemiBold),
+                color = AppColors.warningAccent
+            )
+        }
     }
+}
+
+
+@Preview(showBackground = false)
+@Composable
+fun UPIPreview() {
+    UpdateUPIHintCard(
+        onClick = {},
+        selectedUserType = SquadUserType.SQUAD_MANAGER
+    )
 }

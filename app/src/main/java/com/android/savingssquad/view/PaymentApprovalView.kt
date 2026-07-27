@@ -469,7 +469,7 @@ fun PaymentApprovalRow(
                     .padding(horizontal = 12.dp, vertical = 7.dp)
             ) {
                 Text(
-                    text = "₹${approval.amount}",
+                    text = if (approval.paymentSubType == PaymentSubType.EMI_AMOUNT){"₹${approval.amount + approval.intrestAmount}"}else{"₹${approval.amount}"},
                     style = AppFont.ibmPlexSans(16, FontWeight.Bold),
                     color = AppColors.primaryBrand
                 )

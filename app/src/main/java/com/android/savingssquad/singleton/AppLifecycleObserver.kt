@@ -8,6 +8,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.android.savingssquad.viewmodel.AppDestination
+import com.android.savingssquad.viewmodel.SquadViewModel
 
 class AppLifecycleObserver(
     private val onAppForeground: () -> Unit
@@ -20,7 +21,7 @@ class AppLifecycleObserver(
 }
 
 fun handlePendingPayment(
-    context: Context,
+    squadViewModel: SquadViewModel,
     navController: NavController
 ) {
     val payment = UserDefaultsManager.getPendingPayment()
@@ -35,6 +36,7 @@ fun handlePendingPayment(
 @Composable
 fun ObserveAppResume(
     navController: NavController,
+    squadViewModel: SquadViewModel,
     context: Context
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -42,7 +44,8 @@ fun ObserveAppResume(
     DisposableEffect(Unit) {
 
         val observer = AppLifecycleObserver {
-            handlePendingPayment(context, navController)
+            squadViewModel.setShowWaitingForPayment(false)
+            handlePendingPayment(squadViewModel, navController)
         }
 
         lifecycleOwner.lifecycle.addObserver(observer)

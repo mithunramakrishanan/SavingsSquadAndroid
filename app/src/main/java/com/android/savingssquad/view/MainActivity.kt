@@ -175,7 +175,7 @@ fun SavingsSquadRoot() {
     ) {
         // ✅ Launch the main navigation host
         RequestNotificationPermission()
-        ObserveAppResume(navController, context)
+        ObserveAppResume(navController, squadViewModel, context)
         AppNavHost(
             navController = navController,
             squadViewModel = squadViewModel,

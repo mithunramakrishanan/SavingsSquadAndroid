@@ -70,7 +70,7 @@ import com.android.savingssquad.viewmodel.SSToast
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 fun MemberTabView(
     navController: NavController,
@@ -81,6 +81,7 @@ fun MemberTabView(
     val showPayment by squadViewModel.showPayment.collectAsState()
     val showUpgradePlan by squadViewModel.showUpgradePlan.collectAsState()
     val paymentOrderId by squadViewModel.paymentOrderId.collectAsState()
+    val showWaitingForPayment by squadViewModel.showWaitingForPayment.collectAsState()
     val squadState by squadViewModel.squad.collectAsState()
     val squad = squadState
 
@@ -284,6 +285,29 @@ fun MemberTabView(
                     squadViewModel.setShowPayment(false)
                 }
             )
+        }
+
+        if (showWaitingForPayment) {
+
+            val pendingPayment = UserDefaultsManager.getPendingPayment()
+
+            if (pendingPayment != null) {
+
+                PaymentWaitingView(
+
+                    payment = pendingPayment,
+
+                    squadViewModel = squadViewModel,
+
+                    onCancel = {
+
+                        UserDefaultsManager.clearPendingPayment()
+                        squadViewModel.setShowWaitingForPayment(false)
+                    }
+
+                )
+
+            }
         }
     }
 }
