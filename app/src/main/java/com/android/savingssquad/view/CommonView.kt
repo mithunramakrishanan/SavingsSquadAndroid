@@ -111,12 +111,14 @@ import com.android.savingssquad.model.InterestType
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.model.forceCloseSummary
+import com.android.savingssquad.singleton.AlertType
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.color
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.singleton.displayText
+import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
 import com.google.firebase.auth.PhoneAuthOptions
 import kotlinx.coroutines.CoroutineScope
@@ -2381,8 +2383,25 @@ fun InstallmentPopupView(
                 interestType = interestType,
                 onCancel = { showForceCloseConfirm = false },
                 onConfirm = {
-                    onForceClose(forceCloseSummary)
-                    onCancel() // closes the whole popup after confirming
+
+                    val hasVerificationPending = installments.any {
+                        it.status == EMIStatus.INVERIFICATION
+                    }
+
+                    if (hasVerificationPending) {
+
+                        AlertManager.shared.showAlert(
+                            title = "Verification Pending",
+                            message = "One or more installment payments are currently under verification. Please wait until the verification is complete before force closing this loan.",
+                            type = AlertType.INFO
+                        )
+
+                    } else {
+
+                        onForceClose(forceCloseSummary)
+                        onCancel()
+                    }
+
                 }
             )
         }
