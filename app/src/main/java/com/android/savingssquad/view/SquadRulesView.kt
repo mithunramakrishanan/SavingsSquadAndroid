@@ -36,6 +36,7 @@ import com.android.savingssquad.singleton.appShadow
 import com.android.savingssquad.singleton.asTimestamp
 import com.android.savingssquad.viewmodel.SSToast
 import com.yourapp.utils.CommonFunctions
+import com.yourapp.utils.IDGenerator
 
 @OptIn(ExperimentalMaterial3Api::class)
 
@@ -271,7 +272,7 @@ fun SquadRulesView(
 
                             val newRule = SquadRule(
 
-                                id = CommonFunctions.generateRuleID(),
+                                id = IDGenerator.generateRuleID(),
 
                                 ruleText = text,
 

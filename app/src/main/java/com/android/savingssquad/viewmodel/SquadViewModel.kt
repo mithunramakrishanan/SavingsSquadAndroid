@@ -4305,7 +4305,7 @@ class SquadViewModel : ViewModel() {
         )
 
         val newPayment = PaymentsDetails(
-            id = CommonFunctions.generatePaymentID(
+            id = IDGenerator.generatePaymentID(
                 squadId = squad.value?.squadID ?: ""
             ),
             paymentUpdatedDate = Timestamp.now(),
@@ -4381,7 +4381,7 @@ class SquadViewModel : ViewModel() {
         LoaderManager.shared.showLoader()
 
         val payment = PaymentsDetails(
-            id = CommonFunctions.generatePaymentID(squad.value?.squadID ?: ""),
+            id = IDGenerator.generatePaymentID(squad.value?.squadID ?: ""),
             paymentUpdatedDate = Timestamp.now(),
 
             memberId = member?.id ?: "",
@@ -4442,7 +4442,7 @@ class SquadViewModel : ViewModel() {
         val squad = this.squad.value
 
         val newPayment = PaymentsDetails(
-            id = CommonFunctions.generatePaymentID(squad?.squadID ?: ""),
+            id = IDGenerator.generatePaymentID(squad?.squadID ?: ""),
             paymentUpdatedDate = Timestamp.now(),
 
             memberId = member.id ?: "",

@@ -70,6 +70,7 @@ import com.google.firebase.Timestamp
 import com.yourapp.utils.CommonFunctions
 import com.android.savingssquad.viewmodel.ToastManager
 import com.android.savingssquad.viewmodel.ToastType
+import com.yourapp.utils.IDGenerator
 
 // MemberPaymentScreen.kt
 @RequiresApi(Build.VERSION_CODES.O)
@@ -282,7 +283,7 @@ fun MemberPaymentView(
 
 
                                 val newPayment = PaymentsDetails(
-                                    id = CommonFunctions.generatePaymentID(squadId = gf.squadID),
+                                    id = IDGenerator.generatePaymentID(squadId = gf.squadID),
                                     paymentUpdatedDate = Timestamp(date = Date()),
                                     memberId = selectedMember.id ?: "",
                                     memberName = selectedMember.name,
@@ -412,7 +413,7 @@ fun MemberPaymentView(
                                 val total = (selectedInstallment?.installmentAmount ?: 0) + (selectedInstallment?.interestAmount ?: 0)
 
                                 val loanPayment = PaymentsDetails(
-                                    id = CommonFunctions.generatePaymentID(squadId = gf.squadID),
+                                    id = IDGenerator.generatePaymentID(squadId = gf.squadID),
                                     paymentUpdatedDate = Timestamp(date = Date()),
                                     memberId = member.id ?: "",
                                     memberName = member.name,

@@ -78,6 +78,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.graphicsLayer
 import com.android.savingssquad.singleton.MemberPaymentSubType
+import com.yourapp.utils.IDGenerator
 
 
 @Composable
@@ -316,7 +317,7 @@ fun ManualEntryView(
                                         if (success) {
                                             // async: create payments and activity like SwiftUI
                                             val newPayment = PaymentsDetails(
-                                                id = CommonFunctions.generatePaymentID(squadId = squadLocal.squadID),
+                                                id = IDGenerator.generatePaymentID(squadId = squadLocal.squadID),
                                                 paymentUpdatedDate = Date().asTimestamp,
                                                 memberId = selectedMember.id ?: "",
                                                 memberName = contributionSelectedMemberName,
@@ -516,7 +517,7 @@ fun ManualEntryView(
                                                 val loanNumber = memberPendingLoans?.firstOrNull()?.loanNumber ?: "N/A"
                                                 val loanId = memberPendingLoans?.firstOrNull()?.id ?: "N/A"
                                                 val loanPayment = PaymentsDetails(
-                                                    id = CommonFunctions.generatePaymentID(squadId = squad?.squadID ?: ""),
+                                                    id = IDGenerator.generatePaymentID(squadId = squad?.squadID ?: ""),
                                                     paymentUpdatedDate = Date().asTimestamp,
                                                     memberId = emiSelectedMember?.id ?: "",
                                                     memberName = emiSelectedMemberName,
@@ -699,7 +700,7 @@ fun ManualEntryView(
 
                                 CoroutineScope(Dispatchers.IO).launch {
 
-                                    val otherID = CommonFunctions.generatePaymentID(squad.value?.squadID
+                                    val otherID = IDGenerator.generatePaymentID(squad.value?.squadID
                                         ?: "")
 
                                     val payment = PaymentsDetails(
@@ -1115,7 +1116,7 @@ private fun handleOtherPayment(
     val amount = amountStr.toIntOrNull() ?: 0
 
         // 🔹 Create new payment
-    val otherID = CommonFunctions.generatePaymentID(squad.squadID)
+    val otherID = IDGenerator.generatePaymentID(squad.squadID)
         val newPayment = PaymentsDetails(
             id = otherID,
             paymentUpdatedDate = Date().asTimestamp,

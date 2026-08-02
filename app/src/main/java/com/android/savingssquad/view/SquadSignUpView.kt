@@ -726,7 +726,7 @@ private fun saveSquadData(
             enter()
 
             val newPayment = PaymentsDetails(
-                id = CommonFunctions.generatePaymentID(squadID),
+                id = IDGenerator.generatePaymentID(squadID),
                 paymentUpdatedDate = Date().asTimestamp,
                 memberId = "",
                 memberName = "SQUAD MANAGER",

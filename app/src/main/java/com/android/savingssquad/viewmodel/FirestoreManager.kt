@@ -40,6 +40,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.firestore
 import com.google.firebase.messaging.FirebaseMessaging
+import com.yourapp.utils.IDGenerator
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -1243,7 +1244,7 @@ class FirestoreManager private constructor() {
 
         while (!currentDate.after(squadEnd)) {
             val monthYear = dateFormatter.format(currentDate)
-            val contributionID = CommonFunctions.generateContributionID(memberID, monthYear)
+            val contributionID = IDGenerator.generateContributionID(memberID, monthYear)
 
             val detail = ContributionDetail(
                 id = contributionID,
@@ -1346,7 +1347,7 @@ class FirestoreManager private constructor() {
 
                             for (month in missingMonths) {
                                 val newContribution = ContributionDetail(
-                                    id = CommonFunctions.generateContributionID(memberID, month),
+                                    id = IDGenerator.generateContributionID(memberID, month),
                                     orderId = "",
                                     memberID = memberID,
                                     memberName = member.name,
@@ -2096,7 +2097,7 @@ class FirestoreManager private constructor() {
             val updatedInstallment = installment.copy()
 
             if (updatedInstallment.id.isNullOrEmpty()) {
-                updatedInstallment.id = CommonFunctions.generateInstallmentID()
+                updatedInstallment.id = IDGenerator.generateInstallmentID()
             }
 
             val index = updatedLoan.installments.indexOfFirst { it.id == updatedInstallment.id }

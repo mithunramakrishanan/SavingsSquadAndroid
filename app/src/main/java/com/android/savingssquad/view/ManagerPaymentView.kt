@@ -66,6 +66,7 @@ import com.android.savingssquad.viewmodel.ToastManager
 import com.android.savingssquad.viewmodel.ToastType
 import com.google.firebase.Timestamp
 import com.yourapp.utils.CommonFunctions
+import com.yourapp.utils.IDGenerator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -462,7 +463,7 @@ fun ManagerPaymentView(
                                         val squad = squadViewModel.squad.value ?: return@SSButton
                                         val selectedMember = loanSelectedMember ?: return@SSButton
 
-                                        val paymentId = CommonFunctions.generatePaymentID(squad.squadID)
+                                        val paymentId = IDGenerator.generatePaymentID(squad.squadID)
 
                                         val amount = memberPaymentAmount.value.toIntOrNull() ?: 0
 
@@ -681,7 +682,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
         return
     }
     LoaderManager.shared.showLoader()
-    val otherID = CommonFunctions.generatePaymentID(squadViewModel.squad.value?.squadID ?: "")
+    val otherID = IDGenerator.generatePaymentID(squadViewModel.squad.value?.squadID ?: "")
     val newPayment = PaymentsDetails(
         id = otherID,
         paymentUpdatedDate = Date().asTimestamp,

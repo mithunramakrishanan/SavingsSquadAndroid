@@ -178,48 +178,6 @@ object CommonFunctions {
         return "PAYOUT-$memberId-$timestamp"
     }
 
-    // MARK: - Generators
-    fun generateLoanNumber(): String {
-
-        val formatter = SimpleDateFormat("yyMMddHHmmss", Locale.US)
-
-        val timestamp = formatter.format(Date())
-
-        val random = UUID.randomUUID()
-
-            .toString()
-
-            .replace("-", "")
-
-            .take(4)
-
-            .uppercase()
-
-        return "LN-$timestamp-$random"
-
-    }
-
-    fun generateBankAccountID(): String {
-        return "BNK${Random.nextInt(1000, 9999)}"
-    }
-
-    fun generateRuleID(): String {
-        return "RULE${Random.nextInt(100, 999)}"
-    }
-
-    fun generateInstallmentID(): String {
-        return "INST${Random.nextInt(1000, 9999)}"
-    }
-
-    fun generateContributionID(memberId: String, monthYear: String): String {
-        return "$memberId-$monthYear"
-    }
-
-    fun generatePaymentID(squadId: String): String {
-        val timestamp = System.currentTimeMillis()
-        return "pg_${squadId}_$timestamp"
-    }
-
     // MARK: - Member Loan
     fun generateMemberLoan(
         emiConfig: EMIConfiguration,
@@ -229,7 +187,7 @@ object CommonFunctions {
         val cal = Calendar.getInstance()
         val today = Date()
         val currentDay = cal.get(Calendar.DAY_OF_MONTH)
-        val loanNumber = generateLoanNumber()
+        val loanNumber = IDGenerator.generateLoanNumber()
 
         val interestSplits = splitAmountEvenly(emiConfig.interestAmount, emiConfig.emiMonths)
         val principalSplits = splitAmountEvenly(emiConfig.loanAmount, emiConfig.emiMonths)
@@ -248,7 +206,7 @@ object CommonFunctions {
             val suffix = ordinalSuffix(i + 1)
             installments.add(
                 Installment(
-                    id = generateInstallmentID(),
+                    id = IDGenerator.generateInstallmentID(),
                     orderId = "",
                     memberID = memberID,
                     memberName = memberName,
@@ -345,31 +303,41 @@ object CommonFunctions {
 
 object IDGenerator {
 
-    fun generateMemberID(): String {
-        return "MBR-${randomCode(6)}"
+    private fun shortId(prefix: String): String {
+        val id = UUID.randomUUID()
+            .toString()
+            .replace("-", "")
+            .take(12)
+            .uppercase()
+
+        return "$prefix-$id"
     }
 
-    fun generateSquadID(): String {
-        return "SQD-${randomCode(6)}-${randomSuffix()}"
+    fun generateLoanNumber() = shortId("LN")
+
+    fun generateBankAccountID() = shortId("BNK")
+
+    fun generateRuleID() = shortId("RULE")
+
+    fun generateInstallmentID() = shortId("INST")
+
+    fun generateMemberID() = shortId("MBR")
+
+    fun generateSquadID() = shortId("SQD")
+
+    fun generateCashRequestID() = shortId("CR")
+
+    fun generatePaymentID(squadId: String): String {
+        val id = UUID.randomUUID()
+            .toString()
+            .replace("-", "")
+            .take(8)
+            .uppercase()
+
+        return "PG-$squadId-$id"
     }
 
-    fun generateCashRequestID(): String {
-        return "CR-${randomCode(6)}-${randomSuffix()}"
-    }
-
-    // MARK: - Core
-
-    private fun randomCode(length: Int): String {
-        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        return (1..length)
-            .map { chars.random() }
-            .joinToString("")
-    }
-
-    private fun randomSuffix(): String {
-        val chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        return (1..2)
-            .map { chars.random() }
-            .joinToString("")
+    fun generateContributionID(memberId: String, monthYear: String): String {
+        return "$memberId-$monthYear"
     }
 }

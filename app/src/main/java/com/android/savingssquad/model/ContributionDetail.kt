@@ -12,6 +12,7 @@ import java.util.*
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
 import com.google.firebase.firestore.PropertyName
+import com.yourapp.utils.IDGenerator
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Date
@@ -74,7 +75,7 @@ data class ContributionDetail(
     // 🔹 Custom initializer logic
     init {
         if (id == null && memberID.isNotEmpty() && monthYear.isNotEmpty()) {
-            id = CommonFunctions.generateContributionID(memberID, monthYear)
+            id = IDGenerator.generateContributionID(memberID, monthYear)
         }
     }
 }
