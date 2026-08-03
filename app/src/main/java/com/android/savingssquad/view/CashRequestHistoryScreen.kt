@@ -103,6 +103,7 @@ import com.android.savingssquad.model.CashRequestStatus
 import com.android.savingssquad.model.EMIConfiguration
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.color
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
@@ -339,7 +340,8 @@ fun CashRequestHistoryScreen(
                                                 appContext,
                                                 selectedMember = member,
                                                 selectedLoan = emi,
-                                                cashRequestId = cashRequestId
+                                                cashRequestId = cashRequestId,
+                                                entryType = PaymentEntryType.AUTOMATIC_ENTRY
                                             ) { success, error ->
 
                                                 if (success) {

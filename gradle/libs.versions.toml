@@ -51,6 +51,7 @@ datastoreCore = "1.2.1"
 animationCoreVersion = "1.11.4"
 foundationVersion = "1.11.4"
 animation = "1.11.4"
+ui = "1.11.4"
 
 [libraries]
 easyupipayment = { module = "dev.shreyaspatil.EasyUpiPayment:EasyUpiPayment", version.ref = "easyupipayment" }
@@ -116,6 +117,7 @@ androidx-datastore-core = { group = "androidx.datastore", name = "datastore-core
 androidx-animation-core = { group = "androidx.compose.animation", name = "animation-core", version.ref = "animationCoreVersion" }
 androidx-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundationVersion" }
 androidx-compose-animation = { group = "androidx.compose.animation", name = "animation", version.ref = "animation" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

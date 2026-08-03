@@ -2022,8 +2022,43 @@ class SquadViewModel : ViewModel() {
                 }
                 else if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
 
-                    FirestoreManager.shared.updateCurrentLoanApproveStatus(payment.squadId,payment.memberId,
-                        EMIStatus.INVERIFICATION) {_,_ -> }
+                    if (payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
+
+                        val emiConfig = payment.selectedEMIConfig
+                        if (emiConfig == null) {
+                            if (showLoader) LoaderManager.shared.hideLoader()
+                            completion(true, null)
+                            return@savePayments
+                        }
+
+                        val newLoan = CommonFunctions.generateMemberLoan(
+                            emiConfig = emiConfig,
+                            memberID = payment.memberId ?: "",
+                            memberName = payment.memberName
+                        )
+
+                        newLoan.id = payment.loanId
+
+                        addOrUpdateMemberLoan(
+                            showLoader = false,
+                            memberID = payment.memberId ?: "",
+                            loan = newLoan
+                        ) { success, error ->
+                            if (success) {
+                                // handled by fetchMemberLoans refresh inside addOrUpdateMemberLoan
+                            } else {
+                                println("❌ Error: ${error ?: "Unknown error"}")
+                            }
+                        }
+
+                        FirestoreManager.shared.updateCurrentLoanApproveStatus(payment.squadId,payment.memberId,
+                            EMIStatus.PENDING) {_,_ -> }
+                    }
+                    else {
+
+                        FirestoreManager.shared.updateCurrentLoanApproveStatus(payment.squadId,payment.memberId,
+                            EMIStatus.INVERIFICATION) {_,_ -> }
+                    }
                 }
                 else if (payment.paymentSubType == PaymentSubType.RE_PAYMENT && payment.paymentType == PaymentType.PAYMENT_CREDIT) {
 
@@ -4294,6 +4329,7 @@ class SquadViewModel : ViewModel() {
         selectedMember: Member,
         selectedLoan: EMIConfiguration,
         cashRequestId : String,
+        entryType: PaymentEntryType,
         showLoader: Boolean = true,
         completion: (Boolean, String?) -> Unit
     ) {
@@ -4304,30 +4340,56 @@ class SquadViewModel : ViewModel() {
             memberName = selectedMember.name
         )
 
+        val isManual = entryType == PaymentEntryType.MANUAL_ENTRY
+
         val newPayment = PaymentsDetails(
             id = IDGenerator.generatePaymentID(
                 squadId = squad.value?.squadID ?: ""
             ),
             paymentUpdatedDate = Timestamp.now(),
+            payoutUpdatedDate = if (isManual) Timestamp.now() else null,
             memberId = selectedMember.id ?: "",
             memberName = selectedMember.name,
             paymentPhone = selectedMember.phoneNumber,
             paymentEmail = selectedMember.mailID ?: "",
             userType = SquadUserType.SQUAD_MANAGER,
             amount = selectedLoan.loanAmount,
-            paymentStatus = PaymentStatus.INVERIFICATION,
-            paymentApproveStatus = PaymentApproveStatus.REQUESTED,
             intrestAmount = 0,
-            paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
+
+            paymentEntryType = if (isManual)
+                PaymentEntryType.MANUAL_ENTRY
+            else
+                PaymentEntryType.AUTOMATIC_ENTRY,
+
             paymentType = PaymentType.PAYMENT_DEBIT,
             paymentSubType = PaymentSubType.LOAN_AMOUNT,
+
+            paymentStatus = if (isManual)
+                PaymentStatus.SUCCESS
+            else
+                PaymentStatus.INVERIFICATION,
+
+            payoutStatus = if (isManual)
+                PayoutStatus.PAYOUT_SUCCESS
+            else
+                PayoutStatus.PENDING,
+
+            paymentApproveStatus = if (isManual)
+                PaymentApproveStatus.ACCEPTED
+            else
+                PaymentApproveStatus.REQUESTED,
+
             description = "Loan disbursement",
             squadId = squad.value?.squadID ?: "",
             order_id = newLoan.id ?: "",
             contributionId = "",
             loanId = newLoan.id ?: "",
             installmentId = "",
-            paymentResponseMessage = "Pending member verification.",
+            paymentResponseMessage = if (isManual)
+                "Loan disbursed successfully."
+            else
+                "Pending member verification.",
+
             transferReferenceId = "Loan disbursement to ${selectedMember.name}",
             upiID = selectedMember.upiID,
             selectedEMIConfig = selectedLoan,
@@ -4341,7 +4403,6 @@ class SquadViewModel : ViewModel() {
             squadID = squad.value?.squadID ?: "",
             payment = listOf(newPayment)
         ) { success, error ->
-
             completion(success, error)
         }
     }
