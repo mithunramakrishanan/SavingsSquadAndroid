@@ -1713,7 +1713,7 @@ fun UserPicker(
         }
     }
 }
-
+private val NON_PHONE_NUMBERS = listOf("1111111111", "2222222222", "3333333333")
 @Composable
 fun AddMemberPopup(
     squadViewModel: SquadViewModel,
@@ -1738,6 +1738,10 @@ fun AddMemberPopup(
 
     val coroutineScope = rememberCoroutineScope()
     var debounceJob by remember { mutableStateOf<Job?>(null) }
+
+    val isNonPhoneNumber = NON_PHONE_NUMBERS.contains(phoneNumberState.value)
+    val nonPhoneMembersUsedCount = squadViewModel.squadMembers.value
+        .count { NON_PHONE_NUMBERS.contains(it.phoneNumber) }
 
     // ----------------- Validation -----------------
     fun validateFields(): Boolean {
@@ -1890,6 +1894,7 @@ fun AddMemberPopup(
     fun handleOTPChange(newValue: String) {
         otpCodeState.value = newValue
         verifyOTPError = ""
+
         if (newValue.length == 6) {
             squadViewModel.setIsVerifyingOTP(true)
             val credential = PhoneAuthProvider.getCredential(verificationIDState.value, newValue)
@@ -1964,6 +1969,25 @@ fun AddMemberPopup(
                         coroutineScope = coroutineScope,
                         debounceJob = debounceJob,
                         onUpdateDebounceJob = { debounceJob = it }
+                    )
+                }
+
+                // Compact info: no-phone fallback
+                Row(
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = AppColors.secondaryText,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = "No phone? Use 1111111111 / 2222222222 / 3333333333 (max 3, OTP 123456)",
+                        fontSize = 11.sp,
+                        color = AppColors.secondaryText
                     )
                 }
 

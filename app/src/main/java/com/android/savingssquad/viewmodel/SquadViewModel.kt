@@ -1853,55 +1853,6 @@ class SquadViewModel : ViewModel() {
                 text = firstPayment.upiID
             )
 
-            /*AlertManager.shared.showAlert(
-                title = firstPayment.upiID,
-                message = "UPI ID copied to clipboard. Paste it if your UPI app doesn't auto-fill it.",
-                type = AlertType.INFO,
-                primaryButtonTitle = SquadStrings.ok,
-                primaryAction = {
-
-                    UPIPaymentManager.shared.pay(
-                        activity =  activity,
-                        context = context,
-                        upiID = firstPayment.upiID,
-                        name = squad.value?.squadName ?: "",
-                        amount = if (firstPayment.paymentSubType == PaymentSubType.EMI_AMOUNT) {firstPayment.amount.toDouble() + firstPayment.intrestAmount.toDouble()} else {firstPayment.amount.toDouble()},
-                        note = "savings squad payment",
-                        transactionRef = "TXN_${firstPayment.id ?: UUID.randomUUID().toString()}",
-                        completion = { initiated ->
-                            println("Initiated: $initiated")
-                            LoaderManager.shared.hideLoader()
-                            if (initiated) {
-
-                                UserDefaultsManager.savePendingPayment(firstPayment)
-                                completion(true, "UPI_OPENED")
-                            }
-                        },
-                        onReturn = { status ->
-                            LoaderManager.shared.hideLoader()
-                            when (status) {
-                                UPIPaymentStatus.SUCCESS -> {
-                                    println("✅ Success")
-                                }
-
-                                UPIPaymentStatus.FAILED -> {
-                                    println("❌ Failed")
-                                }
-
-                                UPIPaymentStatus.PENDING -> {
-                                    println("⏳ Pending — verify with backend")
-                                }
-
-                                UPIPaymentStatus.CANCELLED -> {
-                                    println("🚫 Cancelled")
-                                }
-                            }
-                        }
-                    )
-                }
-            ) */
-
-
             UserDefaultsManager.savePendingPayment(firstPayment)
             completion(true, "UPI_OPENED")
             setShowWaitingForPayment(true)
@@ -2060,43 +2011,123 @@ class SquadViewModel : ViewModel() {
                             EMIStatus.INVERIFICATION) {_,_ -> }
                     }
                 }
-                else if (payment.paymentSubType == PaymentSubType.RE_PAYMENT && payment.paymentType == PaymentType.PAYMENT_CREDIT) {
+                else if (payment.paymentSubType == PaymentSubType.RE_PAYMENT) {
 
-                    if (payment.memberOtherPaymentId.isNotEmpty()) {
-                        FirestoreManager.shared.updateMemberOtherPaymentStatus(squadID = payment.squadId, memberID = payment.memberId, otherPaymentsId = payment.memberOtherPaymentId, paidStatus = PaidStatus.INVERIFICATION, updateDate = false) { success, _ ->
+                    if (payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
 
-                            if (success) {
+                        if (payment.paymentType == PaymentType.PAYMENT_CREDIT) {
 
-                                val index = _memberOtherPayments.value?.indexOfFirst {
-                                    it.id == payment.memberOtherPaymentId
+                            FirestoreManager.shared.updateMemberOtherPaymentStatus(
+
+                                squadID = payment.squadId,
+
+                                memberID = payment.memberId,
+
+                                otherPaymentsId = payment.memberOtherPaymentId,
+
+                                paidStatus = PaidStatus.PAID,
+
+                                updateDate = true
+
+                            ) { success, _ ->
+
+                                if (success) {
+
+                                    val index = _memberOtherPayments.value?.indexOfFirst {
+
+                                        it.id == payment.memberOtherPaymentId
+
+                                    } ?: -1
+
+                                    if (index >= 0) {
+
+                                        val updated = _memberOtherPayments.value!!.toMutableList()
+
+                                        updated[index] = updated[index].copy(
+
+                                            paidStatus = PaidStatus.PAID,
+
+                                            amountRepaidDate = Timestamp.now()
+
+                                        )
+
+                                        setMemberOtherPayments(updated)
+
+                                    }
+
                                 }
 
-                                if (index != null) {
-                                    if (index < 0) return@updateMemberOtherPaymentStatus
-
-                                    val updated = _memberOtherPayments.value.toMutableList()
-
-                                    updated.set(index, updated[index].copy(
-                                        paidStatus = PaidStatus.INVERIFICATION)
-                                    )
-                                    setMemberOtherPayments(updated)
-                                }
                             }
 
+                        } else if (payment.paymentType == PaymentType.PAYMENT_DEBIT) {
+
+                            val otherPayment = MemberOtherPayments(
+
+                                id = UUID.randomUUID().toString(),
+
+                                memberOtherPaymentType = MemberPaymentSubType.RE_PAYMENT,
+
+                                amount = payment.amount,
+
+                                description = payment.description,
+
+                                memberName = payment.memberName,
+
+                                memberId = payment.memberId,
+
+                                paidStatus = PaidStatus.NOT_PAID
+
+                            )
+
+                            createMemberOtherPayment(
+
+                                showLoader = false,
+
+                                payment = otherPayment
+
+                            ) { _, _ ->
+
+                            }
 
                         }
+
+                    }
+
+                }
+                else if (payment.paymentSubType == PaymentSubType.SETTLEMENT) {
+
+                    val otherPayment = MemberOtherPayments(
+
+                        id = UUID.randomUUID().toString(),
+
+                        memberOtherPaymentType = MemberPaymentSubType.SETTLEMENT,
+
+                        amount = payment.amount,
+
+                        description = payment.description,
+
+                        memberName = payment.memberName,
+
+                        memberId = payment.memberId,
+
+                        paidStatus = PaidStatus.NOT_PAID
+
+                    )
+
+                    createMemberOtherPayment(
+
+                        showLoader = false,
+
+                        payment = otherPayment
+
+                    ) { _, _ ->
+
                     }
                 }
 
                 if (payment.paymentSubType == PaymentSubType.OTHERS_AMOUNT || payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
                     updatePaymentCalculations(listOf(payment), PaymentApproveStatus.ACCEPTED)
                 }
-
-                if (payment.paymentSubType == PaymentSubType.RE_PAYMENT && payment.paymentEntryType == PaymentEntryType.MANUAL_ENTRY) {
-
-                    FirestoreManager.shared.updateMemberOtherPaymentStatus(squadID = payment.squadId, memberID = payment.memberId, otherPaymentsId = payment.memberOtherPaymentId, paidStatus = PaidStatus.PAID) { _, _ ->}
-                }
-
 
                 if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT && payment.paymentEntryType == PaymentEntryType.AUTOMATIC_ENTRY) {
 
@@ -2122,199 +2153,6 @@ class SquadViewModel : ViewModel() {
             if (showLoader) LoaderManager.shared.hideLoader()
             completion(true, null)
         }
-    }
-
-    fun copyToClipboard(
-        context: Context,
-        label: String,
-        text: String
-    ) {
-        val clipboard =
-            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-
-        clipboard.setPrimaryClip(
-            ClipData.newPlainText(label, text)
-        )
-    }
-
-    fun updateContributionApproveStatus(
-        showLoader: Boolean = true,
-        squadID: String,
-        memberID: String,
-        contributionID: String,
-        status: PaidStatus,
-        completion: (Boolean, ContributionDetail?, String?) -> Unit
-    ) {
-
-        if (showLoader) {
-            LoaderManager.shared.showLoader()
-        }
-
-        manager.updateContributionApproveStatus(
-            squadID = squadID,
-            memberID = memberID,
-            contributionID = contributionID,
-            status = status
-        ) { success, contribution, error ->
-
-            if (showLoader) {
-                LoaderManager.shared.hideLoader()
-            }
-
-            if (!success) {
-                completion(false, null, error)
-                return@updateContributionApproveStatus
-            }
-
-            completion(true, contribution, null)
-        }
-    }
-
-    fun updatePaymentCalculations(payment: List<PaymentsDetails>, status: PaymentApproveStatus) {
-        val squadLocal = _squad.value ?: return
-        val userId = payment.firstOrNull()?.memberId
-        val member = _squadMembers.value.firstOrNull { it.id == userId }
-
-        // FIX: was a bare CoroutineScope(Dispatchers.IO).launch — that coroutine kept
-        // running (and could crash silently) even after the ViewModel was cleared.
-        // viewModelScope ties its lifetime to the ViewModel and is auto-cancelled
-        // in onCleared().
-        viewModelScope.launch(Dispatchers.IO) {
-            for (pay in payment) {
-                applyPaymentToFirestore(squadID = squadLocal.squadID, payment = pay, status = status)
-
-                if (status == PaymentApproveStatus.ACCEPTED && pay.memberId.isNotEmpty()) {
-
-                    applyMemberToFirestore(
-
-                        squadID = squadLocal.squadID,
-
-                        memberID = pay.memberId,
-
-                        payment = pay,
-
-                        status = status
-
-                    )
-                }
-
-
-            }
-
-        }
-    }
-
-    fun applyMemberToFirestore(
-        squadID: String,
-        memberID: String,
-        payment: PaymentsDetails,
-        status: PaymentApproveStatus
-    ) {
-
-        if (status != PaymentApproveStatus.ACCEPTED) return
-
-        val updates = mutableMapOf<String, Any>()
-
-        when (payment.paymentType) {
-
-            PaymentType.PAYMENT_CREDIT -> {
-
-                when (payment.paymentSubType) {
-
-                    PaymentSubType.CONTRIBUTION_AMOUNT -> {
-                        updates["totalContributionPaid"] =
-                            FieldValue.increment(payment.amount.toLong())
-                    }
-
-                    PaymentSubType.INTEREST_AMOUNT -> {
-                        updates["totalInterestPaid"] =
-                            FieldValue.increment(payment.intrestAmount.toLong())
-                    }
-
-                    PaymentSubType.EMI_AMOUNT -> {
-
-                        updates["totalLoanPaid"] =
-                            FieldValue.increment((payment.amount).toLong())
-
-                        updates["totalInterestPaid"] =
-                            FieldValue.increment(payment.intrestAmount.toLong())
-                    }
-
-                    else -> Unit
-                }
-            }
-
-            PaymentType.PAYMENT_DEBIT -> {
-
-                if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
-
-                    updates["totalLoanBorrowed"] =
-                        FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
-                }
-            }
-        }
-
-        if (updates.isEmpty()) return
-
-        FirebaseFirestore.getInstance()
-            .collection("squads")
-            .document(squadID)
-            .collection("members")
-            .document(memberID)
-            .update(updates)
-            .addOnSuccessListener {
-                println("✅ Member financials updated atomically")
-            }
-            .addOnFailureListener {
-                println("❌ Failed to update member financials: ${it.message}")
-            }
-    }
-
-    fun applyPaymentToFirestore(squadID: String, payment: PaymentsDetails, status: PaymentApproveStatus) {
-        if (status != PaymentApproveStatus.ACCEPTED) return
-
-        val updates = mutableMapOf<String, Any>()
-
-        when (payment.paymentType) {
-            PaymentType.PAYMENT_CREDIT -> {
-                when (payment.paymentSubType) {
-                    PaymentSubType.CONTRIBUTION_AMOUNT -> {
-                        updates["totalContributionAmountReceived"] = FieldValue.increment(payment.amount.toLong())
-                        updates["currentCreditAmount"] = FieldValue.increment(payment.amount.toLong())
-                        updates["currentAvailableAmount"] = FieldValue.increment(payment.amount.toLong())
-                    }
-                    PaymentSubType.INTEREST_AMOUNT -> {
-                        updates["totalInterestAmountReceived"] = FieldValue.increment(payment.intrestAmount.toLong())
-                        updates["currentCreditAmount"] = FieldValue.increment(payment.intrestAmount.toLong())
-                        updates["currentAvailableAmount"] = FieldValue.increment(payment.amount.toLong())
-                    }
-                    PaymentSubType.EMI_AMOUNT -> {
-                        updates["totalLoanAmountReceived"] = FieldValue.increment((payment.amount.toLong()))
-                        updates["totalInterestAmountReceived"] = FieldValue.increment(payment.intrestAmount.toLong())
-                        updates["currentCreditAmount"] = FieldValue.increment((payment.amount + payment.intrestAmount).toLong())
-                        updates["currentAvailableAmount"] = FieldValue.increment((payment.amount + payment.intrestAmount).toLong())
-                    }
-                    else -> {
-                        updates["currentCreditAmount"] = FieldValue.increment(payment.amount.toLong())
-                        updates["currentAvailableAmount"] = FieldValue.increment(payment.amount.toLong())
-                    }
-                }
-            }
-            PaymentType.PAYMENT_DEBIT -> {
-                if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
-                    updates["totalLoanAmountSent"] = FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
-                }
-                updates["currentDebitAmount"] = FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
-                updates["currentAvailableAmount"] = FieldValue.increment((-payment.amount).toLong())
-            }
-        }
-
-        FirebaseFirestore.getInstance()
-            .collection("squads")
-            .document(squadID)
-            .update(updates)
-            .addOnSuccessListener { println("✅ Squad financials updated atomically") }
-            .addOnFailureListener { println("❌ Failed to update squad financials: ${it.message}") }
     }
 
     fun updatePaymentApproveStatus(
@@ -2511,77 +2349,336 @@ class SquadViewModel : ViewModel() {
 
 
             }
-            else if (payment.paymentSubType == PaymentSubType.RE_PAYMENT && payment.paymentType == PaymentType.PAYMENT_CREDIT) {
+            else if (payment.paymentSubType == PaymentSubType.RE_PAYMENT) {
 
-                if (payment.memberOtherPaymentId.isNotEmpty()) {
+                if (payment.paymentType == PaymentType.PAYMENT_CREDIT) {
 
+                    if (payment.memberOtherPaymentId.isNotEmpty()) {
+
+                        when (status) {
+
+                            PaymentApproveStatus.ACCEPTED -> {
+
+                                FirestoreManager.shared.updateMemberOtherPaymentStatus(
+                                    squadID = payment.squadId,
+                                    memberID = payment.memberId,
+                                    otherPaymentsId = payment.memberOtherPaymentId,
+                                    paidStatus = PaidStatus.PAID,
+                                    updateDate = true
+                                ) { success, _ ->
+
+                                    if (success) {
+
+                                        val index = _memberOtherPayments.value.indexOfFirst {
+                                            it.id == payment.memberOtherPaymentId
+                                        } ?: -1
+
+                                        if (index >= 0) {
+                                            val updated = _memberOtherPayments.value.toMutableList()
+
+                                            updated[index] = updated[index].copy(
+                                                paidStatus = PaidStatus.PAID,
+                                                amountRepaidDate = Timestamp.now()
+                                            )
+
+                                            setMemberOtherPayments(updated)
+                                        }
+                                    }
+                                }
+                            }
+
+                            PaymentApproveStatus.REJECTED -> {
+
+                                FirestoreManager.shared.updateMemberOtherPaymentStatus(
+                                    squadID = payment.squadId,
+                                    memberID = payment.memberId,
+                                    otherPaymentsId = payment.memberOtherPaymentId,
+                                    paidStatus = PaidStatus.NOT_PAID,
+                                    updateDate = false
+                                ) { success, _ ->
+
+                                    if (success) {
+
+                                        val index = _memberOtherPayments.value?.indexOfFirst {
+                                            it.id == payment.memberOtherPaymentId
+                                        } ?: -1
+
+                                        if (index >= 0) {
+                                            val updated = _memberOtherPayments.value!!.toMutableList()
+
+                                            updated[index] = updated[index].copy(
+                                                paidStatus = PaidStatus.NOT_PAID
+                                            )
+
+                                            setMemberOtherPayments(updated)
+                                        }
+                                    }
+                                }
+                            }
+
+                            else -> {}
+                        }
+                    }
+
+                } else {
 
                     when (status) {
 
-                        PaymentApproveStatus.ACCEPTED ->
-                        {
-                            FirestoreManager.shared.updateMemberOtherPaymentStatus(squadID = payment.squadId, memberID = payment.memberId, otherPaymentsId = payment.memberOtherPaymentId, paidStatus = PaidStatus.PAID, updateDate = true) { success, _ ->
+                        PaymentApproveStatus.ACCEPTED -> {
 
-                                if (success) {
+                            val otherPayment = MemberOtherPayments(
+                                id = UUID.randomUUID().toString(),
+                                memberOtherPaymentType = MemberPaymentSubType.RE_PAYMENT,
+                                amount = payment.amount,
+                                description = payment.description,
+                                memberName = payment.memberName,
+                                memberId = payment.memberId,
+                                paidStatus = PaidStatus.NOT_PAID
+                            )
 
-                                    val index = _memberOtherPayments.value?.indexOfFirst {
-                                        it.id == payment.memberOtherPaymentId
-                                    }
-
-                                    if (index != null) {
-                                        if (index < 0) return@updateMemberOtherPaymentStatus
-
-                                        val updated = _memberOtherPayments.value.toMutableList()
-
-                                        updated.set(index, updated[index].copy(
-                                            paidStatus = PaidStatus.PAID, amountRepaidDate = Timestamp.now())
-                                        )
-                                        setMemberOtherPayments(updated)
-                                    }
-                                }
-
+                            createMemberOtherPayment(
+                                showLoader = false,
+                                payment = otherPayment
+                            ) { _, _ ->
 
                             }
 
                         }
 
-                        PaymentApproveStatus.REJECTED -> {
-
-                            FirestoreManager.shared.updateMemberOtherPaymentStatus(squadID = payment.squadId, memberID = payment.memberId, otherPaymentsId = payment.memberOtherPaymentId, paidStatus = PaidStatus.NOT_PAID, updateDate = false) { success, _ ->
-
-                                if (success) {
-
-                                    val index = _memberOtherPayments.value?.indexOfFirst {
-                                        it.id == payment.memberOtherPaymentId
-                                    }
-
-                                    if (index != null) {
-                                        if (index < 0) return@updateMemberOtherPaymentStatus
-
-                                        val updated = _memberOtherPayments.value.toMutableList()
-
-                                        updated.set(index, updated[index].copy(
-                                            paidStatus = PaidStatus.NOT_PAID)
-                                        )
-                                        setMemberOtherPayments(updated)
-                                    }
-                                }
-
-
-                            }
-
-                        }
+                        PaymentApproveStatus.REJECTED -> {}
 
                         else -> {}
                     }
-
                 }
             }
+            else if (payment.paymentSubType == PaymentSubType.SETTLEMENT) {
 
+                when (status) {
+
+                    PaymentApproveStatus.ACCEPTED -> {
+
+                        val otherPayment = MemberOtherPayments(
+                            id = UUID.randomUUID().toString(),
+                            memberOtherPaymentType = MemberPaymentSubType.SETTLEMENT,
+                            amount = payment.amount,
+                            description = payment.description,
+                            memberName = payment.memberName,
+                            memberId = payment.memberId,
+                            paidStatus = PaidStatus.NOT_PAID
+                        )
+
+                        createMemberOtherPayment(
+                            showLoader = false,
+                            payment = otherPayment
+                        ) { _, _ ->
+
+                        }
+
+                    }
+
+                    PaymentApproveStatus.REJECTED -> {}
+
+                    else -> {}
+                }
+
+            }
             if (showLoader) LoaderManager.shared.hideLoader()
 
             completion(true, null)
         }
+    }
+
+    fun copyToClipboard(
+        context: Context,
+        label: String,
+        text: String
+    ) {
+        val clipboard =
+            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
+        clipboard.setPrimaryClip(
+            ClipData.newPlainText(label, text)
+        )
+    }
+
+    fun updateContributionApproveStatus(
+        showLoader: Boolean = true,
+        squadID: String,
+        memberID: String,
+        contributionID: String,
+        status: PaidStatus,
+        completion: (Boolean, ContributionDetail?, String?) -> Unit
+    ) {
+
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        manager.updateContributionApproveStatus(
+            squadID = squadID,
+            memberID = memberID,
+            contributionID = contributionID,
+            status = status
+        ) { success, contribution, error ->
+
+            if (showLoader) {
+                LoaderManager.shared.hideLoader()
+            }
+
+            if (!success) {
+                completion(false, null, error)
+                return@updateContributionApproveStatus
+            }
+
+            completion(true, contribution, null)
+        }
+    }
+
+    fun updatePaymentCalculations(payment: List<PaymentsDetails>, status: PaymentApproveStatus) {
+        val squadLocal = _squad.value ?: return
+        val userId = payment.firstOrNull()?.memberId
+        val member = _squadMembers.value.firstOrNull { it.id == userId }
+
+        // FIX: was a bare CoroutineScope(Dispatchers.IO).launch — that coroutine kept
+        // running (and could crash silently) even after the ViewModel was cleared.
+        // viewModelScope ties its lifetime to the ViewModel and is auto-cancelled
+        // in onCleared().
+        viewModelScope.launch(Dispatchers.IO) {
+            for (pay in payment) {
+                applyPaymentToFirestore(squadID = squadLocal.squadID, payment = pay, status = status)
+
+                if (status == PaymentApproveStatus.ACCEPTED && pay.memberId.isNotEmpty()) {
+
+                    applyMemberToFirestore(
+
+                        squadID = squadLocal.squadID,
+
+                        memberID = pay.memberId,
+
+                        payment = pay,
+
+                        status = status
+
+                    )
+                }
+
+
+            }
+
+        }
+    }
+
+    fun applyMemberToFirestore(
+        squadID: String,
+        memberID: String,
+        payment: PaymentsDetails,
+        status: PaymentApproveStatus
+    ) {
+
+        if (status != PaymentApproveStatus.ACCEPTED) return
+
+        val updates = mutableMapOf<String, Any>()
+
+        when (payment.paymentType) {
+
+            PaymentType.PAYMENT_CREDIT -> {
+
+                when (payment.paymentSubType) {
+
+                    PaymentSubType.CONTRIBUTION_AMOUNT -> {
+                        updates["totalContributionPaid"] =
+                            FieldValue.increment(payment.amount.toLong())
+                    }
+
+                    PaymentSubType.INTEREST_AMOUNT -> {
+                        updates["totalInterestPaid"] =
+                            FieldValue.increment(payment.intrestAmount.toLong())
+                    }
+
+                    PaymentSubType.EMI_AMOUNT -> {
+
+                        updates["totalLoanPaid"] =
+                            FieldValue.increment((payment.amount).toLong())
+
+                        updates["totalInterestPaid"] =
+                            FieldValue.increment(payment.intrestAmount.toLong())
+                    }
+
+                    else -> Unit
+                }
+            }
+
+            PaymentType.PAYMENT_DEBIT -> {
+
+                if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
+
+                    updates["totalLoanBorrowed"] =
+                        FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
+                }
+            }
+        }
+
+        if (updates.isEmpty()) return
+
+        FirebaseFirestore.getInstance()
+            .collection("squads")
+            .document(squadID)
+            .collection("members")
+            .document(memberID)
+            .update(updates)
+            .addOnSuccessListener {
+                println("✅ Member financials updated atomically")
+            }
+            .addOnFailureListener {
+                println("❌ Failed to update member financials: ${it.message}")
+            }
+    }
+
+    fun applyPaymentToFirestore(squadID: String, payment: PaymentsDetails, status: PaymentApproveStatus) {
+        if (status != PaymentApproveStatus.ACCEPTED) return
+
+        val updates = mutableMapOf<String, Any>()
+
+        when (payment.paymentType) {
+            PaymentType.PAYMENT_CREDIT -> {
+                when (payment.paymentSubType) {
+                    PaymentSubType.CONTRIBUTION_AMOUNT -> {
+                        updates["totalContributionAmountReceived"] = FieldValue.increment(payment.amount.toLong())
+                        updates["currentCreditAmount"] = FieldValue.increment(payment.amount.toLong())
+                        updates["currentAvailableAmount"] = FieldValue.increment(payment.amount.toLong())
+                    }
+                    PaymentSubType.INTEREST_AMOUNT -> {
+                        updates["totalInterestAmountReceived"] = FieldValue.increment(payment.intrestAmount.toLong())
+                        updates["currentCreditAmount"] = FieldValue.increment(payment.intrestAmount.toLong())
+                        updates["currentAvailableAmount"] = FieldValue.increment(payment.amount.toLong())
+                    }
+                    PaymentSubType.EMI_AMOUNT -> {
+                        updates["totalLoanAmountReceived"] = FieldValue.increment((payment.amount.toLong()))
+                        updates["totalInterestAmountReceived"] = FieldValue.increment(payment.intrestAmount.toLong())
+                        updates["currentCreditAmount"] = FieldValue.increment((payment.amount + payment.intrestAmount).toLong())
+                        updates["currentAvailableAmount"] = FieldValue.increment((payment.amount + payment.intrestAmount).toLong())
+                    }
+                    else -> {
+                        updates["currentCreditAmount"] = FieldValue.increment(payment.amount.toLong())
+                        updates["currentAvailableAmount"] = FieldValue.increment(payment.amount.toLong())
+                    }
+                }
+            }
+            PaymentType.PAYMENT_DEBIT -> {
+                if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
+                    updates["totalLoanAmountSent"] = FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
+                }
+                updates["currentDebitAmount"] = FieldValue.increment((payment.amount - payment.intrestAmount).toLong())
+                updates["currentAvailableAmount"] = FieldValue.increment((-payment.amount).toLong())
+            }
+        }
+
+        FirebaseFirestore.getInstance()
+            .collection("squads")
+            .document(squadID)
+            .update(updates)
+            .addOnSuccessListener { println("✅ Squad financials updated atomically") }
+            .addOnFailureListener { println("❌ Failed to update squad financials: ${it.message}") }
     }
 
     fun fetchPendingApprovalPayments(
@@ -3160,6 +3257,75 @@ class SquadViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+
+    fun createMemberOtherPayment(
+
+        showLoader: Boolean = false,
+
+        payment: MemberOtherPayments,
+
+        completion: (Boolean, String?) -> Unit
+
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+
+            completion(false, "No internet connection")
+
+            return
+
+        }
+
+        if (showLoader) {
+
+            LoaderManager.shared.showLoader()
+
+        }
+
+        val squadId = squad.value?.squadID ?: run {
+
+            if (showLoader) LoaderManager.shared.hideLoader()
+
+            completion(false, "Squad information missing")
+
+            return
+
+        }
+
+        manager.createMemberOtherPayment(
+
+            squadID = squadId,
+
+            payment = payment
+
+        ) { success, error ->
+
+            if (showLoader) {
+
+                LoaderManager.shared.hideLoader()
+
+            }
+
+            if (success) {
+
+                val updatedList = _memberOtherPayments.value.orEmpty().toMutableList()
+
+                updatedList.add(0, payment)
+
+                setMemberOtherPayments(updatedList)
+
+                completion(true, null)
+
+            } else {
+
+                completion(false, error)
+
+            }
+
+        }
+
     }
 
     fun fetchMemberOtherPayments(

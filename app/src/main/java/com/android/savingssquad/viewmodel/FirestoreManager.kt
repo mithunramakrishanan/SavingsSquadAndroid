@@ -326,86 +326,6 @@ class FirestoreManager private constructor() {
     }
 
 
-    fun updatePaymentApproveStatus(
-        squadID: String,
-        paymentID: String,
-        status: PaymentApproveStatus,
-        completion: (Boolean, PaymentsDetails?, String?) -> Unit
-    ) {
-
-        val paymentRef = db.collection("squads")
-            .document(squadID)
-            .collection("payments")
-            .document(paymentID)
-
-        paymentRef.get()
-            .addOnSuccessListener { snapshot ->
-
-                if (!snapshot.exists()) {
-                    completion(false, null, "Payment not found")
-                    return@addOnSuccessListener
-                }
-
-                val existingPayment = snapshot.toObject(PaymentsDetails::class.java)
-
-                if (existingPayment?.paymentApproveStatus?.value == status.value) {
-                    completion(false, existingPayment, "Already in ${status.value} status")
-                    return@addOnSuccessListener
-                }
-
-                val paymentStatus: PaymentStatus
-                val paymentResponseMessage: String
-
-                if (status == PaymentApproveStatus.ACCEPTED) {
-                    paymentStatus = PaymentStatus.SUCCESS
-                    paymentResponseMessage =
-                        "Your payment has been successfully processed and verified."
-                } else {
-                    paymentStatus = PaymentStatus.FAILED
-                    paymentResponseMessage =
-                        "Your payment was rejected by the admin as the amount was not received. Please verify and try again."
-                }
-
-                val updateData = hashMapOf<String, Any>(
-                    "paymentStatus" to paymentStatus.value,
-                    "paymentResponseMessage" to paymentResponseMessage,
-                    "paymentApproveStatus" to status.value,
-                    "paymentUpdatedDate" to FieldValue.serverTimestamp()
-                )
-
-                paymentRef.update(updateData)
-                    .addOnSuccessListener {
-
-                        paymentRef.get()
-                            .addOnSuccessListener { updatedSnapshot ->
-
-                                if (!updatedSnapshot.exists()) {
-                                    completion(false, null, "Payment not found")
-                                    return@addOnSuccessListener
-                                }
-
-                                try {
-                                    val payment = updatedSnapshot.toObject(PaymentsDetails::class.java)
-                                    completion(true, payment, null)
-                                } catch (e: Exception) {
-                                    completion(false, null, "Decode error: ${e.localizedMessage}")
-                                }
-                            }
-                            .addOnFailureListener { e ->
-                                completion(false, null, "Failed to fetch updated payment: ${e.localizedMessage}")
-                            }
-                    }
-                    .addOnFailureListener { e ->
-                        completion(false, null, "Failed to update approval status: ${e.localizedMessage}")
-                    }
-
-            }
-            .addOnFailureListener { e ->
-                completion(false, null, "Failed to fetch payment: ${e.localizedMessage}")
-            }
-    }
-
-
     fun fetchPendingApprovals(
         squadID: String,
         screenType: SquadUserType,
@@ -919,7 +839,7 @@ class FirestoreManager private constructor() {
             }
     }
 
-    // MARK: - 🔹 Save Multiple Payments (Batch)
+    // MARK: - savePayments (single payment, Firestore write)
     fun savePayments(
         squadID: String,
         payment: PaymentsDetails?,
@@ -927,7 +847,8 @@ class FirestoreManager private constructor() {
     ) {
 
         val paymentID = payment?.id
-        if (paymentID.isNullOrEmpty()) {
+
+        if (squadID.isEmpty() || paymentID.isNullOrEmpty()) {
             completion(false, "Payment ID is missing.")
             return
         }
@@ -941,11 +862,16 @@ class FirestoreManager private constructor() {
         batch.commit()
             .addOnSuccessListener {
 
-                if (payment.cashRequestId?.isNotEmpty() == true) {
+                // FIX: replaced the force-unwrap (payment.cashRequestId!!) with a safe
+                // local val. Behavior is identical when cashRequestId is non-null/non-empty;
+                // this just removes a crash surface if that invariant ever breaks upstream.
+                val cashRequestId = payment.cashRequestId
+
+                if (!cashRequestId.isNullOrEmpty()) {
 
                     updateCashRequestStatus(
                         squadID = squadID,
-                        cashRequestId = payment.cashRequestId!!,
+                        cashRequestId = cashRequestId,
                         memberId = payment.memberId,
                         status = CashRequestStatus.ACCEPTED
                     ) { error ->
@@ -962,6 +888,101 @@ class FirestoreManager private constructor() {
             }
             .addOnFailureListener { error ->
                 completion(false, "Batch commit failed: ${error.localizedMessage}")
+            }
+    }
+
+    // MARK: - updatePaymentApproveStatus (Firestore read -> update -> re-read)
+    fun updatePaymentApproveStatus(
+        squadID: String,
+        paymentID: String,
+        status: PaymentApproveStatus,
+        completion: (Boolean, PaymentsDetails?, String?) -> Unit
+    ) {
+
+        // FIX: guard against empty squadID/paymentID before building the document path.
+        if (squadID.isEmpty() || paymentID.isEmpty()) {
+            completion(false, null, "Squad ID or Payment ID is missing.")
+            return
+        }
+
+        val paymentRef = db.collection("squads")
+            .document(squadID)
+            .collection("payments")
+            .document(paymentID)
+
+        paymentRef.get()
+            .addOnSuccessListener { snapshot ->
+
+                if (!snapshot.exists()) {
+                    completion(false, null, "Payment not found")
+                    return@addOnSuccessListener
+                }
+
+                // FIX: toObject() can throw RuntimeException on malformed/mismatched data.
+                // It was previously called with no try/catch inside addOnSuccessListener,
+                // so a decode failure here would propagate as an uncaught crash instead of
+                // being reported through the completion callback like every other error path.
+                val existingPayment = try {
+                    snapshot.toObject(PaymentsDetails::class.java)
+                } catch (e: Exception) {
+                    completion(false, null, "Decode error: ${e.localizedMessage}")
+                    return@addOnSuccessListener
+                }
+
+                if (existingPayment?.paymentApproveStatus?.value == status.value) {
+                    completion(false, existingPayment, "Already in ${status.value} status")
+                    return@addOnSuccessListener
+                }
+
+                val paymentStatus: PaymentStatus
+                val paymentResponseMessage: String
+
+                if (status == PaymentApproveStatus.ACCEPTED) {
+                    paymentStatus = PaymentStatus.SUCCESS
+                    paymentResponseMessage =
+                        "Your payment has been successfully processed and verified."
+                } else {
+                    paymentStatus = PaymentStatus.FAILED
+                    paymentResponseMessage =
+                        "Your payment was rejected by the admin as the amount was not received. Please verify and try again."
+                }
+
+                val updateData = hashMapOf<String, Any>(
+                    "paymentStatus" to paymentStatus.value,
+                    "paymentResponseMessage" to paymentResponseMessage,
+                    "paymentApproveStatus" to status.value,
+                    "paymentUpdatedDate" to FieldValue.serverTimestamp()
+                )
+
+                paymentRef.update(updateData)
+                    .addOnSuccessListener {
+
+                        paymentRef.get()
+                            .addOnSuccessListener { updatedSnapshot ->
+
+                                if (!updatedSnapshot.exists()) {
+                                    completion(false, null, "Payment not found")
+                                    return@addOnSuccessListener
+                                }
+
+                                try {
+                                    val payment = updatedSnapshot.toObject(PaymentsDetails::class.java)
+                                    completion(true, payment, null)
+                                } catch (e: Exception) {
+                                    completion(false, null, "Decode error: ${e.localizedMessage}")
+                                }
+                            }
+                            .addOnFailureListener { e ->
+                                completion(false, null, "Failed to fetch updated payment: ${e.localizedMessage}")
+                            }
+                    }
+                    .addOnFailureListener { e ->
+                        completion(false, null, "Failed to update approval status: ${e.localizedMessage}")
+                    }
+
+            }
+            .addOnFailureListener { e ->
+                completion(false, null, "Failed to fetch payment: ${e.localizedMessage}")
             }
     }
 
@@ -1894,6 +1915,42 @@ class FirestoreManager private constructor() {
             }
     }
 
+
+    fun createMemberOtherPayment(
+        squadID: String,
+        payment: MemberOtherPayments,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val document = if (payment.id.isNullOrBlank()) {
+            db.collection("squads")
+                .document(squadID)
+                .collection("otherPayments")
+                .document()
+        } else {
+            db.collection("squads")
+                .document(squadID)
+                .collection("otherPayments")
+                .document(payment.id!!)
+        }
+
+        val paymentToSave = if (payment.id.isNullOrBlank()) {
+            payment.copy(id = document.id)
+        } else {
+            payment
+        }
+
+        document.set(paymentToSave)
+            .addOnSuccessListener {
+                completion(true, null)
+            }
+            .addOnFailureListener { exception ->
+                completion(
+                    false,
+                    "Failed to create Member Other Payment: ${exception.localizedMessage}"
+                )
+            }
+    }
 
     fun fetchMemberOtherPayments(
         squadID: String,

@@ -60,6 +60,7 @@ import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.viewmodel.ToastManager
 import com.android.savingssquad.viewmodel.ToastType
 import com.google.firebase.auth.PhoneAuthOptions
+import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -360,6 +361,14 @@ fun sendOTP(
     onSuccess: (String) -> Unit,
     onError: (String) -> Unit
 ) {
+
+    val nonPhoneUsers = CommonFunctions.cleanUpPhoneNumber(phoneNumber)
+
+    if (nonPhoneUsers == "1111111111" || nonPhoneUsers == "2222222222" || nonPhoneUsers == "3333333333") {
+        ToastManager.show(title = SquadStrings.appName, message = "Invalid Phone Number", type = ToastType.ERROR)
+        return
+    }
+
     val fullNumber = "+91$phoneNumber"
     onStart()
 
