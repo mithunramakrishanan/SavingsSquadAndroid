@@ -26,15 +26,14 @@ import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.SquadRule
 import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.MemberOtherPayments
-import com.android.savingssquad.model.ReminderRequest
 import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.model.pendingInstallments
 import com.android.savingssquad.singleton.AlertType
 import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.SquadLanguages
 import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.MemberPaymentSubType
-import com.android.savingssquad.singleton.NotificationService
 import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.PaidStatus
@@ -51,9 +50,6 @@ import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.RazorpayPaymentAction
 import com.android.savingssquad.singleton.SessionManager
-import com.android.savingssquad.singleton.UPIPaymentManager
-import com.android.savingssquad.singleton.UPIPaymentStatus
-import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.google.firebase.firestore.*
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -65,7 +61,6 @@ import kotlinx.coroutines.launch
 import java.util.Date
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -357,6 +352,10 @@ class SquadViewModel : ViewModel() {
     private var membersListener: ListenerRegistration? = null
 
 
+
+    private val _language  = MutableStateFlow<SquadLanguages?>(null)
+    val language : StateFlow<SquadLanguages?> = _language
+    fun setLanguage (value: SquadLanguages?) { _language .value = value }
 
     init {
         val login = UserDefaultsManager.getLogin()

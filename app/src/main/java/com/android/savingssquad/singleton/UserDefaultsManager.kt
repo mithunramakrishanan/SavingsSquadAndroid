@@ -39,6 +39,8 @@ object UserDefaultsManager {
         const val LOGGED_GROUP_ID = "LOGGEDGROUPID"
 
         const val PENDING_PAYMENT = "PENDING_PAYMENT"
+
+        const val KEY_LANGUAGE = "language"
     }
 
     /**
@@ -151,6 +153,18 @@ object UserDefaultsManager {
 
     fun saveIsCashReqNotification(isManager: Boolean) = saveBool(Keys.IS_CASH_REQUEST_NOTIFICATION, isManager)
     fun getIsCashReqnotification(): Boolean = getBool(Keys.IS_CASH_REQUEST_NOTIFICATION)
+
+    fun saveLanguage(language: SquadLanguages) {
+
+        saveObject(Keys.KEY_LANGUAGE, language.value)
+    }
+
+    fun getLanguage(): SquadLanguages {
+        val value: String? = getObject<String>(Keys.KEY_LANGUAGE)
+        return SquadLanguages.entries.firstOrNull {
+            it.value == value
+        } ?: SquadLanguages.ENGLISH
+    }
 
     // 🔹 Clear All
     fun clearAll() {

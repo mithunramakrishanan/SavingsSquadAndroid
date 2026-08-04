@@ -21,7 +21,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -100,7 +99,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -113,6 +111,7 @@ import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.model.forceCloseSummary
 import com.android.savingssquad.singleton.AlertType
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.SquadLanguages
 import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.color
@@ -124,8 +123,8 @@ import com.google.firebase.auth.PhoneAuthOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import java.util.Calendar
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.compose.runtime.collectAsState
 
 
 // ---------- SSNavigationBar ----------
@@ -1740,7 +1739,7 @@ fun AddMemberPopup(
     var debounceJob by remember { mutableStateOf<Job?>(null) }
 
     val isNonPhoneNumber = NON_PHONE_NUMBERS.contains(phoneNumberState.value)
-    val nonPhoneMembersUsedCount = squadViewModel.squadMembers.value
+    val nonPhoneMembersUsedCount = squadViewModel.squadMembers.collectAsState().value
         .count { NON_PHONE_NUMBERS.contains(it.phoneNumber) }
 
     // ----------------- Validation -----------------
@@ -3629,4 +3628,130 @@ fun SSStatusMenuButton(
             }
         }
     }
+}
+
+@Composable
+
+fun LanguageDropDownView(
+
+    selectedLanguage: SquadLanguages?,
+    squadViewModel: SquadViewModel,
+    onLanguageSelected: (SquadLanguages) -> Unit,
+
+) {
+
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+
+        OutlinedButton(
+
+            onClick = { expanded = true },
+
+            shape = RoundedCornerShape(10.dp),
+
+            contentPadding = PaddingValues(
+
+                horizontal = 12.dp,
+
+                vertical = 8.dp
+
+            ),
+
+            colors = ButtonDefaults.outlinedButtonColors(
+
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+
+            )
+
+        ) {
+
+            Icon(
+
+                imageVector = Icons.Default.Language,
+
+                contentDescription = null
+
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+
+                text = squadViewModel.language.collectAsState().value?.value ?: "",
+
+                style = MaterialTheme.typography.bodyMedium,
+
+                fontWeight = FontWeight.Medium
+
+            )
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            Icon(
+
+                imageVector = Icons.Default.ArrowDropDown,
+
+                contentDescription = null
+
+            )
+
+        }
+
+        DropdownMenu(
+
+            expanded = expanded,
+
+            onDismissRequest = { expanded = false }
+
+        ) {
+
+            SquadLanguages.entries.forEach { language ->
+
+                DropdownMenuItem(
+
+                    text = {
+
+                        Row(
+
+                            verticalAlignment = Alignment.CenterVertically
+
+                        ) {
+
+                            Text(language.value)
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            if (language == selectedLanguage) {
+
+                                Icon(
+
+                                    imageVector = Icons.Default.Check,
+
+                                    contentDescription = null,
+
+                                    tint = AppColors.primaryButton
+
+                                )
+
+                            }
+
+                        }
+
+                    },
+
+                    onClick = {
+
+                        expanded = false
+                        onLanguageSelected(language)
+                    }
+
+                )
+
+            }
+
+        }
+
+    }
+
 }

@@ -540,3 +540,8 @@ enum class MemberPaymentSubType(val value: String) {
     RE_PAYMENT("RE_PAYMENT"),
     SETTLEMENT("SETTLEMENT")
 }
+
+enum class SquadLanguages(val value: String) {
+    ENGLISH("English"),
+    TAMIL("தமிழ்")
+}

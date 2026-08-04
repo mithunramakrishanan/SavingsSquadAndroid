@@ -27,21 +27,16 @@ import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.appShadow
 
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.yourapp.utils.CommonFunctions
-import com.android.savingssquad.singleton.LoaderManager
 import java.util.Date
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.android.savingssquad.R
-import com.android.savingssquad.SquadSubscription.BillingHelper
 import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.SquadSubscription.TrialBadgeView
 import com.android.savingssquad.model.Squad
@@ -51,11 +46,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.navigation.compose.rememberNavController
 import com.android.savingssquad.singleton.AppFont
-import com.android.savingssquad.viewmodel.FirestoreManager
-import com.android.savingssquad.viewmodel.SSToast
-import kotlinx.coroutines.selects.select
+import com.android.savingssquad.singleton.SquadLanguages
 
 @Composable
 fun ManagerHomeView(
@@ -197,7 +189,7 @@ fun ManagerHomeView(
             {
                 // 🔹 Top Navigation Bar
                 SSNavigationBar(
-                    title = "Manager Dashboard",
+                    title = if (squadViewModel.language.collectAsState().value == SquadLanguages.TAMIL) "மேலாளர் டாஷ்போர்டு" else {"Manager Dashboard"}  ,
                     navController = navController,
                     showBackButton = false,
                     rightButtonDrawable = if (UserDefaultsManager.getIsMultipleAccount())

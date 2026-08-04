@@ -1,6 +1,5 @@
 package com.android.savingssquad.view
 
-import android.util.Log
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
@@ -18,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalance
@@ -31,7 +29,6 @@ import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -51,10 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.room.util.copy
-import com.android.savingssquad.model.Login
 import com.android.savingssquad.viewmodel.SquadViewModel
-import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.singleton.AppShadows
@@ -63,8 +57,7 @@ import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
-import com.android.savingssquad.viewmodel.FirestoreManager
-import com.android.savingssquad.viewmodel.SSToast
+import androidx.compose.runtime.collectAsState
 
 sealed class SquadSettingsEvent {
     data object ManageSquad : SquadSettingsEvent()
@@ -287,7 +280,17 @@ fun SquadSettingsView(
                     }
                 }
 
+                item {
+                    LanguageDropDownView(
+                        selectedLanguage = UserDefaultsManager.getLanguage(),
+                        squadViewModel,
+                    ) {
 
+                        UserDefaultsManager.saveLanguage(it)
+                        squadViewModel.setLanguage(it)
+                    }
+
+                }
                 item(span = { GridItemSpan(2) }) {
                     LogoutCard {
                         AlertManager.shared.showAlert(
