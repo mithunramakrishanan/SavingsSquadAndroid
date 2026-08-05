@@ -173,7 +173,7 @@ fun PaymentConfirmationView(
             {
 
                 Text(
-                    text = "Payment Confirmation",
+                    text = SquadStrings.paymentConfirmation,
                     style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
                     color = AppColors.headerText,
                     textAlign = TextAlign.Center,
@@ -355,7 +355,7 @@ private fun StatusHero(payment: PaymentsDetails?, pulseScale: Float, pulseAlpha:
 
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = "AMOUNT TO PAY",
+                text = SquadStrings.amountToPay,
                 style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
                 color = AppColors.secondaryText.copy(alpha = 0.7f)
             )

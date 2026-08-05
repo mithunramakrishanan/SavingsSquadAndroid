@@ -183,7 +183,7 @@ fun ManagerPaymentView(
                     SectionView(title = "Select Member") {
                         SSTextField(
                             icon = Icons.Default.Person,
-                            placeholder = loanSelectedMember?.name ?: "Select Squad Member",
+                            placeholder = loanSelectedMember?.name ?: SquadStrings.selectSquadMember,
                             textState = remember { mutableStateOf(loanSelectedMember?.name ?: "") },
                             keyboardType = KeyboardType.Text,
                             showDropdown = true,
@@ -321,7 +321,7 @@ fun ManagerPaymentView(
                                     title = if (emiSelectedType != null && loanSelectedMember != null)
                                         "Pay ₹${emiSelectedType!!.loanAmount} to ${loanSelectedMember!!.name}'s UPI"
                                     else
-                                        "Pay",
+                                        SquadStrings.pay,
                                     isDisabled = !buttonEnabled,
                                     action = {
                                         val member = loanSelectedMember
@@ -353,9 +353,9 @@ fun ManagerPaymentView(
 
                                 ManagerPaymentSecondaryButton(
 
-                                    title = "Mark as Sent",
+                                    title = SquadStrings.markAsSent,
 
-                                    subtitle = "Already transferred or handed over cash to the member.",
+                                    subtitle = SquadStrings.alreadyTransferredOrHandedOverCashToTheMember,
 
                                     disabled =  emiSelectedType == null
 
@@ -402,7 +402,7 @@ fun ManagerPaymentView(
                                                 .padding(horizontal = 16.dp)
                                         ) {
                                             Text(
-                                                text = "UPI ID not available",
+                                                text = SquadStrings.upiIdNotAvailable,
                                                 style = AppFont.ibmPlexSans(13, FontWeight.Medium),
                                                 color = AppColors.errorAccent
                                             )
@@ -410,7 +410,7 @@ fun ManagerPaymentView(
                                             Spacer(modifier = Modifier.height(4.dp))
 
                                             Text(
-                                                text = "Please ask the member to add their UPI ID before proceeding with the payment.",
+                                                text = SquadStrings.askMemberToAddUPI,
                                                 style = AppFont.ibmPlexSans(12, FontWeight.Normal),
                                                 color = AppColors.secondaryText,
                                                 textAlign = TextAlign.Center
@@ -426,7 +426,7 @@ fun ManagerPaymentView(
                                                 .padding(horizontal = 16.dp)
                                         ) {
                                             Text(
-                                                text = "Payment will be sent to",
+                                                text = SquadStrings.paymentWillBeSentTo,
                                                 style = AppFont.ibmPlexSans(12, FontWeight.Normal),
                                                 color = AppColors.secondaryText
                                             )
@@ -444,7 +444,7 @@ fun ManagerPaymentView(
                                             Spacer(modifier = Modifier.height(4.dp))
 
                                             Text(
-                                                text = "Please verify the UPI ID before completing the transfer.",
+                                                text = SquadStrings.verifyUPIBeforeTransfer,
                                                 style = AppFont.ibmPlexSans(11, FontWeight.Normal),
                                                 color = AppColors.secondaryText,
                                                 textAlign = TextAlign.Center
@@ -487,14 +487,14 @@ fun ManagerPaymentView(
 
                             SSTextField(
                                 icon = Icons.Default.CreditCard,
-                                placeholder = "Enter Amount",
+                                placeholder = SquadStrings.enterAmount,
                                 textState = amount,
                                 keyboardType = KeyboardType.Number,
                                 error = memberPaymentAmountError
                             )
 
                             SSTextView(
-                                placeholder = "Add a note",
+                                placeholder = SquadStrings.addANote,
                                 text = memberPaymentNotes,
                                 onTextChange = { memberPaymentNotes = it },
                                 error = memberPaymentNotesError,
@@ -509,7 +509,7 @@ fun ManagerPaymentView(
                                 title = if (loanSelectedMember != null)
                                     "Pay ₹${memberPaymentAmount.value} to ${loanSelectedMember!!.name}'s UPI"
                                 else
-                                    "Pay",
+                                    SquadStrings.pay,
                                 isDisabled = !buttonEnabled,
                                 action = {
                                     if (validateMemberOtherPaymentFields()) {
@@ -620,9 +620,9 @@ fun ManagerPaymentView(
 
                                 ManagerPaymentSecondaryButton(
 
-                                    title = "Mark as Sent",
+                                    title = SquadStrings.markAsSent,
 
-                                    subtitle = "Already transferred or handed over cash to the member.",
+                                    subtitle = SquadStrings.alreadyTransferredOrHandedOverCashToTheMember,
 
                                     disabled =  loanSelectedMember != null
 
@@ -748,7 +748,7 @@ fun ManagerPaymentView(
                             }
                             SSTextField(
                                 icon = Icons.Default.CreditCard,
-                                placeholder = "Enter Amount",
+                                placeholder = SquadStrings.enterAmount,
                                 textState = amount,
                                 keyboardType = KeyboardType.Number,
                                 error = paymentAmountError
@@ -756,7 +756,7 @@ fun ManagerPaymentView(
 
 
                             SSTextView(
-                                placeholder = "Add a note",
+                                placeholder = SquadStrings.addANote,
                                 text = paymentNotes,
                                 onTextChange = { paymentNotes = it },
                                 error = paymentNotesError,

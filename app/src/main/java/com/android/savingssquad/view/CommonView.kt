@@ -858,7 +858,7 @@ fun ProgressCircleView(
             )
 
             Text(
-                text = "Months",
+                text = SquadStrings.months,
                 style = AppFont.ibmPlexSans(12, FontWeight.Medium),
                 color = AppColors.secondaryText
             )
@@ -3068,7 +3068,7 @@ fun EditAmountPopup(
 
                 SSTextField(
                     icon = Icons.Default.Edit,
-                    placeholder = "Enter Amount",
+                    placeholder = SquadStrings.enterAmount,
                     textState = amount,
                     keyboardType = KeyboardType.Number,
                     error = amountError
@@ -3448,7 +3448,7 @@ fun CheckDuesButton(
             ) {
 
                 Text(
-                    text = "Check Dues",
+                    text = SquadStrings.checkDues,
                     style = AppFont.ibmPlexSans(
                         16,
                         FontWeight.Bold
@@ -3459,7 +3459,7 @@ fun CheckDuesButton(
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Text(
-                    text = "View pending contributions & EMI details",
+                    text = SquadStrings.viewPendingContributionsAndEMIDetails,
                     style = AppFont.ibmPlexSans(12),
                     color = AppColors.secondaryText,
                     maxLines = 2

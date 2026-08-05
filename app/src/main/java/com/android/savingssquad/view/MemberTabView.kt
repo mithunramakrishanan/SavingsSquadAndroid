@@ -69,6 +69,7 @@ import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.SSToast
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.savingssquad.singleton.SquadStrings
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
@@ -240,7 +241,7 @@ fun MemberTabView(
 
                             Image(
                                 painter = painterResource(R.drawable.pay_icon),
-                                contentDescription = "Pay",
+                                contentDescription = SquadStrings.pay,
                                 modifier = Modifier.size(58.dp)
                             )
                         }
@@ -251,7 +252,7 @@ fun MemberTabView(
                     )
 
                     Text(
-                        text = "Pay",
+                        text = SquadStrings.pay,
                         style = AppFont.ibmPlexSans(
                             size = 12,
                             weight = FontWeight.SemiBold

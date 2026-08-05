@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.tooling.preview.Preview
 import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.singleton.SquadLanguages
+import com.android.savingssquad.singleton.SquadStrings
 
 @Composable
 fun ManagerHomeView(
@@ -180,7 +181,7 @@ fun ManagerHomeView(
     {
         AppBackgroundGradient()
 
-        if (squad != null) {
+        squad?.let {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -189,7 +190,7 @@ fun ManagerHomeView(
             {
                 // 🔹 Top Navigation Bar
                 SSNavigationBar(
-                    title = if (squadViewModel.language.collectAsState().value == SquadLanguages.TAMIL) "மேலாளர் டாஷ்போர்டு" else {"Manager Dashboard"}  ,
+                    title = "Hi, ${squad!!.squadName}",
                     navController = navController,
                     showBackButton = false,
                     rightButtonDrawable = if (UserDefaultsManager.getIsMultipleAccount())
@@ -252,7 +253,7 @@ fun ManagerHomeView(
                             contentAlignment = Alignment.Center
                         ) {
                             SSBadge(
-                                title = "Squad ID",
+                                title = SquadStrings.squadId,
                                 value = squadViewModel.squad.value?.squadID ?: "",
                                 icon = "🏆",
                                 style = BadgeStyle.PRIMARY
@@ -352,7 +353,7 @@ fun ManagerHomeView(
                                 totalMembers = squadMembersCount,
                                 totalContribution = gf.totalContributionAmountReceived.currencyFormattedWithCommas(),
                                 subDetails = listOf(
-                                    "creditcard" to "As of ${CommonFunctions.dateToString(Date(), "MMM yyyy")}"
+                                    "creditcard" to SquadStrings.asOfDate(CommonFunctions.dateToString(Date(), "MMM yyyy"))
                                 ),
                                 onClick = { openMembersList = true }
                             )
@@ -379,8 +380,7 @@ fun ManagerHomeView(
 
                                     if (SubscriptionManager.shared.canUseLoan()) {
                                         openLoanDetails = true
-                                    }
-                                    else {
+                                    } else {
                                         squadViewModel.setShowUpgradePlan(true)
                                     }
                                 }
@@ -440,61 +440,107 @@ fun ManagerHeaderView(
         modifier = Modifier
             .fillMaxWidth()
             .padding(6.dp)
-            .appShadow(AppShadows.card, RoundedCornerShape(20.dp))
+            .appShadow(AppShadows.card, RoundedCornerShape(24.dp))
             .background(
-                color = AppColors.surface,
-                shape = RoundedCornerShape(20.dp)
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        AppColors.surface,
+                        AppColors.surface.copy(alpha = 0.96f)
+                    )
+                ),
+                shape = RoundedCornerShape(24.dp)
             )
             .border(
-                width = 0.5.dp,
-                color = AppColors.border.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(20.dp)
+                width = 0.8.dp,
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        AppColors.border.copy(alpha = 0.5f),
+                        AppColors.border.copy(alpha = 0.15f)
+                    )
+                ),
+                shape = RoundedCornerShape(24.dp)
             )
             .clickable { onAccountSummaryClick() }
-            .padding(14.dp),
+            .padding(18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
 
         // ================= LEFT SECTION =================
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
 
-            Text(
-                text = "Hi, ${squad.squadName}",
-                style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
-                color = AppColors.headerText,
-                maxLines = 1
-            )
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                AppColors.primaryButton.copy(alpha = 0.18f),
+                                AppColors.primaryButton.copy(alpha = 0.06f)
+                            )
+                        ),
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccountBalanceWallet,
+                    contentDescription = null,
+                    tint = AppColors.primaryButton,
+                    modifier = Modifier.size(17.dp)
+                )
+            }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
 
                 Text(
-                    text = "Available balance",
-                    style = AppFont.ibmPlexSans(12, FontWeight.Medium),
+                    text = SquadStrings.yourAvailableBalance,
+                    style = AppFont.ibmPlexSans(13, FontWeight.Medium),
                     color = AppColors.secondaryText
                 )
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
 
-                // subtle dot indicator (iOS feel)
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .background(
-                            AppColors.secondaryText.copy(alpha = 0.4f),
-                            CircleShape
-                        )
-                )
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .background(Color(0xFF34C759), CircleShape)
+                    )
+
+                    Spacer(modifier = Modifier.width(5.dp))
+
+                    Text(
+                        text = "Live",
+                        style = AppFont.ibmPlexSans(11, FontWeight.Normal),
+                        color = AppColors.secondaryText.copy(alpha = 0.7f)
+                    )
+                }
             }
         }
 
-        // ================= RIGHT BALANCE (iOS HERO BLOCK) =================
+        Spacer(modifier = Modifier.weight(1f))
+
+        // ================= RIGHT BALANCE =================
         Column(
             horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+
+            // main value with gradient text
+            Text(
+                text = squad.currentAvailableAmount.currencyFormattedWithCommas(),
+                style = AppFont.ibmPlexSans(26, FontWeight.Bold).copy(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            AppColors.primaryButton,
+                            AppColors.primaryButton.copy(alpha = 0.7f)
+                        )
+                    )
+                ),
+                maxLines = 1
+            )
 
             // small label chip
             Box(
@@ -506,18 +552,11 @@ fun ManagerHeaderView(
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "Balance",
-                    style = AppFont.ibmPlexSans(11, FontWeight.Medium),
+                    text = SquadStrings.balance,
+                    style = AppFont.ibmPlexSans(11, FontWeight.SemiBold),
                     color = AppColors.secondaryText
                 )
             }
-
-            Text(
-                text = squad.currentAvailableAmount.currencyFormattedWithCommas(),
-                style = AppFont.ibmPlexSans(22, FontWeight.Bold),
-                color = AppColors.primaryButton,
-                maxLines = 1
-            )
         }
     }
 }
@@ -539,8 +578,8 @@ fun ManagerTwoButtons(
         // ================= ADD MEMBER =================
         TwoButtonGradient(
             icon = Icons.Filled.PersonAdd,
-            title = "Add Member",
-            subtitle = "Grow your squad",
+            title = SquadStrings.addMember,
+            subtitle = SquadStrings.growYourSquad,
             gradientColors = listOf(
                 AppColors.primaryButton,
                 AppColors.successAccent.copy(alpha = 0.95f)
@@ -557,8 +596,8 @@ fun ManagerTwoButtons(
 
             TwoButtonGradient(
                 icon = Icons.Default.VerifiedUser,
-                title = "Verify Payment",
-                subtitle = "Review requests",
+                title = SquadStrings.verifyPayment,
+                subtitle = SquadStrings.reviewRequests,
                 gradientColors = listOf(
                     AppColors.secondaryAccent,
                     AppColors.warningAccent
@@ -616,7 +655,7 @@ fun MemberTwoButtons(
         // ================= REQUEST CASH =================
         TwoButtonGradient(
             icon = Icons.Filled.AddCircle,
-            title = "Request Cash",
+            title = SquadStrings.requestCash,
             subtitle = if (isRequestCashEnabled) "Ask your squad" else "Coming soon",
             gradientColors = listOf(AppColors.primaryButton, AppColors.successAccent),
             onClick = requestCashAction,
@@ -633,8 +672,8 @@ fun MemberTwoButtons(
 
             TwoButtonGradient(
                 icon = Icons.Default.VerifiedUser,
-                title = "Verify Payment",
-                subtitle = "Review requests",
+                title = SquadStrings.verifyPayment,
+                subtitle = SquadStrings.reviewRequests,
                 gradientColors = listOf(
                     AppColors.secondaryAccent,
                     AppColors.warningAccent
@@ -854,7 +893,7 @@ fun TotalMemberContributionCard(
         Row(verticalAlignment = Alignment.CenterVertically) {
 
             Text(
-                text = "Overview",
+                text = SquadStrings.overview,
                 style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
                 color = AppColors.headerText
             )
@@ -889,7 +928,7 @@ fun TotalMemberContributionCard(
             ) {
 
                 Text(
-                    text = "Members",
+                    text = SquadStrings.members,
                     style = AppFont.ibmPlexSans(12, FontWeight.Medium),
                     color = AppColors.secondaryText
                 )
@@ -907,7 +946,7 @@ fun TotalMemberContributionCard(
             ) {
 
                 Text(
-                    text = "Contribution",
+                    text = SquadStrings.contribution,
                     style = AppFont.ibmPlexSans(12, FontWeight.Medium),
                     color = AppColors.secondaryText
                 )
@@ -991,7 +1030,7 @@ fun LoanSummaryCard(
         ) {
 
             Text(
-                text = "Loan Summary",
+                text = SquadStrings.loanSummary,
                 style = AppFont.ibmPlexSans(15, FontWeight.SemiBold),
                 color = AppColors.headerText
             )
@@ -1025,7 +1064,7 @@ fun LoanSummaryCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 LoanStatViewIOS(
-                    title = "Sent",
+                    title = SquadStrings.sent,
                     value = totalSent,
                     icon = Icons.Filled.ArrowUpward,
                     color = AppColors.errorAccent,
@@ -1033,7 +1072,7 @@ fun LoanSummaryCard(
                 )
 
                 LoanStatViewIOS(
-                    title = "Received",
+                    title = SquadStrings.received,
                     value = totalReceived,
                     icon = Icons.Filled.ArrowDownward,
                     color = AppColors.successAccent,
@@ -1046,7 +1085,7 @@ fun LoanSummaryCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 LoanStatViewIOS(
-                    title = "Pending",
+                    title = SquadStrings.pending,
                     value = pending,
                     icon = Icons.Filled.HourglassEmpty,
                     color = AppColors.warningAccent,
@@ -1054,7 +1093,7 @@ fun LoanSummaryCard(
                 )
 
                 LoanStatViewIOS(
-                    title = "Interest",
+                    title = SquadStrings.interest,
                     value = interestEarned,
                     icon = Icons.Filled.AccountBalance,
                     color = AppColors.infoAccent,

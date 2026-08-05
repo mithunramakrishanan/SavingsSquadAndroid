@@ -77,6 +77,7 @@ import kotlinx.coroutines.Dispatchers
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.graphicsLayer
+import com.android.savingssquad.model.Squad
 import com.android.savingssquad.singleton.MemberPaymentSubType
 import com.yourapp.utils.IDGenerator
 
@@ -214,7 +215,7 @@ fun ManualEntryView(
                             // Member selection field (readonly but dropdown active)
                             SSTextField(
                                 icon = Icons.Default.Person,
-                                placeholder = if (contributionSelectedMemberName.isEmpty()) "Select Squad Member" else contributionSelectedMemberName,
+                                placeholder = if (contributionSelectedMemberName.isEmpty()) SquadStrings.selectSquadMember else contributionSelectedMemberName,
                                 textState = remember { mutableStateOf(contributionSelectedMemberName) }, // keep display, but won't edit directly
                                 keyboardType = KeyboardType.Text,
                                 showDropdown = true,
@@ -418,7 +419,7 @@ fun ManualEntryView(
                             // Member selection
                             SSTextField(
                                 icon = Icons.Default.Person,
-                                placeholder = if (emiSelectedMemberName.isEmpty()) "Select Squad Member" else emiSelectedMemberName,
+                                placeholder = if (emiSelectedMemberName.isEmpty()) SquadStrings.selectSquadMember else emiSelectedMemberName,
                                 textState = remember { mutableStateOf(emiSelectedMemberName) },
                                 keyboardType = KeyboardType.Text,
                                 showDropdown = true,
@@ -615,7 +616,7 @@ fun ManualEntryView(
                             // Member selection field (readonly but dropdown active)
                             SSTextField(
                                 icon = Icons.Default.Person,
-                                placeholder = if (otherMemberPaymentSelectedMemberName.isEmpty()) "Select Squad Member" else otherMemberPaymentSelectedMemberName,
+                                placeholder = if (otherMemberPaymentSelectedMemberName.isEmpty()) SquadStrings.selectSquadMember else otherMemberPaymentSelectedMemberName,
                                 textState = remember { mutableStateOf(otherMemberPaymentSelectedMemberName) }, // keep display, but won't edit directly
                                 keyboardType = KeyboardType.Text,
                                 showDropdown = true,
@@ -692,7 +693,7 @@ fun ManualEntryView(
                                 }
                             }
 
-                            SSButton(title = "Update Payment", isDisabled = selectedMemberOtherPayment == null, action =   {
+                            SSButton(title = SquadStrings.updatePayment, isDisabled = selectedMemberOtherPayment == null, action =   {
 
                                 val squad = squadViewModel.squad ?: return@SSButton
 
@@ -836,7 +837,7 @@ fun ManualEntryView(
 
                             SSTextField(
                                 icon = Icons.Default.CreditCard,
-                                placeholder = "Enter Amount",
+                                placeholder = SquadStrings.enterAmount,
                                 textState = paymentAmount,
                                 keyboardType = KeyboardType.Number,
                                 error = paymentAmountError
@@ -844,14 +845,14 @@ fun ManualEntryView(
 
 
                             SSTextView(
-                                placeholder = "Add a note",
+                                placeholder = SquadStrings.addANote,
                                 text = paymentNotes,
                                 onTextChange = { paymentNotes = it },
                                 error = paymentNotesError,
                                 maxCharacters = 200
                             )
 
-                            SSButton(title = "Update Payment") {
+                            SSButton(title = SquadStrings.updatePayment) {
                                 /* handle other payment */
 
                                 if (validateFields()) {

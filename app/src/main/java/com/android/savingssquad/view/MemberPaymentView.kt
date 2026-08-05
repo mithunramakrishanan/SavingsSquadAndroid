@@ -742,7 +742,7 @@ private fun ContributionButton(upiID: String, onClick: () -> Unit) {
             ) {
 
                 Text(
-                    text = "Payment will be sent to",
+                    text = SquadStrings.paymentWillBeSentTo,
                     style = AppFont.ibmPlexSans(12, FontWeight.Normal),
                     color = AppColors.secondaryText,
                     textAlign = TextAlign.Center
@@ -1077,7 +1077,7 @@ fun MemberOtherPaymentRow(
                                 ) {
 
                                     Text(
-                                        "Pay",
+                                        SquadStrings.pay,
                                         style = AppFont.ibmPlexSans(13, FontWeight.Bold),
                                         color = Color.White
                                     )
@@ -1121,7 +1121,7 @@ fun MemberOtherPaymentRow(
                                 ) {
 
                                     Text(
-                                        "Pay",
+                                        SquadStrings.pay,
                                         style = AppFont.ibmPlexSans(13, FontWeight.Bold),
                                         color = Color.White
                                     )

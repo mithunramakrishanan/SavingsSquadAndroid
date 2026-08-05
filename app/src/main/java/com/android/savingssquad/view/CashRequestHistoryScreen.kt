@@ -1245,7 +1245,7 @@ fun CashRequestButton(
 
                 painter = painterResource(R.drawable.cash_request),
 
-                contentDescription = "Cash Requests",
+                contentDescription = SquadStrings.cashRequests,
 
                 tint = AppColors.primaryBrand,
 
@@ -1261,7 +1261,7 @@ fun CashRequestButton(
         ) {
 
             Text(
-                text = "Cash Requests",
+                text = SquadStrings.cashRequests,
                 style = AppFont.ibmPlexSans(
                     14,
                     FontWeight.SemiBold
@@ -1275,11 +1275,11 @@ fun CashRequestButton(
                 text =
                     if (UserDefaultsManager.getSquadManagerLogged()) {
                         if (pendingCount > 0)
-                            "$pendingCount Pending"
+                            SquadStrings.pendingCashRequestCount(pendingCount)
                         else
-                            "No Pending"
+                            SquadStrings.noPendingCashReuqest
                     } else {
-                        "Squad Cash Requests"
+                        SquadStrings.squadCashRequests
                     },
                 style = AppFont.ibmPlexSans(
                     11,

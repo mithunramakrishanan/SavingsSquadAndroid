@@ -31,6 +31,7 @@ import com.android.savingssquad.model.pendingInstallments
 import com.android.savingssquad.singleton.AlertType
 import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.singleton.LanguageStore
 import com.android.savingssquad.singleton.SquadLanguages
 import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.MemberPaymentSubType
@@ -353,9 +354,15 @@ class SquadViewModel : ViewModel() {
 
 
 
-    private val _language  = MutableStateFlow<SquadLanguages?>(null)
-    val language : StateFlow<SquadLanguages?> = _language
-    fun setLanguage (value: SquadLanguages?) { _language .value = value }
+    private val _language = MutableStateFlow<SquadLanguages?>(UserDefaultsManager.getLanguage())
+    val language: StateFlow<SquadLanguages?> = _language
+
+    fun setLanguage(value: SquadLanguages?) {
+        _language.value = value
+        value?.let {
+            LanguageStore.current = it
+        }
+    }
 
     init {
         val login = UserDefaultsManager.getLogin()

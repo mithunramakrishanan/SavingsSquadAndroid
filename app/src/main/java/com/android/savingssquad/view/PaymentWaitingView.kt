@@ -59,6 +59,7 @@ import com.android.savingssquad.R
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
+import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UPIApp
 import com.android.savingssquad.singleton.UPIAppDetector
 import com.android.savingssquad.viewmodel.SquadViewModel
@@ -252,7 +253,7 @@ private fun WaitingHero(payment: PaymentsDetails, pulseScale: Float, pulseAlpha:
 
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = "AMOUNT TO PAY",
+                text = SquadStrings.amountToPay,
                 style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
                 color = AppColors.secondaryText.copy(alpha = 0.7f)
             )

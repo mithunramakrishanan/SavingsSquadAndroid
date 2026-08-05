@@ -545,3 +545,7 @@ enum class SquadLanguages(val value: String) {
     ENGLISH("English"),
     TAMIL("தமிழ்")
 }
+
+object LanguageStore {
+    var current: SquadLanguages = UserDefaultsManager.getLanguage()
+}

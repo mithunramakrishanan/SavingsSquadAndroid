@@ -39,6 +39,7 @@ import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.SquadSubscription.UpgradePlanScreen
 import com.android.savingssquad.SquadSubscription.UpgradeSuccessScreen
 import com.android.savingssquad.singleton.AppFont
+import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.viewmodel.AppDestination
@@ -217,7 +218,7 @@ fun ManagerTabView(
 
                             Image(
                                 painter = painterResource(R.drawable.pay_icon),
-                                contentDescription = "Pay",
+                                contentDescription = SquadStrings.pay,
                                 modifier = Modifier.size(58.dp)
                             )
                         }
@@ -228,7 +229,7 @@ fun ManagerTabView(
                     )
 
                     Text(
-                        text = "Pay",
+                        text = SquadStrings.pay,
                         style = AppFont.ibmPlexSans(
                             size = 12,
                             weight = FontWeight.SemiBold
