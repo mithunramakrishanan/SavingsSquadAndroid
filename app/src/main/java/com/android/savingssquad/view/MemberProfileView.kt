@@ -164,7 +164,7 @@ fun MemberProfileView(
                     if (screenType == SquadUserType.SQUAD_MANAGER) {
                         listOf(
                             MemberStatItem(
-                                title = "Contribution Received",
+                                title = SquadStrings.contributionReceived,
                                 value = safeMember.totalContributionPaid.currencyFormattedWithCommas(),
                                 icon = Icons.Default.ArrowDownward,
                                 color = Color.Green,
@@ -176,7 +176,7 @@ fun MemberProfileView(
                                 }
                             ),
                             MemberStatItem(
-                                title = "Total Loan Borrowed",
+                                title = SquadStrings.totalLoanBorrowed,
                                 value = safeMember.totalLoanBorrowed.currencyFormattedWithCommas(),
                                 icon = Icons.Default.ArrowUpward,
                                 color = Color.Red,
@@ -188,7 +188,7 @@ fun MemberProfileView(
                                 }
                             ),
                             MemberStatItem(
-                                title = "Paid Loan Amount",
+                                title = SquadStrings.paidLoanAmount,
                                 value = safeMember.totalLoanPaid.currencyFormattedWithCommas(),
                                 icon = Icons.Default.CheckCircle,
                                 color = Color.Blue,
@@ -200,7 +200,7 @@ fun MemberProfileView(
                                 }
                             ),
                             MemberStatItem(
-                                title = "Interest Received",
+                                title = SquadStrings.interestReceived,
                                 value = safeMember.totalInterestPaid.currencyFormattedWithCommas(),
                                 icon = Icons.Default.Percent,
                                 color = Color(0xFF7B61FF),
@@ -214,28 +214,28 @@ fun MemberProfileView(
                     } else {
                         listOf(
                             MemberStatItem(
-                                title = "Contribution Sent",
+                                title = SquadStrings.contributionSent,
                                 value = safeMember.totalContributionPaid.currencyFormattedWithCommas(),
                                 icon = Icons.Default.ArrowDownward,
                                 color = Color.Green,
                                 onClick = { openContributionDetails = true }
                             ),
                             MemberStatItem(
-                                title = "Total Loan Borrowed",
+                                title = SquadStrings.totalLoanBorrowed,
                                 value = safeMember.totalLoanBorrowed.currencyFormattedWithCommas(),
                                 icon = Icons.Default.ArrowUpward,
                                 color = Color.Red,
                                 onClick = { openLoanDetailsView = true }
                             ),
                             MemberStatItem(
-                                title = "Paid Loan Amount",
+                                title = SquadStrings.paidLoanAmount,
                                 value = safeMember.totalLoanPaid.currencyFormattedWithCommas(),
                                 icon = Icons.Default.CheckCircle,
                                 color = Color.Blue,
                                 onClick = { openLoanDetailsView = true }
                             ),
                             MemberStatItem(
-                                title = "Interest Sent",
+                                title = SquadStrings.interestSent,
                                 value = safeMember.totalInterestPaid.currencyFormattedWithCommas(),
                                 icon = Icons.Default.Percent,
                                 color = Color(0xFF7B61FF)
@@ -440,7 +440,7 @@ fun MemberProfileHeaderView(
         )
 
         Text(
-            text = "Squad Member",
+            text = SquadStrings.squadMember,
             style = AppFont.ibmPlexSans(
                 size = 12,
                 weight = FontWeight.Medium
@@ -451,7 +451,7 @@ fun MemberProfileHeaderView(
         Spacer(Modifier.height(10.dp))
 
         SSBadge(
-            title = "Member ID",
+            title = SquadStrings.memberId,
             value = member.id ?: "-",
             icon = "👤",
             style = BadgeStyle.INFO
@@ -476,9 +476,9 @@ fun MemberProfileHeaderView(
 
             ProfileInfoRow(
                 icon = Icons.Default.QrCode,
-                title = "UPI ID",
-                value = if (member.upiID.isBlank()) "Not Added" else member.upiID,
-                buttonTitle = if (member.upiID.isBlank()) "Add" else "Update",
+                title = SquadStrings.upiID,
+                value = if (member.upiID.isBlank()) SquadStrings.notAdded else member.upiID,
+                buttonTitle = if (member.upiID.isBlank()) SquadStrings.add else SquadStrings.update,
                 showButton = true,
                 onClick = onUpdateUPI
             )
@@ -697,7 +697,7 @@ fun UpdateMemberPopup(
 
     fun validateFields(): Boolean {
         phoneError =
-            if (Regex("^[0-9]{10}$").matches(phoneNumber)) "" else "Enter a valid 10-digit phone number"
+            if (Regex("^[0-9]{10}$").matches(phoneNumber)) "" else SquadStrings.enterValidPhoneNumber
         return phoneError.isEmpty()
     }
 
@@ -711,7 +711,7 @@ fun UpdateMemberPopup(
                 if (task.isSuccessful) {
                     otpVerified = true
                 } else {
-                    verifyOTPError = task.exception?.message ?: "Invalid OTP"
+                    verifyOTPError = task.exception?.message ?: SquadStrings.invalidOTP
                 }
             }
     }
@@ -847,7 +847,7 @@ fun UpdateMemberPopup(
 
             // Title
             Text(
-                text = "Update",
+                text = SquadStrings.update,
                 style = AppFont.ibmPlexSans(20, FontWeight.Bold),
                 color = AppColors.headerText,
                 modifier = Modifier.padding(top = 10.dp)
@@ -886,7 +886,7 @@ fun UpdateMemberPopup(
                 if (isOTPSent) {
                     SSTextField(
                         icon = Icons.Default.Pin,
-                        placeholder = "Enter OTP",
+                        placeholder = SquadStrings.enterOTP,
                         textState = otpState,
                         keyboardType = KeyboardType.Number,
                         showDropdown =  otpVerified,
@@ -906,7 +906,7 @@ fun UpdateMemberPopup(
 
             // Main Button
             SSButton(
-                title = if (otpVerified) "Update Mobile" else "Send OTP",
+                title = if (otpVerified) "Update Mobile" else SquadStrings.sendOTP,
                 isDisabled = otpProcessStarted,
                 action = { handleUpdateClick(navController = navController) }
             )

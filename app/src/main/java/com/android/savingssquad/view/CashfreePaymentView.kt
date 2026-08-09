@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.savingssquad.R
 import com.android.savingssquad.singleton.AppFont
+import com.android.savingssquad.singleton.SquadStrings
 
 @Composable
 fun RazorpayPaymentView(
@@ -245,7 +246,7 @@ fun PaymentResultScreen(
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
-                    text = "Done",
+                    text = SquadStrings.done,
                     style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
                     color = Color.White
                 )

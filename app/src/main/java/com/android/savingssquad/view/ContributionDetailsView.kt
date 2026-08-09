@@ -128,7 +128,7 @@ fun ContributionDetailsView(
             val total = memberContributions.size
 
             when (selectedSegment) {
-                SquadStrings.paidFilter -> "$paidCount Paid, ${total - paidCount} Remaining"
+                SquadStrings.paidFilter -> "$paidCount Paid, ${total - paidCount} ${SquadStrings.remaining}"
                 SquadStrings.unpaidFilter -> "$unpaidCount Unpaid, ${total - unpaidCount} Paid"
                 else -> "$paidCount Paid, $unpaidCount Unpaid"
             }
@@ -199,7 +199,7 @@ fun ContributionDetailsView(
             )
 
             SectionView(
-                title = "Contribution",
+                title = SquadStrings.contribution,
                 subtitle = subtitleContributions
             ) {
                 LazyColumn(
@@ -217,7 +217,7 @@ fun ContributionDetailsView(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    "No contributions found",
+                                    SquadStrings.noContributions,
                                     color = AppColors.secondaryText,
                                     modifier = Modifier.padding(top = 20.dp),
                                     style = AppFont.ibmPlexSans(14, FontWeight.Normal)

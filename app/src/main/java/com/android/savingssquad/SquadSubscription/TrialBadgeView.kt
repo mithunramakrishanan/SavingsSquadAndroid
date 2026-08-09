@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.savingssquad.singleton.AppColors
+import com.android.savingssquad.singleton.SquadStrings
 
 @Composable
 fun TrialBadgeView(
@@ -85,7 +86,7 @@ fun TrialBadgeView(
         Column(modifier = Modifier.weight(1f)) {
 
             Text(
-                text = "Free Trial Active",
+                text = SquadStrings.freeTrialActive,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = AppColors.headerText

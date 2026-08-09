@@ -136,7 +136,7 @@ class UPIPaymentManager private constructor() {
 
                 completion?.invoke(true)
             }
-            .setNegativeButton("Cancel") { _, _ ->
+            .setNegativeButton(SquadStrings.cancel) { _, _ ->
                 Log.w(TAG, "User cancelled payment")
 
                 completion?.invoke(false)

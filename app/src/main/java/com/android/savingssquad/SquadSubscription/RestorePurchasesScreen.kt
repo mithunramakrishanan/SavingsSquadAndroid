@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.android.savingssquad.singleton.AppColors
+import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.view.AppBackgroundGradient
 import com.android.savingssquad.viewmodel.SquadViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -101,7 +102,7 @@ fun RestorePurchasesScreen(
                 }
 
                 Text(
-                    "Restore Purchases",
+                    SquadStrings.restorePurchases,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -142,13 +143,13 @@ fun RestorePurchasesScreen(
                     Spacer(Modifier.height(10.dp))
 
                     Text(
-                        "Restore Purchases",
+                        SquadStrings.restorePurchases,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
 
                     Text(
-                        "Already subscribed on another device?\nRestore your active plan here.",
+                        SquadStrings.restorePurchasesHeaderDescription,
                         fontSize = 14.sp,
                         color = AppColors.secondaryText,
                         textAlign = TextAlign.Center
@@ -179,16 +180,20 @@ fun RestorePurchasesScreen(
 
             // BUTTONS
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(AppColors.background)
-                    .padding(16.dp)
-            ) {
 
+                modifier = Modifier
+
+                    .weight(1f)
+
+                    .padding(horizontal = 18.dp)
+
+                    .verticalScroll(rememberScrollState())
+
+            ) {
                 Button(
                     onClick = {
-
-                        val squadID = squadViewModel.squad.value?.squadID ?: return@Button
+                        val squadID = squadViewModel.squad.value?.squadID
+                            ?: return@Button
 
                         isRestoring = true
                         showResult = false
@@ -199,10 +204,13 @@ fun RestorePurchasesScreen(
                             resultSuccess = success
 
                             resultMessage =
-                                if (success)
-                                    "Your ${viewModel.subscription.value?.plan} plan has been restored."
-                                else
-                                    error ?: "Something went wrong"
+                                if (success) {
+                                    SquadStrings.restoreSuccessMessage(
+                                        viewModel.subscription.value?.plan?.localizedName ?: ""
+                                    )
+                                } else {
+                                    error ?: SquadStrings.restoreFailedMessage
+                                }
 
                             showResult = true
 
@@ -215,18 +223,16 @@ fun RestorePurchasesScreen(
                         }
                     },
                     enabled = !isRestoring,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
                 ) {
-                    Text(if (isRestoring) "Restoring..." else "Restore Purchases")
-                }
-
-                Spacer(Modifier.height(10.dp))
-
-                OutlinedButton(
-                    onClick = { navController.popBackStack() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Cancel")
+                    Text(
+                        text = if (isRestoring)
+                            "Restoring..."
+                        else
+                            SquadStrings.restorePurchases
+                    )
                 }
             }
         }
@@ -264,17 +270,17 @@ fun CurrentPlanCard(
 
         Column(modifier = Modifier.weight(1f)) {
 
-            Text("Current Plan", fontSize = 12.sp, color = AppColors.secondaryText)
+            Text(SquadStrings.currentPlan(""), fontSize = 12.sp, color = AppColors.secondaryText)
 
             Text(
-                sub.plan.name,
+                sub.plan.localizedName,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold
             )
 
             if (viewModel.isTrialActive()) {
                 Text(
-                    "Trial Active • ${viewModel.trialDaysRemaining()} days left",
+                    SquadStrings.freeTrialActive,
                     fontSize = 12.sp,
                     color = AppColors.successAccent
                 )
@@ -294,7 +300,7 @@ fun CurrentPlanCard(
                 .padding(horizontal = 10.dp, vertical = 5.dp)
         ) {
             Text(
-                sub.plan.name,
+                sub.plan.localizedName,
                 color = Color.White,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
@@ -315,18 +321,18 @@ fun InfoCard() {
     ) {
 
         InfoRow(Icons.Default.Shield, AppColors.successAccent,
-            "Safe & Secure",
-            "Restore is handled directly by Apple — no payment needed"
+            SquadStrings.safeSecureTitle,
+            SquadStrings.safeSecureSubtitle
         )
 
         InfoRow(Icons.Default.Cloud, AppColors.infoAccent,
-            "Syncs Across Devices",
-            "Your subscription is tied to your Apple ID"
+            SquadStrings.syncAcrossDevicesTitle,
+            SquadStrings.syncAcrossDevicesSubtitle
         )
 
         InfoRow(Icons.Default.Schedule, AppColors.warningAccent,
-            "Previous Purchases Only",
-            "Only active or recent subscriptions will be restored"
+            SquadStrings.previousPurchasesTitle,
+            SquadStrings.previousPurchasesSubtitle
         )
     }
 }
@@ -396,7 +402,7 @@ fun ResultBanner(success: Boolean, message: String) {
 
         Column {
             Text(
-                if (success) "Restore Successful" else "Restore Failed",
+                if (success) SquadStrings.restoreSuccessful else SquadStrings.restoreFailed,
                 fontWeight = FontWeight.SemiBold
             )
 

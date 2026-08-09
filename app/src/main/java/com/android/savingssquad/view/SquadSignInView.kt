@@ -38,6 +38,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.android.savingssquad.R
@@ -93,7 +94,13 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
             horizontalAlignment = Alignment.CenterHorizontally
         )
         {
-            // 🔹 App Icon + Welcome text
+
+            LanguageDropDownView(
+
+                squadViewModel = squadViewModel
+
+            )
+
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -113,6 +120,14 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                     text = SquadStrings.welcome,
                     style = AppFont.ibmPlexSans(size = 20, weight = FontWeight.SemiBold),
                     color = AppColors.headerText
+                )
+
+                Text(
+                    text = SquadStrings.yourPocketAccountant,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = (0).dp)
                 )
             }
 
@@ -173,7 +188,7 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
 
                             if (verificationID.value.isEmpty()) {
 
-                                ToastManager.show(title = SquadStrings.appName, message = SquadStrings.invalidOTP, type = ToastType.ERROR)
+                                ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.invalidOTP, type = ToastType.ERROR)
 
                                 return@launch
                             }
@@ -239,7 +254,7 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                             // ---- SEND OTP FLOW ----
                             if (phoneNumber.value.isEmpty()) {
 
-                                ToastManager.show(title = SquadStrings.appName, message =  SquadStrings.enterPhoneNumber, type = ToastType.ERROR)
+                                ToastManager.show(title = SquadStrings.savingsSquad, message =  SquadStrings.enterPhoneNumber, type = ToastType.ERROR)
 
 
                                 return@launch
@@ -365,7 +380,7 @@ fun sendOTP(
     val nonPhoneUsers = CommonFunctions.cleanUpPhoneNumber(phoneNumber)
 
     if (nonPhoneUsers == "1111111111" || nonPhoneUsers == "2222222222" || nonPhoneUsers == "3333333333") {
-        ToastManager.show(title = SquadStrings.appName, message = "Invalid Phone Number", type = ToastType.ERROR)
+        ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.invalidPhoneNumber, type = ToastType.ERROR)
         return
     }
 

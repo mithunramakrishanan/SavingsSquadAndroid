@@ -1,17 +1,22 @@
 package com.android.savingssquad.model
 
 import com.android.savingssquad.singleton.RecordStatus
+import com.android.savingssquad.singleton.SquadStrings
 import com.google.firebase.Timestamp
 
 
 enum class CashRequestStatus {
 
     CREATED,
-
     ACCEPTED,
+    REJECTED;
 
-    REJECTED
-
+    val localizedName: String
+        get() = when (this) {
+            CREATED -> SquadStrings.created
+            ACCEPTED -> SquadStrings.accepted
+            REJECTED -> SquadStrings.rejected
+        }
 }
 
 data class CashRequest(

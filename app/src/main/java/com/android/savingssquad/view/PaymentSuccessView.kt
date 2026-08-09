@@ -346,7 +346,7 @@ fun PaymentSuccessView(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "PAYMENT SUBMITTED",
+                        text = SquadStrings.paymentSubmitted,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 1.2.sp,
@@ -439,7 +439,7 @@ fun PaymentSuccessView(
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Awaiting Verification",
+                                text = SquadStrings.awaitingVerification,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = AppColors.headerText
@@ -526,7 +526,7 @@ fun PaymentSuccessView(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Done",
+                                text = SquadStrings.done,
                                 fontSize = 15.5.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.White
@@ -553,7 +553,7 @@ fun PaymentSuccessView(
                     )
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
-                        text = "Your transaction is securely recorded",
+                        text = SquadStrings.transactionSecurelyRecorded,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = AppColors.secondaryText.copy(alpha = 0.7f)
@@ -567,7 +567,7 @@ fun PaymentSuccessView(
 @Composable
 private fun StatusPill() {
     Text(
-        text = "PENDING",
+        text = SquadStrings.pending,
         fontSize = 8.5.sp,
         fontWeight = FontWeight.Bold,
         letterSpacing = 0.6.sp,
@@ -592,21 +592,21 @@ private fun displayAmount(payment: PaymentsDetails): Int {
 
 private fun paymentTitle(payment: PaymentsDetails): String {
     return when (payment.paymentSubType) {
-        PaymentSubType.CONTRIBUTION_AMOUNT -> "Contribution Payment"
-        PaymentSubType.EMI_AMOUNT -> "EMI Payment"
-        PaymentSubType.LOAN_AMOUNT -> "Loan Disbursement"
-        PaymentSubType.OTHERS_AMOUNT -> "Payment"
-        PaymentSubType.INTEREST_AMOUNT -> "Interest Payment"
-        PaymentSubType.RE_PAYMENT -> "Repayment"
-        PaymentSubType.SETTLEMENT -> "Settlement"
+        PaymentSubType.CONTRIBUTION_AMOUNT -> SquadStrings.contributionPayment
+        PaymentSubType.EMI_AMOUNT -> SquadStrings.emiPayment
+        PaymentSubType.LOAN_AMOUNT -> SquadStrings.loanDisbursement
+        PaymentSubType.OTHERS_AMOUNT -> SquadStrings.payment
+        PaymentSubType.INTEREST_AMOUNT -> SquadStrings.interestPayment
+        PaymentSubType.RE_PAYMENT -> SquadStrings.repayment
+        PaymentSubType.SETTLEMENT -> SquadStrings.settlement
     }
 }
 
 private fun verificationMessage(payment: PaymentsDetails): String {
     return if (payment.paymentType == PaymentType.PAYMENT_CREDIT) {
-        "Your payment of ₹${displayAmount(payment)} has been recorded and will reflect once your manager verifies it. A notification has been sent for review."
+        SquadStrings.paymentVerificationMessage(displayAmount(payment).toString())
     } else {
-        "${payment.memberName} will verify this payment. You'll be notified as soon as it's confirmed."
+        SquadStrings.transferVerificationMessage(payment.memberName)
     }
 }
 

@@ -107,144 +107,76 @@ private fun TermsContent(navController: NavController) {
             .padding(20.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(18.dp)
-    ) {
+    )
+    {
 
-        SectionTitle("1. About Savings Squad")
+        SectionTitle(SquadStrings.termsAboutSavingsSquad)
 
-        SectionText(
-            "Savings Squad is a digital platform that helps trusted groups manage savings, contributions, loan records, member activities, and financial tracking.\n\n" +
-                    "Savings Squad is not a bank, NBFC, lending institution, investment advisor, or financial service provider. The app only provides tools for recording and managing information entered by users."
-        )
+        SectionText(SquadStrings.termsAboutSavingsSquadDescription)
 
-        SectionTitle("2. Eligibility")
+        SectionTitle(SquadStrings.termsEligibility)
 
         BulletSection(
             listOf(
-                "You must be at least 18 years old",
-                "You must provide accurate information",
-                "You are responsible for maintaining account security",
-                "You must comply with local laws and regulations"
+                SquadStrings.termsEligibility18,
+                SquadStrings.termsEligibilityAccurateInfo,
+                SquadStrings.termsEligibilitySecurity,
+                SquadStrings.termsEligibilityLaws
             )
         )
 
-        SectionTitle("3. Squad Management")
+        SectionTitle(SquadStrings.termsSquadManagement)
 
-        SectionText(
-            "Squads are created and managed by Squad Managers.\n\n" +
-                    "Managers are solely responsible for:\n" +
-                    "• Adding and removing members\n" +
-                    "• Collecting contributions\n" +
-                    "• Issuing loans\n" +
-                    "• Maintaining records\n" +
-                    "• Resolving disputes\n\n" +
-                    "Savings Squad does not verify the identity, credibility, or financial standing of any member."
-        )
+        SectionText(SquadStrings.termsSquadManagementDescription)
 
-        SectionTitle("4. Contributions & Loans")
+        SectionTitle(SquadStrings.termsContributionsLoans)
 
-        SectionText(
-            "All contributions, loans, repayments, and financial arrangements are conducted directly between squad members.\n\n" +
-                    "Savings Squad does not:\n" +
-                    "• Hold funds\n" +
-                    "• Facilitate lending decisions\n" +
-                    "• Guarantee repayments\n" +
-                    "• Recover outstanding loans\n" +
-                    "• Participate in financial transactions between members\n\n" +
-                    "All financial decisions are made entirely at the users' own discretion and risk."
-        )
+        SectionText(SquadStrings.termsContributionsLoansDescription)
 
-        SectionTitle("5. Payments & Subscriptions")
+        SectionTitle(SquadStrings.termsPaymentsSubscriptions)
 
-        SectionText(
-            "Subscription purchases and payment processing may be handled by Apple, Google, Razorpay, or other third-party payment providers.\n\n" +
-                    "Subscription fees provide access to app features and are generally non-refundable except where required by applicable law or platform policies.\n\n" +
-                    "Savings Squad does not store card information or banking credentials used during payment processing."
-        )
+        SectionText(SquadStrings.termsPaymentsSubscriptionsDescription)
 
-        SectionTitle("6. Data Storage")
+        SectionTitle(SquadStrings.termsDataStorage)
 
-        SectionText(
-            "We store information necessary to operate the application, including:\n\n" +
-                    "• Name\n" +
-                    "• Phone number\n" +
-                    "• Squad information\n" +
-                    "• Member records\n" +
-                    "• Contribution records\n" +
-                    "• Loan records\n" +
-                    "• Payment records\n" +
-                    "• Device notification tokens\n\n" +
-                    "This information is stored securely using cloud infrastructure providers."
-        )
+        SectionText(SquadStrings.termsDataStorageDescription)
 
-        SectionTitle("7. Privacy")
+        SectionTitle(SquadStrings.termsPrivacy)
 
-        SectionText(
-            "We do not sell personal information to third parties.\n\n" +
-                    "Your information may only be used for:\n" +
-                    "• Providing app functionality\n" +
-                    "• Account management\n" +
-                    "• Customer support\n" +
-                    "• Security and fraud prevention\n" +
-                    "• Legal compliance\n\n" +
-                    "Please review our Privacy Policy for complete details."
-        )
+        SectionText(SquadStrings.termsPrivacyDescription)
 
-        SectionTitle("8. Prohibited Activities")
+        SectionTitle(SquadStrings.termsProhibitedActivities)
 
         BulletSection(
             listOf(
-                "Creating fake squads",
-                "Fraudulent financial activity",
-                "Harassment or abusive behavior",
-                "Attempting unauthorized access",
-                "Using the app for illegal purposes",
-                "Uploading malicious content"
+                SquadStrings.termsFakeSquads,
+                SquadStrings.termsFraudulentActivity,
+                SquadStrings.termsHarassment,
+                SquadStrings.termsUnauthorizedAccess,
+                SquadStrings.termsIllegalUse,
+                SquadStrings.termsMaliciousContent
             )
         )
 
-        SectionTitle("9. Service Availability")
+        SectionTitle(SquadStrings.termsServiceAvailability)
 
-        SectionText(
-            "We strive to keep the service available at all times; however, we do not guarantee uninterrupted operation.\n\n" +
-                    "Temporary downtime may occur due to:\n" +
-                    "• Maintenance\n" +
-                    "• Platform updates\n" +
-                    "• Third-party outages\n" +
-                    "• Internet connectivity issues"
-        )
+        SectionText(SquadStrings.termsServiceAvailabilityDescription)
 
-        SectionTitle("10. Limitation of Liability")
+        SectionTitle(SquadStrings.termsLimitationOfLiability)
 
-        SectionText(
-            "Savings Squad shall not be responsible for:\n\n" +
-                    "• Financial losses\n" +
-                    "• Loan defaults\n" +
-                    "• Missed contributions\n" +
-                    "• Disputes between members\n" +
-                    "• Payment gateway failures\n" +
-                    "• Data loss caused by third-party services\n" +
-                    "• Decisions made by Squad Managers or Members\n\n" +
-                    "Users assume full responsibility for their use of the platform."
-        )
+        SectionText(SquadStrings.termsLimitationOfLiabilityDescription)
 
-        SectionTitle("11. Account Suspension")
+        SectionTitle(SquadStrings.termsAccountSuspension)
 
-        SectionText(
-            "We reserve the right to suspend or terminate accounts that violate these Terms, engage in fraudulent activity, abuse the platform, or pose security risks."
-        )
+        SectionText(SquadStrings.termsAccountSuspensionDescription)
 
-        SectionTitle("12. Changes to Terms")
+        SectionTitle(SquadStrings.termsChangesToTerms)
 
-        SectionText(
-            "We may update these Terms and Conditions from time to time.\n\n" +
-                    "Continued use of Savings Squad after updates become effective constitutes acceptance of the revised Terms."
-        )
+        SectionText(SquadStrings.termsChangesToTermsDescription)
 
-        SectionTitle("13. Contact Us")
+        SectionTitle(SquadStrings.termsContactUs)
 
-        SectionText(
-            "For questions, support requests, or legal inquiries, please contact the Savings Squad support team through the application."
-        )
+        SectionText(SquadStrings.termsContactUsDescription)
 
         Spacer(modifier = Modifier.height(20.dp))
 

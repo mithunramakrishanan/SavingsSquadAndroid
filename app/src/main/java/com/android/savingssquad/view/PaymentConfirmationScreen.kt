@@ -271,7 +271,7 @@ fun PaymentConfirmationView(
                             } else {
 
                                 ToastManager.show(
-                                    title = SquadStrings.appName,
+                                    title = SquadStrings.savingsSquad,
                                     message = error ?: "Something went wrong",
                                     type = ToastType.ERROR
                                 )
@@ -456,7 +456,7 @@ private fun ReferenceCard(
             ) {
 
                 Text(
-                    text = "REFERENCE ID",
+                    text = SquadStrings.referenceId,
                     style = AppFont.ibmPlexSans(
                         9,
                         FontWeight.SemiBold
@@ -496,7 +496,7 @@ private fun ReferenceCard(
             ) {
 
                 Text(
-                    text = "UPI ID",
+                    text = SquadStrings.upiID,
                     style = AppFont.ibmPlexSans(
                         9,
                         FontWeight.SemiBold
@@ -585,9 +585,9 @@ private fun CopyChip(
         Text(
             text =
                 if (copied)
-                    "Copied"
+                    SquadStrings.copied
                 else
-                    "Copy",
+                    SquadStrings.copy,
             style = AppFont.ibmPlexSans(
                 11,
                 FontWeight.SemiBold
@@ -613,7 +613,7 @@ private fun StepTracker(payment: PaymentsDetails?) {
     ) {
 
         Text(
-            text = "HOW IT WORKS",
+            text = SquadStrings.howItWorks,
             style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
             color = AppColors.secondaryText.copy(alpha = 0.7f),
             modifier = Modifier.padding(bottom = 8.dp)
@@ -621,24 +621,24 @@ private fun StepTracker(payment: PaymentsDetails?) {
 
         StepRow(
             number = "1",
-            title = "Open your UPI app",
-            subtitle = "Pay via GPay, PhonePe, Paytm or any UPI app",
+            title = SquadStrings.openYourUPIApp,
+            subtitle = SquadStrings.payViaUPIApps,
             isDone = true,
             isLast = false
         )
 
         StepRow(
             number = "2",
-            title = "Complete the payment",
-            subtitle = "Send ₹${payment?.amount} using the reference above",
+            title = SquadStrings.completeThePayment,
+            subtitle = SquadStrings.sendAmountUsingReference(payment?.amount.toString()),
             isDone = true,
             isLast = false
         )
 
         StepRow(
             number = "3",
-            title = "Confirm below",
-            subtitle = "Tap \"I Completed Payment\" once done",
+            title = SquadStrings.confirmBelow,
+            subtitle = SquadStrings.iClickDoneCompletedPayment,
             isDone = false,
             isLast = true
         )
@@ -715,12 +715,12 @@ private fun DetailsCard(payment: PaymentsDetails?) {
             .border(1.dp, AppColors.border.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
             .padding(vertical = 2.dp)
     ) {
-        InfoRow(icon = Icons.Default.Person, title = "Member", value = payment?.memberName ?: "")
+        InfoRow(icon = Icons.Default.Person, title = SquadStrings.member, value = payment?.memberName ?: "")
         HorizontalDivider(
             color = AppColors.border.copy(alpha = 0.5f),
             modifier = Modifier.padding(start = 42.dp)
         )
-        InfoRow(icon = Icons.Default.Sell, title = "Type", value = paymentTitle(payment))
+        InfoRow(icon = Icons.Default.Sell, title = SquadStrings.type, value = paymentTitle(payment))
     }
 }
 
@@ -847,7 +847,7 @@ fun BottomActionBar(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = if (isProcessing) "Processing..." else "I Completed Payment",
+                    text = if (isProcessing) SquadStrings.processing else SquadStrings.iCompletedPayment,
                     style = AppFont.ibmPlexSans(15, FontWeight.SemiBold),
                     color = Color.White,
                     maxLines = 1
@@ -865,7 +865,7 @@ fun BottomActionBar(
         ) {
 
             Text(
-                text = "Payment Not Made",
+                text = SquadStrings.paymentNotMade,
                 style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
                 color = AppColors.errorAccent,
                 modifier = Modifier.alpha(if (isProcessing) 0.5f else 1f)
@@ -879,25 +879,31 @@ fun BottomActionBar(
 // =========================================================
 
 private fun paymentTitle(payment: PaymentsDetails?): String = when (payment?.paymentSubType) {
-    PaymentSubType.CONTRIBUTION_AMOUNT -> "Contribution"
-    PaymentSubType.EMI_AMOUNT -> "EMI Amount"
-    PaymentSubType.LOAN_AMOUNT -> "Loan Disbursement"
-    PaymentSubType.OTHERS_AMOUNT -> "Payment"
-    else -> {"Payment"}
+    PaymentSubType.CONTRIBUTION_AMOUNT -> SquadStrings.contribution
+    PaymentSubType.EMI_AMOUNT -> SquadStrings.emiAmount
+    PaymentSubType.LOAN_AMOUNT -> SquadStrings.loanDisbursement
+    PaymentSubType.OTHERS_AMOUNT -> SquadStrings.payment
+    else -> {
+        SquadStrings.payment
+    }
 }
 
 private fun directionText(payment: PaymentsDetails?): String = when (payment?.paymentSubType) {
-    PaymentSubType.CONTRIBUTION_AMOUNT, PaymentSubType.EMI_AMOUNT -> "Member → Manager"
-    PaymentSubType.LOAN_AMOUNT -> "Manager → Member"
-    PaymentSubType.OTHERS_AMOUNT -> if (payment.paymentType == PaymentType.PAYMENT_CREDIT) "Credit to Squad" else "Debit from Squad"
-    else -> {"Transaction"}
+    PaymentSubType.CONTRIBUTION_AMOUNT, PaymentSubType.EMI_AMOUNT -> SquadStrings.memberToManager
+    PaymentSubType.LOAN_AMOUNT -> SquadStrings.managerToMember
+    PaymentSubType.OTHERS_AMOUNT -> if (payment.paymentType == PaymentType.PAYMENT_CREDIT) SquadStrings.creditToSquad else SquadStrings.debitFromSquad
+    else -> {
+        SquadStrings.transaction
+    }
 }
 
 private fun infoMessage(payment: PaymentsDetails?): String = when (payment?.paymentSubType) {
-    PaymentSubType.CONTRIBUTION_AMOUNT -> "Contribution will be verified after payment confirmation."
-    PaymentSubType.EMI_AMOUNT -> "EMI will be automatically reconciled once payment is completed."
-    PaymentSubType.LOAN_AMOUNT -> "Loan disbursement will be confirmed after successful transfer."
-    else -> {"This transaction will be verified before final approval."}
+    PaymentSubType.CONTRIBUTION_AMOUNT -> SquadStrings.contributionWillBeVerifiedAfterPaymentConfirmation
+    PaymentSubType.EMI_AMOUNT -> SquadStrings.emiWillBeAutomaticallyReconciledOncePaymentIsCompleted
+    PaymentSubType.LOAN_AMOUNT -> SquadStrings.loanDisbursementWillBeConfirmedAfterSuccessfulTransfer
+    else -> {
+        SquadStrings.thisTransactionWillBeVerifiedBeforeFinalApproval
+    }
 }
 
 // Timestamp the confirmation flow started. Swap for a real field on

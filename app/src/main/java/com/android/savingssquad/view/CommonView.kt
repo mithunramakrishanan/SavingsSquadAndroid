@@ -582,7 +582,7 @@ fun SingleSelectionPopupView(
                     if (filteredValues.isEmpty()) {
                         item {
                             Text(
-                                text = "No results found",
+                                text = SquadStrings.noResults,
                                 color = AppColors.secondaryText,
                                 style = AppFont.ibmPlexSans(14, FontWeight.Normal),
                                 modifier = Modifier.fillMaxWidth(),
@@ -1121,7 +1121,7 @@ fun LoginListPopup(
     val inPreview = LocalInspectionMode.current
 
     var selectedRole by remember {
-        mutableStateOf(SquadUserType.SQUAD_MANAGER.roleDescription)
+        mutableStateOf(SquadUserType.SQUAD_MANAGER.localizedName)
     }
 
     val managers = remember(users) {
@@ -1133,7 +1133,7 @@ fun LoginListPopup(
     }
 
     val filteredUsers =
-        if (selectedRole == SquadUserType.SQUAD_MANAGER.roleDescription)
+        if (selectedRole == SquadUserType.SQUAD_MANAGER.localizedName)
             managers else members
 
     // 🔹 BACKDROP (iOS style)
@@ -1168,8 +1168,8 @@ fun LoginListPopup(
             // 🔹 SEGMENTED CONTROL
             ModernSegmentedPickerView(
                 segments = listOf(
-                    SquadUserType.SQUAD_MANAGER.roleDescription,
-                    SquadUserType.SQUAD_MEMBER.roleDescription
+                    SquadUserType.SQUAD_MANAGER.localizedName,
+                    SquadUserType.SQUAD_MEMBER.localizedName
                 ),
                 selectedSegment = selectedRole,
                 onSegmentSelected = { selectedRole = it }
@@ -1280,17 +1280,13 @@ fun UserSelectionCard(
                 Text(
                     text =
                         if (user.role == SquadUserType.SQUAD_MANAGER)
-                            "Manager since ${
-                                CommonFunctions.dateToString(
-                                    user.userCreatedDate?.toDate() ?: Date()
-                                )
-                            }"
+                            SquadStrings.managerSince(CommonFunctions.dateToString(
+                                user.userCreatedDate?.toDate() ?: Date()
+                            ))
                         else
-                            "Member since ${
-                                CommonFunctions.dateToString(
-                                    user.userCreatedDate?.toDate() ?: Date()
-                                )
-                            }",
+                            SquadStrings.memberSince(CommonFunctions.dateToString(
+                                user.userCreatedDate?.toDate() ?: Date()
+                            )),
                     style = AppFont.ibmPlexSans(13),
                     color = AppColors.secondaryText
                 )
@@ -1744,9 +1740,9 @@ fun AddMemberPopup(
 
     // ----------------- Validation -----------------
     fun validateFields(): Boolean {
-        memberNameError = if (memberNameState.value.trim().isEmpty()) "Name is required" else ""
+        memberNameError = if (memberNameState.value.trim().isEmpty()) SquadStrings.nameRequired else ""
         phoneError = if (Regex("^[0-9]{10}$").matches(phoneNumberState.value))
-            "" else "Enter a valid 10-digit phone number"
+            "" else SquadStrings.enterValidPhoneNumber
 
         return memberNameError.isEmpty() && phoneError.isEmpty()
     }
@@ -1776,7 +1772,7 @@ fun AddMemberPopup(
                 .contains(cleanedName.trim().lowercase())
 
             if (exists) {
-                setError("Name already exists")
+                setError(SquadStrings.nameAlreadyExists)
             }
         }
 
@@ -1810,7 +1806,7 @@ fun AddMemberPopup(
                 .contains(cleanedName.trim().lowercase())
 
             if (exists) {
-                setError("Mobile name already exists")
+                setError(SquadStrings.mobileNumberAlreadyExists)
             }
         }
 
@@ -1925,7 +1921,7 @@ fun AddMemberPopup(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Text(
-                text = "Add Member",
+                text = SquadStrings.addMember,
                 style = AppFont.ibmPlexSans(20, FontWeight.Bold),
                 color = AppColors.headerText,
                 modifier = Modifier.padding(top = 10.dp)
@@ -1935,7 +1931,7 @@ fun AddMemberPopup(
                 // Member Name
                 SSTextField(
                     icon = Icons.Default.Person,
-                    placeholder = "Member Name",
+                    placeholder = SquadStrings.memberName,
                     textState = memberNameState,
                     error = memberNameError
                 )
@@ -1954,7 +1950,7 @@ fun AddMemberPopup(
                 // Phone Number
                 SSTextField(
                     icon = Icons.Default.Phone,
-                    placeholder = "Member Mobile.No",
+                    placeholder = SquadStrings.memberPhone,
                     textState = phoneNumberState,
                     keyboardType = KeyboardType.Number,
                     error = phoneError
@@ -1984,7 +1980,7 @@ fun AddMemberPopup(
                         modifier = Modifier.size(12.dp)
                     )
                     Text(
-                        text = "No phone? Use 1111111111 / 2222222222 / 3333333333 (max 3, OTP 123456)",
+                        text = SquadStrings.testPhoneHint,
                         fontSize = 11.sp,
                         color = AppColors.secondaryText
                     )
@@ -2000,7 +1996,7 @@ fun AddMemberPopup(
                     ) {
                         SSTextField(
                             icon = Icons.Default.Numbers,
-                            placeholder = "Enter OTP",
+                            placeholder = SquadStrings.enterOTP,
                             textState = otpCodeState,
                             keyboardType = KeyboardType.Number,
                             showDropdown =  otpVerified,
@@ -2020,7 +2016,7 @@ fun AddMemberPopup(
 
             // Button
             SSButton(
-                title = if (otpVerified) "Add Member" else "Send OTP",
+                title = if (otpVerified) SquadStrings.addMember else SquadStrings.sendOTP,
                 isDisabled = (otpProcessStarted) || phoneError.isNotEmpty() || memberNameError.isNotEmpty(),
                 action = { handleAddMember() }
             )
@@ -2252,7 +2248,7 @@ fun StatCardHome(
 
 @Composable
 fun InstallmentPopupView(
-    title: String = "Select Installment",
+    title: String = SquadStrings.selectInstallment,
     loan: MemberLoan,
     installments: List<Installment>,
     interestType: InterestType,
@@ -2304,7 +2300,7 @@ fun InstallmentPopupView(
                         color = AppColors.headerText
                     )
                     Text(
-                        text = "${installments.size} payment${if (installments.size == 1) "" else "s"} total",
+                        text = SquadStrings.paymentsTotal(installments.size),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = AppColors.secondaryText
@@ -2321,7 +2317,7 @@ fun InstallmentPopupView(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
+                        contentDescription = SquadStrings.close,
                         tint = AppColors.secondaryText,
                         modifier = Modifier.size(12.dp)
                     )
@@ -2386,7 +2382,7 @@ fun InstallmentPopupView(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             ) {
                 Text(
-                    text = "Close",
+                    text = SquadStrings.close,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = AppColors.secondaryText,
@@ -2414,8 +2410,8 @@ fun InstallmentPopupView(
                     if (hasVerificationPending) {
 
                         AlertManager.shared.showAlert(
-                            title = "Verification Pending",
-                            message = "One or more installment payments are currently under verification. Please wait until the verification is complete before force closing this loan.",
+                            title = SquadStrings.verificationPending,
+                            message = SquadStrings.forceCloseVerificationMessage,
                             type = AlertType.INFO
                         )
 
@@ -2460,13 +2456,13 @@ private fun VerificationPendingBanner(modifier: Modifier = Modifier) {
 
         Column {
             Text(
-                text = "Force Close Verification Pending",
+                text = SquadStrings.forceCloseVerificationPending,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = AppColors.headerText
             )
             Text(
-                text = "EMI selection and force close are locked until verified",
+                text = SquadStrings.emiSelectionAndForceCloseLocked,
                 fontSize = 10.5.sp,
                 fontWeight = FontWeight.Medium,
                 color = AppColors.secondaryText
@@ -2511,13 +2507,13 @@ private fun ForceCloseBanner(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Force Close Loan",
+                text = SquadStrings.forceCloseLoan,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = AppColors.headerText
             )
             Text(
-                text = "Pay off early with updated interest",
+                text = SquadStrings.payOffEarlyWithUpdatedInterest,
                 fontSize = 10.5.sp,
                 fontWeight = FontWeight.Medium,
                 color = AppColors.secondaryText
@@ -2556,14 +2552,14 @@ private fun ForceCloseConfirmationCard(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
-            text = "Force Close Loan",
+            text = SquadStrings.forceCloseLoan,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = AppColors.headerText
         )
 
         Text(
-            text = "Interest recalculated as of today (${interestType.displayName()} basis, ${summary.daysElapsed} day${if (summary.daysElapsed == 1) "" else "s"}).",
+            text = SquadStrings.interestRecalculatedAsOfToday(interestType.localizedName,summary.daysElapsed),
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
             color = AppColors.secondaryText,
@@ -2578,10 +2574,10 @@ private fun ForceCloseConfirmationCard(
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            SummaryRow("Outstanding Principal", summary.outstandingPrincipal)
-            SummaryRow("Recalculated Interest", summary.recalculatedInterest)
+            SummaryRow(SquadStrings.outstandingPrincipal, summary.outstandingPrincipal)
+            SummaryRow(SquadStrings.recalculatedInterest, summary.recalculatedInterest)
             HorizontalDivider()
-            SummaryRow("Total Payable", summary.totalPayable, bold = true)
+            SummaryRow(SquadStrings.totalPayable, summary.totalPayable, bold = true)
         }
 
         Row(
@@ -2595,7 +2591,7 @@ private fun ForceCloseConfirmationCard(
                     .clip(RoundedCornerShape(12.dp))
                     .background(AppColors.surface.copy(alpha = 0.4f))
             ) {
-                Text("Cancel", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = AppColors.secondaryText)
+                Text(SquadStrings.cancel, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = AppColors.secondaryText)
             }
 
             Button(
@@ -2604,7 +2600,7 @@ private fun ForceCloseConfirmationCard(
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
             ) {
-                Text("Confirm", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Text(SquadStrings.confirm, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
             }
         }
     }
@@ -2728,7 +2724,7 @@ private fun InstallmentDetailsRow(
                 if (isPaid) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Paid",
+                        contentDescription = SquadStrings.paid,
                         tint = Color(0xFF34C759),
                         modifier = Modifier.size(14.dp)
                     )
@@ -2790,7 +2786,7 @@ private fun InstallmentDetailsRow(
         ) {
             DetailChip(
                 icon = Icons.Default.Percent, // 🔹 FIXED — was Icons.Default.Info, iOS uses "percent"
-                caption = "Interest",
+                caption = SquadStrings.interest,
                 value = installment.interestAmount.currencyFormattedWithCommas(),
                 modifier = Modifier.weight(1f)
             )
@@ -2798,7 +2794,7 @@ private fun InstallmentDetailsRow(
             installment.dueDate?.let {
                 DetailChip(
                     icon = Icons.Default.DateRange,
-                    caption = "Due date",
+                    caption = SquadStrings.dueDate,
                     value = CommonFunctions.dateToString(it.toDate(), format = "MMM dd yyyy"),
                     modifier = Modifier.weight(1f)
                 )
@@ -2852,7 +2848,7 @@ private fun DetailChip(
 @Composable
 private fun StatusBadge(status: EMIStatus) {
     Text(
-        text = status.displayText,
+        text = status.localizedName,
         style = AppFont.ibmPlexSans(10, FontWeight.Bold),
         color = AppColors.primaryButtonText,
         modifier = Modifier
@@ -2961,7 +2957,7 @@ fun EditAmountPopup(
 
         if (otpCode.value.length != 6) {
 
-            otpError = "Enter valid OTP"
+            otpError = SquadStrings.enterValidOtp
             return
         }
 
@@ -2989,7 +2985,7 @@ fun EditAmountPopup(
 
                     otpError =
                         task.exception?.localizedMessage
-                            ?: "Invalid OTP"
+                            ?: SquadStrings.invalidOTP
                 }
             }
     }
@@ -3011,7 +3007,7 @@ fun EditAmountPopup(
         ) {
 
             Text(
-                text = "Edit Amount",
+                text = SquadStrings.editAmount,
                 style = AppFont.ibmPlexSans(20, FontWeight.Bold),
                 color = AppColors.headerText,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -3020,7 +3016,7 @@ fun EditAmountPopup(
             if (!otpVerified) {
 
                 Text(
-                    text = "OTP will send to $phoneNumber",
+                    text = SquadStrings.otpWillSendTo(phoneNumber),
                     style = AppFont.ibmPlexSans(14, FontWeight.Normal),
                     color = AppColors.secondaryText,
                     textAlign = TextAlign.Center,
@@ -3031,7 +3027,7 @@ fun EditAmountPopup(
 
                     SSTextField(
                         icon = Icons.Default.Lock,
-                        placeholder = "Enter OTP",
+                        placeholder = SquadStrings.enterOTP,
                         textState = otpCode,
                         keyboardType = KeyboardType.Number,
                         showDropdown = otpVerified,
@@ -3055,7 +3051,7 @@ fun EditAmountPopup(
             } else {
 
                 Text(
-                    text = "OTP Verified",
+                    text = SquadStrings.otpVerified,
                     style = AppFont.ibmPlexSans(
                         14,
                         FontWeight.Medium
@@ -3077,9 +3073,9 @@ fun EditAmountPopup(
 
             SSButton(
                 title = when {
-                    otpVerified -> "Update Amount"
-                    isOTPSent -> "Verify OTP"
-                    else -> "Send OTP"
+                    otpVerified -> SquadStrings.updateAmount
+                    isOTPSent -> SquadStrings.verifyOTP
+                    else -> SquadStrings.sendOTP
                 },
                 isDisabled = otpProcessStarted
             ) {
@@ -3092,7 +3088,7 @@ fun EditAmountPopup(
 
                         if (amount.value.isBlank()) {
 
-                            amountError = "Amount is required"
+                            amountError = SquadStrings.amountIsRequired
                             return@SSButton
                         }
 
@@ -3101,7 +3097,7 @@ fun EditAmountPopup(
 
                         if (amountInt == null) {
 
-                            amountError = "Enter valid amount"
+                            amountError = SquadStrings.amountIsRequired
                             return@SSButton
                         }
 
@@ -3122,7 +3118,7 @@ fun EditAmountPopup(
             }
 
             SSCancelButton(
-                title = "Cancel"
+                title = SquadStrings.cancel
             ) {
                 onDismiss()
             }
@@ -3312,7 +3308,7 @@ fun RemindAllButton(
         Spacer(modifier = Modifier.width(8.dp))
 
         Text(
-            text = "Remind All",
+            text = SquadStrings.remindAll,
             style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
             color = Color.White
         )
@@ -3596,7 +3592,7 @@ fun SSStatusMenuButton(
 
             Spacer(modifier = Modifier.width(6.dp))
 
-            Text(current.displayName())
+            Text(current.localizedName)
 
             Icon(
                 imageVector = Icons.Default.ArrowDropDown,
@@ -3617,7 +3613,7 @@ fun SSStatusMenuButton(
                             if (status == current) {
                                 Text("✔ ")
                             }
-                            Text(status.displayName())
+                            Text(status.localizedName)
                         }
                     },
                     onClick = {
@@ -3631,127 +3627,98 @@ fun SSStatusMenuButton(
 }
 
 @Composable
-
 fun LanguageDropDownView(
-
-    selectedLanguage: SquadLanguages?,
-    squadViewModel: SquadViewModel,
-    onLanguageSelected: (SquadLanguages) -> Unit,
-
+    squadViewModel: SquadViewModel
 ) {
 
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by remember {
+        mutableStateOf(false)
+    }
+
+    val selectedLanguage by squadViewModel.language.collectAsState()
 
     Box {
 
         OutlinedButton(
-
-            onClick = { expanded = true },
-
+            onClick = {
+                expanded = true
+            },
             shape = RoundedCornerShape(10.dp),
-
             contentPadding = PaddingValues(
-
                 horizontal = 12.dp,
-
                 vertical = 8.dp
-
             ),
-
             colors = ButtonDefaults.outlinedButtonColors(
-
                 containerColor = MaterialTheme.colorScheme.surfaceVariant
-
             )
-
         ) {
 
             Icon(
-
                 imageVector = Icons.Default.Language,
-
                 contentDescription = null
-
             )
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(
+                modifier = Modifier.width(8.dp)
+            )
 
             Text(
-
-                text = squadViewModel.language.collectAsState().value?.value ?: "",
-
+                text = selectedLanguage.value,
                 style = MaterialTheme.typography.bodyMedium,
-
                 fontWeight = FontWeight.Medium
-
             )
 
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(
+                modifier = Modifier.width(4.dp)
+            )
 
             Icon(
-
                 imageVector = Icons.Default.ArrowDropDown,
-
                 contentDescription = null
-
             )
-
         }
 
         DropdownMenu(
-
             expanded = expanded,
-
-            onDismissRequest = { expanded = false }
-
+            onDismissRequest = {
+                expanded = false
+            }
         ) {
 
             SquadLanguages.entries.forEach { language ->
 
                 DropdownMenuItem(
-
                     text = {
 
                         Row(
-
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
-
                         ) {
 
                             Text(language.value)
 
-                            Spacer(modifier = Modifier.weight(1f))
+                            Spacer(
+                                modifier = Modifier.weight(1f)
+                            )
 
                             if (language == selectedLanguage) {
 
                                 Icon(
-
                                     imageVector = Icons.Default.Check,
-
                                     contentDescription = null,
-
                                     tint = AppColors.primaryButton
-
                                 )
-
                             }
-
                         }
-
                     },
-
                     onClick = {
 
                         expanded = false
-                        onLanguageSelected(language)
+
+                        squadViewModel.setLanguage(language)
                     }
-
                 )
-
             }
-
         }
-
     }
-
 }

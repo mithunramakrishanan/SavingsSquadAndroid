@@ -1,5 +1,6 @@
 package com.android.savingssquad.SquadSubscription
 
+import com.android.savingssquad.singleton.SquadStrings
 import com.google.firebase.Timestamp
 
 data class SubscriptionModel(
@@ -21,29 +22,32 @@ data class SubscriptionModel(
     var features: Features = Features()
 ) {
 
-    enum class Plan(val value: String) {
-        FREE("FREE"),
-        BASIC("BASIC"),
-        BUSINESS("BUSINESS")
+    enum class Plan {
+
+        FREE,
+        BASIC,
+        BUSINESS;
+
+        val localizedName: String
+            get() = when (this) {
+                FREE -> SquadStrings.freePlan
+                BASIC -> SquadStrings.basicPlan
+                BUSINESS -> SquadStrings.businessPlan
+            }
     }
 
-    // ⭐ NEW — mirrors iOS SubscriptionModel.BillingPeriod
-    enum class BillingPeriod(val value: String) {
-        MONTHLY("MONTHLY"),
-        SIX_MONTH("SIX_MONTH"),
-        YEARLY("YEARLY");
+    enum class BillingPeriod {
 
-        val displayName: String
+        MONTHLY,
+        SIX_MONTH,
+        YEARLY;
+
+        val localizedName: String
             get() = when (this) {
-                MONTHLY -> "Monthly"
-                SIX_MONTH -> "6 Months"
-                YEARLY -> "Yearly"
+                MONTHLY -> SquadStrings.monthly
+                SIX_MONTH -> SquadStrings.sixMonths
+                YEARLY -> SquadStrings.yearly
             }
-
-        companion object {
-            fun fromValue(value: String?): BillingPeriod =
-                entries.firstOrNull { it.value == value } ?: MONTHLY
-        }
     }
 
     data class Features(

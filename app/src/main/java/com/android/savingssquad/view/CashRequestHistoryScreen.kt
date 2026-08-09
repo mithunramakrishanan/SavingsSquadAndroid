@@ -267,7 +267,7 @@ fun CashRequestHistoryScreen(
                         Spacer(Modifier.height(12.dp))
 
                         Text(
-                            text = "No cash requests yet",
+                            text = SquadStrings.noCashRequestsYet,
                             style = AppFont.ibmPlexSans(
                                 15,
                                 FontWeight.Medium
@@ -474,7 +474,8 @@ fun CashRequestRow(
             }
 
             StatusChip(
-                text = if (cashRequest.cashRequestStatus == CashRequestStatus.CREATED){"Requested"}else{cashRequest.cashRequestStatus.name} ,
+                text = if (cashRequest.cashRequestStatus == CashRequestStatus.CREATED){
+                    SquadStrings.requested}else{cashRequest.cashRequestStatus.name} ,
                 statusDate = CommonFunctions.dateToString(cashRequest.requestAcceptedOn?.toDate() ?: Date()),
                 color = statusColor
             )
@@ -495,7 +496,7 @@ fun CashRequestRow(
                 Column {
 
                     Text(
-                        "Amount",
+                        SquadStrings.amount,
                         style = AppFont.ibmPlexSans(
                             11,
                             FontWeight.Normal
@@ -524,7 +525,7 @@ fun CashRequestRow(
                     ) {
 
                         Text(
-                            text = "Interest",
+                            text = SquadStrings.interest,
                             style = AppFont.ibmPlexSans(11, FontWeight.Normal),
                             color = AppColors.secondaryText
                         )
@@ -565,21 +566,21 @@ fun CashRequestRow(
             Row {
 
                 InfoItem(
-                    title = "Months",
+                    title = SquadStrings.months,
                     value = "${emi.emiMonths}"
                 )
 
                 Spacer(Modifier.weight(1f))
 
                 InfoItem(
-                    title = "Monthly EMI",
+                    title = SquadStrings.monthlyEMI,
                     value = "₹${emi.emiAmount}"
                 )
 
                 Spacer(Modifier.weight(1f))
 
                 InfoItem(
-                    title = "Total Interest",
+                    title = SquadStrings.totalInterest,
                     value = "₹${emi.interestAmount}"
                 )
             }
@@ -608,7 +609,7 @@ fun CashRequestRow(
                 ) {
 
                     Text(
-                        "Reject",
+                        SquadStrings.reject,
                         style = AppFont.ibmPlexSans(
                             13,
                             FontWeight.SemiBold
@@ -627,7 +628,7 @@ fun CashRequestRow(
                 ) {
 
                     Text(
-                        "Accept",
+                        SquadStrings.accept,
                         style = AppFont.ibmPlexSans(
                             13,
                             FontWeight.SemiBold
@@ -731,7 +732,7 @@ fun CashRequestEmptyView() {
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "No Cash Requests Yet",
+            text = SquadStrings.noCashRequestsYet,
             style = AppFont.ibmPlexSans(
                 16,
                 FontWeight.SemiBold
@@ -754,7 +755,7 @@ fun CashRequestEmptyView() {
 
 @Composable
 fun RequestCashEMIListView(
-    title: String = "Request Cash",
+    title: String = SquadStrings.requestCash,
     emiConfigs: List<EMIConfiguration>,
     onRequestCash: (EMIConfiguration) -> Unit = {},
     onDismiss: () -> Unit
@@ -861,7 +862,7 @@ fun RequestCashEMIListView(
                         .padding(horizontal = 10.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        text = "${emiConfigs.size} option${if (emiConfigs.size == 1) "" else "s"} available",
+                        text = SquadStrings.optionsAvailable(emiConfigs.size),
                         style = AppFont.ibmPlexSans(size = 11, weight = FontWeight.SemiBold),
                         color = AppColors.primaryBrand
                     )
@@ -882,7 +883,7 @@ fun RequestCashEMIListView(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No EMI options available right now",
+                    text = SquadStrings.noEMIOptionsAvailableRightNow,
                     style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Medium),
                     color = AppColors.secondaryText
                 )
@@ -939,7 +940,7 @@ fun RequestCashEMIListView(
                 .padding(vertical = 4.dp)
         ) {
             Text(
-                text = "Close",
+                text = SquadStrings.close,
                 style = AppFont.ibmPlexSans(size = 13, weight = FontWeight.SemiBold),
                 color = AppColors.secondaryText
             )
@@ -999,7 +1000,7 @@ private fun EMIRequestRow(
             ) {
 
                 Text(
-                    "Loan Amount",
+                    SquadStrings.loanAmount,
                     style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                     color = AppColors.secondaryText
                 )
@@ -1054,7 +1055,7 @@ private fun EMIRequestRow(
             ) {
 
                 Text(
-                    "Request",
+                    SquadStrings.request,
                     style = AppFont.ibmPlexSans(12, FontWeight.SemiBold),
                     color = Color.White
                 )
@@ -1068,17 +1069,17 @@ private fun EMIRequestRow(
         Row(modifier = Modifier.fillMaxWidth()) {
             InfoView(
                 modifier = Modifier.weight(1f),
-                title = "Monthly EMI",
+                title = SquadStrings.monthlyEMI,
                 value = emi.emiAmount.currencyFormattedWithCommas()
             )
             InfoView(
                 modifier = Modifier.weight(1f),
-                title = "Interest",
+                title = SquadStrings.interest,
                 value = emi.interestAmount.currencyFormattedWithCommas()
             )
             InfoView(
                 modifier = Modifier.weight(1f),
-                title = "Total",
+                title = SquadStrings.total,
                 value = (emi.loanAmount + emi.interestAmount).currencyFormattedWithCommas()
             )
         }
@@ -1104,7 +1105,7 @@ private fun EMIRequestRow(
             Spacer(Modifier.width(6.dp))
 
             Text(
-                "Installment Schedule",
+                SquadStrings.installmentSchedule,
                 style = AppFont.ibmPlexSans(12, FontWeight.SemiBold),
                 color = AppColors.primaryBrand
             )

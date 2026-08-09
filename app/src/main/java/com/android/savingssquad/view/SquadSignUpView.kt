@@ -367,7 +367,7 @@ fun SquadSignUpView(
                         ) {
 
                             Text(
-                                text = "By continuing, I agree to the",
+                                text = SquadStrings.byContinuingIAgreeToThe,
                                 style = AppFont.ibmPlexSans(
                                     13,
                                     androidx.compose.ui.text.font.FontWeight.Normal
@@ -376,7 +376,7 @@ fun SquadSignUpView(
                             )
 
                             Text(
-                                text = "Terms & Conditions",
+                                text = SquadStrings.termsConditions,
                                 style = AppFont.ibmPlexSans(
                                     14,
                                     androidx.compose.ui.text.font.FontWeight.SemiBold
@@ -525,13 +525,13 @@ fun validateFields(
 
     val errors = mutableMapOf<String, String>()
 
-    if (squadName.isBlank()) errors["squadName"] = "Squad Name is required"
-    if (!email.contains("@") || !email.contains(".")) errors["email"] = "Enter a valid email"
-    if (!Regex("^[0-9]{10}$").matches(phoneNumber)) errors["phone"] = "Enter valid 10-digit phone"
+    if (squadName.isBlank()) errors["squadName"] = SquadStrings.nameRequired
+    if (!email.contains("@") || !email.contains(".")) errors["email"] = SquadStrings.enterValidEmailAddress
+    if (!Regex("^[0-9]{10}$").matches(phoneNumber)) errors["phone"] = SquadStrings.enterValidPhoneNumber
     if (totalMonths.isBlank() || totalMonths.toIntOrNull() == null)
-        errors["totalMonths"] = "Enter valid Squad Months"
+        errors["totalMonths"] = SquadStrings.squadMonthRequired
     if (squadAmount.isBlank())
-        errors["squadAmount"] = "Squad Amount is required"
+        errors["squadAmount"] = SquadStrings.squadAmountRequired
 
     return errors
 }
@@ -587,7 +587,7 @@ private fun verifyOTP(
                 if (task.isSuccessful) {
                     onSuccess()
                 } else {
-                    onError(task.exception?.localizedMessage ?: "Invalid OTP")
+                    onError(task.exception?.localizedMessage ?: SquadStrings.invalidOTP)
                 }
             }
     } catch (e: Exception) {
@@ -666,9 +666,9 @@ private fun saveSquadData(
         if (!success) {
 
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.genericError,
-                primaryButtonTitle = "OK"
+                primaryButtonTitle = SquadStrings.ok
             )
 
             return@addSquad
@@ -691,9 +691,9 @@ private fun saveSquadData(
                 LoaderManager.shared.hideLoader()
 
                     AlertManager.shared.showAlert(
-                        title = SquadStrings.appName,
+                        title = SquadStrings.savingsSquad,
                         message = SquadStrings.squadCreatedSuccessfully,
-                        primaryButtonTitle = "Login",
+                        primaryButtonTitle = SquadStrings.loginTitle,
                         primaryAction = {
 
                             navController.popBackStack()

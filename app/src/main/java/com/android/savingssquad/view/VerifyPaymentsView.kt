@@ -174,7 +174,7 @@ fun VerifyPaymentsViewOld(
                         tint = AppColors.successAccent.copy(alpha = 0.7f)
                     )
                     Text(
-                        text = "No pending account transfers",
+                        text = SquadStrings.noPendingTransfers,
                         style = AppFont.ibmPlexSans(15, FontWeight.Medium),
                         color = AppColors.secondaryText,
                         modifier = Modifier.padding(top = 8.dp)

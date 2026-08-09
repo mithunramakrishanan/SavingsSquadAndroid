@@ -143,14 +143,14 @@ fun UpgradePlanScreen(
 
             // ---------------- HEADER ----------------
             Text(
-                "Upgrade Your Squad",
+                SquadStrings.upgradeYourSquad,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = AppColors.headerText
             )
 
             Text(
-                "Contributions • Loans • Scaling",
+                SquadStrings.contributionsLoansScaling,
                 fontSize = 13.sp,
                 color = AppColors.secondaryText
             )
@@ -172,14 +172,14 @@ fun UpgradePlanScreen(
                     Column(modifier = Modifier.padding(start = 8.dp)) {
 
                         Text(
-                            "Free Trial Active",
+                            SquadStrings.freeTrialActive,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = AppColors.successAccent
                         )
 
                         Text(
-                            "${viewModel.trialDaysRemaining()} days remaining",
+                            SquadStrings.trialDaysRemaining(viewModel.trialDaysRemaining().toString()),
                             fontSize = 11.sp,
                             color = AppColors.secondaryText
                         )
@@ -204,20 +204,20 @@ fun UpgradePlanScreen(
 
             // ---------------- FREE PLAN ----------------
             PlanCard(
-                title = "FREE",
-                subtitle = "Core tracking for small squads (up to 10 members)",
+                title = SquadStrings.freePlan,
+                subtitle = SquadStrings.freePlanDescription,
                 price = cfg.free_priceText,
                 isSelected = selectedPlan == SubscriptionModel.Plan.FREE,
                 isExpanded = expandedPlan == SubscriptionModel.Plan.FREE,
                 enabled = !forceUpgrade,
                 included = listOf(
-                    "Up to 10 Members",
-                    "Contribution Tracking",
-                    "Payment History",
-                    "Activity Logs",
-                    "Basic Dashboard"
+                    SquadStrings.upTo10Members,
+                    SquadStrings.contributionTracking,
+                    SquadStrings.paymentHistory,
+                    SquadStrings.activityLogs,
+                    SquadStrings.basicDashboard
                 ),
-                excluded = listOf("Loan Management"),
+                excluded = listOf(SquadStrings.loanManagement),
                 onClick = {
                     selectedPlan = SubscriptionModel.Plan.FREE
                     expandedPlan =
@@ -228,19 +228,19 @@ fun UpgradePlanScreen(
 
             // ---------------- BASIC PLAN ----------------
             PlanCard(
-                title = "BASIC",
-                subtitle = "Advanced tracking for growing squads (up to 50 members)",
+                title = SquadStrings.basicPlan,
+                subtitle = SquadStrings.basicPlanDescription,
                 price = cfg.priceText(SubscriptionModel.Plan.BASIC, selectedPeriod),   // ⭐ CHANGED
                 isSelected = selectedPlan == SubscriptionModel.Plan.BASIC,
                 isExpanded = expandedPlan == SubscriptionModel.Plan.BASIC,
                 included = listOf(
-                    "Everything in FREE",
-                    "Up to 50 Members",
-                    "Advanced Reports",
-                    "Better Insights",
-                    "Faster Management"
+                    SquadStrings.everythingInFree,
+                    SquadStrings.upTo50Members,
+                    SquadStrings.advancedReports,
+                    SquadStrings.betterInsights,
+                    SquadStrings.fasterManagement
                 ),
-                excluded = listOf("Loan Management"),
+                excluded = listOf(SquadStrings.loanManagement),
                 onClick = {
                     selectedPlan = SubscriptionModel.Plan.BASIC
                     expandedPlan =
@@ -251,17 +251,17 @@ fun UpgradePlanScreen(
 
             // ---------------- BUSINESS PLAN ----------------
             PlanCard(
-                title = "BUSINESS",
-                subtitle = "Full tracking + loans + analytics",
+                title = SquadStrings.businessPlan,
+                subtitle = SquadStrings.businessPlanDescription,
                 price = cfg.priceText(SubscriptionModel.Plan.BUSINESS, selectedPeriod),   // ⭐ CHANGED
                 isSelected = selectedPlan == SubscriptionModel.Plan.BUSINESS,
                 isExpanded = expandedPlan == SubscriptionModel.Plan.BUSINESS,
                 included = listOf(
-                    "Everything in BASIC",
-                    "Up to 200+ Members",
-                    "Loan Management Included",
-                    "Advanced Analytics",
-                    "Priority Support"
+                    SquadStrings.everythingInBasic,
+                    SquadStrings.upTo200PlusMembers,
+                    SquadStrings.loanManagementIncluded,
+                    SquadStrings.advancedAnalytics,
+                    SquadStrings.prioritySupport
                 ),
                 excluded = emptyList(),
                 onClick = {
@@ -292,7 +292,7 @@ fun UpgradePlanScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Loan Add-On")
+                        Text(SquadStrings.loanAddOn)
                         Text(cfg.addon_loan_priceText)
                     }
 
@@ -331,7 +331,7 @@ fun UpgradePlanScreen(
 
                         onError = { error ->
                             ToastManager.show(
-                                title = SquadStrings.appName,
+                                title = SquadStrings.savingsSquad,
                                 message = error,
                                 type = ToastType.ERROR
                             )
@@ -355,7 +355,7 @@ fun UpgradePlanScreen(
                         color = Color.White
                     )
                 } else {
-                    Text("Upgrade Now")
+                    Text(SquadStrings.upgradeNow)
                 }
             }
 
@@ -398,7 +398,7 @@ fun BillingPeriodPicker(
                 horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
             ) {
                 Text(
-                    period.displayName,
+                    period.localizedName,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = if (isSelected) Color.White else AppColors.headerText
@@ -479,7 +479,7 @@ fun PlanCard(
 
         Row {
             Text(
-                if (isExpanded) "Hide details" else "View details",
+                if (isExpanded) SquadStrings.hideDetails else SquadStrings.viewDetails,
                 fontSize = 12.sp,
                 color = AppColors.primaryBrand
             )

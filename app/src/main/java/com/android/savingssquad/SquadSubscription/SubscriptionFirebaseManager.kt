@@ -136,8 +136,8 @@ class SubscriptionFirebaseManager private constructor() {
         val effectiveLoan = if (plan == SubscriptionModel.Plan.BUSINESS) true else loanAddon
 
         val data = hashMapOf(
-            "plan" to plan.value,
-            "billingPeriod" to billingPeriod.value,   // ⭐ NEW
+            "plan" to plan,
+            "billingPeriod" to billingPeriod,   // ⭐ NEW
             "loanAddon" to effectiveLoan,
             "updatedAt" to Timestamp.now()
         )

@@ -66,7 +66,7 @@ fun PaymentRow(
     var showDetails by remember { mutableStateOf(false) }
 
     val isCredit = payment.paymentType == PaymentType.PAYMENT_CREDIT
-    val displayName = if (payment.paymentType == PaymentType.PAYMENT_DEBIT) "Squad Manager" else payment.memberName
+    val displayName = if (payment.paymentType == PaymentType.PAYMENT_DEBIT) SquadStrings.squadMember else payment.memberName
     val totalAmount = if (payment.paymentSubType == PaymentSubType.EMI_AMOUNT)
         payment.amount + payment.intrestAmount else payment.amount
     val amountText = (if (isCredit) "+ " else "- ") + formatINR(totalAmount)
@@ -221,13 +221,13 @@ fun PaymentDetailSheet(
     val statusIcon = statusIconFor(payment.paymentStatus)
 
     val typeTitle = when (payment.paymentSubType) {
-        PaymentSubType.CONTRIBUTION_AMOUNT -> "Contribution"
-        PaymentSubType.EMI_AMOUNT -> "EMI Amount"
-        PaymentSubType.LOAN_AMOUNT -> "Loan Disbursement"
-        PaymentSubType.OTHERS_AMOUNT -> "Payment"
-        PaymentSubType.INTEREST_AMOUNT -> "Interest"
-        PaymentSubType.RE_PAYMENT -> "Repayment"
-        PaymentSubType.SETTLEMENT -> "Settlement"
+        PaymentSubType.CONTRIBUTION_AMOUNT -> SquadStrings.contribution
+        PaymentSubType.EMI_AMOUNT -> SquadStrings.emiAmount
+        PaymentSubType.LOAN_AMOUNT -> SquadStrings.loanDisbursement
+        PaymentSubType.OTHERS_AMOUNT -> SquadStrings.payment
+        PaymentSubType.INTEREST_AMOUNT -> SquadStrings.interest
+        PaymentSubType.RE_PAYMENT -> SquadStrings.repayment
+        PaymentSubType.SETTLEMENT -> SquadStrings.settlement
     }
 
     ModalBottomSheet(
@@ -316,10 +316,10 @@ fun PaymentDetailSheet(
                     .padding(vertical = 2.dp)
             ) {
 
-                DetailRow(icon = Icons.Default.Person, title = "Member", value = payment.memberName)
+                DetailRow(icon = Icons.Default.Person, title = SquadStrings.member, value = payment.memberName)
                 RowDivider()
 
-                DetailRow(icon = Icons.Default.Sell, title = "Type", value = typeTitle)
+                DetailRow(icon = Icons.Default.Sell, title = SquadStrings.type, value = typeTitle)
                 RowDivider()
 
                 DetailRow(
@@ -337,7 +337,7 @@ fun PaymentDetailSheet(
 
                 if (payment.upiID.isNotEmpty()) {
                     RowDivider()
-                    DetailRow(icon = Icons.Default.AlternateEmail, title = "UPI ID", value = payment.upiID, monospaced = true)
+                    DetailRow(icon = Icons.Default.AlternateEmail, title = SquadStrings.upiID, value = payment.upiID, monospaced = true)
                 }
 
                 RowDivider()
@@ -410,7 +410,7 @@ private fun DetailRow(
         if (copyable && onCopy != null) {
             Icon(
                 imageVector = if (didCopy) Icons.Default.Check else Icons.Default.ContentCopy,
-                contentDescription = "Copy",
+                contentDescription = SquadStrings.copy,
                 tint = if (didCopy) AppColors.successAccent else AppColors.primaryBrand,
                 modifier = Modifier
                     .size(15.dp)

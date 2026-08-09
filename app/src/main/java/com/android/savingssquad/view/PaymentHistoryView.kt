@@ -148,7 +148,7 @@ fun PaymentHistoryView(
 
                     Text(
                         text = if (screenType == SquadUserType.SQUAD_MEMBER)
-                            "No payments yet"
+                            SquadStrings.noPaymentsYet
                         else
                             "No transactions yet",
                         style = AppFont.ibmPlexSans(

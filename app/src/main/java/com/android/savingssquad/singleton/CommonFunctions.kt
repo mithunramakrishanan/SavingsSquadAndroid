@@ -29,6 +29,7 @@ import com.android.savingssquad.model.ForceCloseSummary
 import com.android.savingssquad.model.SquadActivity
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.singleton.CashfreeBeneficiaryType
+import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.asTimestamp
 import java.time.ZoneId
@@ -135,8 +136,25 @@ object CommonFunctions {
         val years = months / 12
         val remaining = months % 12
         val parts = mutableListOf<String>()
-        if (years > 0) parts.add("$years Year${if (years > 1) "s" else ""}")
-        if (remaining > 0) parts.add("$remaining Month${if (remaining > 1) "s" else ""}")
+
+        if (years > 0) {
+            parts.add(
+                "$years ${
+                    if (years > 1) SquadStrings.years
+                    else SquadStrings.year
+                }"
+            )
+        }
+
+        if (remaining > 0) {
+            parts.add(
+                "$remaining ${
+                    if (remaining > 1) SquadStrings.months
+                    else SquadStrings.month
+                }"
+            )
+        }
+
         return parts.joinToString(" ")
     }
 

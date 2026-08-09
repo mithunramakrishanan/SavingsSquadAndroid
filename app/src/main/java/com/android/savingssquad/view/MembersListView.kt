@@ -127,7 +127,7 @@ fun MembersListView(
             }
 
             SSSearchField(
-                placeHolder = "Search members...",
+                placeHolder = SquadStrings.searchMembers,
                 searchText = searchText,
                 onTextChange = { searchText = it }
             )
@@ -187,7 +187,7 @@ fun EmptyMembersView() {
         )
 
         Text(
-            text = "No squad members yet!",
+            text = SquadStrings.noSquadMembers,
             style = AppFont.ibmPlexSans(16, FontWeight.Normal),
             color = AppColors.headerText
         )
@@ -209,13 +209,13 @@ fun MembersListContent(
 
         FirestoreManager.shared.updateOnlyMemberStatus(
             member = member,
-            recordStatus = newStatus.value
+            recordStatus = newStatus.name
         ) { success, error ->
 
             if (success) {
 
                 ToastManager.show(
-                    message = "${member.name} is now ${newStatus.displayName()}",
+                    message = "${member.name} is now ${newStatus.localizedName}",
                     type = if (newStatus == RecordStatus.INACTIVE) {
                         ToastType.ERROR
                     } else {
@@ -257,7 +257,7 @@ fun MembersListContent(
                     applyStatus(newStatus,member)
 
                 },
-                secondaryButtonTitle = "Cancel",
+                secondaryButtonTitle = SquadStrings.cancel,
                 secondaryAction = {}
             )
 
@@ -376,7 +376,7 @@ fun MembersListCellView(member: Member,onSelectStatus: (RecordStatus) -> Unit) {
             if (displayedStatus == RecordStatus.ACTIVE) {
 
                 SSBadge(
-                    title = displayedStatus.displayName(),
+                    title = displayedStatus.localizedName,
                     value = "",
                     icon = "",
                     style = BadgeStyle.SUCCESS
@@ -385,7 +385,7 @@ fun MembersListCellView(member: Member,onSelectStatus: (RecordStatus) -> Unit) {
             else {
 
                 SSBadge(
-                    title = displayedStatus.displayName(),
+                    title = displayedStatus.localizedName,
                     value = "",
                     icon = "",
                     style = BadgeStyle.ERROR

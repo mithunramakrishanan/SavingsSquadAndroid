@@ -76,8 +76,8 @@ fun MemberOtherPaymentsView(
         squadViewModel.resetOtherPaymentsPagination()
 
         val paidStatus = when (selectedPaidStatus) {
-            PaidStatus.PAID.value -> PaidStatus.PAID
-            PaidStatus.NOT_PAID.value -> PaidStatus.NOT_PAID
+            PaidStatus.PAID.localizedName -> PaidStatus.PAID
+            PaidStatus.NOT_PAID.localizedName -> PaidStatus.NOT_PAID
             else -> PaidStatus.INVERIFICATION
         }
 
@@ -146,7 +146,7 @@ fun MemberOtherPaymentsView(
             // MARK: - Nav Bar
 
             SSNavigationBar(
-                title = "Other Payments",
+                title = SquadStrings.otherPayments,
                 navController = navController
             )
 
@@ -185,22 +185,15 @@ fun MemberOtherPaymentsView(
                 DropdownMenuPicker(
                     selected = selectedPaidStatus,
                     items = listOf(SquadStrings.all) + listOf(
-                        PaidStatus.PAID.value,
-                        PaidStatus.NOT_PAID.value,
-                        PaidStatus.INVERIFICATION.value
+                        PaidStatus.PAID.localizedName,
+                        PaidStatus.NOT_PAID.localizedName,
+                        PaidStatus.INVERIFICATION.localizedName
                     ),
                     icon = Icons.Default.Payment,
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
                         .fillMaxWidth()
                 ) { selected ->
-
-                    selectedPaidStatus = when (selected) {
-                        PaidStatus.PAID.value -> PaidStatus.PAID.value
-                        PaidStatus.NOT_PAID.value -> PaidStatus.NOT_PAID.value
-                        PaidStatus.INVERIFICATION.value -> PaidStatus.INVERIFICATION.value
-                        else -> SquadStrings.all
-                    }
 
                     reloadCashRequests()
                 }
@@ -254,9 +247,9 @@ fun MemberOtherPaymentsView(
 
                     Text(
                         text = if (selectedSubType == MemberPaymentSubType.RE_PAYMENT.value)
-                            "No repayments yet"
+                            SquadStrings.noRepaymentsYet
                         else
-                            "No settlements yet",
+                            SquadStrings.noSettlementsYet,
                         style = AppFont.ibmPlexSans(15, FontWeight.Medium),
                         color = AppColors.secondaryText
                     )
@@ -309,8 +302,8 @@ fun MemberOtherPaymentsView(
 
 
                             val paidStatus = when (selectedPaidStatus) {
-                                PaidStatus.PAID.value -> PaidStatus.PAID
-                                PaidStatus.NOT_PAID.value -> PaidStatus.NOT_PAID
+                                PaidStatus.PAID.localizedName -> PaidStatus.PAID
+                                PaidStatus.NOT_PAID.localizedName -> PaidStatus.NOT_PAID
                                 else -> PaidStatus.INVERIFICATION
                             }
 

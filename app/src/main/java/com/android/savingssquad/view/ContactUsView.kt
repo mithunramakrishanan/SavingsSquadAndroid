@@ -85,7 +85,7 @@ fun ContactUsView(
         ) {
 
             SSNavigationBar(
-                title = "Contact Us",
+                title = SquadStrings.contactUs,
                 navController = navController
             )
 
@@ -116,7 +116,7 @@ fun ContactUsView(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "Savings Squad",
+                    text = SquadStrings.savingsSquad,
                     style = AppFont.ibmPlexSans(
                         28,
                         FontWeight.Bold
@@ -127,7 +127,7 @@ fun ContactUsView(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Need help or have feedback?\nWe're always happy to hear from you.",
+                    text = SquadStrings.needHelpOrHaveFeedback,
                     style = AppFont.ibmPlexSans(15),
                     color = AppColors.secondaryText,
                     textAlign = TextAlign.Center
@@ -137,7 +137,7 @@ fun ContactUsView(
 
                 ContactCard(
                     icon = R.drawable.instagram_icon,
-                    title = "Instagram",
+                    title = SquadStrings.instagram,
                     subtitle = SquadStrings.instagramName,
                     tint = Color(0xFFE4405F)
                 ) {
@@ -148,7 +148,7 @@ fun ContactUsView(
 
                 ContactCard(
                     icon = R.drawable.whatsapp_icon,
-                    title = "WhatsApp",
+                    title = SquadStrings.whatsapp,
                     subtitle = SquadStrings.whatsappName,
                     tint = Color(0xFF25D366)
                 ) {
@@ -159,7 +159,7 @@ fun ContactUsView(
 
                 ContactCard(
                     icon = R.drawable.gmail_icon,
-                    title = "Email",
+                    title = SquadStrings.email,
                     subtitle = SquadStrings.gmailName,
                     tint = Color(0xFFEA4335)
                 ) {
@@ -180,7 +180,7 @@ fun ContactUsView(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Saving Smarter, Together.",
+                    text = SquadStrings.savingSmarterTogether,
                     style = AppFont.ibmPlexSans(
                         13,
                         FontWeight.Medium

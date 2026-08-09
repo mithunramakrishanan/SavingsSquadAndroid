@@ -127,19 +127,19 @@ fun ManageSquadView(
                 .padding(vertical = 16.dp)
         ) {
             // Navigation Bar (use your SSNavigationBar)
-            SSNavigationBar(title = "Manage Squad",navController)
+            SSNavigationBar(title = SquadStrings.manageSquad,navController)
 
             Spacer(modifier = Modifier.height(8.dp))
 
             // Section: Squad Details
-            SectionView(title = "Squad Details") {
+            SectionView(title = SquadStrings.squadDetails) {
 
                 Column(verticalArrangement = Arrangement.spacedBy(15.dp)) {
 
                     // Squad Name
                     SSTextField(
                         icon = Icons.Default.Business,
-                        placeholder = "Squad Name",
+                        placeholder = SquadStrings.squadName,
                         textState = squadName,
                         disabled = true
                     )
@@ -169,7 +169,7 @@ fun ManageSquadView(
 
                     SSTextField(
                         icon = Icons.Default.CalendarToday,
-                        placeholder = "Squad Duration",
+                        placeholder = SquadStrings.squadDuration,
                         textState = durationText,
                         keyboardType = KeyboardType.Number,
                         error = squadMonthError
@@ -199,7 +199,7 @@ fun ManageSquadView(
 
                     SSTextField(
                         icon = Icons.Default.CreditCard,
-                        placeholder = "Squad Amount",
+                        placeholder = SquadStrings.monthlySquadAmount,
                         textState = amountState,
                         keyboardType = KeyboardType.Number,
                         error = squadAmountError
@@ -211,7 +211,7 @@ fun ManageSquadView(
 
             // Update Button
             SSButton(
-                title = "Update Squad Details",
+                title = SquadStrings.updateSquadDetails,
                 isButtonLoading = false,
                 isDisabled = !hasChanges,
                 action = {
@@ -228,7 +228,7 @@ fun ManageSquadView(
                                 val message = "Squad duration is too short! Needs to be at least $requiredMonths months."
 
                                 AlertManager.shared.showAlert(
-                                    title = SquadStrings.appName,
+                                    title = SquadStrings.savingsSquad,
                                     message = message,
                                     primaryButtonTitle = SquadStrings.ok
                                 ) {
@@ -295,7 +295,7 @@ fun ManageSquadView(
                                 totalSquadAmount = newValue
 
                                 LoaderManager.shared.hideLoader()
-                                ToastManager.show(SquadStrings.appName, message = "Updated squad amount: $totalSquadAmount → $newValue" , type = ToastType.SUCCESS)
+                                ToastManager.show(SquadStrings.savingsSquad, message = "Updated squad amount: $totalSquadAmount → $newValue" , type = ToastType.SUCCESS)
                             }
 
                         } else {
@@ -327,9 +327,9 @@ private fun saveChanges(
     onSuccess: () -> Unit,
     setErrors: (phoneError: String, monthError: String, amountError: String) -> Unit
 ) {
-    val phoneErr = if (Regex("^[0-9]{10}$").matches(phone)) "" else "Enter a valid 10-digit phone number"
-    val monthErr = if (currentDuration == 0) "Squad Month is required" else ""
-    val amountErr = if (currentAmount <= 0) "Squad Amount is required" else ""
+    val phoneErr = if (Regex("^[0-9]{10}$").matches(phone)) "" else SquadStrings.enterValidPhoneNumber
+    val monthErr = if (currentDuration == 0) SquadStrings.squadMonthRequired else ""
+    val amountErr = if (currentAmount <= 0) SquadStrings.squadAmountRequired else ""
 
     setErrors(phoneErr, monthErr, amountErr)
     if (phoneErr.isNotEmpty() || monthErr.isNotEmpty() || amountErr.isNotEmpty()) return
@@ -487,14 +487,14 @@ fun SquadAmountQuickEditView(
             Column(modifier = Modifier.weight(1f)) {
 
                 Text(
-                    text = "Squad",
+                    text = SquadStrings.squad,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF0D1117)
                 )
 
                 Text(
-                    text = "Current available balance",
+                    text = SquadStrings.currentAvailableBalance,
                     fontSize = 12.sp,
                     color = Color(0xFF6B7280)
                 )
@@ -578,7 +578,7 @@ fun SquadAmountQuickEditView(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
-                    text = if (isEditing) "Save" else "Edit",
+                    text = if (isEditing) SquadStrings.save else "Edit",
                     color = Color.White,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
@@ -597,7 +597,7 @@ fun SquadAmountQuickEditView(
                     reason = it
                     reasonError = ""
                 },
-                placeholder = { Text("Enter reason for update") },
+                placeholder = { Text(SquadStrings.enterReasonForUpdate) },
                 isError = reasonError.isNotEmpty(),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -625,7 +625,7 @@ fun SquadAmountQuickEditView(
 
         // 🔹 INFO TEXT
         Text(
-            text = "Any update is securely recorded and visible to all squad members for transparency.",
+            text = SquadStrings.updateReasonDescription,
             fontSize = 11.sp,
             color = Color(0xFF9CA3AF)
         )

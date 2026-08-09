@@ -198,7 +198,7 @@ fun PaymentApprovalView(
         {
 
             SSNavigationBar(
-                title = "Verify Payments",
+                title = SquadStrings.verifyPayments,
                 navController = navController
             )
 
@@ -572,7 +572,7 @@ fun PaymentApprovalRow(
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    text = "Received",
+                    text = SquadStrings.received,
                     style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
                     color = Color.White
                 )
@@ -632,11 +632,11 @@ private fun ForceCloseDropdown(
                     .padding(bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                SummaryRow("Outstanding Principal", "₹${summary.outstandingPrincipal}")
-                SummaryRow("Days Elapsed", "${summary.daysElapsed}")
-                SummaryRow("Recalculated Interest", "₹${summary.recalculatedInterest}")
+                SummaryRow(SquadStrings.outstandingPrincipal, "₹${summary.outstandingPrincipal}")
+                SummaryRow(SquadStrings.daysElapsed, "${summary.daysElapsed}")
+                SummaryRow(SquadStrings.recalculatedInterest, "₹${summary.recalculatedInterest}")
                 HorizontalDivider(color = AppColors.secondaryText.copy(alpha = 0.15f))
-                SummaryRow("Total Payable", "₹${summary.totalPayable}", bold = true)
+                SummaryRow(SquadStrings.totalPayable, "₹${summary.totalPayable}", bold = true)
             }
         }
     }
@@ -673,12 +673,12 @@ private fun initials(name: String): String {
 fun getPaymentLabel(type: PaymentSubType): String {
     return when (type) {
 
-        PaymentSubType.CONTRIBUTION_AMOUNT -> "Contribution"
+        PaymentSubType.CONTRIBUTION_AMOUNT -> SquadStrings.contribution
 
-        PaymentSubType.LOAN_AMOUNT  -> "Loan"
+        PaymentSubType.LOAN_AMOUNT  -> SquadStrings.loan
 
-        PaymentSubType.EMI_AMOUNT  -> "EMI"
+        PaymentSubType.EMI_AMOUNT  -> SquadStrings.emi
 
-        else -> "Payment"
+        else -> SquadStrings.payment
     }
 }

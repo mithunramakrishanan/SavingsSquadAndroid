@@ -93,7 +93,7 @@ fun MemberPaymentView(
 
     var selectedInstallment by remember { mutableStateOf<Installment?>(null) }
 
-    var memberPaymentSegment by remember { mutableStateOf(SquadStrings.manualEntryContribution) }
+    var memberPaymentSegment by remember { mutableStateOf(SquadStrings.contribution) }
 
     // Collect flows safely
     val currentMember by squadViewModel.currentMember.collectAsStateWithLifecycle()
@@ -135,7 +135,7 @@ fun MemberPaymentView(
             UserDefaultsManager.removeRemainder()
             when (remainder.remainderType) {
                 RemainderType.CONTRIBUTION -> {
-                    memberPaymentSegment = SquadStrings.manualEntryContribution
+                    memberPaymentSegment = SquadStrings.contribution
 //                    contributionSelectedMonthYear = CommonFunctions.dateToString(
 //                        date = remainder.remainderDueDate?.toDate() ?: Date(),
 //                        format = "MMM yyyy"
@@ -153,14 +153,14 @@ fun MemberPaymentView(
                         } else {
                             availableContributionMonths = emptyList()
 
-                            ToastManager.show(title = SquadStrings.appName, message = "No outstanding dues for ${currentMember?.name ?: ""}", type = ToastType.SUCCESS)
+                            ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.noOutstandingDues(currentMember?.name ?: ""), type = ToastType.SUCCESS)
 
                         }
                     }
 
                 }
                 RemainderType.EMI -> {
-                    memberPaymentSegment = SquadStrings.manualEntryEMI
+                    memberPaymentSegment = SquadStrings.emi
 
                     squadViewModel.fetchMemberLoans(
                         showLoader = true,
@@ -213,7 +213,7 @@ fun MemberPaymentView(
             Spacer(modifier = Modifier.height(12.dp))
 
             ModernSegmentedPickerView(
-                segments = listOf(SquadStrings.manualEntryContribution, SquadStrings.manualEntryEMI,
+                segments = listOf(SquadStrings.contribution, SquadStrings.emi,
                     SquadStrings.otherPayments),
                 selectedSegment = memberPaymentSegment,
                 onSegmentSelected = {
@@ -234,7 +234,7 @@ fun MemberPaymentView(
 
             // Content
             Column(modifier = Modifier.fillMaxWidth()) {
-                if (memberPaymentSegment == SquadStrings.manualEntryContribution) {
+                if (memberPaymentSegment == SquadStrings.contribution) {
                     // Contribution flow
                     ContributionSection(
                         currentMember = currentMember,
@@ -253,7 +253,7 @@ fun MemberPaymentView(
                                 } else {
                                     availableContributionMonths = emptyList()
 
-                                    ToastManager.show(title = SquadStrings.appName, message =  "No outstanding dues for ${currentMember?.name ?: ""}", type = ToastType.SUCCESS)
+                                    ToastManager.show(title = SquadStrings.savingsSquad, message =  SquadStrings.noOutstandingDues(currentMember?.name ?: ""), type = ToastType.SUCCESS)
 
                                 }
                             }
@@ -366,7 +366,7 @@ fun MemberPaymentView(
                         }
                     )
                 }
-                else if (memberPaymentSegment == SquadStrings.manualEntryEMI) {
+                else if (memberPaymentSegment == SquadStrings.emi) {
                     // EMI flow
                     EMISection(
                         currentMember = currentMember,
@@ -519,14 +519,15 @@ fun MemberPaymentView(
                                 )
 
                                 Text(
-                                    text = "No Pending Payments",
+                                    text = SquadStrings.noPendingPayments,
                                     style = AppFont.ibmPlexSans(20, FontWeight.Bold),
                                     color = AppColors.headerText,
                                     textAlign = TextAlign.Center
                                 )
 
                                 Text(
-                                    text = "Great! you doesn't have any pending payments.",
+                                    text = SquadStrings.noPendingPaymentsDescription(currentMember?.name
+                                        ?: ""),
                                     style = AppFont.ibmPlexSans(14),
                                     color = AppColors.secondaryText,
                                     textAlign = TextAlign.Center
@@ -574,7 +575,7 @@ fun MemberPaymentView(
                         contentAlignment = Alignment.Center
                     )
                     {
-                        ViewAllButton("Check all payments") {
+                        ViewAllButton(SquadStrings.checkAllPayments) {
 
                             navController.navigate(AppDestination.MEMBER_OTHER_PAYMENT.route)
                         }
@@ -595,7 +596,7 @@ fun MemberPaymentView(
             ) {
                 SingleSelectionPopupView(
                     listValues = availableContributionMonths,
-                    title = "Pending Contribution Months",
+                    title = SquadStrings.pendingContributionMonths,
                     onItemSelected = { selectedValue ->
                         contributionSelectedMonthYear = selectedValue
                         squadViewModel.setShowContributionMonthPopup(false)
@@ -670,7 +671,7 @@ private fun ContributionSection(
     contributionAmount: Int,
     contributionSelectedMonthYearError: String
 ) {
-    SectionView(title = "Pay your contribution") {
+    SectionView(title = SquadStrings.payYourContribution) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(15.dp)) {
             // Member (disabled)
             SSTextField(
@@ -684,7 +685,7 @@ private fun ContributionSection(
             // Month picker (disabled text + dropdown action)
             SSTextField(
                 icon = Icons.Default.CalendarToday,
-                placeholder = if (contributionSelectedMonthYear.isEmpty()) "Select Contribution Date" else contributionSelectedMonthYear,
+                placeholder = if (contributionSelectedMonthYear.isEmpty()) SquadStrings.selectContributionDate else contributionSelectedMonthYear,
                 textState = remember { mutableStateOf("") },
                 keyboardType = KeyboardType.Text,
                 disabled = true,
@@ -696,7 +697,7 @@ private fun ContributionSection(
             // Amount
             SSTextField(
                 icon = Icons.Default.CreditCard,
-                placeholder = "Contribution Amount",
+                placeholder = SquadStrings.contributionAmount,
                 textState = remember { mutableStateOf(contributionAmount.toString()) },
                 keyboardType = KeyboardType.Number,
                 disabled = true
@@ -708,7 +709,7 @@ private fun ContributionSection(
 @Composable
 private fun ContributionButton(upiID: String, onClick: () -> Unit) {
     Column {
-        SSButton(title = "Pay Contribution", isDisabled = upiID.isEmpty(), action = onClick)
+        SSButton(title = SquadStrings.payContribution, isDisabled = upiID.isEmpty(), action = onClick)
         Spacer(modifier = Modifier.height(8.dp))
 
         if (upiID.trim().isEmpty()) {
@@ -770,11 +771,11 @@ private fun EMISection(
     selectedInstallment: Installment?,
     onOpenInstallmentList: () -> Unit
 ) {
-    SectionView(title = "Pay Your EMI") {
+    SectionView(title = SquadStrings.payYourEMI) {
         Column(verticalArrangement = Arrangement.spacedBy(15.dp)) {
             SSTextField(
                 icon = Icons.Default.Person,
-                placeholder = currentMember?.name ?: "Member",
+                placeholder = currentMember?.name ?: SquadStrings.member,
                 textState = remember { mutableStateOf("") },
                 keyboardType = KeyboardType.Text,
                 disabled = true
@@ -791,7 +792,7 @@ private fun EMISection(
                     ) {
 
                         Text(
-                            text = "⚠️ Manager UPI ID is not added for this Squad.",
+                            text = SquadStrings.managerUpiIdError,
                             style = AppFont.ibmPlexSans(14, FontWeight.Normal),
                             color = Color.Red,
                             modifier = Modifier.padding(vertical = 8.dp),
@@ -811,7 +812,7 @@ private fun EMISection(
             else if (isPendingLoanAvailable) {
                 SSTextField(
                     icon = Icons.Default.CalendarToday,
-                    placeholder = if (emiSelectedMonthYear.isEmpty()) "Select EMI" else emiSelectedMonthYear,
+                    placeholder = if (emiSelectedMonthYear.isEmpty()) SquadStrings.selectEMI else emiSelectedMonthYear,
                     textState = remember { mutableStateOf("") },
                     keyboardType = KeyboardType.Text,
                     disabled = true,
@@ -822,7 +823,7 @@ private fun EMISection(
 
                 SSTextField(
                     icon = Icons.Default.CreditCard,
-                    placeholder = "EMI Amount",
+                    placeholder = SquadStrings.emiAmount,
                     textState = remember(selectedInstallment) {
                         mutableStateOf(
                             ((selectedInstallment?.installmentAmount ?: 0) +
@@ -856,14 +857,14 @@ private fun EMISection(
                         )
 
                         Text(
-                            text = "No Pending Loans",
+                            text = SquadStrings.noPendingLoans,
                             style = AppFont.ibmPlexSans(20, FontWeight.Bold),
                             color = AppColors.headerText,
                             textAlign = TextAlign.Center
                         )
 
                         Text(
-                            text = "Great! All your loans are up to date. You don't have any pending loan payments at the moment.",
+                            text = SquadStrings.noPendingPaymentsDescription(currentMember?.name ?: ""),
                             style = AppFont.ibmPlexSans(14),
                             color = AppColors.secondaryText,
                             textAlign = TextAlign.Center
@@ -878,7 +879,7 @@ private fun EMISection(
 @Composable
 private fun EMIButton(isDisabled: Boolean, onClick: () -> Unit) {
     Column {
-        SSButton(title = "Pay EMI", isDisabled = isDisabled, action = onClick)
+        SSButton(title = SquadStrings.payEMI, isDisabled = isDisabled, action = onClick)
     }
 }
 
@@ -970,7 +971,7 @@ fun MemberOtherPaymentRow(
                 Spacer(modifier = Modifier.width(4.dp))
 
                 Text(
-                    "Received",
+                    SquadStrings.received,
                     style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                     color = AppColors.secondaryText
                 )
@@ -1014,7 +1015,7 @@ fun MemberOtherPaymentRow(
                                 Spacer(Modifier.width(4.dp))
 
                                 Text(
-                                    "Repaid",
+                                    SquadStrings.repaid,
                                     style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
                                     color = Color(0xFF2E7D32)
                                 )
@@ -1060,7 +1061,7 @@ fun MemberOtherPaymentRow(
                                     Spacer(Modifier.width(4.dp))
 
                                     Text(
-                                        "In Verification",
+                                        SquadStrings.inVerification,
                                         style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
                                         color = Color(0xFFFF9800)
                                     )
@@ -1106,7 +1107,7 @@ fun MemberOtherPaymentRow(
                                     Spacer(Modifier.width(4.dp))
 
                                     Text(
-                                        "Pending Repayment",
+                                        SquadStrings.pendingRepayment,
                                         style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
                                         color = Color(0xFFFF9800)
                                     )
@@ -1149,7 +1150,7 @@ fun MemberOtherPaymentRow(
                                 Spacer(Modifier.width(4.dp))
 
                                 Text(
-                                    "Settlement Pending",
+                                    SquadStrings.settlementPending,
                                     style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
                                     color = Color(0xFFFF9800)
                                 )
@@ -1170,7 +1171,7 @@ fun MemberOtherPaymentRow(
                                 Spacer(Modifier.width(4.dp))
 
                                 Text(
-                                    "Settlement In Verification",
+                                    SquadStrings.settlementInVerification,
                                     style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
                                     color = Color(0xFFFF9800)
                                 )
@@ -1193,7 +1194,7 @@ fun MemberOtherPaymentRow(
                                 Spacer(Modifier.width(4.dp))
 
                                 Text(
-                                    "Settlement Completed",
+                                    SquadStrings.settlementCompleted,
                                     style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
                                     color = AppColors.primaryBrand
                                 )

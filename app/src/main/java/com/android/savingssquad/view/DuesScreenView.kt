@@ -92,7 +92,7 @@ fun DuesScreenView(
     var currentOverDueContribution by remember { mutableStateOf(listOf<ContributionDetail>()) }
     var currentOverDueInstallments by remember { mutableStateOf(listOf<Installment>()) }
 
-    var selectedSegment by remember { mutableStateOf("Contribution") }
+    var selectedSegment by remember { mutableStateOf(SquadStrings.contribution) }
     var isLoading by remember { mutableStateOf(true) }
 
     var contributionRemaindIds by remember { mutableStateOf(listOf<String>())}
@@ -173,7 +173,7 @@ fun DuesScreenView(
                 if (currentOverDueContribution.isEmpty() && currentOverDueInstallments.isEmpty()) {
                     AllCaughUPView(
                         title = "All Due’s Paid",
-                        subtitle = "Squad all caught up!",
+                        subtitle = SquadStrings.squadAllCaughtUp,
                         icon = Icons.Default.CheckCircle,
                         iconColor = Color(0xFF4CAF50),
                         showChevron = false
@@ -181,7 +181,7 @@ fun DuesScreenView(
 
                     if (payments.size != 0) {
 
-                        SectionView(title = "Recent Payments") {
+                        SectionView(title = SquadStrings.recentPayments) {
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
                                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -207,7 +207,7 @@ fun DuesScreenView(
                 else {
                     // Segmented control
                     ModernSegmentedPickerView(
-                        segments = listOf("Contribution", "EMI"),
+                        segments = listOf(SquadStrings.contribution, SquadStrings.emi),
                         selectedSegment = selectedSegment,
                         onSegmentSelected = { selectedSegment = it }
                     )
@@ -215,17 +215,17 @@ fun DuesScreenView(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // Content
-                    if (selectedSegment == "Contribution") {
+                    if (selectedSegment == SquadStrings.contribution) {
                         if (currentOverDueContribution.isEmpty()) {
                             AllCaughUPView(
-                                title = "All Contributions Paid",
-                                subtitle = "Squad all caught up!",
+                                title = SquadStrings.allContributionsPaid,
+                                subtitle = SquadStrings.squadAllCaughtUp,
                                 icon = Icons.Default.CheckCircle,
                                 iconColor = Color(0xFF4CAF50),
                                 showChevron = false
                             )
                         } else {
-                            SectionView(title = "$selectedSegment Dues") {
+                            SectionView(title = "$selectedSegment ${SquadStrings.dues}") {
 
                                 Box(
                                     modifier = Modifier
@@ -262,8 +262,8 @@ fun DuesScreenView(
                                             onSuccess = { response ->
                                                 LoaderManager.shared.hideLoader()
                                                 ToastManager.show(
-                                                    title = "Reminder Sent",
-                                                    message = "Notification sent to ${response.sentTo} member(s)",
+                                                    title = SquadStrings.reminderSent,
+                                                    message = SquadStrings.notificationSentToMembers(response.sentTo.toString()),
                                                     type = ToastType.SUCCESS
                                                 )
                                             },
@@ -308,7 +308,7 @@ fun DuesScreenView(
                                                 title = "Contribution ${contribution.monthYear}",
                                                 amount = "₹${contribution.amount}",
                                                 date = it,
-                                                status = if (contribution.paidStatus == PaidStatus.PAID) "PAID" else "PENDING",
+                                                status = if (contribution.paidStatus == PaidStatus.PAID) SquadStrings.paid else SquadStrings.pending,
                                                 memberName = contribution.memberName,
                                                 onRemind = {
                                                     LoaderManager.shared.showLoader()
@@ -336,8 +336,8 @@ fun DuesScreenView(
                                                         onSuccess = { response ->
                                                             LoaderManager.shared.hideLoader()
                                                             ToastManager.show(
-                                                                title = "Reminder Sent",
-                                                                message = "Notification sent to ${contribution.memberName}",
+                                                                title = SquadStrings.reminderSent,
+                                                                message = SquadStrings.notificationSentToMember(contribution.memberName),
                                                                 type = ToastType.SUCCESS
                                                             )
                                                         },
@@ -367,14 +367,14 @@ fun DuesScreenView(
 
                             AllCaughUPView(
                                 title = "All EMI's Paid",
-                                subtitle = "Squad all caught up!",
+                                subtitle = SquadStrings.squadAllCaughtUp,
                                 icon = Icons.Default.CheckCircle,
                                 iconColor = Color(0xFF4CAF50),
                                 showChevron = false
                             )
                         }
                         else {
-                            SectionView(title = "$selectedSegment Dues") {
+                            SectionView(title = "$selectedSegment ${SquadStrings.dues}") {
 
                                 Box(
                                     modifier = Modifier
@@ -410,8 +410,8 @@ fun DuesScreenView(
                                             onSuccess = { response ->
                                                 LoaderManager.shared.hideLoader()
                                                 ToastManager.show(
-                                                    title = "Reminder Sent",
-                                                    message = "Notification sent to ${response.sentTo} member(s)",
+                                                    title = SquadStrings.reminderSent,
+                                                    message = SquadStrings.notificationSentToMembers(response.sentTo.toString()),
                                                     type = ToastType.SUCCESS
                                                 )
                                             },
@@ -455,7 +455,7 @@ fun DuesScreenView(
                                                 title = "${installment.installmentNumber} (${installment.loanNumber})",
                                                 amount = "₹${installment.installmentAmount + installment.interestAmount}",
                                                 date = it,
-                                                status = if (installment.status == EMIStatus.PAID) "PAID" else "PENDING",
+                                                status = if (installment.status == EMIStatus.PAID) SquadStrings.paid else SquadStrings.pending,
                                                 memberName = installment.memberName,
                                                 onRemind = {
 
@@ -480,8 +480,8 @@ fun DuesScreenView(
                                                         onSuccess = { response ->
                                                             LoaderManager.shared.hideLoader()
                                                             ToastManager.show(
-                                                                title = "Reminder Sent",
-                                                                message = "Notification sent to ${installment.memberName}",
+                                                                title = SquadStrings.reminderSent,
+                                                                message = SquadStrings.notificationSentToMember(installment.memberName),
                                                                 type = ToastType.SUCCESS
                                                             )
                                                         },
@@ -510,7 +510,7 @@ fun DuesScreenView(
 
                 AllCaughUPView(
                     title = "All Due’s Paid",
-                    subtitle = "Squad all caught up!",
+                    subtitle = SquadStrings.squadAllCaughtUp,
                     icon = Icons.Default.CheckCircle,
                     iconColor = Color(0xFF4CAF50),
                     showChevron = false
@@ -518,7 +518,7 @@ fun DuesScreenView(
 
                 if (payments.size != 0) {
 
-                    SectionView(title = "Recent Payments") {
+                    SectionView(title = SquadStrings.recentPayments) {
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -558,7 +558,7 @@ fun PaymentDetailRow(
     onRemind: (() -> Unit)? = null
 ) {
 
-    val isPending = status == "PENDING"
+    val isPending = status == SquadStrings.pending
     val statusColor = if (isPending) Color.Red else Color(0xFF2FB55F)
 
     Row(
@@ -688,7 +688,7 @@ fun PaymentDetailRow(
                             Spacer(modifier = Modifier.width(4.dp))
 
                             Text(
-                                text = "Remind",
+                                text = SquadStrings.remind,
                                 style = AppFont.ibmPlexSans(
                                     11,
                                     FontWeight.SemiBold

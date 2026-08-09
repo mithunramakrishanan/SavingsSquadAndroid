@@ -31,7 +31,6 @@ import com.android.savingssquad.model.pendingInstallments
 import com.android.savingssquad.singleton.AlertType
 import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.EMIStatus
-import com.android.savingssquad.singleton.LanguageStore
 import com.android.savingssquad.singleton.SquadLanguages
 import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.MemberPaymentSubType
@@ -62,6 +61,7 @@ import kotlinx.coroutines.launch
 import java.util.Date
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -352,16 +352,17 @@ class SquadViewModel : ViewModel() {
     private var squadListener: ListenerRegistration? = null
     private var membersListener: ListenerRegistration? = null
 
+    private val _language = MutableStateFlow(
+        UserDefaultsManager.getLanguage()
+    )
 
+    val language: StateFlow<SquadLanguages> = _language.asStateFlow()
 
-    private val _language = MutableStateFlow<SquadLanguages?>(UserDefaultsManager.getLanguage())
-    val language: StateFlow<SquadLanguages?> = _language
+    fun setLanguage(value: SquadLanguages) {
 
-    fun setLanguage(value: SquadLanguages?) {
         _language.value = value
-        value?.let {
-            LanguageStore.current = it
-        }
+
+        SquadStrings.setLanguage(value)
     }
 
     init {
@@ -548,7 +549,7 @@ class SquadViewModel : ViewModel() {
     fun addUserLogin(showLoader: Boolean = true, member: Member) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -594,7 +595,7 @@ class SquadViewModel : ViewModel() {
         // ✅ Check Internet
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -663,7 +664,7 @@ class SquadViewModel : ViewModel() {
         // ✅ Internet check
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -761,7 +762,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -806,7 +807,7 @@ class SquadViewModel : ViewModel() {
 
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -858,7 +859,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -945,7 +946,7 @@ class SquadViewModel : ViewModel() {
                     if (memberNames != null && memberNames.map { it.name }.contains(name)) {
                         if (showLoader) LoaderManager.shared.hideLoader()
                         AlertManager.shared.showAlert(
-                            title = SquadStrings.appName,
+                            title = SquadStrings.savingsSquad,
                             message = SquadStrings.nameAlreadyExists,
                             primaryButtonTitle = SquadStrings.ok,
                             primaryAction = {}
@@ -971,7 +972,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1010,7 +1011,7 @@ class SquadViewModel : ViewModel() {
     fun fetchMembers(showLoader: Boolean, completion: (Boolean, List<Member>?, String?) -> Unit) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1069,7 +1070,7 @@ class SquadViewModel : ViewModel() {
     private fun createContributionWhenMemberCreate(member: Member) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1113,7 +1114,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1166,7 +1167,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1217,7 +1218,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1271,7 +1272,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1444,7 +1445,7 @@ class SquadViewModel : ViewModel() {
     fun deleteSquadActivity(showLoader: Boolean = true, activityID: String) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1475,7 +1476,7 @@ class SquadViewModel : ViewModel() {
     fun fetchRules(showLoader: Boolean = true) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = "⚠️ No internet connection",
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1503,7 +1504,7 @@ class SquadViewModel : ViewModel() {
     fun addRule(rule: SquadRule, showLoader: Boolean = true, completion: (Boolean, String?) -> Unit) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1589,7 +1590,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1636,7 +1637,7 @@ class SquadViewModel : ViewModel() {
     )  {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1665,7 +1666,7 @@ class SquadViewModel : ViewModel() {
 
         if (!CommonFunctions.isInternetAvailable()) {
             ToastManager.show(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 type = ToastType.ERROR
             )
@@ -1705,7 +1706,7 @@ class SquadViewModel : ViewModel() {
         // 1. Internet check
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1748,7 +1749,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1781,7 +1782,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1838,7 +1839,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -1901,7 +1902,7 @@ class SquadViewModel : ViewModel() {
                             memberID = payment.memberId,
                             contributionID = payment.contributionId,
                             amount = payment.amount,
-                            newStatus = PaidStatus.PAID.value
+                            newStatus = PaidStatus.PAID.name
                         ) { success, error ->
 
                             if (!success) {
@@ -1918,7 +1919,7 @@ class SquadViewModel : ViewModel() {
                             memberID = payment.memberId,
                             contributionID = payment.contributionId,
                             amount = payment.amount,
-                            newStatus = PaidStatus.INVERIFICATION.value
+                            newStatus = PaidStatus.INVERIFICATION.name
                         ) { success, error ->
 
                             if (!success) {
@@ -1939,7 +1940,7 @@ class SquadViewModel : ViewModel() {
                         }
                         else {
 
-                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.value, showLoader = false){ success, error ->
+                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.name, showLoader = false){ success, error ->
                                 if (!success) {
                                     println("Error updating: $error")
                                 }
@@ -1961,7 +1962,7 @@ class SquadViewModel : ViewModel() {
                         }
                         else {
 
-                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.INVERIFICATION.value, showLoader = false){ success, error ->
+                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.INVERIFICATION.name, showLoader = false){ success, error ->
                                 if (!success) {
                                     println("Error updating: $error")
                                 }
@@ -2171,7 +2172,7 @@ class SquadViewModel : ViewModel() {
 
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError
             )
             completion(false, "No internet connection")
@@ -2230,7 +2231,7 @@ class SquadViewModel : ViewModel() {
                             memberID = payment.memberId,
                             contributionID = payment.contributionId,
                             amount = payment.amount,
-                            newStatus = PaidStatus.PAID.value
+                            newStatus = PaidStatus.PAID.name
                         ){ success, error ->
 
                             if (!success) {
@@ -2247,7 +2248,7 @@ class SquadViewModel : ViewModel() {
                             memberID = payment.memberId,
                             contributionID = payment.contributionId,
                             amount = payment.amount,
-                            newStatus = PaidStatus.NOT_PAID.value
+                            newStatus = PaidStatus.NOT_PAID.name
                         ){ success, error ->
 
                             if (!success) {
@@ -2284,7 +2285,7 @@ class SquadViewModel : ViewModel() {
                     when (status) {
 
                         PaymentApproveStatus.ACCEPTED -> {
-                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.value, showLoader = false){ success, error ->
+                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PAID.name, showLoader = false){ success, error ->
                                 if (!success) {
                                     println("Error updating: $error")
                                 }
@@ -2292,7 +2293,7 @@ class SquadViewModel : ViewModel() {
                         }
 
                         PaymentApproveStatus.REJECTED -> {
-                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PENDING.value, showLoader = false){ success, error ->
+                            updateInstallmentStatus(squadID = payment.squadId, memberID = payment.memberId, loanID = payment.loanId, installmentID = payment.installmentId, status = EMIStatus.PENDING.name, showLoader = false){ success, error ->
                                 if (!success) {
                                     println("Error updating: $error")
                                 }
@@ -2752,7 +2753,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -2802,7 +2803,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -2845,7 +2846,7 @@ class SquadViewModel : ViewModel() {
 
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -3066,7 +3067,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -3100,7 +3101,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -3140,7 +3141,7 @@ class SquadViewModel : ViewModel() {
     fun fetchEMIConfigurations(showLoader: Boolean, completion: (Boolean, String?) -> Unit) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -3170,7 +3171,7 @@ class SquadViewModel : ViewModel() {
     fun deleteEMIConfiguration(showLoader: Boolean, emiID: String, completion: (Boolean, String?) -> Unit) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -3206,7 +3207,7 @@ class SquadViewModel : ViewModel() {
         if (!CommonFunctions.isInternetAvailable()) {
 
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -3344,7 +3345,7 @@ class SquadViewModel : ViewModel() {
 
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -3521,7 +3522,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -3559,7 +3560,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -3628,7 +3629,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -3665,7 +3666,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -3702,7 +3703,7 @@ class SquadViewModel : ViewModel() {
     ) {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -3732,11 +3733,11 @@ class SquadViewModel : ViewModel() {
 
     private fun handleFetchError(error: String, retryAction: () -> Unit) {
         AlertManager.shared.showAlert(
-            title = SquadStrings.appName,
+            title = SquadStrings.savingsSquad,
             message = error,
             primaryButtonTitle = SquadStrings.ok,
             primaryAction = {},
-            secondaryButtonTitle = "Retry",
+            secondaryButtonTitle = SquadStrings.retry,
             secondaryAction = retryAction
         )
     }
@@ -3923,7 +3924,7 @@ class SquadViewModel : ViewModel() {
 
             Log.d("Payment", "❌ Payment error [Code: 0] - $errorMessage")
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = errorMessage,
                 type = AlertType.ERROR,
                 primaryButtonTitle = SquadStrings.ok,
@@ -3935,7 +3936,7 @@ class SquadViewModel : ViewModel() {
         if (orderId.isNullOrEmpty()) {
             Log.d("Payment", "❌ Missing or empty sessionId/orderId in response")
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = "Payment entry could not be created. Please try again.",
                 type = AlertType.ERROR,
                 primaryButtonTitle = SquadStrings.ok,
@@ -3973,10 +3974,10 @@ class SquadViewModel : ViewModel() {
                     description = payment.description,
                     memberId = payment.memberId,
                     memberName = payment.memberName,
-                    userType = payment.userType.value,
-                    paymentEntryType = payment.paymentEntryType.value,
-                    paymentType = payment.paymentType.value,
-                    paymentSubType = payment.paymentSubType.value,
+                    userType = payment.userType.name,
+                    paymentEntryType = payment.paymentEntryType.name,
+                    paymentType = payment.paymentType.name,
+                    paymentSubType = payment.paymentSubType.name,
                     contributionId = payment.contributionId,
                     loanId = payment.loanId,
                     installmentId = payment.installmentId,
@@ -4011,7 +4012,7 @@ class SquadViewModel : ViewModel() {
                             setSquadPayments(updatedList)
 
                             AlertManager.shared.showAlert(
-                                title = SquadStrings.appName,
+                                title = SquadStrings.savingsSquad,
                                 message = updatedPayment.payoutResponseMessage,
                                 type = if (updatedPayment.payoutStatus == PayoutStatus.PAYOUT_FAILED)
                                     AlertType.ERROR else AlertType.SUCCESS,
@@ -4023,7 +4024,7 @@ class SquadViewModel : ViewModel() {
                     result.onFailure { error ->
                         val message = error.message ?: "Failed to process payout. Please try again."
                         AlertManager.shared.showAlert(
-                            title = SquadStrings.appName,
+                            title = SquadStrings.savingsSquad,
                             message = message,
                             type = AlertType.ERROR,
                             primaryButtonTitle = SquadStrings.ok
@@ -4064,7 +4065,7 @@ class SquadViewModel : ViewModel() {
 
                         if (updatedPayment.payoutStatus == PayoutStatus.PAYOUT_SUCCESS) {
                             AlertManager.shared.showAlert(
-                                title = SquadStrings.appName,
+                                title = SquadStrings.savingsSquad,
                                 message = updatedPayment.payoutResponseMessage,
                                 type = AlertType.SUCCESS,
                                 primaryButtonTitle = SquadStrings.ok
@@ -4075,7 +4076,7 @@ class SquadViewModel : ViewModel() {
                     result.onFailure { error ->
                         val message = error.message ?: "Failed to verify payout status. Please try again."
                         AlertManager.shared.showAlert(
-                            title = SquadStrings.appName,
+                            title = SquadStrings.savingsSquad,
                             message = message,
                             type = AlertType.ERROR,
                             primaryButtonTitle = SquadStrings.ok
@@ -4117,9 +4118,9 @@ class SquadViewModel : ViewModel() {
 
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             completion(false, SquadStrings.networkError)
@@ -4159,9 +4160,9 @@ class SquadViewModel : ViewModel() {
 
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
-                primaryButtonTitle = "OK",
+                primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
             completion(false, SquadStrings.networkError)

@@ -152,8 +152,8 @@ fun ManageLoanView(
             )
 
             SectionView(
-                title = "Loan(s)",
-                subtitle = "Below is your current EMI configuration - you can add or edit configurations"
+                title = SquadStrings.loans,
+                subtitle = SquadStrings.emiConfigurationDescription
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     emiList.forEach { emi ->
@@ -169,9 +169,9 @@ fun ManageLoanView(
                                 selectedEMI = emi
                                 oldEMIConfig = emi
                                 AlertManager.shared.showAlert(
-                                    title = SquadStrings.appName,
-                                    message = "Are you sure you want to delete this EMI configuration?",
-                                    primaryButtonTitle = "DELETE",
+                                    title = SquadStrings.savingsSquad,
+                                    message = SquadStrings.deleteEMIConfigurationConfirmation,
+                                    primaryButtonTitle = SquadStrings.delete,
                                     primaryAction = {
                                         squadViewModel.deleteEMIConfiguration(
                                             showLoader = true,
@@ -193,7 +193,7 @@ fun ManageLoanView(
                                             }
                                         }
                                     },
-                                    secondaryButtonTitle = "NO",
+                                    secondaryButtonTitle = SquadStrings.no,
                                     secondaryAction = {}
                                 )
                             }
@@ -302,9 +302,9 @@ private fun handleAddEditEMI(
                     println("✅ Activity created")
 
                     AlertManager.shared.showAlert(
-                        title = SquadStrings.appName,
+                        title = SquadStrings.savingsSquad,
                         message = desc,
-                        primaryButtonTitle = "OK",
+                        primaryButtonTitle = SquadStrings.ok,
                         primaryAction = {}
                     )
 
@@ -429,7 +429,7 @@ fun AddEMIPopup(
 
             // MARK: Title
             Text(
-                text = if (emi == null) "Add EMI Plan" else "Edit EMI Plan",
+                text = if (emi == null) SquadStrings.addEMIPlan else SquadStrings.editEMIPlan,
                 style = AppFont.ibmPlexSans(20, FontWeight.SemiBold),
                 color = AppColors.headerText
             )
@@ -439,21 +439,21 @@ fun AddEMIPopup(
 
                 SSTextField(
                     icon = Icons.Default.CurrencyRupee,
-                    placeholder = "Loan Amount",
+                    placeholder = SquadStrings.loanAmount,
                     textState = amountState,
                     keyboardType = KeyboardType.Number
                 )
 
                 SSTextField(
                     icon = Icons.Default.CalendarMonth,
-                    placeholder = "Tenure (Months)",
+                    placeholder = SquadStrings.tenureMonths,
                     textState = monthsState,
                     keyboardType = KeyboardType.Number
                 )
 
                 SSTextField(
                     icon = Icons.Default.Percent,
-                    placeholder = "Interest Rate (%)",
+                    placeholder = SquadStrings.interestRate,
                     textState = rateState,
                     keyboardType = KeyboardType.Decimal
                 )
@@ -476,7 +476,7 @@ fun AddEMIPopup(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Interest Type: ${interestTypeState.value.label}",
+                            text = "${SquadStrings.interestType}: ${interestTypeState.value.localizedName}",
                             style = AppFont.ibmPlexSans(15, FontWeight.Normal),
                             color = AppColors.headerText,
                             modifier = Modifier.weight(1f)
@@ -494,7 +494,7 @@ fun AddEMIPopup(
                     ) {
                         InterestType.entries.forEach { type ->
                             DropdownMenuItem(
-                                text = { Text(type.label) },
+                                text = { Text(type.localizedName) },
                                 onClick = {
                                     interestTypeState.value = type
                                     dropdownExpanded = false
@@ -524,13 +524,13 @@ fun AddEMIPopup(
                 ) {
 
                     Text(
-                        text = "Estimated EMI",
+                        text = SquadStrings.estimatedEMI,
                         style = AppFont.ibmPlexSans(13, FontWeight.Medium),
                         color = AppColors.secondaryText
                     )
 
                     Text(
-                        text = "₹ ${"%.0f".format(emiValue)} / month",
+                        text = "₹ ${"%.0f".format(emiValue)} / ${SquadStrings.month}",
                         style = AppFont.ibmPlexSans(18, FontWeight.Bold),
                         color = AppColors.headerText
                     )
@@ -550,13 +550,13 @@ fun AddEMIPopup(
             ) {
 
                 SSCancelButton(
-                    title = "Cancel",
+                    title = SquadStrings.cancel,
                     modifier = Modifier.weight(1f),
                     action = onCancel
                 )
 
                 SSButton(
-                    title = if (emi == null) "Save EMI" else "Update EMI",
+                    title = if (emi == null) SquadStrings.saveEMI else SquadStrings.updateEMI,
                     isDisabled = !isValid,
                     modifier = Modifier.weight(1f),
                     action = {
@@ -615,7 +615,7 @@ fun EMIListRow(
             Column(modifier = Modifier.weight(1f)) {
 
                 Text(
-                    "Loan Amount",
+                    SquadStrings.loanAmount,
                     style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                     color = AppColors.secondaryText
                 )
@@ -633,7 +633,7 @@ fun EMIListRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
 
                     Text(
-                        "${emi.emiMonths} Months",
+                        "${emi.emiMonths} ${SquadStrings.months}",
                         style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                         color = AppColors.primaryBrand
                     )
@@ -649,7 +649,7 @@ fun EMIListRow(
                     Spacer(Modifier.width(6.dp))
 
                     Text(
-                        "${"%.2f".format(emi.emiInterestRate)}% ${emi.interestType}",
+                        "${"%.2f".format(emi.emiInterestRate)}% ${emi.interestType.localizedName}",
                         style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                         color = AppColors.secondaryText
                     )
@@ -695,17 +695,17 @@ fun EMIListRow(
         Row(modifier = Modifier.fillMaxWidth()) {
             InfoView(
                 modifier = Modifier.weight(1f),
-                title = "Monthly EMI",
+                title = SquadStrings.monthlyEMI,
                 value = emi.emiAmount.currencyFormattedWithCommas()
             )
             InfoView(
                 modifier = Modifier.weight(1f),
-                title = "Interest",
+                title = SquadStrings.interest,
                 value = emi.interestAmount.currencyFormattedWithCommas()
             )
             InfoView(
                 modifier = Modifier.weight(1f),
-                title = "Total",
+                title = SquadStrings.total,
                 value = (emi.loanAmount + emi.interestAmount).currencyFormattedWithCommas()
             )
         }
@@ -731,7 +731,7 @@ fun EMIListRow(
             Spacer(Modifier.width(6.dp))
 
             Text(
-                "Installment Details",
+                SquadStrings.installmentDetails,
                 style = AppFont.ibmPlexSans(12, FontWeight.SemiBold),
                 color = AppColors.primaryBrand
             )

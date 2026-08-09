@@ -7,441 +7,288 @@ import com.android.savingssquad.model.PaymentsDetails
 
 import com.google.firebase.firestore.PropertyName
 
-object ManualEntrySquadMessages {
-
-    object PaymentDescription {
-
-        fun contribution(
-            memberName: String,
-            monthYear: String
-        ): String {
-            return "Contribution payment for $memberName ($monthYear) updated by the squad manager."
-        }
-
-        fun emi(
-            memberName: String,
-            installment: String,
-            loanNumber: String
-        ): String {
-            return "EMI payment for $memberName - $installment of Loan #$loanNumber updated by the squad manager."
-        }
-
-        fun forceClose(
-            memberName: String,
-            loanNumber: String
-        ): String {
-            return "Loan #$loanNumber for $memberName was force closed by the squad manager."
-        }
-
-        fun otherPayment(
-            note: String,
-            amount: Int
-        ): String {
-            return "$note - ${amount.currencyFormattedWithCommas()}"
-        }
-    }
-
-    object Contribution {
-
-        const val TOAST_TITLE = "Contribution Updated"
-        const val NOTIFICATION_TITLE = "Contribution Updated"
-
-        fun toast(
-            memberName: String,
-            monthYear: String
-        ): String {
-            return "Contribution for $memberName ($monthYear) has been recorded successfully."
-        }
-
-        fun notification(
-            monthYear: String
-        ): String {
-            return "Your contribution for $monthYear has been updated by the squad manager."
-        }
-
-        fun activity(
-            memberName: String,
-            monthYear: String,
-            amount: Int
-        ): String {
-            return "Updated contribution for $memberName ($monthYear) — Amount: ${amount.currencyFormattedWithCommas()}."
-        }
-    }
-
-    object EMI {
-
-        const val TOAST_TITLE = "EMI Payment Updated"
-        const val NOTIFICATION_TITLE = "EMI Payment Updated"
-
-        fun toast(
-            memberName: String,
-            installment: String
-        ): String {
-            return "EMI payment for $memberName ($installment) has been recorded successfully."
-        }
-
-        fun notification(
-            installment: String
-        ): String {
-            return "Your EMI payment for $installment has been updated by the squad manager."
-        }
-
-        fun activity(
-            memberName: String,
-            installment: String,
-            loanNumber: String,
-            amount: Int
-        ): String {
-            return "Updated EMI payment for $memberName — $installment for Loan #$loanNumber. Amount: ${amount.currencyFormattedWithCommas()}."
-        }
-    }
-
-    object ForceClose {
-
-        const val TOAST_TITLE = "Loan Closed"
-        const val NOTIFICATION_TITLE = "Loan Closed"
-
-        fun toast(
-            memberName: String,
-            loanNumber: String
-        ): String {
-            return "Loan #$loanNumber for $memberName has been force closed successfully."
-        }
-
-        fun notification(
-            loanNumber: String
-        ): String {
-            return "Your loan #$loanNumber has been force closed by the squad manager."
-        }
-
-        fun activity(
-            memberName: String,
-            loanNumber: String,
-            total: Int
-        ): String {
-            return "Force closed Loan #$loanNumber for $memberName. Total settlement: ${total.currencyFormattedWithCommas()}."
-        }
-    }
-
-    object OtherPayment {
-
-        const val TOAST_TITLE = "Payment Recorded"
-        const val NOTIFICATION_TITLE = "New Payment Recorded"
-
-        fun toast(
-            amount: Int
-        ): String {
-            return "Payment of ${amount.currencyFormattedWithCommas()} has been recorded successfully."
-        }
-
-        fun notification(
-            amount: Int,
-            note: String
-        ): String {
-            return "A payment of ${amount.currencyFormattedWithCommas()} has been recorded by the squad manager. Note: $note"
-        }
-
-        fun activity(
-            amount: Int,
-            note: String
-        ): String {
-            return "Recorded payment of ${amount.currencyFormattedWithCommas()}. Note: $note."
-        }
-    }
-}
-
 // ------------------------------
 // MARK: - Payment Type
 // ------------------------------
-enum class PaymentType(@get:PropertyName("value") val value: String) {
-    @PropertyName("PAYMENT_DEBIT") PAYMENT_DEBIT("PAYMENT_DEBIT"),
-    @PropertyName("PAYMENT_CREDIT") PAYMENT_CREDIT("PAYMENT_CREDIT");
+enum class PaymentType {
+    PAYMENT_DEBIT,
+    PAYMENT_CREDIT;
 
-    companion object {
-        fun fromValue(value: String?): PaymentType =
-            entries.find { it.value == value } ?: PAYMENT_DEBIT
-    }
+
+    val localizedName: String
+
+        get() = when (this) {
+
+            PAYMENT_DEBIT -> SquadStrings.paymentDebit
+
+            PAYMENT_CREDIT -> SquadStrings.paymentCredit
+
+        }
 }
 
 // ------------------------------
 // MARK: - Payment SubType
 // ------------------------------
-enum class PaymentSubType(@get:PropertyName("value") val value: String) {
-    @PropertyName("INTEREST_AMOUNT") INTEREST_AMOUNT("INTEREST_AMOUNT"),
-    @PropertyName("EMI_AMOUNT") EMI_AMOUNT("EMI_AMOUNT"),
-    @PropertyName("CONTRIBUTION_AMOUNT") CONTRIBUTION_AMOUNT("CONTRIBUTION_AMOUNT"),
-    @PropertyName("LOAN_AMOUNT") LOAN_AMOUNT("LOAN_AMOUNT"),
-    @PropertyName("OTHERS_AMOUNT") OTHERS_AMOUNT("OTHERS_AMOUNT"),
-    @PropertyName("RE_PAYMENT") RE_PAYMENT("RE_PAYMENT"),
-    @PropertyName("SETTLEMENT") SETTLEMENT("SETTLEMENT");
+enum class PaymentSubType {
+    INTEREST_AMOUNT,
+    EMI_AMOUNT,
+    CONTRIBUTION_AMOUNT,
+    LOAN_AMOUNT,
+    OTHERS_AMOUNT,
+    RE_PAYMENT,
+    SETTLEMENT;
 
-    companion object {
-        fun fromValue(value: String?): PaymentSubType =
-            entries.find { it.value == value } ?: OTHERS_AMOUNT
-    }
+    val localizedName: String
+
+        get() = when (this) {
+
+            INTEREST_AMOUNT -> SquadStrings.interest
+
+            EMI_AMOUNT -> SquadStrings.emiAmount
+
+            CONTRIBUTION_AMOUNT -> SquadStrings.contributionAmount
+
+            LOAN_AMOUNT -> SquadStrings.loanAmount
+
+            OTHERS_AMOUNT -> SquadStrings.others
+
+            RE_PAYMENT -> SquadStrings.repayment
+
+            SETTLEMENT -> SquadStrings.settlement
+
+        }
 }
 
 // ------------------------------
 // MARK: - Payment Status
 // ------------------------------
-enum class PaymentStatus(@get:PropertyName("value") val value: String) {
-    @PropertyName("PENDING") PENDING("PENDING"),
-    @PropertyName("INPROGRESS") INPROGRESS("INPROGRESS"),
-    @PropertyName("SUCCESS") SUCCESS("SUCCESS"),
-    @PropertyName("FAILED") FAILED("FAILED"),
-    @PropertyName("USER_DROPPED") USER_DROPPED("USER_DROPPED"),
-    @PropertyName("CANCELLED") CANCELLED("CANCELLED"),
-    @PropertyName("REFUNDED") REFUNDED("REFUNDED"),
-    @PropertyName("VOID") VOID("VOID"),
+enum class PaymentStatus {
+    PENDING,
+    INPROGRESS,
+    SUCCESS,
+    FAILED,
+    USER_DROPPED,
+    CANCELLED,
+    REFUNDED,
+    VOID,
+    INVERIFICATION;
 
-    @PropertyName("INVERIFICATION") INVERIFICATION("INVERIFICATION");
+    val localizedName: String
 
-    companion object {
-        fun fromValue(value: String?): PaymentStatus =
-            entries.find { it.value == value } ?: PENDING
-    }
+        get() = when (this) {
+
+            PENDING -> SquadStrings.pending
+
+            INPROGRESS -> SquadStrings.inProgress
+
+            SUCCESS -> SquadStrings.success
+
+            FAILED -> SquadStrings.failed
+
+            USER_DROPPED -> SquadStrings.userDropped
+
+            CANCELLED -> SquadStrings.cancelled
+
+            REFUNDED -> SquadStrings.refunded
+
+            VOID -> SquadStrings.voidStatus
+
+            INVERIFICATION -> SquadStrings.inVerification
+
+        }
 }
 
 // ------------------------------
 // MARK: - Payment Entry Type
 // ------------------------------
-enum class PaymentEntryType(@get:PropertyName("value") val value: String) {
-    @PropertyName("MANUAL_ENTRY") MANUAL_ENTRY("MANUAL_ENTRY"),
-    @PropertyName("AUTOMATIC_ENTRY") AUTOMATIC_ENTRY("AUTOMATIC_ENTRY");
+enum class PaymentEntryType {
+    MANUAL_ENTRY,
+    AUTOMATIC_ENTRY;
 
-    companion object {
-        fun fromValue(value: String?): PaymentEntryType =
-            entries.find { it.value == value } ?: MANUAL_ENTRY
-    }
+    val localizedName: String
+
+        get() = when (this) {
+
+            MANUAL_ENTRY -> SquadStrings.manualEntry
+
+            AUTOMATIC_ENTRY -> SquadStrings.automaticEntry
+
+        }
 }
 
 // ------------------------------
 // MARK: - Paid Status
 // ------------------------------
-enum class PaidStatus(
+enum class PaidStatus {
 
-    @get:PropertyName("value") val value: String
+    PAID,
+    NOT_PAID,
+    INVERIFICATION;
 
-) {
-
-    @PropertyName("PAID")
-
-    PAID("PAID"),
-
-    @PropertyName("NOT_PAID")
-
-    NOT_PAID("NOT_PAID"),
-
-    @PropertyName("INVERIFICATION")
-
-    INVERIFICATION("INVERIFICATION");
-
-    companion object {
-
-        fun fromValue(value: String?): PaidStatus =
-
-            entries.find { it.value == value } ?: NOT_PAID
-
-    }
-
-}
-
-// ------------------------------
-// MARK: - EMI Status
-// ------------------------------
-enum class EMIStatus(@get:PropertyName("value") val value: String) {
-    @PropertyName("CREATED") CREATED("CREATED"),
-    @PropertyName("PENDING") PENDING("PENDING"),
-    @PropertyName("PAID") PAID("PAID"),
-    @PropertyName("OVERDUE") OVERDUE("OVERDUE"),
-    @PropertyName("FAILED") FAILED("FAILED"),
-
-    @PropertyName("INVERIFICATION") INVERIFICATION("INVERIFICATION");
-
-    companion object {
-        fun fromValue(value: String?): EMIStatus =
-            entries.find { it.value == value } ?: PENDING
-    }
-}
-
-// ------------------------------
-// MARK: - Payout Status
-// ------------------------------
-@Keep
-enum class PayoutStatus(@get:PropertyName("value") val value: String) {
-
-    @PropertyName("PENDING")
-    PENDING("PENDING"),
-
-    @PropertyName("RECEIVED")
-    RECEIVED("RECEIVED"),
-
-    @PropertyName("PAYOUT_INPROGRESS")
-    PAYOUT_INPROGRESS("PAYOUT_INPROGRESS"),
-
-    @PropertyName("PAYOUT_SUCCESS")
-    PAYOUT_SUCCESS("PAYOUT_SUCCESS"),
-
-    @PropertyName("PAYOUT_FAILED")
-    PAYOUT_FAILED("PAYOUT_FAILED"),
-
-    @PropertyName("PAYOUT_CANCELLED")
-    PAYOUT_CANCELLED("PAYOUT_CANCELLED"),
-
-    @PropertyName("PAYOUT_REVERSED")
-    PAYOUT_REVERSED("PAYOUT_REVERSED");
-
-    val displayText: String
+    val localizedName: String
         get() = when (this) {
-            PENDING -> "Waiting for Payout"
-            RECEIVED -> "Payout Initiated"
-            PAYOUT_INPROGRESS -> "Payout In Progress"
-            PAYOUT_SUCCESS -> "Payout Successful"
-            PAYOUT_FAILED -> "Payout Failed"
-            PAYOUT_CANCELLED -> "Payout Cancelled"
-            PAYOUT_REVERSED -> "Payout Reversed"
+            PAID -> SquadStrings.paid
+            NOT_PAID -> SquadStrings.unpaid
+            INVERIFICATION -> SquadStrings.inVerification
         }
-
-    companion object {
-        fun fromValue(value: String?): PayoutStatus {
-            return entries.find { it.value.equals(value, ignoreCase = true) } ?: PENDING
-        }
-    }
 }
-// ------------------------------
-// MARK: - Squad User Type
-// ------------------------------
-enum class SquadUserType(@get:PropertyName("value") val value: String) {
-    @PropertyName("SQUAD_MANAGER") SQUAD_MANAGER("SQUAD_MANAGER"),
-    @PropertyName("SQUAD_MEMBER") SQUAD_MEMBER("SQUAD_MEMBER");
 
-    val roleDescription: String
+enum class EMIStatus {
+
+    CREATED,
+    PENDING,
+    PAID,
+    OVERDUE,
+    FAILED,
+    INVERIFICATION;
+
+    val localizedName: String
         get() = when (this) {
-            SQUAD_MANAGER -> "AS MANAGER"
-            SQUAD_MEMBER -> "AS MEMBER"
+            CREATED -> SquadStrings.created
+            PENDING -> SquadStrings.pending
+            PAID -> SquadStrings.paid
+            OVERDUE -> SquadStrings.overdue
+            FAILED -> SquadStrings.failed
+            INVERIFICATION -> SquadStrings.inVerification
         }
-
-    companion object {
-        fun fromValue(value: String?): SquadUserType =
-            entries.find { it.value == value } ?: SQUAD_MEMBER
-    }
 }
 
-// ------------------------------
-// MARK: - Squad Activity Type
-// ------------------------------
-enum class SquadActivityType(@get:PropertyName("value") val value: String) {
-    @PropertyName("AMOUNT_DEBIT") AMOUNT_DEBIT("AMOUNT_DEBIT"),
-    @PropertyName("AMOUNT_CREDIT") AMOUNT_CREDIT("AMOUNT_CREDIT"),
-    @PropertyName("AMOUNT_EDIT") AMOUNT_EDIT("AMOUNT_EDIT"),
-    @PropertyName("OTHER_ACTIVITY") OTHER_ACTIVITY("OTHER_ACTIVITY");
+val PaymentStatus.displayText: String
+    get() = when (this) {
+        PaymentStatus.PENDING ->
+            SquadStrings.paymentWaitingForPayment
 
-    companion object {
-        fun fromValue(value: String?): SquadActivityType =
-            entries.find { it.value == value } ?: OTHER_ACTIVITY
+        PaymentStatus.INPROGRESS ->
+            SquadStrings.paymentInProgress
+
+        PaymentStatus.SUCCESS ->
+            SquadStrings.paymentSuccessful
+
+        PaymentStatus.FAILED ->
+            SquadStrings.paymentFailed
+
+        PaymentStatus.USER_DROPPED ->
+            SquadStrings.paymentDropped
+
+        PaymentStatus.CANCELLED ->
+            SquadStrings.paymentCancelled
+
+        PaymentStatus.REFUNDED ->
+            SquadStrings.refunded
+
+        PaymentStatus.VOID ->
+            SquadStrings.paymentVoided
+
+        PaymentStatus.INVERIFICATION ->
+            SquadStrings.paymentInVerification
     }
+
+enum class PayoutStatus {
+
+    PENDING,
+    RECEIVED,
+    PAYOUT_INPROGRESS,
+    PAYOUT_SUCCESS,
+    PAYOUT_FAILED,
+    PAYOUT_CANCELLED,
+    PAYOUT_REVERSED;
+
+    val localizedName: String
+        get() = when (this) {
+            PENDING -> SquadStrings.pending
+            RECEIVED -> SquadStrings.received
+            PAYOUT_INPROGRESS -> SquadStrings.inProgress
+            PAYOUT_SUCCESS -> SquadStrings.success
+            PAYOUT_FAILED -> SquadStrings.failed
+            PAYOUT_CANCELLED -> SquadStrings.cancelled
+            PAYOUT_REVERSED -> SquadStrings.reversed
+        }
 }
 
-// ------------------------------
-// MARK: - Reminder Type
-// ------------------------------
-enum class RemainderType(@get:PropertyName("value") val value: String) {
-    @PropertyName("CONTRIBUTION") CONTRIBUTION("CONTRIBUTION"),
-    @PropertyName("EMI") EMI("EMI"),
-    @PropertyName("OTHER_REMAINDER") OTHER_REMAINDER("OTHER_REMAINDER");
+enum class SquadUserType {
 
-    companion object {
-        fun fromValue(value: String?): RemainderType =
-            entries.find { it.value == value } ?: OTHER_REMAINDER
-    }
+    SQUAD_MANAGER,
+    SQUAD_MEMBER;
+
+    val localizedName: String
+        get() = when (this) {
+            SQUAD_MANAGER -> SquadStrings.roleAsManager
+            SQUAD_MEMBER -> SquadStrings.roleAsMember
+        }
 }
 
-// ------------------------------
-// MARK: - Record Status
-// ------------------------------
-enum class RecordStatus(@get:PropertyName("value") val value: String) {
-    @PropertyName("ACTIVE") ACTIVE("ACTIVE"),
-    @PropertyName("INACTIVE") INACTIVE("INACTIVE"),
-    @PropertyName("DELETED") DELETED("DELETED"),
+enum class SquadActivityType {
 
-    @PropertyName("COMPLETED") COMPLETED("COMPLETED");
+    AMOUNT_DEBIT,
+    AMOUNT_CREDIT,
+    AMOUNT_EDIT,
+    OTHER_ACTIVITY;
 
-    companion object {
-        fun fromValue(value: String?): RecordStatus =
-            entries.find { it.value == value } ?: ACTIVE
+    val localizedName: String
+        get() = when (this) {
+            AMOUNT_DEBIT -> SquadStrings.amountDebit
+            AMOUNT_CREDIT -> SquadStrings.amountCredit
+            AMOUNT_EDIT -> SquadStrings.amountEdit
+            OTHER_ACTIVITY -> SquadStrings.otherActivity
+        }
+}
 
-        val toggleCases = listOf(ACTIVE, INACTIVE)
+enum class RemainderType {
 
-    }
+    CONTRIBUTION,
+    EMI,
+    OTHER_REMAINDER;
+
+    val localizedName: String
+        get() = when (this) {
+            CONTRIBUTION -> SquadStrings.contribution
+            EMI -> SquadStrings.emi
+            OTHER_REMAINDER -> SquadStrings.otherReminder
+        }
+}
+
+enum class RecordStatus {
+
+    ACTIVE,
+    INACTIVE,
+    DELETED,
+    COMPLETED;
+
+    val localizedName: String
+        get() = when (this) {
+            ACTIVE -> SquadStrings.active
+            INACTIVE -> SquadStrings.inactive
+            DELETED -> SquadStrings.deleted
+            COMPLETED -> SquadStrings.completed
+        }
 
     val color: Color
         get() = when (this) {
             ACTIVE -> Color(0xFF4CAF50)
             INACTIVE -> Color(0xFF9E9E9E)
             DELETED -> Color(0xFFE53935)
-            else -> {Color(0xFF4CAF50)}
+            COMPLETED -> Color(0xFF4CAF50)
         }
-
-    fun displayName(): String {
-
-        return when (this) {
-
-            ACTIVE -> "Active"
-
-            INACTIVE -> "Inactive"
-
-            DELETED -> "Deleted"
-
-            COMPLETED -> "Completed"
-
-        }
-
-    }
 
     fun tintColor(): Color {
-
         return when (this) {
-
-            ACTIVE -> Color(0xFF2ECC71)   // success
-
-            INACTIVE -> Color(0xFFE74C3C) // error
-
+            ACTIVE -> Color(0xFF2ECC71)
+            INACTIVE -> Color(0xFFE74C3C)
             DELETED -> Color(0xFFE74C3C)
-
             COMPLETED -> Color(0xFF2ECC71)
-
         }
-
     }
-}
-
-// ------------------------------
-// MARK: - Cashfree Beneficiary Type
-// ------------------------------
-enum class CashfreeBeneficiaryType(@get:PropertyName("value") val value: String) {
-    @PropertyName("banktransfer") banktransfer("banktransfer"),
-    @PropertyName("upi") upi("upi"),
-    @PropertyName("card") card("card"),
-    @PropertyName("paypal") paypal("paypal");
 
     companion object {
-        fun fromValue(value: String?): CashfreeBeneficiaryType =
-            entries.find { it.value == value } ?: banktransfer
+        val toggleCases = listOf(ACTIVE, INACTIVE)
     }
 }
-
-// ------------------------------
-// MARK: - EMIStatus Extensions
-// ------------------------------
-val EMIStatus.displayText: String
-    get() = when (this) {
-        EMIStatus.CREATED -> "CREATED"
-        EMIStatus.PENDING -> "PENDING"
-        EMIStatus.PAID -> "PAID"
-        EMIStatus.OVERDUE -> "OVERDUE"
-        EMIStatus.FAILED -> "FAILED"
-        EMIStatus.INVERIFICATION -> "INVERIFICATION"
-    }
+enum class CashfreeBeneficiaryType {
+    BANKTRANSFER,
+    UPI,
+    CARD,
+    PAYPAL
+}
 
 val EMIStatus.color: Color
     get() = when (this) {
@@ -451,22 +298,6 @@ val EMIStatus.color: Color
         EMIStatus.OVERDUE -> Color(0xFFE53935) // Red
         EMIStatus.FAILED -> Color(0xFF9E9E9E)  // Gray
         EMIStatus.INVERIFICATION -> Color(0xFFFFA500)  // Gray
-    }
-
-// ------------------------------
-// MARK: - PaymentStatus Extensions
-// ------------------------------
-val PaymentStatus.displayText: String
-    get() = when (this) {
-        PaymentStatus.PENDING -> "Waiting for Payment"
-        PaymentStatus.INPROGRESS -> "Payment In Progress"
-        PaymentStatus.SUCCESS -> "Payment Successful"
-        PaymentStatus.FAILED -> "Payment Failed"
-        PaymentStatus.USER_DROPPED -> "Payment Dropped"
-        PaymentStatus.CANCELLED -> "Payment Cancelled"
-        PaymentStatus.REFUNDED -> "Refunded"
-        PaymentStatus.VOID -> "Payment Voided"
-        PaymentStatus.INVERIFICATION -> "Payment In Verification"
     }
 
 // ------------------------------
@@ -502,18 +333,21 @@ enum class AlertType {
     INFO
 }
 
-enum class PaymentApproveStatus(@get:PropertyName("value") val value: String) {
-    @PropertyName("NOT_REQUESTED") NOT_REQUESTED("NOT_REQUESTED"),
-    @PropertyName("REQUESTED") REQUESTED("REQUESTED"),
-    @PropertyName("ACCEPTED") ACCEPTED("ACCEPTED"),
-    @PropertyName("REJECTED") REJECTED("REJECTED");
+enum class PaymentApproveStatus {
 
-    companion object {
-        fun fromValue(value: String?): PaymentApproveStatus =
-            entries.find { it.value == value } ?: NOT_REQUESTED
-    }
+    NOT_REQUESTED,
+    REQUESTED,
+    ACCEPTED,
+    REJECTED;
+
+    val localizedName: String
+        get() = when (this) {
+            NOT_REQUESTED -> SquadStrings.notRequested
+            REQUESTED -> SquadStrings.requested
+            ACCEPTED -> SquadStrings.accepted
+            REJECTED -> SquadStrings.rejected
+        }
 }
-
 enum class AmountEditType {
     contribution,
     loanBorrowed,
@@ -525,27 +359,50 @@ enum class AmountEditType {
 }
 
 
-enum class PaymentFilter(val displayName: String) {
-    ALL("All"),
-    CREDIT("Credit"),
-    DEBIT("Debit")
+enum class PaymentFilter {
+    ALL,
+    CREDIT,
+    DEBIT;
+    val localizedName: String
+
+        get() = when (this) {
+
+            ALL -> SquadStrings.all
+
+            CREDIT -> SquadStrings.paymentCredit
+
+            DEBIT -> SquadStrings.paymentDebit
+
+        }
 }
 
-enum class MemberPaymentType(val value: String) {
-    Loan("Loan"),
-    Others("Others")
+enum class MemberPaymentType(
+    val value: String
+) {
+    Loan("LOAN"),
+    Others("OTHERS");
+
+    val localizedName: String
+        get() = when (this) {
+            Loan -> SquadStrings.loan
+            Others -> SquadStrings.others
+        }
 }
 
-enum class MemberPaymentSubType(val value: String) {
+enum class MemberPaymentSubType(
+    val value: String
+) {
     RE_PAYMENT("RE_PAYMENT"),
-    SETTLEMENT("SETTLEMENT")
+    SETTLEMENT("SETTLEMENT");
+
+    val localizedName: String
+        get() = when (this) {
+            RE_PAYMENT -> SquadStrings.repayment
+            SETTLEMENT -> SquadStrings.settlement
+        }
 }
 
 enum class SquadLanguages(val value: String) {
     ENGLISH("English"),
     TAMIL("தமிழ்")
-}
-
-object LanguageStore {
-    var current: SquadLanguages = UserDefaultsManager.getLanguage()
 }

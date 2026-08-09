@@ -137,7 +137,7 @@ fun ManagerTabView(
 
                     TabBarItem(
                         iconName = "home_icon",
-                        title = "Home",
+                        title = SquadStrings.home,
                         index = 0,
                         selectedTab = selectedTab,
                         modifier = Modifier.weight(1f)
@@ -151,7 +151,7 @@ fun ManagerTabView(
 
                     TabBarItem(
                         iconName = "settings_icon",
-                        title = "Account",
+                        title = SquadStrings.account,
                         index = 2,
                         selectedTab = selectedTab,
                         modifier = Modifier.weight(1f)

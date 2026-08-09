@@ -84,7 +84,7 @@ class MainActivity : ComponentActivity() {
         if (loginList.isNotEmpty()) {
 
             val selectedLogin = if (
-                navigate == SquadUserType.SQUAD_MANAGER.value ||
+                navigate == SquadUserType.SQUAD_MANAGER.name ||
                 navigate == "CASH_REQUEST"
             ) {
 

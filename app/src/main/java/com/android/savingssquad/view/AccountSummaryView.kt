@@ -293,7 +293,7 @@ fun AccountsSummaryHeaderView(squadViewModel: SquadViewModel) {
 
         Row {
             Text(
-                "Total Credit",
+                SquadStrings.totalCredit,
                 style = AppFont.ibmPlexSans(16, FontWeight.Medium),
                 color = AppColors.headerText
             )
@@ -307,7 +307,7 @@ fun AccountsSummaryHeaderView(squadViewModel: SquadViewModel) {
 
         Row {
             Text(
-                "Total Debit",
+                SquadStrings.totalDebit,
                 style = AppFont.ibmPlexSans(16, FontWeight.Medium),
                 color = AppColors.headerText
             )
@@ -323,7 +323,7 @@ fun AccountsSummaryHeaderView(squadViewModel: SquadViewModel) {
 
         Row {
             Text(
-                "Balance",
+                SquadStrings.balance,
                 style = AppFont.ibmPlexSans(18, FontWeight.Bold),
                 color = AppColors.headerText
             )

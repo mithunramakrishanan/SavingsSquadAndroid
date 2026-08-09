@@ -105,8 +105,8 @@ fun ManagerPaymentView(
     var paymentNotesError by remember { mutableStateOf("") }
 
 
-    var selectedMemberPaymentType by remember { mutableStateOf(SquadStrings.memberPaymentTypeLoan) }
-    var selectedMemberPaymentSubType by remember { mutableStateOf(SquadStrings.MemberPaymentSubTypeRepayment) }
+    var selectedMemberPaymentType by remember { mutableStateOf(SquadStrings.loan) }
+    var selectedMemberPaymentSubType by remember { mutableStateOf(SquadStrings.repayment) }
 
     val memberPaymentAmount = remember { mutableStateOf("") }
     var memberPaymentAmountError by remember { mutableStateOf("") }
@@ -118,11 +118,11 @@ fun ManagerPaymentView(
 
     fun validateFields(): Boolean {
         paymentAmountError = if (paymentAmount.value.isEmpty()) {
-            "Amount is required"
+            SquadStrings.amountIsRequired
         } else ""
 
         paymentNotesError = if (paymentNotes.isEmpty()) {
-            "Note is required"
+            SquadStrings.noteIsRequired
         } else ""
 
         return paymentAmountError.isEmpty() &&
@@ -131,11 +131,11 @@ fun ManagerPaymentView(
 
     fun validateMemberOtherPaymentFields(): Boolean {
         memberPaymentAmountError = if (memberPaymentAmount.value.isEmpty()) {
-            "Amount is required"
+            SquadStrings.amountIsRequired
         } else ""
 
         memberPaymentNotesError = if (memberPaymentNotes.isEmpty()) {
-            "Note is required"
+            SquadStrings.noteIsRequired
         } else ""
 
         return memberPaymentAmountError.isEmpty() &&
@@ -180,7 +180,7 @@ fun ManagerPaymentView(
 
                 // Member Selection
                 item {
-                    SectionView(title = "Select Member") {
+                    SectionView(title = SquadStrings.selectMember) {
                         SSTextField(
                             icon = Icons.Default.Person,
                             placeholder = loanSelectedMember?.name ?: SquadStrings.selectSquadMember,
@@ -197,8 +197,8 @@ fun ManagerPaymentView(
                     DropdownMenuPicker(
                         selected = selectedMemberPaymentType,
                         items = listOf(
-                            SquadStrings.memberPaymentTypeLoan,
-                            SquadStrings.memberPaymentTypeOthers
+                            SquadStrings.loan,
+                            SquadStrings.others
                         ),
                         icon = Icons.Default.Tune,
                         modifier = Modifier
@@ -207,7 +207,7 @@ fun ManagerPaymentView(
                     ) { selectedMemberPaymentType = it }
                 }
 
-                if (selectedMemberPaymentType == SquadStrings.memberPaymentTypeLoan) {
+                if (selectedMemberPaymentType == SquadStrings.loan) {
 
                     when (loanSelectedMember?.currentLoanApproveStatus) {
 
@@ -470,8 +470,8 @@ fun ManagerPaymentView(
                             DropdownMenuPicker(
                                 selected = selectedMemberPaymentSubType,
                                 items = listOf(
-                                    SquadStrings.MemberPaymentSubTypeRepayment,
-                                    SquadStrings.MemberPaymentSubTypeSettlement
+                                    SquadStrings.repayment,
+                                    SquadStrings.settlement
                                 ),
                                 icon = Icons.Default.Tune,
                                 modifier = Modifier
@@ -538,7 +538,7 @@ fun ManagerPaymentView(
                                             paymentType = PaymentType.PAYMENT_DEBIT,
 
                                             paymentSubType =
-                                                if (selectedMemberPaymentSubType == SquadStrings.MemberPaymentSubTypeRepayment)
+                                                if (selectedMemberPaymentSubType == SquadStrings.repayment)
                                                     PaymentSubType.RE_PAYMENT
                                                 else
                                                     PaymentSubType.SETTLEMENT,
@@ -558,7 +558,7 @@ fun ManagerPaymentView(
                                             paymentResponseMessage = "Pending member verification.",
 
                                             transferReferenceId =
-                                                if (selectedMemberPaymentSubType == SquadStrings.MemberPaymentSubTypeRepayment)
+                                                if (selectedMemberPaymentSubType == SquadStrings.repayment)
                                                     "$memberPaymentNotes - ${selectedMember.name}"
                                                 else
                                                     "Settlement to ${selectedMember.name}",
@@ -594,7 +594,7 @@ fun ManagerPaymentView(
                                                         memberPaymentNotes = ""
 
                                                         ToastManager.show(
-                                                            title = SquadStrings.appName,
+                                                            title = SquadStrings.savingsSquad,
                                                             message = "Payment Updated",
                                                             type = ToastType.SUCCESS
                                                         )
@@ -655,7 +655,7 @@ fun ManagerPaymentView(
                                             paymentType = PaymentType.PAYMENT_DEBIT,
 
                                             paymentSubType =
-                                                if (selectedMemberPaymentSubType == SquadStrings.MemberPaymentSubTypeRepayment)
+                                                if (selectedMemberPaymentSubType == SquadStrings.repayment)
                                                     PaymentSubType.RE_PAYMENT
                                                 else
                                                     PaymentSubType.SETTLEMENT,
@@ -675,7 +675,7 @@ fun ManagerPaymentView(
                                             paymentResponseMessage = "Payment Updated",
 
                                             transferReferenceId =
-                                                if (selectedMemberPaymentSubType == SquadStrings.MemberPaymentSubTypeRepayment)
+                                                if (selectedMemberPaymentSubType == SquadStrings.repayment)
                                                     "$memberPaymentNotes - ${selectedMember.name}"
                                                 else
                                                     "Settlement to ${selectedMember.name}",
@@ -711,7 +711,7 @@ fun ManagerPaymentView(
                                                         memberPaymentNotes = ""
 
                                                         ToastManager.show(
-                                                            title = SquadStrings.appName,
+                                                            title = SquadStrings.savingsSquad,
                                                             message = "Payment Updated",
                                                             type = ToastType.SUCCESS
                                                         )
@@ -738,7 +738,7 @@ fun ManagerPaymentView(
             } else {
                 // Other Payments
                 item {
-                    SectionView(title = "Other Payments") {
+                    SectionView(title = SquadStrings.otherPayments) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
                             val amount = remember { mutableStateOf("") }
@@ -763,7 +763,7 @@ fun ManagerPaymentView(
                                 maxCharacters = 200
                             )
 
-                            SSButton(title = "Make Payment") {
+                            SSButton(title = SquadStrings.makePayment) {
                                 /* handle other payment */
                                 
                                 if (validateFields()) {
@@ -788,7 +788,7 @@ fun ManagerPaymentView(
 
                 SingleSelectionPopupView(
                     listValues = squadViewModel.squadMemberNames.collectAsState().value,
-                    title = "Members",
+                    title = SquadStrings.members,
                     onItemSelected = { selectedValue ->
                         squadViewModel.setShowLoanMembersPopupPopup(false)
                         val member = CommonFunctions.getMember(
@@ -850,7 +850,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
     val amountInt = amountStr.toIntOrNull() ?: 0
     if (availableAmount < amountInt) {
 
-        ToastManager.show(title = SquadStrings.appName, message = "Fund not available", type = ToastType.ERROR)
+        ToastManager.show(title = SquadStrings.savingsSquad, message = "Fund not available", type = ToastType.ERROR)
         return
     }
     LoaderManager.shared.showLoader()
@@ -915,7 +915,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
             )
             LoaderManager.shared.hideLoader()
 
-            ToastManager.show(title = SquadStrings.appName, message = "Payment updated", type = ToastType.SUCCESS)
+            ToastManager.show(title = SquadStrings.savingsSquad, message = "Payment updated", type = ToastType.SUCCESS)
         } else {
             println("❌ Error adding payment: $error")
         }
@@ -970,7 +970,7 @@ fun PaymentEMIListRow(
             Column {
 
                 Text(
-                    "Loan Amount",
+                    SquadStrings.loanAmount,
                     style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                     color = AppColors.secondaryText
                 )
@@ -988,7 +988,7 @@ fun PaymentEMIListRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
 
                     Text(
-                        "${emi.emiMonths} Months",
+                        "${emi.emiMonths} ${SquadStrings.months}",
                         style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                         color = if (isSelected) AppColors.primaryButton else AppColors.primaryBrand
                     )
@@ -1004,7 +1004,7 @@ fun PaymentEMIListRow(
                     Spacer(Modifier.width(6.dp))
 
                     Text(
-                        "${"%.2f".format(emi.emiInterestRate)}% ${emi.interestType}",
+                        "${"%.2f".format(emi.emiInterestRate)}% ${emi.interestType.localizedName}",
                         style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                         color = AppColors.secondaryText
                     )
@@ -1019,21 +1019,21 @@ fun PaymentEMIListRow(
 
                 InfoView(
                     modifier = Modifier.weight(1f),
-                    title = "Monthly EMI",
+                    title = SquadStrings.monthlyEMI,
                     value = emi.emiAmount.currencyFormattedWithCommas(),
                     valueColor = AppColors.infoAccent
                 )
 
                 InfoView(
                     modifier = Modifier.weight(1f),
-                    title = "Total Interest",
+                    title = SquadStrings.totalInterest,
                     value = emi.interestAmount.currencyFormattedWithCommas(),
                     valueColor = AppColors.errorAccent
                 )
 
                 InfoView(
                     modifier = Modifier.weight(1f),
-                    title = "Total Payable",
+                    title = SquadStrings.totalPayable,
                     value = (emi.loanAmount + emi.interestAmount).currencyFormattedWithCommas(),
                     valueColor = AppColors.headerText
                 )

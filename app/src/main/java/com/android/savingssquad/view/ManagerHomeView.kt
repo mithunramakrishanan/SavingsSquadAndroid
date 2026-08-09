@@ -1206,7 +1206,7 @@ fun UpdateUPIHintCard(
         ) {
 
             Text(
-                text = "UPI ID Required",
+                text = SquadStrings.upiIdRequired,
                 style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
                 color = AppColors.headerText
             )
@@ -1215,9 +1215,9 @@ fun UpdateUPIHintCard(
 
             Text(
                 text = if (selectedUserType == SquadUserType.SQUAD_MANAGER)
-                    "Add your UPI ID so members can send payments."
+                    SquadStrings.addUpiIdForMemberPayments
                 else
-                    "Add your UPI ID to make secure contributions.",
+                    SquadStrings.addUpiIdForSecureContributions,
                 style = AppFont.ibmPlexSans(10),
                 color = AppColors.secondaryText,
                 maxLines = 2
@@ -1235,7 +1235,7 @@ fun UpdateUPIHintCard(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Update",
+                text = SquadStrings.update,
                 style = AppFont.ibmPlexSans(11, FontWeight.SemiBold),
                 color = AppColors.warningAccent
             )

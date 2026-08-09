@@ -295,7 +295,7 @@ class FirestoreManager private constructor() {
             .document(contributionID)
 
         val updateData = hashMapOf<String, Any>(
-            "paidStatus" to status.value
+            "paidStatus" to status.name
         )
 
         contributionRef.update(updateData)
@@ -929,8 +929,8 @@ class FirestoreManager private constructor() {
                     return@addOnSuccessListener
                 }
 
-                if (existingPayment?.paymentApproveStatus?.value == status.value) {
-                    completion(false, existingPayment, "Already in ${status.value} status")
+                if (existingPayment?.paymentApproveStatus?.name == status.name) {
+                    completion(false, existingPayment, "Already in ${status.name} status")
                     return@addOnSuccessListener
                 }
 
@@ -948,9 +948,9 @@ class FirestoreManager private constructor() {
                 }
 
                 val updateData = hashMapOf<String, Any>(
-                    "paymentStatus" to paymentStatus.value,
+                    "paymentStatus" to paymentStatus.name,
                     "paymentResponseMessage" to paymentResponseMessage,
-                    "paymentApproveStatus" to status.value,
+                    "paymentApproveStatus" to status.name,
                     "paymentUpdatedDate" to FieldValue.serverTimestamp()
                 )
 
@@ -1974,7 +1974,7 @@ class FirestoreManager private constructor() {
         }
 
         paidStatus?.let {
-            query = query.whereEqualTo("paidStatus", it.value)
+            query = query.whereEqualTo("paidStatus", it.name)
         }
 
         type?.let {
@@ -2562,7 +2562,7 @@ class FirestoreManager private constructor() {
                 }
 
                 val updateData = hashMapOf<String, Any>(
-                    "currentLoanApproveStatus" to paymentApproveStatus.value
+                    "currentLoanApproveStatus" to paymentApproveStatus.name
                 )
 
                 documentRef.set(updateData, SetOptions.merge())
@@ -2712,7 +2712,7 @@ class FirestoreManager private constructor() {
             .document(otherPaymentsId)
 
         val updates: MutableMap<String, Any> = mutableMapOf(
-            "paidStatus" to paidStatus.value
+            "paidStatus" to paidStatus.name
         )
 
         if (updateDate) {

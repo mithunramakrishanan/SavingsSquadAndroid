@@ -92,7 +92,7 @@ fun SquadRulesView(
 
             SSNavigationBar(
 
-                title = "Squad Rules",
+                title = SquadStrings.squadRules,
 
                 navController = navController,
 
@@ -385,7 +385,7 @@ fun PremiumRuleCard(
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
+                        contentDescription = SquadStrings.delete,
                         tint = AppColors.errorAccent,
                         modifier = Modifier.size(18.dp)
                     )
@@ -431,14 +431,14 @@ fun RuleEditorSheet(
         ) {
 
             SSButton(
-                title = if (isEditing) "Update" else "Add",
+                title = if (isEditing) SquadStrings.update else SquadStrings.add,
                 isDisabled = ruleText.isEmpty(),
                 action = onSave,
                 modifier = Modifier.weight(1f)
             )
 
             SSCancelButton(
-                title = "Cancel",
+                title = SquadStrings.cancel,
                 action = onCancel,
                 modifier = Modifier.weight(1f)
             )

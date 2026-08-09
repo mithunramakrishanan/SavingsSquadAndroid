@@ -23,6 +23,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.savingssquad.singleton.AlertType
 import com.android.savingssquad.singleton.RecordStatus
+import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.viewmodel.ToastManager
@@ -72,11 +73,11 @@ fun ManagerSquadStatusScreen(
                 .background(Color(0xFFE6EFEB))
         )
         {
-            SSNavigationBar("My Squads", navController)
+            SSNavigationBar(SquadStrings.mySquads, navController)
 
 
             SSSearchField(
-                placeHolder = "Search your squads...",
+                placeHolder = SquadStrings.searchYourSquads,
                 searchText = searchText,
                 onTextChange = { searchText = it }
             )
@@ -241,13 +242,13 @@ fun applyStatus(
         showLoader = true,
         phoneNumber = squadViewModel.squad.value?.phoneNumber ?: "",
         squadID = login.squadID,
-        status = newStatus.value
+        status = newStatus.name
     ) { success, error ->
 
         if (success) {
 
             ToastManager.show(
-                message = "${login.squadName} is now ${newStatus.displayName()}",
+                message = "${login.squadName} is now ${newStatus.localizedName}",
                 type = if (newStatus == RecordStatus.INACTIVE) {
                     ToastType.ERROR
                 } else {
@@ -278,16 +279,16 @@ fun handleStatusSelection(
     if (newStatus == RecordStatus.INACTIVE) {
         // show dialog (Compose AlertDialog or custom bottom sheet)
         AlertManager.shared.showAlert(
-            title = "Deactivate Squad?",
-            message = "If you deactivate ${login.squadName}, all members will lose access and won’t be able to use this squad until it is reactivated.",
+            title = SquadStrings.deactivateSquad,
+            message = SquadStrings.deactivateSquadMessage(login.squadName),
             type = AlertType.ERROR,
-            primaryButtonTitle = "Deactivate",
+            primaryButtonTitle = SquadStrings.deactivate,
             primaryAction = {
 
                 applyStatus(squadViewModel,newStatus,login)
 
             },
-            secondaryButtonTitle = "Cancel",
+            secondaryButtonTitle = SquadStrings.cancel,
             secondaryAction = {}
         )
 

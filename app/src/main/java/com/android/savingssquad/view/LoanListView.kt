@@ -41,7 +41,6 @@ import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
-import com.android.savingssquad.singleton.displayText
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.singleton.LoaderManager
 import com.yourapp.utils.CommonFunctions
@@ -72,7 +71,7 @@ fun LoanListView(
     }
 
     var squadLoans by remember { mutableStateOf<List<MemberLoan>?>(null) }
-    var selectedStatus by remember { mutableStateOf<EMIStatus?>(null) }
+    var selectedStatus by remember { mutableStateOf(SquadStrings.all) }
     var selectedMember by remember { mutableStateOf(SquadStrings.all) }
 
     // The loan currently pushed into the full-detail screen (null = showing the list)
@@ -86,7 +85,7 @@ fun LoanListView(
     val filteredLoans = remember(squadLoans, selectedStatus, selectedMember) {
         (squadLoans ?: emptyList())
             .filter { loan ->
-                (selectedStatus == null || loan.loanStatus == selectedStatus) &&
+                (loan.loanStatus.localizedName == selectedStatus) &&
                         (selectedMember == SquadStrings.all || loan.memberName == selectedMember)
             }
     }
@@ -143,17 +142,12 @@ fun LoanListView(
                     }
 
                     DropdownMenuPicker(
-                        selected = selectedStatus?.value ?: SquadStrings.all,
-                        items = listOf(SquadStrings.all, "Pending", "Paid", "Overdue"),
+                        selected = selectedStatus,
+                        items = listOf(SquadStrings.all, SquadStrings.pending, SquadStrings.paid,SquadStrings.overdue),
                         icon = Icons.Default.Tune,
                         modifier = Modifier.weight(1f)
                     ) {
-                        selectedStatus = when (it.lowercase()) {
-                            "pending" -> EMIStatus.PENDING
-                            "paid" -> EMIStatus.PAID
-                            "overdue" -> EMIStatus.OVERDUE
-                            else -> null
-                        }
+
                     }
                 }
 
@@ -169,7 +163,7 @@ fun LoanListView(
                             item { EmptyStateText("Loading loans...") }
                         }
                         filteredLoans.isEmpty() -> {
-                            item { EmptyStateText("No loans yet") }
+                            item { EmptyStateText(SquadStrings.noLoansYet) }
                         }
                         else -> {
                             items(
@@ -362,7 +356,7 @@ fun LoanSummaryCard(loan: MemberLoan, onClick: () -> Unit) {
                 )
             }
 
-            StatusBadge(text = loan.loanStatus.displayText, color = statusColor)
+            StatusBadge(text = loan.loanStatus.localizedName, color = statusColor)
         }
 
         // Main numbers only: amount, tenure, paid count
@@ -370,7 +364,7 @@ fun LoanSummaryCard(loan: MemberLoan, onClick: () -> Unit) {
             StatColumn(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.CurrencyRupee,
-                title = "Loan Amount",
+                title = SquadStrings.loanAmount,
                 value = loan.loanAmount.currencyFormattedWithCommas()
             )
             StatDivider()
@@ -384,7 +378,7 @@ fun LoanSummaryCard(loan: MemberLoan, onClick: () -> Unit) {
             StatColumn(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.TaskAlt,
-                title = "Paid",
+                title = SquadStrings.paid,
                 value = "$paidCount/${loan.installments.size}"
             )
         }
@@ -413,7 +407,7 @@ fun LoanSummaryCard(loan: MemberLoan, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "View Details",
+                text = SquadStrings.viewDetails,
                 style = AppFont.ibmPlexSans(size = 11, weight = FontWeight.Bold),
                 color = AppColors.primaryBrand
             )
@@ -545,7 +539,7 @@ fun LoanFullDetailView(
                     )
                 }
 
-                StatusBadge(text = loan.loanStatus.displayText, color = statusColor)
+                StatusBadge(text = loan.loanStatus.localizedName, color = statusColor)
             }
 
             // MARK: Story card — plain-language explanation of what's going on
@@ -564,7 +558,7 @@ fun LoanFullDetailView(
                 StatColumn(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.CurrencyRupee,
-                    title = "Loan Amount",
+                    title = SquadStrings.loanAmount,
                     value = loan.loanAmount.currencyFormattedWithCommas()
                 )
                 StatDivider()
@@ -916,7 +910,7 @@ fun ForecloseSettlementRow(loan: MemberLoan, isLast: Boolean) {
                 )
                 Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Status",
+                        text = SquadStrings.status,
                         style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Medium),
                         color = AppColors.secondaryText
                     )
@@ -942,7 +936,7 @@ fun ForecloseSettlementRow(loan: MemberLoan, isLast: Boolean) {
                 )
                 LabeledValue(
                     modifier = Modifier.weight(1f),
-                    title = "Interest",
+                    title = SquadStrings.interest,
                     value = loan.forceCloseSummary.recalculatedInterest.currencyFormattedWithCommas()
                 )
                 Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f)) {
@@ -1132,7 +1126,7 @@ fun InstallmentRow(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = installment.status.displayText,
+                        text = installment.status.localizedName,
                         style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Bold),
                         color = statusColor,
                         modifier = Modifier

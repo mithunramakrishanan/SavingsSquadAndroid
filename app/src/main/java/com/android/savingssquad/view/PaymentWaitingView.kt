@@ -200,7 +200,7 @@ fun PaymentWaitingView(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Cancel",
+                        text = SquadStrings.cancel,
                         style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
                         color = AppColors.errorAccent
                     )
@@ -299,7 +299,7 @@ private fun UpiCard(
             Column(modifier = Modifier.weight(1f)) {
 
                 Text(
-                    text = "UPI ID",
+                    text = SquadStrings.upiID,
                     style = AppFont.ibmPlexSans(9, FontWeight.SemiBold),
                     color = AppColors.secondaryText.copy(alpha = 0.6f)
                 )
@@ -364,7 +364,7 @@ private fun CopyChip(copied: Boolean, onClick: () -> Unit) {
         )
 
         Text(
-            text = if (copied) "Copied" else "Copy",
+            text = if (copied) SquadStrings.copied else SquadStrings.copy,
             style = AppFont.ibmPlexSans(11, FontWeight.SemiBold),
             color = chipColor
         )

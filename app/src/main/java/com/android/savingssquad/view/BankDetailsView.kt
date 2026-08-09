@@ -168,7 +168,7 @@ fun BankDetailsView(
 
                 SSTextField(
                     icon = Icons.Default.QrCode2,
-                    placeholder = "UPI",
+                    placeholder = SquadStrings.upiID,
                     textState = upiState,
                     keyboardType = KeyboardType.Text,
                     error = upiIDError,
@@ -178,7 +178,7 @@ fun BankDetailsView(
 
                 // ------------ Update Button ------------
                 SSButton(
-                    title = "Update UPI",
+                    title = SquadStrings.manageBankDetails,
                     action = {
                         val upiID = upiState.value.trim()
                         val accountHoldername = accountHoldernameState.value.trim()
@@ -285,7 +285,7 @@ private fun saveAccountToFirestore(
             Log.d("UPI", "✅ UPI Updated: $it")
 
 
-            ToastManager.show(title = SquadStrings.appName, message =  "UPI Updated", type = ToastType.SUCCESS)
+            ToastManager.show(title = SquadStrings.savingsSquad, message =  "UPI Updated", type = ToastType.SUCCESS)
 
             if (screenType == SquadUserType.SQUAD_MANAGER) {
 

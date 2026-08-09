@@ -3,6 +3,7 @@ package com.android.savingssquad.model
 import androidx.annotation.Keep
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.RecordStatus
+import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.orNow
 
 import kotlinx.serialization.Serializable
@@ -227,10 +228,22 @@ data class Installment(
 }
 
 @Keep
-enum class InterestType(val label: String) {
-    @PropertyName("DAILY") DAILY("DAILY"),
-    @PropertyName("MONTHLY") MONTHLY("MONTHLY"),
-    @PropertyName("YEARLY") YEARLY("YEARLY");
+enum class InterestType {
+    DAILY,
+    MONTHLY,
+    YEARLY;
+
+    val localizedName: String
+
+        get() = when (this) {
+
+            DAILY -> SquadStrings.daily
+
+            MONTHLY -> SquadStrings.monthly
+
+            YEARLY -> SquadStrings.yearly
+
+        }
 
     /** Converts the entered rate into an effective monthly rate for EMI math. */
     fun monthlyRate(rate: Double): Double = when (this) {
@@ -246,15 +259,23 @@ enum class InterestType(val label: String) {
     }
 
     fun displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
-
-    companion object {
-        fun fromLabelOrDefault(value: String?): InterestType =
-            entries.firstOrNull { it.name == value } ?: YEARLY
-    }
 }
 
 enum class LoanPaidType {
-    REGULAR, FORCECLOSED
+
+    REGULAR,
+
+    FORCECLOSED;
+
+    val localizedName: String
+
+        get() = when (this) {
+
+            REGULAR -> SquadStrings.regular
+
+            FORCECLOSED -> SquadStrings.forceClosed
+
+        }
 }
 
 @Keep

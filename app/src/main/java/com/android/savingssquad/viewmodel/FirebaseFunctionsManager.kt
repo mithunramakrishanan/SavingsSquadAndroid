@@ -50,7 +50,7 @@ class FirebaseFunctionsManager private constructor() {
         if (!CommonFunctions.isInternetAvailable()) {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = "📴 No Internet Connection.",
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -76,9 +76,9 @@ class FirebaseFunctionsManager private constructor() {
                         "phone" to action.payment.paymentPhone,
                         "amount" to action.payment.amount,
                         "intrestAmount" to action.payment.intrestAmount,
-                        "paymentEntryType" to action.payment.paymentEntryType.value,
-                        "paymentType" to action.payment.paymentType.value,
-                        "paymentSubType" to action.payment.paymentSubType.value,
+                        "paymentEntryType" to action.payment.paymentEntryType.name,
+                        "paymentType" to action.payment.paymentType.name,
+                        "paymentSubType" to action.payment.paymentSubType.name,
                         "description" to action.payment.description,
                         "contributionId" to action.payment.contributionId,
                         "loanId" to action.payment.loanId,
@@ -119,7 +119,7 @@ class FirebaseFunctionsManager private constructor() {
                     )
 
                     AlertManager.shared.showAlert(
-                        title = SquadStrings.appName,
+                        title = SquadStrings.savingsSquad,
                         message = "⚠️ Payment initiation failed.\n$serverMsg",
                         primaryButtonTitle = SquadStrings.ok,
                         primaryAction = {}
@@ -137,7 +137,7 @@ class FirebaseFunctionsManager private constructor() {
                     Log.e("❌ Razorpay", "Invalid server response: $resultData")
 
                     AlertManager.shared.showAlert(
-                        title = SquadStrings.appName,
+                        title = SquadStrings.savingsSquad,
                         message = "⚠️ Invalid response from server. Please try again.",
                         primaryButtonTitle = SquadStrings.ok,
                         primaryAction = {}
@@ -227,7 +227,7 @@ class FirebaseFunctionsManager private constructor() {
         if (!CommonFunctions.isInternetAvailable()) {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = "📴 No Internet Connection.",
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -309,7 +309,7 @@ class FirebaseFunctionsManager private constructor() {
         if (!CommonFunctions.isInternetAvailable()) {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = "📴 No Internet Connection.",
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -397,7 +397,7 @@ class FirebaseFunctionsManager private constructor() {
         if (!CommonFunctions.isInternetAvailable()) {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = "📴 No Internet Connection.",
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -459,7 +459,7 @@ class FirebaseFunctionsManager private constructor() {
         if (!CommonFunctions.isInternetAvailable()) {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = "📴 No Internet Connection.",
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -525,7 +525,7 @@ class FirebaseFunctionsManager private constructor() {
         if (!CommonFunctions.isInternetAvailable()) {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = "📴 No Internet Connection.",
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
@@ -545,9 +545,9 @@ class FirebaseFunctionsManager private constructor() {
                 "phone" to payment.paymentPhone,
                 "amount" to payment.amount,
                 "intrestAmount" to payment.intrestAmount,
-                "paymentEntryType" to payment.paymentEntryType.value,
-                "paymentType" to payment.paymentType.value,
-                "paymentSubType" to payment.paymentSubType.value,
+                "paymentEntryType" to payment.paymentEntryType.name,
+                "paymentType" to payment.paymentType.name,
+                "paymentSubType" to payment.paymentSubType.name,
                 "description" to payment.description,
                 "contributionId" to payment.contributionId,
                 "loanId" to payment.loanId,
@@ -568,7 +568,7 @@ class FirebaseFunctionsManager private constructor() {
                     val firebaseError = e as? FirebaseFunctionsException
 
                     AlertManager.shared.showAlert(
-                        title = SquadStrings.appName,
+                        title = SquadStrings.savingsSquad,
                         message = "⚠️ $functionName failed.\n${firebaseError?.message}",
                         primaryButtonTitle = SquadStrings.ok,
                         primaryAction = {}
@@ -584,7 +584,7 @@ class FirebaseFunctionsManager private constructor() {
 
                 if (orderId.isNullOrEmpty()) {
                     AlertManager.shared.showAlert(
-                        title = SquadStrings.appName,
+                        title = SquadStrings.savingsSquad,
                         message = "⚠️ Invalid response from server. Please try again.",
                         primaryButtonTitle = SquadStrings.ok,
                         primaryAction = {}
@@ -616,7 +616,7 @@ class FirebaseFunctionsManager private constructor() {
         if (!CommonFunctions.isInternetAvailable()) {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
-                title = SquadStrings.appName,
+                title = SquadStrings.savingsSquad,
                 message = "📴 No Internet Connection.",
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}

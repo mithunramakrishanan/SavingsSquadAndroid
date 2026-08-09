@@ -164,7 +164,7 @@ fun MemberHomeView(
                             } ?: CircularProgressIndicator()
 
                             SSBadge(
-                                title = "Member ID",
+                                title = SquadStrings.memberId,
                                 value = squadViewModel.selectedUser.collectAsState().value?.squadUserId ?: "-",
                                 icon = "👤",
                                 style = BadgeStyle.INFO
@@ -176,14 +176,14 @@ fun MemberHomeView(
                             modifier = Modifier.weight(1f)
                         ) {
                             MemberDashBoardCard(
-                                title = "Total Members",
+                                title = SquadStrings.totalMembers,
                                 value = squadViewModel.squadMembersCount.collectAsStateWithLifecycle().value.toString(),
                                 subDetails = emptyList(),
                                 onClick = { navController.navigate(AppDestination.OPEN_MEMBERS_LIST.route) }
                             )
 
                             MemberDashBoardCard(
-                                title = "Current Available Fund",
+                                title = SquadStrings.currentAvailableFund,
                                 value = squad!!.currentAvailableAmount.currencyFormattedWithCommas(),
                                 subDetails = listOf(
                                     "banknote" to "As of ${CommonFunctions.dateToString(Date(), "MMM yyyy")}"
@@ -250,7 +250,7 @@ fun MemberHomeView(
                         ) {
                             AllCaughUPView(
                                 title = "All Due’s Paid",
-                                subtitle = "Squad all caught up!",
+                                subtitle = SquadStrings.squadAllCaughtUp,
                                 icon = Icons.Default.CheckCircle,
                                 iconColor = Color(0xFF4CAF50),
                                 showChevron = false
@@ -277,7 +277,7 @@ fun MemberHomeView(
                                 if (squadViewModel.currentMember.value?.upiID.isNullOrBlank()) {
 
                                     AlertManager.shared.showAlert(
-                                        title = SquadStrings.appName,
+                                        title = SquadStrings.savingsSquad,
                                         message = "Update your UPI to make a cash request",
                                         type = AlertType.INFO,
                                         primaryButtonTitle = SquadStrings.ok,
@@ -339,7 +339,7 @@ fun MemberHomeView(
 
                 // 🔹 Transaction Section
                 item {
-                    SectionView(title = "Recent Transactions") {
+                    SectionView(title = SquadStrings.recentTransactions) {
                         val lastFivePayments = squadPayments
                             .filter { it.memberName == currentMember?.name }
                             .sortedByDescending { it.paymentUpdatedDate?.toDate() ?: Date(0) }
@@ -416,7 +416,7 @@ fun MemberHomeView(
                         AlertManager.shared.showAlert(
                             title = "Request Cash Confirmation",
                             message = "Are you sure you want to request cash for this EMI? Your request will be sent to the Squad Manager. Once approved, the manager will make the payment to you.",
-                            primaryButtonTitle = "Request Cash",
+                            primaryButtonTitle = SquadStrings.requestCash,
                             primaryAction =
                                 {
                                     val cashRequest = CashRequest(
@@ -431,11 +431,11 @@ fun MemberHomeView(
 
                                     squadViewModel.addCashRequest(true,cashRequest) {success,error ->
 
-                                        ToastManager.show(SquadStrings.appName,"Request Sent Successfully", type = ToastType.SUCCESS)
+                                        ToastManager.show(SquadStrings.savingsSquad,"Request Sent Successfully", type = ToastType.SUCCESS)
                                     }
 
                                 },
-                            secondaryButtonTitle = "Cancel",
+                            secondaryButtonTitle = SquadStrings.cancel,
                             secondaryAction = {}
                         )
 
@@ -482,7 +482,7 @@ fun MemberHomeView(
 
                         val contributionRemainders = currentUnpaid.map { contri ->
                             RemainderModel(
-                                remainderTitle = "CONTRIBUTION",
+                                remainderTitle = SquadStrings.contribution,
                                 remainderSubTitle = contri.monthYear,
                                 remainderType = RemainderType.CONTRIBUTION,
                                 remainderAmount = contri.amount,
@@ -508,7 +508,7 @@ fun MemberHomeView(
 
                     val loanRemainders = pendingUnpaidInstallments.map { emi ->
                         RemainderModel(
-                            remainderTitle = "EMI",
+                            remainderTitle = SquadStrings.emi,
                             remainderSubTitle = emi.installmentNumber,
                             remainderType = RemainderType.EMI,
                             remainderAmount = emi.installmentAmount + emi.interestAmount,
@@ -588,8 +588,8 @@ fun RemainderCardView(
         SimpleDateFormat("dd MMM", Locale.ENGLISH).format(dueDate)
 
     val cardWidth = when (title.uppercase()) {
-        "CONTRIBUTION" -> 168.dp
-        "EMI" -> 132.dp
+        SquadStrings.contribution -> 168.dp
+        SquadStrings.emi ->  132.dp
         else -> 168.dp
     }
 
@@ -724,7 +724,7 @@ fun MemberHeaderView(
             )
 
             Text(
-                text = "Your current contribution",
+                text = SquadStrings.yourCorrentContribution,
                 style = AppFont.ibmPlexSans(18, FontWeight.Normal),
                 color = AppColors.secondaryText
             )

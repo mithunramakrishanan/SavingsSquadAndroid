@@ -172,13 +172,13 @@ fun SquadSettingsView(
 
                 if (isManager) {
                     item(span = { GridItemSpan(2) }) {
-                        SectionHeader(text = "Squad Management")
+                        SectionHeader(text = SquadStrings.squadManagement)
                     }
 
                     item {
                         SettingsDashboardCard(
-                            title = "Manage Squad",
-                            subtitle = "Members & Settings",
+                            title = SquadStrings.manageSquad,
+                            subtitle = SquadStrings.membersAndSettings,
                             icon = Icons.Default.Groups,
                             gradient = listOf(Color(0xFF3B82F6), Color(0xFF60A5FA))
                         ) { navigationEvent = SquadSettingsEvent.ManageSquad }
@@ -186,8 +186,8 @@ fun SquadSettingsView(
 
                     item {
                         SettingsDashboardCard(
-                            title = "Manage Loan",
-                            subtitle = "Manage Loans",
+                            title = SquadStrings.manageLoanDetails,
+                            subtitle = SquadStrings.manageLoans,
                             icon = Icons.Default.CreditCard,
                             gradient = listOf(Color(0xFF10B981), Color(0xFF34D399))
                         ) { navigationEvent = SquadSettingsEvent.ManageLoan }
@@ -195,8 +195,8 @@ fun SquadSettingsView(
 
                     item {
                         SettingsDashboardCard(
-                            title = "Manual Entry",
-                            subtitle = "Cash Records",
+                            title = SquadStrings.manualEntry,
+                            subtitle = SquadStrings.cashRecords,
                             icon = Icons.Default.EditNote,
                             gradient = listOf(Color(0xFFF59E0B), Color(0xFFFBBF24))
                         ) { navigationEvent = SquadSettingsEvent.ManualEntry }
@@ -204,8 +204,8 @@ fun SquadSettingsView(
 
                     item {
                         SettingsDashboardCard(
-                            title = "Restore Purchases",
-                            subtitle = "Subscription",
+                            title = SquadStrings.restorePurchases,
+                            subtitle = SquadStrings.subscription,
                             icon = Icons.Default.Restore,
                             gradient = listOf(Color(0xFF64748B), Color(0xFF94A3B8))
                         ) { navigationEvent = SquadSettingsEvent.RestorePurchase }
@@ -213,13 +213,13 @@ fun SquadSettingsView(
                 }
 
                 item(span = { GridItemSpan(2) }) {
-                    SectionHeader(text = "Account")
+                    SectionHeader(text = SquadStrings.account)
                 }
 
                 item {
                     SettingsDashboardCard(
-                        title = "Bank Details",
-                        subtitle = "UPI Setup",
+                        title = SquadStrings.manageBankDetails,
+                        subtitle = SquadStrings.upiSetup,
                         icon = Icons.Default.AccountBalance,
                         gradient = listOf(Color(0xFF8B5CF6), Color(0xFFA78BFA))
                     ) { navigationEvent = SquadSettingsEvent.BankDetails }
@@ -227,8 +227,8 @@ fun SquadSettingsView(
 
                 item {
                     SettingsDashboardCard(
-                        title = "Squad Activity",
-                        subtitle = "Track Insights",
+                        title = SquadStrings.squadActivity,
+                        subtitle = SquadStrings.trackInsights,
                         icon = Icons.AutoMirrored.Filled.TrendingUp,
                         gradient = listOf(Color(0xFFEC4899), Color(0xFFF472B6))
                     ) { navigationEvent = SquadSettingsEvent.Activity }
@@ -236,8 +236,8 @@ fun SquadSettingsView(
 
                 item {
                     SettingsDashboardCard(
-                        title = "Payment History",
-                        subtitle = "Transactions",
+                        title = SquadStrings.paymentHistory,
+                        subtitle = SquadStrings.transaction,
                         icon = Icons.Default.History,
                         gradient = listOf(Color(0xFF6366F1), Color(0xFF818CF8))
                     ) { navigationEvent = SquadSettingsEvent.PaymentHistory }
@@ -245,8 +245,8 @@ fun SquadSettingsView(
 
                 item {
                     SettingsDashboardCard(
-                        title = "Repayments & Settlements",
-                        subtitle = "Track member payments",
+                        title = SquadStrings.repaymentsAndSettlements,
+                        subtitle = SquadStrings.trackMemberPayments,
                         icon = Icons.AutoMirrored.Filled.CompareArrows,
                         gradient = listOf(
                             Color(0xFF6366F1),
@@ -259,8 +259,8 @@ fun SquadSettingsView(
 
                 item {
                     SettingsDashboardCard(
-                        title = "Squad Rules",
-                        subtitle = "Policies & Limits",
+                        title = SquadStrings.squadRules,
+                        subtitle = SquadStrings.policiesAndLimits,
                         icon = Icons.AutoMirrored.Filled.Rule,
                         gradient = listOf(Color(0xFF14B8A6), Color(0xFF2DD4BF))
                     ) { navigationEvent = SquadSettingsEvent.ChitRules }
@@ -270,8 +270,8 @@ fun SquadSettingsView(
 
                     item {
                         SettingsDashboardCard(
-                            title = "Your Squads",
-                            subtitle = "Enable or disable squad access for members",
+                            title = SquadStrings.yourSquads,
+                            subtitle = SquadStrings.enableOrDisableSquadAccessForMembers,
                             icon = Icons.Default.Person,
                             gradient = listOf(Color(0xFF64748B), Color(0xFF94A3B8))
                         ) {
@@ -282,25 +282,22 @@ fun SquadSettingsView(
 
                 item {
                     LanguageDropDownView(
-                        selectedLanguage = UserDefaultsManager.getLanguage(),
-                        squadViewModel,
-                    ) {
 
-                        UserDefaultsManager.saveLanguage(it)
-                        squadViewModel.setLanguage(it)
-                    }
+                        squadViewModel = squadViewModel
+
+                    )
 
                 }
                 item(span = { GridItemSpan(2) }) {
                     LogoutCard {
                         AlertManager.shared.showAlert(
-                            title = SquadStrings.appName,
-                            message = "Are you sure you want to logout?",
-                            primaryButtonTitle = "LOGOUT",
+                            title = SquadStrings.savingsSquad,
+                            message = SquadStrings.areYouSureYouWantToLogout,
+                            primaryButtonTitle = SquadStrings.logout,
                             primaryAction = {
                                 squadViewModel.logoutUser(navController)
                             },
-                            secondaryButtonTitle = "NO",
+                            secondaryButtonTitle = SquadStrings.no,
                             secondaryAction = {}
                         )
                     }
@@ -358,13 +355,13 @@ fun HeroGreetingCard(isManager: Boolean) {
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (isManager) "Squad Manager" else "Squad Member",
+                    text = if (isManager) SquadStrings.squadManager else SquadStrings.squadMember,
                     style = AppFont.ibmPlexSans(13, FontWeight.Medium),
                     color = Color.White.copy(alpha = 0.85f)
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Your account, on your terms",
+                    text = SquadStrings.yourAccountOnYourTerms,
                     style = AppFont.ibmPlexSans(17, FontWeight.SemiBold),
                     color = Color.White,
                     maxLines = 1,
@@ -544,12 +541,12 @@ fun LogoutCard(onClick: () -> Unit) {
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Logout",
+                text = SquadStrings.logout,
                 style = AppFont.ibmPlexSans(15, FontWeight.SemiBold),
                 color = Color(0xFFEF4444)
             )
             Text(
-                text = "Sign out securely from this device",
+                text = SquadStrings.signOutSecurelyFromThisDevice,
                 style = AppFont.ibmPlexSans(12, FontWeight.Medium),
                 color = Color(0xFFEF4444).copy(alpha = 0.7f)
             )
@@ -637,12 +634,12 @@ fun ContactUsButton(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Contact Us",
+                        SquadStrings.contactUs,
                         style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
                         color = AppColors.headerText
                     )
                     Text(
-                        "We're here to help you",
+                        SquadStrings.wereHereToHelpYou,
                         style = AppFont.ibmPlexSans(11),
                         color = AppColors.secondaryText,
                         maxLines = 1

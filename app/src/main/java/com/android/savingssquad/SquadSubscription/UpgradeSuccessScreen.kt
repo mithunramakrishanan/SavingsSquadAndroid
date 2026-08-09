@@ -28,16 +28,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.savingssquad.singleton.AppColors
+import com.android.savingssquad.singleton.SquadStrings
 
 fun SubscriptionModel.Plan.label(): String {
 
     return when (this) {
 
-        SubscriptionModel.Plan.FREE -> "Free"
+        SubscriptionModel.Plan.FREE -> SquadStrings.freePlan
 
-        SubscriptionModel.Plan.BASIC -> "Basic"
+        SubscriptionModel.Plan.BASIC -> SquadStrings.basicPlan
 
-        SubscriptionModel.Plan.BUSINESS -> "Business"
+        SubscriptionModel.Plan.BUSINESS -> SquadStrings.businessPlan
 
     }
 
@@ -99,14 +100,14 @@ fun UpgradeSuccessScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Upgrade Successful!",
+                text = SquadStrings.upgradeSuccessful,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = AppColors.headerText
             )
 
             Text(
-                text = "You are now on ${plan.label()} plan",
+                text = SquadStrings.youAreNowOnPlan(plan.label()),
                 fontSize = 14.sp,
                 color = AppColors.secondaryText
             )
@@ -121,12 +122,12 @@ fun UpgradeSuccessScreen(
 
                 Column(modifier = Modifier.padding(16.dp)) {
 
-                    FeatureRow("Billing Period", billingPeriod.displayName)   // ⭐ NEW
+                    FeatureRow("Billing Period", billingPeriod.localizedName)   // ⭐ NEW
 
-                    FeatureRow("Max Members", maxMembers.toString())
+                    FeatureRow(SquadStrings.maxMembers(""), maxMembers.toString())
 
                     FeatureRow(
-                        "Contribution",
+                        SquadStrings.contribution,
                         if (features.contribution) "Enabled" else "Disabled"
                     )
 
@@ -135,7 +136,7 @@ fun UpgradeSuccessScreen(
                         if (features.loan) "Enabled" else "Disabled"
                     )
 
-                    FeatureRow("Price", price)
+                    FeatureRow(SquadStrings.price(""), price)
                 }
             }
         }
