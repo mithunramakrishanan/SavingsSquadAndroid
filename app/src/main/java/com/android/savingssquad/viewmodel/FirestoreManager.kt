@@ -32,6 +32,7 @@ import com.android.savingssquad.singleton.PaymentFilter
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.SessionManager
+import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.asTimestamp
 import com.google.firebase.BuildConfig
@@ -2351,7 +2352,7 @@ class FirestoreManager private constructor() {
 
         if (!CommonFunctions.isInternetAvailable()) {
             LoaderManager.shared.hideLoader()
-            completion(Result.failure(Exception("No Internet Connection")))
+            completion(Result.failure(Exception(SquadStrings.noInternetConnection)))
             return
         }
 

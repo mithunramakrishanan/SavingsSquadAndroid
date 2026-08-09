@@ -51,11 +51,11 @@ class FirebaseFunctionsManager private constructor() {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
-                message = "📴 No Internet Connection.",
+                message = SquadStrings.noInternetConnection,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
-            completion(null, null, Exception("No Internet Connection"))
+            completion(null, null, Exception(SquadStrings.noInternetConnection))
             return
         }
 
@@ -228,11 +228,11 @@ class FirebaseFunctionsManager private constructor() {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
-                message = "📴 No Internet Connection.",
+                message = SquadStrings.noInternetConnection,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
-            completion(Result.failure(Exception("No Internet Connection")))
+            completion(Result.failure(Exception(SquadStrings.noInternetConnection)))
             return
         }
 
@@ -310,11 +310,11 @@ class FirebaseFunctionsManager private constructor() {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
-                message = "📴 No Internet Connection.",
+                message = SquadStrings.noInternetConnection,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
-            completion(Result.failure(Exception("No Internet Connection")))
+            completion(Result.failure(Exception(SquadStrings.noInternetConnection)))
             return
         }
 
@@ -398,11 +398,11 @@ class FirebaseFunctionsManager private constructor() {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
-                message = "📴 No Internet Connection.",
+                message = SquadStrings.noInternetConnection,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
-            completion(Result.failure(Exception("No Internet Connection")))
+            completion(Result.failure(Exception(SquadStrings.noInternetConnection)))
             return
         }
 
@@ -460,11 +460,11 @@ class FirebaseFunctionsManager private constructor() {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
-                message = "📴 No Internet Connection.",
+                message = SquadStrings.noInternetConnection,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
-            completion(Result.failure(Exception("No Internet Connection")))
+            completion(Result.failure(Exception(SquadStrings.noInternetConnection)))
             return
         }
 
@@ -526,11 +526,11 @@ class FirebaseFunctionsManager private constructor() {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
-                message = "📴 No Internet Connection.",
+                message = SquadStrings.noInternetConnection,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
-            completion(null, null, Exception("No Internet Connection"))
+            completion(null, null, Exception(SquadStrings.noInternetConnection))
             return
         }
 
@@ -617,11 +617,11 @@ class FirebaseFunctionsManager private constructor() {
             LoaderManager.shared.hideLoader()
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
-                message = "📴 No Internet Connection.",
+                message = SquadStrings.noInternetConnection,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
-            completion(null, null, Exception("No Internet Connection"))
+            completion(null, null, Exception(SquadStrings.noInternetConnection))
             return
         }
 

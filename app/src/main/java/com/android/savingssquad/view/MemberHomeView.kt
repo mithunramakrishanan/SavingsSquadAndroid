@@ -278,7 +278,7 @@ fun MemberHomeView(
 
                                     AlertManager.shared.showAlert(
                                         title = SquadStrings.savingsSquad,
-                                        message = "Update your UPI to make a cash request",
+                                        message = SquadStrings.updateUPIForCashRequest,
                                         type = AlertType.INFO,
                                         primaryButtonTitle = SquadStrings.ok,
                                         primaryAction = {
@@ -293,8 +293,8 @@ fun MemberHomeView(
                                 if (member.value?.cashRequested == true || member.value?.currentLoanApproveStatus != EMIStatus.CREATED) {
 
                                     AlertManager.shared.showAlert(
-                                        title = "Request Not Available",
-                                        message = "You already have a pending loan or cash request. Please wait until the existing request is confirmed before creating a new request",
+                                        title = SquadStrings.requestNotAvailable,
+                                        message = SquadStrings.pendingLoanOrCashRequestMessage,
                                         type = AlertType.INFO,
                                         primaryButtonTitle = SquadStrings.ok,
                                         primaryAction = {
@@ -362,7 +362,7 @@ fun MemberHomeView(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     ViewAllButton(
-                                        title = "View All",
+                                        title = SquadStrings.viewAll,
                                         icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                     ) {
                                         navController.navigate(AppDestination.OPEN_PAYMENT_HISTORY.route)
@@ -414,8 +414,8 @@ fun MemberHomeView(
                         println("Request Cash : ${emi.loanAmount}")
 
                         AlertManager.shared.showAlert(
-                            title = "Request Cash Confirmation",
-                            message = "Are you sure you want to request cash for this EMI? Your request will be sent to the Squad Manager. Once approved, the manager will make the payment to you.",
+                            title = SquadStrings.requestCashConfirmation,
+                            message = SquadStrings.requestCashConfirmationMessage,
                             primaryButtonTitle = SquadStrings.requestCash,
                             primaryAction =
                                 {
@@ -431,7 +431,7 @@ fun MemberHomeView(
 
                                     squadViewModel.addCashRequest(true,cashRequest) {success,error ->
 
-                                        ToastManager.show(SquadStrings.savingsSquad,"Request Sent Successfully", type = ToastType.SUCCESS)
+                                        ToastManager.show(SquadStrings.savingsSquad, SquadStrings.requestSentSuccessfully, type = ToastType.SUCCESS)
                                     }
 
                                 },
@@ -812,7 +812,7 @@ fun MemberDashBoardCard(
 
 @Composable
 fun ViewAllButton(
-    title: String = "View All",
+    title: String = SquadStrings.viewAll,
     icon: ImageVector = Icons.AutoMirrored.Filled.ArrowForward,
     onClick: () -> Unit
 ) {

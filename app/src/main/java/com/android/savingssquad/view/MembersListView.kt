@@ -248,14 +248,12 @@ fun MembersListContent(
         if (newStatus == RecordStatus.INACTIVE) {
 
             AlertManager.shared.showAlert(
-                title = "Deactivate Squad?",
-                message = "If you deactivate ${member.name}, all members will lose access and won’t be able to use this squad until it is reactivated.",
+                title = SquadStrings.deactivateSquad,
+                message = SquadStrings.deactivateMemberMessage(member.name),
                 type = AlertType.ERROR,
-                primaryButtonTitle = "Deactivate",
+                primaryButtonTitle = SquadStrings.deactivate,
                 primaryAction = {
-
                     applyStatus(newStatus,member)
-
                 },
                 secondaryButtonTitle = SquadStrings.cancel,
                 secondaryAction = {}

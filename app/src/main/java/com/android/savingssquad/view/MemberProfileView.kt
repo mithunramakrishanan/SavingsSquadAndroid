@@ -809,8 +809,8 @@ fun UpdateMemberPopup(
                         squadViewModel.setShowUpdateMemberPopup(false)
 
                         AlertManager.shared.showAlert(
-                            title = "Mobile Number Updated",
-                            message = "Your mobile number has been updated successfully. For security reasons, you have been signed out. Please sign in again using your new mobile number to continue.",
+                            title = SquadStrings.mobileNumberUpdated,
+                            message = SquadStrings.mobileNumberUpdatedMessage,
                             primaryButtonTitle = SquadStrings.ok,
                             primaryAction = {
                                 squadViewModel.logoutUser(navController = navController)

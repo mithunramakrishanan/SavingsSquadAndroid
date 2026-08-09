@@ -1477,7 +1477,7 @@ class SquadViewModel : ViewModel() {
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
-                message = "⚠️ No internet connection",
+                message = SquadStrings.noInternetConnection,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
@@ -2175,7 +2175,7 @@ class SquadViewModel : ViewModel() {
                 title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError
             )
-            completion(false, "No internet connection")
+            completion(false, SquadStrings.noInternetConnection)
             return
         }
 
@@ -3279,7 +3279,7 @@ class SquadViewModel : ViewModel() {
 
         if (!CommonFunctions.isInternetAvailable()) {
 
-            completion(false, "No internet connection")
+            completion(false, SquadStrings.noInternetConnection)
 
             return
 
