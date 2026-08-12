@@ -285,7 +285,7 @@ private fun saveAccountToFirestore(
             Log.d("UPI", "✅ UPI Updated: $it")
 
 
-            ToastManager.show(title = SquadStrings.savingsSquad, message =  "UPI Updated", type = ToastType.SUCCESS)
+            ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.upiUpdated, type = ToastType.SUCCESS)
 
             if (screenType == SquadUserType.SQUAD_MANAGER) {
 

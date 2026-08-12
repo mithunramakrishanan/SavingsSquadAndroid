@@ -376,6 +376,26 @@ enum class PaymentFilter {
         }
 }
 
+enum class LoanFilter {
+    ALL,
+    PENDING,
+    PAID,
+    OVERDUE;
+    val localizedName: String
+
+        get() = when (this) {
+
+            ALL -> SquadStrings.all
+
+            PENDING -> SquadStrings.pending
+
+            PAID -> SquadStrings.paid
+
+            OVERDUE -> SquadStrings.overdue
+
+        }
+}
+
 enum class MemberPaymentType(
     val value: String
 ) {

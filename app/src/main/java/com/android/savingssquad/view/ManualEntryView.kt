@@ -361,7 +361,10 @@ fun ManualEntryView(
                                             ) { success, error ->
                                                 coroutineScope.launch(Dispatchers.Main) {
                                                     LoaderManager.shared.hideLoader()
-                                                    ToastManager.show(title = SquadStrings.contributionUpdated, message = "Contribution for $contributionSelectedMemberName ($contributionSelectedMonthYear) has been recorded successfully.",
+
+
+
+                                                    ToastManager.show(title = SquadStrings.contributionUpdated, message = SquadStrings.contributionRecordedSuccessfully(contributionSelectedMemberName,contributionSelectedMonthYear),
                                                         ToastType.SUCCESS)
 
                                                     squadViewModel.squad?.let { squad ->
@@ -557,7 +560,7 @@ fun ManualEntryView(
                                                     coroutineScope.launch(Dispatchers.Main) {
                                                         LoaderManager.shared.hideLoader()
 
-                                                        ToastManager.show(title = SquadStrings.emiPaymentUpdated, message = "EMI payment for $emiSelectedMemberName (${selectedInstallment!!.installmentNumber}) has been recorded successfully.",
+                                                        ToastManager.show(title = SquadStrings.emiPaymentUpdated, message = SquadStrings.emiPaymentRecordedSuccessfully(emiSelectedMemberName,selectedInstallment!!.installmentNumber),
                                                             ToastType.SUCCESS)
 
                                                         squadViewModel.squad?.let { squad ->
@@ -766,7 +769,9 @@ fun ManualEntryView(
 
                                                     ToastManager.show(
                                                         title = SquadStrings.paymentRecorded,
-                                                        message = "Payment of ${amountInt?.currencyFormattedWithCommas()} has been recorded successfully."
+                                                        message = SquadStrings.paymentRecordedSuccessfully(
+                                                            amountInt?.currencyFormattedWithCommas()
+                                                                ?: "")
                                                     )
 
                                                     NotificationService.shared.sendMemberReminder(
@@ -847,7 +852,7 @@ fun ManualEntryView(
                                     handleOtherPayment(squadViewModel = squadViewModel,  amountStr = paymentAmount.value, notes = paymentNotes , activity = activity, context = appContext,  action = {
                                         LoaderManager.shared.hideLoader()
                                         val total = paymentAmount.value.toInt()
-                                        ToastManager.show(title = SquadStrings.paymentRecorded, message = "Payment of ${total.currencyFormattedWithCommas()} has been recorded successfully.",
+                                        ToastManager.show(title = SquadStrings.paymentRecorded, message = SquadStrings.paymentRecordedSuccessfully(total.currencyFormattedWithCommas()),
                                             ToastType.SUCCESS)
 
 
@@ -1036,7 +1041,7 @@ fun ManualEntryView(
                                 ) { success, error ->
                                     coroutineScope.launch(Dispatchers.Main) {
                                         LoaderManager.shared.hideLoader()
-                                        ToastManager.show(title = "Loan Closed", message = "Loan #${loan.memberName} for ${loan.loanNumber} has been force closed successfully.",
+                                        ToastManager.show(title = SquadStrings.loanClosed, message = SquadStrings.loanForceClosedSuccessfully(loan.memberName,loan.loanNumber),
                                             ToastType.SUCCESS)
 
 

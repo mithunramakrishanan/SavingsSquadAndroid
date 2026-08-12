@@ -295,7 +295,7 @@ fun ManageSquadView(
                                 totalSquadAmount = newValue
 
                                 LoaderManager.shared.hideLoader()
-                                ToastManager.show(SquadStrings.savingsSquad, message = "Updated squad amount: $totalSquadAmount → $newValue" , type = ToastType.SUCCESS)
+                                ToastManager.show(SquadStrings.savingsSquad, message = SquadStrings.updatedSquadAmount(totalSquadAmount.toString(),newValue.toString()), type = ToastType.SUCCESS)
                             }
 
                         } else {

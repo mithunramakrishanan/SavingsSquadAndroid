@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -43,6 +44,8 @@ import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.singleton.LoaderManager
+import com.android.savingssquad.singleton.LoanFilter
+import com.android.savingssquad.singleton.PaymentFilter
 import com.yourapp.utils.CommonFunctions
 import java.text.NumberFormat
 import java.util.Locale
@@ -56,23 +59,69 @@ fun LoanListView(
     navController: NavController,
     squadViewModel: SquadViewModel
 ) {
-    val squad = squadViewModel.squad
 
-    val screenType = if (UserDefaultsManager.getSquadManagerLogged()) {
-        SquadUserType.SQUAD_MANAGER
-    } else {
-        SquadUserType.SQUAD_MEMBER
+    val screenType =
+        if (UserDefaultsManager.getSquadManagerLogged())
+            SquadUserType.SQUAD_MANAGER
+        else
+            SquadUserType.SQUAD_MEMBER
+
+    val squadLoans by squadViewModel.squadLoans.collectAsStateWithLifecycle()
+    val members = squadViewModel.squadMembers.collectAsStateWithLifecycle()
+
+    var selectedFilter by remember {
+        mutableStateOf(LoanFilter.ALL)
     }
 
-    val currentMember by if (screenType == SquadUserType.SQUAD_MANAGER) {
-        squadViewModel.selectedMember.collectAsStateWithLifecycle()
-    } else {
-        squadViewModel.currentMember.collectAsStateWithLifecycle()
+    var selectedUser by remember { mutableStateOf(SquadStrings.all) }
+    var selectedMemberId by remember { mutableStateOf<String?>(null) }
+
+    // MARK: - User List (iOS style)
+    val userList = remember(members.value) {
+        listOf(SquadStrings.all) + members.value.map { it.name }.distinct()
     }
 
-    var squadLoans by remember { mutableStateOf<List<MemberLoan>?>(null) }
-    var selectedStatus by remember { mutableStateOf(SquadStrings.all) }
-    var selectedMember by remember { mutableStateOf(SquadStrings.all) }
+    // MARK: - INIT LOAD GUARD (iOS equivalent)
+    var hasLoaded by remember { mutableStateOf(false) }
+
+    fun reloadLoans() {
+
+        squadViewModel.resetLoansPagination()
+
+        squadViewModel.fetchSquadLoans(
+            showLoader = true,
+            memberId = selectedMemberId,
+            filterType = selectedFilter
+        ) { _, error ->
+
+            if (error != null) {
+                println("❌ $error")
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+
+        if (hasLoaded) return@LaunchedEffect
+        hasLoaded = true
+
+        selectedMemberId =
+            if (screenType == SquadUserType.SQUAD_MEMBER)
+                squadViewModel.currentMember.value?.id
+            else null
+
+        selectedUser = if (screenType == SquadUserType.SQUAD_MEMBER) {
+
+            squadViewModel.currentMember.value?.name ?: ""
+
+        } else {
+
+            SquadStrings.all
+
+        }
+
+        reloadLoans()
+    }
 
     // The loan currently pushed into the full-detail screen (null = showing the list)
     var openedLoan by remember { mutableStateOf<MemberLoan?>(null) }
@@ -80,35 +129,6 @@ fun LoanListView(
     // Back press closes the detail screen first, instead of leaving LoanDetailsView
     BackHandler(enabled = openedLoan != null) {
         openedLoan = null
-    }
-
-    val filteredLoans = remember(squadLoans, selectedStatus, selectedMember) {
-        (squadLoans ?: emptyList())
-            .filter { loan ->
-                (loan.loanStatus.localizedName == selectedStatus) &&
-                        (selectedMember == SquadStrings.all || loan.memberName == selectedMember)
-            }
-    }
-
-    val memberList = remember(squadLoans) {
-        val names = squadLoans?.map { it.memberName }?.toSet() ?: emptySet()
-        listOf(SquadStrings.all) + names.sorted()
-    }
-
-    LaunchedEffect(Unit) {
-        val squadID = squad.value?.squadID ?: return@LaunchedEffect
-
-        if (screenType == SquadUserType.SQUAD_MEMBER && currentMember?.id != null) {
-            squadViewModel.fetchMemberLoans(true, currentMember!!.id!!) { success, _ ->
-                squadLoans = squadViewModel.memberLoans.value
-                LoaderManager.shared.hideLoader()
-            }
-        } else {
-            squadViewModel.fetchAllLoansInSquad(true, squadID) { success, loans, _ ->
-                if (success) squadLoans = loans
-                LoaderManager.shared.hideLoader()
-            }
-        }
     }
 
     Box(
@@ -122,7 +142,7 @@ fun LoanListView(
             // ===== LIST =====
             Column(modifier = Modifier.fillMaxSize()) {
 
-                SSNavigationBar(SquadStrings.loanDetails, navController)
+                SSNavigationBar(SquadStrings.loans, navController)
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -134,19 +154,36 @@ fun LoanListView(
                 ) {
                     if (screenType != SquadUserType.SQUAD_MEMBER) {
                         DropdownMenuPicker(
-                            selected = selectedMember,
-                            items = memberList,
+                            selected = selectedUser,
+                            items = userList,
                             icon = Icons.Default.Group,
                             modifier = Modifier.weight(1f)
-                        ) { selectedMember = it }
+                        ) { selectedUser = it
+                            reloadLoans()
+                        }
                     }
 
                     DropdownMenuPicker(
-                        selected = selectedStatus,
+                        selected = selectedFilter.localizedName,
                         items = listOf(SquadStrings.all, SquadStrings.pending, SquadStrings.paid,SquadStrings.overdue),
                         icon = Icons.Default.Tune,
                         modifier = Modifier.weight(1f)
                     ) {
+
+                        if (it == SquadStrings.all) {
+                            selectedFilter = LoanFilter.ALL
+                        }
+                        else if (it == SquadStrings.pending) {
+                            selectedFilter = LoanFilter.PENDING
+                        }
+                        else if (it == SquadStrings.paid) {
+                            selectedFilter = LoanFilter.PAID
+                        }
+                        else if (it == SquadStrings.overdue) {
+                            selectedFilter = LoanFilter.OVERDUE
+                        }
+
+                        reloadLoans()
 
                     }
                 }
@@ -154,23 +191,65 @@ fun LoanListView(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp),
                     contentPadding = PaddingValues(bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+
                     when {
                         squadLoans == null -> {
-                            item { EmptyStateText("Loading loans...") }
+
+                            item {
+                                EmptyStateText("Loading loans...")
+                            }
                         }
-                        filteredLoans.isEmpty() -> {
-                            item { EmptyStateText(SquadStrings.noLoansYet) }
+
+                        squadLoans.isEmpty() -> {
+
+                            item {
+                                EmptyStateText(SquadStrings.noLoansYet)
+                            }
                         }
+
                         else -> {
+
                             items(
-                                items = filteredLoans,
-                                key = { it.id ?: it.hashCode().toString() }
+                                items = squadLoans,
+                                key = { loan ->
+                                    loan.id ?: loan.hashCode().toString()
+                                }
                             ) { loan ->
-                                LoanSummaryCard(loan = loan, onClick = { openedLoan = loan })
+
+                                LoanSummaryCard(
+                                    loan = loan,
+                                    onClick = {
+                                        openedLoan = loan
+                                    }
+                                )
+                            }
+
+                            // Trigger pagination only from the last loan
+                            item {
+
+                                val lastLoan = squadLoans.lastOrNull()
+
+                                if (lastLoan != null) {
+
+                                    LaunchedEffect(
+                                        lastLoan.id,
+                                        selectedMemberId,
+                                        selectedFilter
+                                    ) {
+
+                                        squadViewModel.loadMoreLoansIfNeeded(
+                                            currentLoan = lastLoan,
+                                            memberId = selectedMemberId,
+                                            filterType = selectedFilter
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -565,14 +644,14 @@ fun LoanFullDetailView(
                 StatColumn(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.Percent,
-                    title = "(${loan.emiConfiguration?.interestType?.name ?: ""})",
+                    title = "(${loan.emiConfiguration?.interestType?.localizedName ?: ""})",
                     value = String.format("%.2f%%", loan.interest)
                 )
                 StatDivider()
                 StatColumn(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.CalendarMonth,
-                    title = "Tenure",
+                    title = SquadStrings.tenureMonths,
                     value = "${loan.loanMonth} mo"
                 )
             }
@@ -589,7 +668,7 @@ fun LoanFullDetailView(
                 StatColumn(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.ArrowUpward,
-                    title = "Start Date",
+                    title = SquadStrings.startDate,
                     value = CommonFunctions.dateToString(loan.amountSentDate?.toDate() ?: java.util.Date()),
                     small = true
                 )
@@ -597,7 +676,7 @@ fun LoanFullDetailView(
                 StatColumn(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.Verified,
-                    title = "Close Date",
+                    title = SquadStrings.closeDate,
                     value = if (loan.loanStatus == EMIStatus.PAID || loan.isForceClosed)
                         CommonFunctions.dateToString(loan.loanClosedDate?.toDate() ?: java.util.Date())
                     else "—",
@@ -632,7 +711,7 @@ fun LoanFullDetailView(
                     }
 
                     Text(
-                        text = "Total Interest Paid",
+                        text = SquadStrings.totalInterestPaid,
                         style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Medium),
                         color = AppColors.secondaryText,
                         modifier = Modifier.weight(1f)
@@ -665,7 +744,7 @@ fun LoanFullDetailView(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Foreclose Loan",
+                        text = SquadStrings.forceCloseLoan,
                         style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Bold),
                         color = AppColors.primaryBrand,
                         modifier = Modifier.weight(1f)
@@ -693,7 +772,7 @@ fun LoanFullDetailView(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (showInstallments) "Hide Timeline" else "View Timeline (${timelineSteps.size})",
+                        text = if (showInstallments) SquadStrings.hideTimeline else "${SquadStrings.viewTimeline} (${timelineSteps.size})",
                         style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Bold),
                         color = AppColors.primaryBrand,
                         modifier = Modifier.weight(1f)
@@ -758,57 +837,119 @@ private fun LoanStoryCard(loan: MemberLoan, paidCount: Int) {
     val total = loan.installments.size
 
     val (icon, color, title) = when {
-        loan.isForceClosed -> Triple(Icons.Default.Bolt, AppColors.primaryBrand, "Closed Early (Foreclosed)")
-        loan.loanStatus == EMIStatus.PAID -> Triple(Icons.Default.CheckCircle, AppColors.successAccent, "Fully Repaid")
+        loan.isForceClosed -> Triple(Icons.Default.Bolt, AppColors.primaryBrand, SquadStrings.closedEarlyForeclosed)
+        loan.loanStatus == EMIStatus.PAID -> Triple(Icons.Default.CheckCircle, AppColors.successAccent, SquadStrings.fullyRepaid)
         loan.loanStatus == EMIStatus.OVERDUE || loan.loanStatus == EMIStatus.FAILED ->
-            Triple(Icons.Default.Warning, AppColors.errorAccent, "Payment Overdue")
-        else -> Triple(Icons.Default.Info, AppColors.warningAccent, "In Progress")
+            Triple(Icons.Default.Warning, AppColors.errorAccent, SquadStrings.paymentOverdue)
+        else -> Triple(Icons.Default.Info, AppColors.warningAccent, SquadStrings.inProgress)
     }
 
-    val message: String = when {
+    val message = when {
         loan.isForceClosed -> {
-            val asOf = CommonFunctions.dateToString(loan.forceCloseSummary.asOfDate)
-            "${loan.memberName} paid off this loan early. After completing $paidCount of $total monthly installments, " +
-                    "the remaining balance was settled in one payment on $asOf — " +
-                    "₹${loan.forceCloseSummary.outstandingPrincipal} principal plus ₹${loan.forceCloseSummary.recalculatedInterest} " +
-                    "in recalculated interest, totalling ${loan.forceCloseSummary.totalPayable.currencyFormattedWithCommas()}."
+            val asOf = CommonFunctions.dateToString(
+                loan.forceCloseSummary.asOfDate
+            )
+
+            SquadStrings.loanForceClosedStory(
+                name = loan.memberName,
+                paidCount = paidCount,
+                total = total,
+                date = asOf,
+                principal = loan.forceCloseSummary
+                    .outstandingPrincipal
+                    .currencyFormattedWithCommas(),
+                interest = loan.forceCloseSummary
+                    .recalculatedInterest
+                    .currencyFormattedWithCommas(),
+                totalPayable = loan.forceCloseSummary
+                    .totalPayable
+                    .currencyFormattedWithCommas()
+            )
         }
+
         loan.loanStatus == EMIStatus.PAID -> {
-            val closeDate = CommonFunctions.dateToString(loan.loanClosedDate?.toDate() ?: java.util.Date())
-            "${loan.memberName} has fully repaid this loan across all $total monthly installments. " +
-                    "The final payment was made on $closeDate."
+            val closeDate = CommonFunctions.dateToString(
+                loan.loanClosedDate?.toDate() ?: java.util.Date()
+            )
+
+            SquadStrings.loanFullyRepaidStory(
+                loan.memberName,
+                total,
+                closeDate
+            )
         }
-        loan.loanStatus == EMIStatus.OVERDUE || loan.loanStatus == EMIStatus.FAILED -> {
-            val overdueInstallment = loan.installments.firstOrNull {
-                it.status == EMIStatus.OVERDUE || it.status == EMIStatus.FAILED
+
+        loan.loanStatus == EMIStatus.OVERDUE ||
+                loan.loanStatus == EMIStatus.FAILED -> {
+            val installment = loan.installments.firstOrNull {
+                it.status == EMIStatus.OVERDUE ||
+                        it.status == EMIStatus.FAILED
             }
-            if (overdueInstallment != null) {
-                val due = CommonFunctions.dateToString(overdueInstallment.dueDate?.toDate() ?: java.util.Date())
-                "An installment of ${overdueInstallment.installmentAmount.currencyFormattedWithCommas()} was due on $due " +
-                        "and hasn't been paid yet. $paidCount of $total installments are paid so far."
+
+            if (installment != null) {
+                SquadStrings.loanOverdueStory(
+                    installment.installmentAmount
+                        .currencyFormattedWithCommas(),
+                    CommonFunctions.dateToString(
+                        installment.dueDate?.toDate() ?: java.util.Date()
+                    ),
+                    paidCount,
+                    total
+                )
             } else {
-                "This loan has an overdue payment. $paidCount of $total installments are paid so far."
+                SquadStrings.loanOverdueStory(
+                    "0",
+                    "",
+                    paidCount,
+                    total
+                )
             }
         }
+
         paidCount == 0 -> {
-            val firstInstallment = loan.installments.firstOrNull()
-            if (firstInstallment != null) {
-                val due = CommonFunctions.dateToString(firstInstallment.dueDate?.toDate() ?: java.util.Date())
-                "${loan.memberName} hasn't made a payment yet. The first installment of " +
-                        "${firstInstallment.installmentAmount.currencyFormattedWithCommas()} is due on $due."
+            val installment = loan.installments.firstOrNull()
+
+            if (installment != null) {
+                SquadStrings.loanNoPaymentStory(
+                    loan.memberName,
+                    installment.installmentAmount
+                        .currencyFormattedWithCommas(),
+                    CommonFunctions.dateToString(
+                        installment.dueDate?.toDate() ?: java.util.Date()
+                    )
+                )
             } else {
-                "${loan.memberName} hasn't made a payment yet."
+                SquadStrings.loanNoPaymentStory(
+                    loan.memberName,
+                    "",
+                    ""
+                )
             }
         }
+
         else -> {
-            val nextDue = loan.installments.firstOrNull { it.status == EMIStatus.PENDING }
+            val nextDue = loan.installments.firstOrNull {
+                it.status == EMIStatus.PENDING
+            }
+
             val emi = loan.emiConfiguration?.emiAmount ?: 0
+
             if (nextDue != null) {
-                val due = CommonFunctions.dateToString(nextDue.dueDate?.toDate() ?: java.util.Date())
-                "${loan.memberName} is repaying this loan in $total monthly installments of ${emi.currencyFormattedWithCommas()} each. " +
-                        "So far $paidCount of $total have been paid. The next payment is due on $due."
+                SquadStrings.loanRepaymentStory(
+                    loan.memberName,
+                    total,
+                    emi.currencyFormattedWithCommas(),
+                    paidCount,
+                    CommonFunctions.dateToString(
+                        nextDue.dueDate?.toDate() ?: java.util.Date()
+                    )
+                )
             } else {
-                "${loan.memberName} is repaying this loan in $total monthly installments. $paidCount of $total have been paid so far."
+                SquadStrings.loanRepaymentCompletedStory(
+                    loan.memberName,
+                    total,
+                    paidCount
+                )
             }
         }
     }

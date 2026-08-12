@@ -24,6 +24,7 @@ import com.android.savingssquad.model.MemberOtherPayments
 import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.LoaderManager
+import com.android.savingssquad.singleton.LoanFilter
 import com.android.savingssquad.singleton.MemberPaymentSubType
 import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
@@ -605,8 +606,6 @@ class FirestoreManager private constructor() {
 
         val loanRef = db.collection("squads")
             .document(squadID)
-            .collection("members")
-            .document(memberID)
             .collection("loans")
             .document(loanID)
 
@@ -660,8 +659,6 @@ class FirestoreManager private constructor() {
 
         val loanRef = db.collection("squads")
             .document(squadID)
-            .collection("members")
-            .document(memberID)
             .collection("loans")
             .document(loanID)
 
@@ -693,8 +690,6 @@ class FirestoreManager private constructor() {
 
         val loanRef = db.collection("squads")
             .document(squadID)
-            .collection("members")
-            .document(memberID)
             .collection("loans")
             .document(loanID)
 
@@ -745,8 +740,6 @@ class FirestoreManager private constructor() {
 
         val loanRef = db.collection("squads")
             .document(squadID)
-            .collection("members")
-            .document(memberID)
             .collection("loans")
             .document(loanID)
 
@@ -1029,6 +1022,51 @@ class FirestoreManager private constructor() {
                     it.toObject(PaymentsDetails::class.java)
                 }
                 completion(payments, snapshot.documents.lastOrNull(), null)
+            }
+            .addOnFailureListener {
+                completion(null, null, it.localizedMessage)
+            }
+    }
+
+    fun fetchSquadLoans(
+        squadID: String,
+        memberId: String? = null,
+        filterType: LoanFilter = LoanFilter.ALL,
+        lastDocument: DocumentSnapshot? = null,
+        limit: Int,
+        completion: (List<MemberLoan>?, DocumentSnapshot?, String?) -> Unit
+    ) {
+
+        var query: Query = db
+            .collection("squads")
+            .document(squadID)
+            .collection("loans")
+            .orderBy("recordDate", Query.Direction.DESCENDING)
+            .limit(limit.toLong())
+
+        if (!memberId.isNullOrEmpty()) {
+            query = query.whereEqualTo("memberID", memberId)
+        }
+
+        if (filterType == LoanFilter.PAID) {
+            query = query.whereEqualTo("loanStatus", "PAID")
+        } else if (filterType == LoanFilter.PENDING) {
+            query = query.whereEqualTo("loanStatus", "PENDING")
+        }
+        else if (filterType == LoanFilter.OVERDUE) {
+            query = query.whereEqualTo("loanStatus", "OVERDUE")
+        }
+
+        if (lastDocument != null) {
+            query = query.startAfter(lastDocument)
+        }
+
+        query.get()
+            .addOnSuccessListener { snapshot ->
+                val loans = snapshot.documents.mapNotNull {
+                    it.toObject(MemberLoan::class.java)
+                }
+                completion(loans, snapshot.documents.lastOrNull(), null)
             }
             .addOnFailureListener {
                 completion(null, null, it.localizedMessage)
@@ -1901,8 +1939,7 @@ class FirestoreManager private constructor() {
         completion: (List<MemberLoan>?, String?) -> Unit
     ) {
         db.collection("squads").document(squadID)
-            .collection("members").document(memberID)
-            .collection("loans")
+            .collection("loans").whereEqualTo("memberID",memberID)
             .get()
             .addOnSuccessListener { snapshot ->
                 val loans = snapshot.documents.mapNotNull { doc ->
@@ -2012,8 +2049,7 @@ class FirestoreManager private constructor() {
         completion: (List<MemberLoan>?, String?) -> Unit
     ) {
         db.collection("squads").document(squadID)
-            .collection("members").document(memberID)
-            .collection("loans").whereEqualTo("loanStatus", "PENDING")
+            .collection("loans").whereEqualTo("memberID",memberID).whereEqualTo("loanStatus", "PENDING")
             .get()
             .addOnSuccessListener { snapshot ->
                 val loans = snapshot.documents.mapNotNull { doc ->
@@ -2036,8 +2072,6 @@ class FirestoreManager private constructor() {
     ) {
         val loansCollection = db.collection("squads")
             .document(squadID)
-            .collection("members")
-            .document(memberID)
             .collection("loans")
 
         if (!loan.id.isNullOrEmpty()) {
@@ -2057,59 +2091,6 @@ class FirestoreManager private constructor() {
         }
     }
 
-    // MARK: - 🔹 Fetch All Loans in Squad
-    // FIX #4 / #7: empty member list is treated as a valid empty result (not an error);
-    // dead/unused outer CountDownLatch removed; completion is now guaranteed exactly once.
-    fun fetchAllLoansInSquad(
-        squadID: String,
-        completion: (List<MemberLoan>?, String?) -> Unit
-    ) {
-        val membersRef = db.collection("squads")
-            .document(squadID)
-            .collection("members")
-
-        membersRef.get()
-            .addOnSuccessListener { memberSnapshot ->
-                val members = memberSnapshot.documents
-                if (members.isEmpty()) {
-                    completion(emptyList(), null)
-                    return@addOnSuccessListener
-                }
-
-                val allLoans = java.util.Collections.synchronizedList(mutableListOf<MemberLoan>())
-                val errors = java.util.Collections.synchronizedList(mutableListOf<String>())
-                val latch = CountDownLatch(members.size)
-
-                for (memberDoc in members) {
-                    val memberID = memberDoc.id
-                    val loansRef = membersRef.document(memberID).collection("loans")
-
-                    loansRef.get()
-                        .addOnSuccessListener { loanSnapshot ->
-                            for (loanDoc in loanSnapshot.documents) {
-                                loanDoc.toObject(MemberLoan::class.java)?.let { allLoans.add(it) }
-                            }
-                        }
-                        .addOnFailureListener { e ->
-                            errors.add("Failed for $memberID: ${e.localizedMessage}")
-                        }
-                        .addOnCompleteListener { latch.countDown() }
-                }
-
-                Thread {
-                    latch.await()
-                    if (errors.isNotEmpty()) {
-                        completion(allLoans, errors.joinToString("\n"))
-                    } else {
-                        completion(allLoans, null)
-                    }
-                }.start()
-            }
-            .addOnFailureListener { e ->
-                completion(null, "Failed to fetch members: ${e.localizedMessage}")
-            }
-    }
-
     // MARK: - 🔹 Delete Member Loan
     fun deleteMemberLoan(
         squadID: String,
@@ -2119,8 +2100,6 @@ class FirestoreManager private constructor() {
     ) {
         val loanRef = db.collection("squads")
             .document(squadID)
-            .collection("members")
-            .document(memberID)
             .collection("loans")
             .document(loanID)
 
@@ -2182,8 +2161,6 @@ class FirestoreManager private constructor() {
     ) {
         val loanRef = db.collection("squads")
             .document(squadID)
-            .collection("members")
-            .document(memberID)
             .collection("loans")
             .document(loanID)
 

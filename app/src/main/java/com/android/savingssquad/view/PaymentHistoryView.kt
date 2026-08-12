@@ -71,6 +71,7 @@ fun PaymentHistoryView(
             }
         }
     }
+
     Box(
         modifier = Modifier
 

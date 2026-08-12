@@ -138,13 +138,13 @@ private fun OTPOverlayState.icon() = when (this) {
 }
 
 private fun OTPOverlayState.title() = when (this) {
-    OTPOverlayState.SENDING -> "Sending OTP"
-    OTPOverlayState.VERIFYING -> "Verifying OTP"
+    OTPOverlayState.SENDING -> SquadStrings.sendingOTP
+    OTPOverlayState.VERIFYING -> SquadStrings.verifyingOTP
 }
 
 private fun OTPOverlayState.subtitle() = when (this) {
-    OTPOverlayState.SENDING -> "Sending code to your number..."
-    OTPOverlayState.VERIFYING -> "Please wait a moment..."
+    OTPOverlayState.SENDING -> SquadStrings.sendingCodeToYourNumber
+    OTPOverlayState.VERIFYING -> SquadStrings.pleaseWaitAMoment
 }
 
 @Composable

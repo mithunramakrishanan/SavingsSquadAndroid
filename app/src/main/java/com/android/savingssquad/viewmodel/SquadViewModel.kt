@@ -33,6 +33,7 @@ import com.android.savingssquad.singleton.AmountEditType
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.SquadLanguages
 import com.android.savingssquad.singleton.LoaderManager
+import com.android.savingssquad.singleton.LoanFilter
 import com.android.savingssquad.singleton.MemberPaymentSubType
 import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadUserType
@@ -112,14 +113,19 @@ class SquadViewModel : ViewModel() {
     private val _squadPayments = MutableStateFlow<List<PaymentsDetails>>(emptyList())
     val squadPayments: StateFlow<List<PaymentsDetails>> = _squadPayments
     fun setSquadPayments(list: List<PaymentsDetails>) { _squadPayments.value = list }
-
     private var paymentsLastDocument: DocumentSnapshot? = null
-
     var paymentsIsLoadingMore: Boolean = false
-
     private var paymentsHasMoreData: Boolean = true
-
     private val paymentsPageSize: Int = 20
+
+
+    private val _squadLoans = MutableStateFlow<List<MemberLoan>>(emptyList())
+    val squadLoans: StateFlow<List<MemberLoan>> = _squadLoans
+    fun setSquadLoans(list: List<MemberLoan>) { _squadLoans.value = list }
+    private var loansLastDocument: DocumentSnapshot? = null
+    var loansIsLoadingMore: Boolean = false
+    private var loansHasMoreData: Boolean = true
+    private val loansPageSize: Int = 20
 
 
     private val _remainingMonths = MutableStateFlow(0)
@@ -3060,6 +3066,108 @@ class SquadViewModel : ViewModel() {
         loadMorePayments(memberId,filterType)
     }
 
+    //Loans
+    fun fetchSquadLoans(
+        showLoader: Boolean,
+        memberId: String? = null,
+        filterType : LoanFilter = LoanFilter.ALL,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            completion(false, "No Internet")
+            return
+        }
+
+        if (showLoader) LoaderManager.shared.showLoader()
+
+        loansIsLoadingMore = true
+
+        manager.fetchSquadLoans(
+            squadID = squadID,
+            memberId = memberId,
+            filterType = filterType,
+            lastDocument = null,
+            limit = loansPageSize,
+        ) { loans, lastDoc, error ->
+
+            loansIsLoadingMore = false
+            if (showLoader) LoaderManager.shared.hideLoader()
+
+            if (loans != null) {
+
+                setSquadLoans(loans)
+
+                loansLastDocument = lastDoc
+
+                loansHasMoreData =
+                    loans.size == loansPageSize
+
+                completion(true, null)
+
+            } else {
+
+                completion(false, error ?: "Failed to fetch loans")
+            }
+        }
+    }
+
+    fun resetLoansPagination() {
+
+        setSquadLoans(emptyList())
+
+        loansLastDocument = null
+
+        loansHasMoreData = true
+
+        loansIsLoadingMore = false
+    }
+
+    fun loadMoreLoans(memberId: String? = null, filter: LoanFilter) {
+
+        if (loansIsLoadingMore) return
+        if (!loansHasMoreData) return
+        val last = loansLastDocument ?: return
+
+        loansIsLoadingMore = true
+
+        manager.fetchSquadLoans(
+            squadID = squadID,
+            memberId = memberId,
+            filter,
+            lastDocument = last,
+            limit = loansPageSize
+        ) { loans, newLastDoc, _ ->
+
+            loansIsLoadingMore = false
+
+            if (loans != null) {
+
+                val current = squadLoans.value.toMutableList()
+                current.addAll(loans)
+                setSquadLoans(current)
+
+                loansLastDocument = newLastDoc
+
+                loansHasMoreData =
+                    loans.size == loansPageSize
+            }
+        }
+    }
+
+    fun loadMoreLoansIfNeeded(
+        currentLoan: MemberLoan,
+        filterType: LoanFilter = LoanFilter.ALL,
+        memberId: String? = null,
+    ) {
+
+        val last = squadLoans.value.lastOrNull() ?: return
+
+        if (currentLoan.id != last.id) return
+
+        loadMoreLoans(memberId,filterType)
+    }
+
     fun addEMIConfiguration(
         showLoader: Boolean,
         emi: EMIConfiguration,
@@ -3553,74 +3661,6 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-    fun fetchAllLoansInSquad(
-        showLoader: Boolean = true,
-        squadID: String,
-        completion: (Boolean, List<MemberLoan>?, String?) -> Unit
-    ) {
-        if (!CommonFunctions.isInternetAvailable()) {
-            AlertManager.shared.showAlert(
-                title = SquadStrings.savingsSquad,
-                message = SquadStrings.networkError,
-                primaryButtonTitle = SquadStrings.ok,
-                primaryAction = {}
-            )
-            return
-        }
-        if (showLoader) LoaderManager.shared.showLoader()
-
-        val db = FirebaseFirestore.getInstance()
-        val membersRef = db.collection("squads").document(squadID).collection("members")
-        val allLoans = mutableListOf<MemberLoan>()
-        val errors = mutableListOf<String>()
-
-        membersRef.get().addOnCompleteListener { memberTask ->
-
-            if (!memberTask.isSuccessful) {
-                if (showLoader) LoaderManager.shared.hideLoader()
-                completion(false, null, "❌ Failed to fetch members: ${memberTask.exception?.localizedMessage}")
-                return@addOnCompleteListener
-            }
-
-            val members = memberTask.result?.documents ?: emptyList()
-            if (members.isEmpty()) {
-                if (showLoader) LoaderManager.shared.hideLoader()
-                completion(false, null, "❌ No members found")
-                return@addOnCompleteListener
-            }
-
-            val latch = CountDownLatch(members.size)
-            for (memberDoc in members) {
-                val memberID = memberDoc.id
-                val loansRef = membersRef.document(memberID).collection("loans")
-
-                loansRef.get().addOnCompleteListener { loanTask ->
-                    if (!loanTask.isSuccessful) {
-                        errors.add("❌ Error fetching loans for $memberID: ${loanTask.exception?.localizedMessage}")
-                    } else {
-                        for (loanDoc in loanTask.result!!) {
-                            val loan = loanDoc.toObject(MemberLoan::class.java)
-                            allLoans.add(loan)
-                        }
-                    }
-                    latch.countDown()
-                }
-            }
-
-            Thread {
-                latch.await()
-                Handler(Looper.getMainLooper()).post {
-                    if (showLoader) LoaderManager.shared.hideLoader()
-                    if (errors.isNotEmpty()) {
-                        completion(false, allLoans, errors.joinToString("\n"))
-                    } else {
-                        completion(true, allLoans, null)
-                    }
-                }
-            }.start()
-        }
-    }
-
     fun deleteMemberLoan(
         showLoader: Boolean,
         memberID: String,
@@ -3784,7 +3824,7 @@ class SquadViewModel : ViewModel() {
     ) {
         val db = FirebaseFirestore.getInstance()
         val membersRef = db.collection("squads").document(squadID).collection("members")
-
+        val squadRef = db.collection("squads").document(squadID)
         val dueContributions = mutableListOf<ContributionDetail>()
         val dueInstallments = mutableListOf<Installment>()
 
@@ -3810,7 +3850,7 @@ class SquadViewModel : ViewModel() {
                         membersRef.document(memberID).collection("contributions")
 
                     val loansRef =
-                        membersRef.document(memberID).collection("loans")
+                        squadRef.collection("loans").whereEqualTo("memberID",memberID)
 
                     contribRef.get()
                         .addOnSuccessListener { contribSnap ->

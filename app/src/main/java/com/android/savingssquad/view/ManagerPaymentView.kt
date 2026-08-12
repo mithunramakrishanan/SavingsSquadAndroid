@@ -380,6 +380,13 @@ fun ManagerPaymentView(
                                                 handler = {
                                                     loanSelectedMember = null
                                                     emiSelectedType = null
+
+                                                    ToastManager.show(
+                                                        title = SquadStrings.savingsSquad,
+                                                        message = SquadStrings.paymentStatusUpdated,
+                                                        type = ToastType.SUCCESS
+                                                    )
+
                                                 }
                                             )
                                         } else {
@@ -595,7 +602,7 @@ fun ManagerPaymentView(
 
                                                         ToastManager.show(
                                                             title = SquadStrings.savingsSquad,
-                                                            message = "Payment Updated",
+                                                            message = SquadStrings.paymentStatusUpdated,
                                                             type = ToastType.SUCCESS
                                                         )
                                                     }
@@ -712,7 +719,7 @@ fun ManagerPaymentView(
 
                                                         ToastManager.show(
                                                             title = SquadStrings.savingsSquad,
-                                                            message = "Payment Updated",
+                                                            message = SquadStrings.paymentStatusUpdated,
                                                             type = ToastType.SUCCESS
                                                         )
                                                     }
@@ -833,7 +840,7 @@ private fun makeLoanPayment(
     ) { success, error ->
 
         if (success) {
-
+            LoaderManager.shared.hideLoader()
             if (error == "UPI_OPENED") {
                 handler()
             }
@@ -850,7 +857,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
     val amountInt = amountStr.toIntOrNull() ?: 0
     if (availableAmount < amountInt) {
 
-        ToastManager.show(title = SquadStrings.savingsSquad, message = "Fund not available", type = ToastType.ERROR)
+        ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.fundNotAvailable, type = ToastType.ERROR)
         return
     }
     LoaderManager.shared.showLoader()
@@ -915,7 +922,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
             )
             LoaderManager.shared.hideLoader()
 
-            ToastManager.show(title = SquadStrings.savingsSquad, message = "Payment updated", type = ToastType.SUCCESS)
+            ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.paymentStatusUpdated, type = ToastType.SUCCESS)
         } else {
             println("❌ Error adding payment: $error")
         }

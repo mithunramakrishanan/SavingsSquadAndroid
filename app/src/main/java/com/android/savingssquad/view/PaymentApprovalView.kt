@@ -294,7 +294,7 @@ fun PaymentApprovalView(
 
                                         ToastManager.show(
 
-                                            message = "Payment Status Updated",
+                                            message = SquadStrings.paymentStatusUpdated,
 
                                             type = ToastType.SUCCESS
 
@@ -336,7 +336,7 @@ fun PaymentApprovalView(
 
                                         ToastManager.show(
 
-                                            message = "Payment Status Updated",
+                                            message = SquadStrings.paymentStatusUpdated,
 
                                             type = ToastType.SUCCESS
 
