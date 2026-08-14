@@ -156,18 +156,18 @@ fun MemberOtherPaymentsView(
 
             ModernSegmentedPickerView(
                 segments = listOf(
-                    MemberPaymentSubType.RE_PAYMENT.value,
-                    MemberPaymentSubType.SETTLEMENT.value
+                    MemberPaymentSubType.RE_PAYMENT.localizedName,
+                    MemberPaymentSubType.SETTLEMENT.localizedName
                 ),
                 selectedSegment = selectedSubType
             )
             { newSegment ->
 
                 selectedSubType =
-                    if (newSegment == MemberPaymentSubType.RE_PAYMENT.value)
-                        MemberPaymentSubType.RE_PAYMENT.value
+                    if (newSegment == MemberPaymentSubType.RE_PAYMENT.localizedName)
+                        MemberPaymentSubType.RE_PAYMENT.localizedName
                     else
-                        MemberPaymentSubType.SETTLEMENT.value
+                        MemberPaymentSubType.SETTLEMENT.localizedName
 
 //                if (newSegment != MemberPaymentSubType.RE_PAYMENT.value) {
 //                    selectedPaidStatus = ""
@@ -180,7 +180,7 @@ fun MemberOtherPaymentsView(
 
             // MARK: - Paid status filter (Repayment only)
 
-            if (selectedSubType == MemberPaymentSubType.RE_PAYMENT.value) {
+            if (selectedSubType == MemberPaymentSubType.RE_PAYMENT.localizedName) {
 
                 DropdownMenuPicker(
                     selected = selectedPaidStatus,

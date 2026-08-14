@@ -486,16 +486,10 @@ fun ManagerPaymentView(
                                     .fillMaxWidth()
                             ) { selectedMemberPaymentSubType = it }
 
-                            val amount = remember { mutableStateOf("") }
-
-                            LaunchedEffect(amount.value) {
-                                memberPaymentAmount.value = amount.value
-                            }
-
                             SSTextField(
                                 icon = Icons.Default.CreditCard,
                                 placeholder = SquadStrings.enterAmount,
-                                textState = amount,
+                                textState = memberPaymentAmount,
                                 keyboardType = KeyboardType.Number,
                                 error = memberPaymentAmountError
                             )
@@ -631,7 +625,7 @@ fun ManagerPaymentView(
 
                                     subtitle = SquadStrings.alreadyTransferredOrHandedOverCashToTheMember,
 
-                                    disabled =  loanSelectedMember != null
+                                    disabled =  false
 
                                 )
                                 {
@@ -658,7 +652,7 @@ fun ManagerPaymentView(
                                             amount = amount,
                                             intrestAmount = 0,
 
-                                            paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
+                                            paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                                             paymentType = PaymentType.PAYMENT_DEBIT,
 
                                             paymentSubType =
@@ -841,7 +835,7 @@ private fun makeLoanPayment(
 
         if (success) {
             LoaderManager.shared.hideLoader()
-            if (error == "UPI_OPENED") {
+            if (error == "UPI_OPENED" || entryType == PaymentEntryType.MANUAL_ENTRY) {
                 handler()
             }
 

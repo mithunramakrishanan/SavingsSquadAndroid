@@ -93,7 +93,7 @@ fun TrialBadgeView(
             )
 
             Text(
-                text = "$daysLeft of ${viewModel.trialDaysTotal} days left • Full access",
+                text = SquadStrings.trialDaysRemaining(daysLeft.toString()),
                 fontSize = 10.sp,
                 color = AppColors.secondaryText,
                 maxLines = 1
@@ -109,7 +109,7 @@ fun TrialBadgeView(
                 .padding(horizontal = 8.dp, vertical = 3.dp)
         ) {
             Text(
-                text = "${daysLeft}d",
+                text = "${daysLeft}",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White

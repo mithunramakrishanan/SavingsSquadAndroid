@@ -81,6 +81,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Verified
@@ -216,7 +217,7 @@ fun PaymentApprovalView(
                     DropdownMenuPicker(
                         selected = selectedUser,
                         items = userList,
-                        icon = Icons.Default.Tune,
+                        icon = Icons.Default.People,
                     ) { selected ->
 
                         selectedUser = selected

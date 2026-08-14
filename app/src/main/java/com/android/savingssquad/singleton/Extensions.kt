@@ -45,9 +45,27 @@ fun hideKeyboard(focusManager: androidx.compose.ui.focus.FocusManager) {
 }
 
 
+private val INDIA_ENGLISH = Locale.Builder()
+    .setLanguage("en")
+    .setRegion("IN")
+    .build()
+
+private val INDIA_TAMIL = Locale.Builder()
+    .setLanguage("ta")
+    .setRegion("IN")
+    .build()
+
 fun Int.currencyFormattedWithCommas(symbol: String = "₹ "): String {
-    val formatter = NumberFormat.getNumberInstance(Locale("en", "IN"))
-    return "$symbol${formatter.format(this)}"
+
+    val locale = if (SquadStrings.isTamil) {
+        INDIA_TAMIL
+    } else {
+        INDIA_ENGLISH
+    }
+
+    return "$symbol${NumberFormat
+        .getNumberInstance(locale)
+        .format(this)}"
 }
 
 object JsonUtil {

@@ -156,7 +156,7 @@ fun LoanListView(
                         DropdownMenuPicker(
                             selected = selectedUser,
                             items = userList,
-                            icon = Icons.Default.Group,
+                            icon = Icons.Default.People,
                             modifier = Modifier.weight(1f)
                         ) { selectedUser = it
                             reloadLoans()

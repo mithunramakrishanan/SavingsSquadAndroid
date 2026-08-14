@@ -221,7 +221,7 @@ fun CashRequestHistoryScreen(
                     DropdownMenuPicker(
                         selected = selectedUser,
                         items = userList,
-                        icon = Icons.Default.Tune,
+                        icon = Icons.Default.People,
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
                             .fillMaxWidth()

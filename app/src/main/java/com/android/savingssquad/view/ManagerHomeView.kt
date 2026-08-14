@@ -2,6 +2,7 @@ package com.android.savingssquad.view
 
 import android.annotation.SuppressLint
 import android.util.Log
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.*
@@ -295,11 +296,12 @@ fun ManagerHomeView(
 
                         item {
 
-                            UpdateUPIHintCard(onClick = {
-
-                                navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
-
-                            }, SquadUserType.SQUAD_MANAGER)
+                            UpdateUPIHintCard(
+                                selectedUserType = SquadUserType.SQUAD_MANAGER,
+                                onClick = {
+                                    navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
+                                }
+                            )
 
                             Spacer(modifier = Modifier.height(12.dp))
                         }
@@ -461,7 +463,7 @@ fun ManagerHeaderView(
                 shape = RoundedCornerShape(24.dp)
             )
             .clickable { onAccountSummaryClick() }
-            .padding(18.dp),
+            .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
 
@@ -1160,85 +1162,131 @@ fun LoanStatViewIOS(
 
 @Composable
 fun UpdateUPIHintCard(
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     selectedUserType: SquadUserType
 ) {
 
-    Row(
-        modifier = Modifier
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
 
-            .fillMaxWidth()
-
-            .padding(horizontal = 16.dp)
-
-            .clip(RoundedCornerShape(14.dp))
-
-            .background(Color.White)
-
-            .border(
-
-                1.dp,
-
-                AppColors.warningAccent.copy(alpha = 0.25f),
-
-                RoundedCornerShape(14.dp)
-
-            )
-
-            .clickable { onClick() }
-
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.97f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = ""
     )
-    {
 
-        Icon(
-            imageVector = Icons.Default.Warning,
-            contentDescription = null,
-            tint = AppColors.warningAccent,
-            modifier = Modifier.size(18.dp)
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .appShadow(
+                style = AppShadows.card,
+                shape = RoundedCornerShape(20.dp)
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                onClick()
+            },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = AppColors.surface
         )
+    ) {
 
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-
-            Text(
-                text = SquadStrings.upiIdRequired,
-                style = AppFont.ibmPlexSans(13, FontWeight.SemiBold),
-                color = AppColors.headerText
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            Text(
-                text = if (selectedUserType == SquadUserType.SQUAD_MANAGER)
-                    SquadStrings.addUpiIdForMemberPayments
-                else
-                    SquadStrings.addUpiIdForSecureContributions,
-                style = AppFont.ibmPlexSans(10),
-                color = AppColors.secondaryText,
-                maxLines = 2
-            )
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Box(
+        Row(
             modifier = Modifier
-                .clip(CircleShape)
-                .background(AppColors.warningAccent.copy(alpha = 0.15f))
-                .clickable { onClick() }
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(
+                    horizontal = 16.dp,
+                    vertical = 14.dp
+                ),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = SquadStrings.update,
-                style = AppFont.ibmPlexSans(11, FontWeight.SemiBold),
-                color = AppColors.warningAccent
-            )
+
+            // Icon
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(
+                        AppColors.warningAccent.copy(alpha = 0.12f)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = AppColors.warningAccent,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            // Content
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+
+                Text(
+                    text = SquadStrings.upiIdRequired,
+                    style = AppFont.ibmPlexSans(
+                        16,
+                        FontWeight.Bold
+                    ),
+                    color = AppColors.headerText
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = if (
+                        selectedUserType == SquadUserType.SQUAD_MANAGER
+                    ) {
+                        SquadStrings.addUpiIdForMemberPayments
+                    } else {
+                        SquadStrings.addUpiIdForSecureContributions
+                    },
+                    style = AppFont.ibmPlexSans(12),
+                    color = AppColors.secondaryText,
+                    maxLines = 2
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Update button
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(
+                        AppColors.warningAccent.copy(alpha = 0.12f)
+                    )
+                    .padding(
+                        horizontal = 10.dp,
+                        vertical = 7.dp
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = SquadStrings.update,
+                    style = AppFont.ibmPlexSans(
+                        11,
+                        FontWeight.SemiBold
+                    ),
+                    color = AppColors.warningAccent
+                )
+            }
         }
     }
 }

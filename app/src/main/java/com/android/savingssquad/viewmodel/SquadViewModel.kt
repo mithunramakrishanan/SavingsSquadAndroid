@@ -2072,7 +2072,8 @@ class SquadViewModel : ViewModel() {
 
                             }
 
-                        } else if (payment.paymentType == PaymentType.PAYMENT_DEBIT) {
+                        }
+                        else if (payment.paymentType == PaymentType.PAYMENT_DEBIT) {
 
                             val otherPayment = MemberOtherPayments(
 

@@ -1019,7 +1019,7 @@ fun ManualEntryView(
                                 forceClosedInterest = summary.recalculatedInterest,
                                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                                 forceCloseSummary = summary,
-                                description = "Loan ${loan.loanNumber} for $emiSelectedMember was force closed by the squad manager."
+                                description = "Loan ${loan.loanNumber} for ${emiSelectedMember?.name} was force closed by the squad manager."
                             )
                             { success, error ->
 

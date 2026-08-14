@@ -116,19 +116,28 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                         .appShadow(AppShadows.card)
                 )
 
-                Text(
-                    text = SquadStrings.welcome,
-                    style = AppFont.ibmPlexSans(size = 20, weight = FontWeight.SemiBold),
-                    color = AppColors.headerText
-                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = SquadStrings.welcome,
+                        style = AppFont.ibmPlexSans(
+                            size = 20,
+                            weight = FontWeight.SemiBold
+                        ),
+                        color = AppColors.headerText
+                    )
 
-                Text(
-                    text = SquadStrings.yourPocketAccountant,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(top = (0).dp)
-                )
+                    Text(
+                        text = SquadStrings.yourPocketAccountant,
+                        style = AppFont.ibmPlexSans(
+                            size = 15,
+                            weight = FontWeight.Normal
+                        ),
+                        color = Color.Gray
+                    )
+                }
             }
 
             // 🔹 Glassmorphic Login Card

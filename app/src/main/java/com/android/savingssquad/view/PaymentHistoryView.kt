@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -100,7 +101,7 @@ fun PaymentHistoryView(
                 DropdownMenuPicker(
                     selected = selectedUser,
                     items = userList,
-                    icon = Icons.Default.Tune,
+                    icon = Icons.Default.People,
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
                         .fillMaxWidth()

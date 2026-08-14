@@ -66,11 +66,22 @@ object AppFont {
      * @param size font size in sp
      * @param weight FontWeight (default = Normal)
      */
-    fun ibmPlexSans(size: Int, weight: FontWeight = FontWeight.Normal): TextStyle {
+    fun ibmPlexSans(
+        size: Int,
+        weight: FontWeight = FontWeight.Normal,
+        tamilSizeReduction: Int = 2
+    ): TextStyle {
+
+        val finalSize = if (SquadStrings.isTamil) {
+            (size - tamilSizeReduction).coerceAtLeast(1)
+        } else {
+            size
+        }
+
         return TextStyle(
             fontFamily = ibmPlexSansFamily,
             fontWeight = weight,
-            fontSize = size.sp
+            fontSize = finalSize.sp
         )
     }
 }

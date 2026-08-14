@@ -208,11 +208,12 @@ fun MemberHomeView(
 
                     item {
 
-                        UpdateUPIHintCard(onClick = {
-
-                            navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
-
-                        }, SquadUserType.SQUAD_MEMBER)
+                        UpdateUPIHintCard(
+                            selectedUserType = SquadUserType.SQUAD_MEMBER,
+                            onClick = {
+                                navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
+                            }
+                        )
 
                         Spacer(modifier = Modifier.height(12.dp))
                     }

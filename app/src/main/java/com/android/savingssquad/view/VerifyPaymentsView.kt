@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Verified
@@ -153,7 +154,7 @@ fun VerifyPaymentsViewOld(
                     DropdownMenuPicker(
                         selected = selectedUser,
                         items = userList,
-                        icon = Icons.Default.Tune,
+                        icon = Icons.Default.People,
                         modifier = Modifier.weight(1f)
                     ) { selectedUser = it }
                 }
