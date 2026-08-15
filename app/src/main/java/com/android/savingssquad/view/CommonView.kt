@@ -133,6 +133,7 @@ fun SSNavigationBar(
     title: String,
     navController: NavController?, // pass rememberNavController() from caller
     showBackButton: Boolean = true,
+    titleTap: (() -> Unit)? = null,
     rightButtonIcon: ImageVector? = null, // Material icon
     @DrawableRes rightButtonDrawable: Int? = null, // ✅ now supports drawable resource
     rightButtonAction: (() -> Unit)? = null
@@ -173,7 +174,17 @@ fun SSNavigationBar(
             color = AppColors.headerText,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .weight(1f)
+                .then(
+                    if (titleTap != null) {
+                        Modifier.clickable {
+                            titleTap.invoke()
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
         )
 
         Spacer(modifier = Modifier.width(8.dp))

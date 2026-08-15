@@ -37,6 +37,9 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.People
 import androidx.compose.ui.draw.scale
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.savingssquad.R
@@ -109,269 +112,528 @@ fun MemberHomeView(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
-                contentPadding = PaddingValues(bottom = 90.dp)
+                contentPadding = PaddingValues(
+                    top = 20.dp,
+                    bottom = 90.dp
+                )
             ) {
-                // 🔹 Top Navigation Bar
+
+                // ---------------------------------------------------------
+                // Navigation Bar
+                // ---------------------------------------------------------
                 item {
+
                     SSNavigationBar(
-                        title = "Member Dashboard",
+                        title = "Hi, ${squadViewModel.selectedUser.collectAsState().value?.squadUsername ?: ""}",
                         navController = navController,
                         showBackButton = false,
-                        rightButtonDrawable = if (UserDefaultsManager.getIsMultipleAccount())
-                            R.drawable.switch_account
-                        else null
-                    ) {
-                        squadViewModel.fetchUserLogins(
-                            showLoader = true,
-                            phoneNumber = squadViewModel.loginMember?.phoneNumber ?: ""
-                        ) { success,loginList, error ->
-                            if (loginList != null) {
-                                squadViewModel.setShowPopup(UserDefaultsManager.getIsMultipleAccount())
-                                Log.d("ManagerHomeView", if (success) "✅ Logins fetched: ${loginList.size}" else "❌ $error")
+                        rightButtonDrawable =
+                            if (UserDefaultsManager.getIsMultipleAccount())
+                                R.drawable.switch_account
+                            else
+                                null,
+                        rightButtonAction = {
+
+                            squadViewModel.fetchUserLogins(
+                                showLoader = true,
+                                phoneNumber = squadViewModel.loginMember?.phoneNumber ?: ""
+                            ) { success, loginList, error ->
+
+                                if (loginList != null) {
+
+                                    squadViewModel.setShowPopup(
+                                        UserDefaultsManager.getIsMultipleAccount()
+                                    )
+
+                                    Log.d(
+                                        "MemberHomeView",
+                                        if (success)
+                                            "✅ User logins fetched: ${loginList.size}"
+                                        else
+                                            "❌ $error"
+                                    )
+                                }
                             }
+                        },
+                        titleTap = {
+                            navController.navigate(
+                                AppDestination.OPEN_MEMBER_PROFILE.route
+                            )
                         }
-                    }
+                    )
                 }
 
-                // 🔹 Progress Circle + Summary Cards
+
+                // ---------------------------------------------------------
+                // Top Summary
+                // iOS:
+                // HStack {
+                //     ProgressCircle + Badge
+                //     Spacer
+                //     SquadName + TotalMembers
+                // }
+                // ---------------------------------------------------------
                 item {
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val remainingMonths = squadViewModel.remainingMonths.collectAsState().value
 
-
+                        // -------------------------
+                        // Left Side
+                        // -------------------------
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            squad?.let { fund ->
-                                val completed = fund.totalDuration - remainingMonths
-                                val total = fund.totalDuration
-                                val monthlyContribution = fund.monthlyContribution.currencyFormattedWithCommas()
-
-                                ProgressCircleView(
-                                    completedMonths = completed,
-                                    totalMonths = total,
-                                    monthlyContribution = monthlyContribution,
-                                    onClick = { }
-                                )
-                            } ?: CircularProgressIndicator()
 
                             SSBadge(
-                                title = SquadStrings.memberId,
-                                value = squadViewModel.selectedUser.collectAsState().value?.squadUserId ?: "-",
+                                title = "",
+                                value = squadViewModel.loginMember?.squadUserId ?: "-",
                                 icon = "👤",
                                 style = BadgeStyle.INFO
                             )
+
+                            squad?.let { currentSquad ->
+
+                                val remainingMonths =
+                                    squadViewModel.remainingMonths.collectAsState().value
+
+                                ProgressCircleView(
+                                    completedMonths =
+                                        currentSquad.totalDuration - remainingMonths,
+                                    totalMonths =
+                                        currentSquad.totalDuration,
+                                    monthlyContribution =
+                                        currentSquad.monthlyContribution
+                                            .currencyFormattedWithCommas(),
+                                    onClick = {}
+                                )
+
+                            } ?: CircularProgressIndicator()
                         }
 
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+
+                        // -------------------------
+                        // Right Side
+                        // -------------------------
                         Column(
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            MemberDashBoardCard(
-                                title = SquadStrings.totalMembers,
-                                value = squadViewModel.squadMembersCount.collectAsStateWithLifecycle().value.toString(),
-                                subDetails = emptyList(),
-                                onClick = { navController.navigate(AppDestination.OPEN_MEMBERS_LIST.route) }
-                            )
-
-                            MemberDashBoardCard(
-                                title = SquadStrings.currentAvailableFund,
-                                value = squad!!.currentAvailableAmount.currencyFormattedWithCommas(),
-                                subDetails = listOf(
-                                    "banknote" to "As of ${CommonFunctions.dateToString(Date(), "MMM yyyy")}"
-                                ),
-                                onClick = { navController.navigate(AppDestination.ACCOUNT_SUMMARY.route) }
-                            )
-                        }
-                    }
-                }
-
-                // 🔹 Member Header
-                item {
-                    MemberHeaderView(
-                        selectedUser = squadViewModel.selectedUser.collectAsState().value,
-                        currentMember = squadViewModel.currentMember.collectAsState().value,
-                        nameClicked = { navController.navigate(AppDestination.OPEN_MEMBER_PROFILE.route) },
-                        amountClicked = { navController.navigate(AppDestination.OPEN_CONTRUBUTION_DETAILS.route) }
-                    )
-                }
-
-                if (squadViewModel.currentMember.value?.upiID.isNullOrBlank()) {
-
-                    item {
-
-                        UpdateUPIHintCard(
-                            selectedUserType = SquadUserType.SQUAD_MEMBER,
-                            onClick = {
-                                navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-                }
-
-                // 🔹 Reminder Section
-                if (remainders.isNotEmpty()) {
-                    item {
-                        SectionView(title = "Reminders") {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                items(remainders) { reminder ->
-                                    RemainderCardView(
-                                        title = reminder.remainderTitle,
-                                        subtitle = reminder.remainderSubTitle,
-                                        amount = reminder.remainderAmount.toString(),
-                                        dueDate = reminder.remainderDueDate.orNow
-                                    ) {
-                                        UserDefaultsManager.saveRemainder(reminder)
-                                        onChangeTab(1)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    item {
-                        Row(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp),
-                            horizontalArrangement = Arrangement.Center
+                                .weight(1f)
+                                .padding(top = 40.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            AllCaughUPView(
-                                title = "All Due’s Paid",
-                                subtitle = SquadStrings.squadAllCaughtUp,
-                                icon = Icons.Default.CheckCircle,
-                                iconColor = Color(0xFF4CAF50),
-                                showChevron = false
-                            )
+
+                            squad?.let { currentSquad ->
+
+                                SquadNameView(
+                                    squadName = currentSquad.squadName
+                                )
+                            }
+
+                            TotalMembersCountView(
+                                count =
+                                    squadViewModel.squadMembersCount
+                                        .collectAsStateWithLifecycle()
+                                        .value
+                            ) {
+                                navController.navigate(
+                                    AppDestination.OPEN_MEMBERS_LIST.route
+                                )
+                            }
                         }
                     }
                 }
 
-                // 🔹 Action Buttons (Request / Approve)
+
+                // ---------------------------------------------------------
+                // Member Header
+                // ---------------------------------------------------------
                 item {
 
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp)
-                            .padding(vertical = 0.dp),
+                            .padding(horizontal = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        MemberTwoButtons(
-                            requestCashAction = {
 
-                                val member = squadViewModel.currentMember ?: return@MemberTwoButtons
+                        MemberHeaderView(
+                            selectedUser =
+                                squadViewModel.selectedUser
+                                    .collectAsState()
+                                    .value,
 
-                                if (squadViewModel.currentMember.value?.upiID.isNullOrBlank()) {
+                            currentMember =
+                                squadViewModel.currentMember
+                                    .collectAsState()
+                                    .value,
 
-                                    AlertManager.shared.showAlert(
-                                        title = SquadStrings.savingsSquad,
-                                        message = SquadStrings.updateUPIForCashRequest,
-                                        type = AlertType.INFO,
-                                        primaryButtonTitle = SquadStrings.ok,
-                                        primaryAction = {
-
-                                            navController.navigate(AppDestination.OPEN_BANK_DETAILS.route)
-
-                                        }
-                                    )
-                                    return@MemberTwoButtons
-                                }
-
-                                if (member.value?.cashRequested == true || member.value?.currentLoanApproveStatus != EMIStatus.CREATED) {
-
-                                    AlertManager.shared.showAlert(
-                                        title = SquadStrings.requestNotAvailable,
-                                        message = SquadStrings.pendingLoanOrCashRequestMessage,
-                                        type = AlertType.INFO,
-                                        primaryButtonTitle = SquadStrings.ok,
-                                        primaryAction = {
-
-                                        }
-                                    )
-                                    return@MemberTwoButtons
-                                }
-
-
-                                squadViewModel.fetchEMIConfigurations(true){success,error->
-
-                                    if (success) {
-                                        squadViewModel.setShowRequestCashPopup(true)
-                                    }
-                                }
-
-
-
-
-                                                },
-                            approveCashAction = { navController.navigate(AppDestination.OPEN_VERIFY_PAYMENTS.route) } , verifyCount = verifySquadMemberAmountBadgeCount
-                                ?: 0
+                            amountClicked = {
+                                navController.navigate(
+                                    AppDestination.OPEN_CONTRUBUTION_DETAILS.route
+                                )
+                            }
                         )
+                    }
+
+
+                }
+
+
+                // ---------------------------------------------------------
+                // Update UPI
+                // ---------------------------------------------------------
+                if (
+                    squadViewModel.currentMember
+                        .value
+                        ?.upiID
+                        .isNullOrBlank()
+                ) {
+
+                    item {
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+
+                            UpdateUPIHintCard(
+                                selectedUserType = SquadUserType.SQUAD_MEMBER,
+                                onClick = {
+
+                                    navController.navigate(
+                                        AppDestination.OPEN_BANK_DETAILS.route
+                                    )
+                                }
+                            )
+                        }
+
+
                     }
                 }
 
+
+                // ---------------------------------------------------------
+                // Current Available Fund
+                // ---------------------------------------------------------
+                item {
+
+                    squad?.let { currentSquad ->
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+
+                            MemberDashBoardCard(
+                                title = SquadStrings.currentAvailableFund,
+                                value =
+                                    currentSquad.currentAvailableAmount
+                                        .currencyFormattedWithCommas(),
+
+                                subDetails = listOf(
+                                    "creditcard" to
+                                            "As of ${
+                                                CommonFunctions.dateToString(
+                                                    Date(),
+                                                    "MMM yyyy"
+                                                )
+                                            }"
+                                ),
+
+                                onClick = {
+                                    navController.navigate(
+                                        AppDestination.ACCOUNT_SUMMARY.route
+                                    )
+                                }
+                            )
+                        }
+
+
+                    }
+                }
+
+
+                // ---------------------------------------------------------
+                // Reminders
+                // ---------------------------------------------------------
+                if (remainders.isNotEmpty()) {
+
+                    item {
+
+                            SectionView(
+                                title = SquadStrings.remainders
+                            )
+                            {
+
+                                LazyRow(
+                                    contentPadding =
+                                        PaddingValues(horizontal = 16.dp),
+
+                                    horizontalArrangement =
+                                        Arrangement.spacedBy(15.dp)
+                                ) {
+
+                                    items(
+                                        items = remainders,
+                                        key = { it.id }
+                                    ) { reminder ->
+
+                                        RemainderCardView(
+                                            title = reminder.remainderTitle,
+                                            subtitle = reminder.remainderSubTitle,
+                                            amount =
+                                                reminder.remainderAmount.toString(),
+                                            dueDate =
+                                                reminder.remainderDueDate.orNow
+                                        ) {
+
+                                            UserDefaultsManager.saveRemainder(
+                                                reminder
+                                            )
+
+                                            onChangeTab(1)
+                                        }
+                                    }
+                                }
+                            }
+                    }
+
+                } else {
+
+                    // -----------------------------------------------------
+                    // All Dues Paid
+                    // -----------------------------------------------------
+                    item {
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+
+                                AllCaughUPView(
+                                    title = "All Due's Paid",
+                                    subtitle = "Squad all caught up!",
+                                    icon = Icons.Default.CheckCircle,
+                                    iconColor = Color.Green,
+                                    showChevron = false
+                                )
+                            }
+
+                        }
+
+
+                    }
+                }
+
+
+                // ---------------------------------------------------------
+                // Request / Approve Buttons
+                // ---------------------------------------------------------
+                item {
+
+                    MemberTwoButtons(
+                        requestCashAction = {
+
+                            val member =
+                                squadViewModel.currentMember
+                                    .value
+                                    ?: return@MemberTwoButtons
+
+
+                            // -----------------------------
+                            // UPI validation
+                            // -----------------------------
+                            if (member.upiID.isNullOrBlank()) {
+
+                                AlertManager.shared.showAlert(
+                                    title = SquadStrings.savingsSquad,
+                                    message =
+                                        SquadStrings.updateUPIForCashRequest,
+                                    type = AlertType.INFO,
+                                    primaryButtonTitle =
+                                        SquadStrings.ok,
+                                    primaryAction = {
+
+                                        navController.navigate(
+                                            AppDestination.OPEN_BANK_DETAILS.route
+                                        )
+                                    }
+                                )
+
+                                return@MemberTwoButtons
+                            }
+
+
+                            // -----------------------------
+                            // Pending request validation
+                            // -----------------------------
+                            if (
+                                member.cashRequested == true ||
+                                member.currentLoanApproveStatus !=
+                                EMIStatus.CREATED
+                            ) {
+
+                                AlertManager.shared.showAlert(
+                                    title =
+                                        SquadStrings.requestNotAvailable,
+
+                                    message =
+                                        SquadStrings.pendingLoanOrCashRequestMessage,
+
+                                    type = AlertType.INFO,
+
+                                    primaryButtonTitle =
+                                        SquadStrings.ok,
+
+                                    primaryAction = {}
+                                )
+
+                                return@MemberTwoButtons
+                            }
+
+
+                            // -----------------------------
+                            // Fetch EMI configuration
+                            // -----------------------------
+                            squadViewModel.fetchEMIConfigurations(
+                                true
+                            ) { success, error ->
+
+                                if (success) {
+
+                                    squadViewModel.setShowRequestCashPopup(
+                                        true
+                                    )
+                                }
+                            }
+                        },
+
+                        approveCashAction = {
+
+                            navController.navigate(
+                                AppDestination.OPEN_VERIFY_PAYMENTS.route
+                            )
+                        },
+
+                        verifyCount =
+                            verifySquadMemberAmountBadgeCount ?: 0
+                    )
+                }
+
+
+                // ---------------------------------------------------------
+                // Cash Request Button
+                // ---------------------------------------------------------
                 item {
 
                     Box(
-                        modifier = Modifier.padding(top = 2.dp)
+                        modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 22.dp)
-                            .padding(vertical = 0.dp),
+                            .padding(horizontal = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CashRequestButton(0) {
+
+                        CashRequestButton(
+                            pendingCount = 0
+                        ) {
+
                             openCashRequestList = true
                         }
                     }
                 }
 
-                // 🔹 Transaction Section
+
+                // ---------------------------------------------------------
+                // Recent Transactions
+                // ---------------------------------------------------------
                 item {
-                    SectionView(title = SquadStrings.recentTransactions) {
-                        val lastFivePayments = squadPayments
-                            .filter { it.memberName == currentMember?.name }
-                            .sortedByDescending { it.paymentUpdatedDate?.toDate() ?: Date(0) }
+
+                    val currentMemberId =
+                        squadViewModel.currentMember
+                            .value
+                            ?.id
+                            ?: ""
+
+                    val lastFivePayments =
+                        squadPayments
+                            .filter {
+                                it.memberId == currentMemberId
+                            }
+                            .sortedByDescending {
+                                it.paymentUpdatedDate
+                                    ?.toDate()
+                                    ?: Date(0)
+                            }
                             .take(5)
 
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.padding(horizontal = 8.dp)
+                    if (lastFivePayments.isNotEmpty()) {
+
+                        SectionView(
+                            title = SquadStrings.recentTransactions
                         )
                         {
-                            lastFivePayments.forEach { payment ->
-                                PaymentRow(
-                                    payment = payment,
-                                )
-                            }
 
-                            if (squadPayments.count { it.memberName == currentMember?.name } > 5) {
-                                Row(
-                                    horizontalArrangement = Arrangement.Center,
-                                    modifier = Modifier.fillMaxWidth()
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp),
+
+                                verticalArrangement =
+                                    Arrangement.spacedBy(16.dp)
+                            ) {
+
+                                lastFivePayments.forEach { payment ->
+
+                                    PaymentRow(
+                                        payment = payment
+                                    )
+                                }
+
+
+                                // -----------------------------
+                                // View All
+                                // -----------------------------
+                                if (
+                                    squadPayments.count {
+                                        it.memberId == currentMemberId
+                                    } > 5
                                 ) {
+
                                     ViewAllButton(
                                         title = SquadStrings.viewAll,
-                                        icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        icon =
+                                            Icons.AutoMirrored.Filled.KeyboardArrowRight
                                     ) {
-                                        navController.navigate(AppDestination.OPEN_PAYMENT_HISTORY.route)
+
+                                        navController.navigate(
+                                            AppDestination.OPEN_PAYMENT_HISTORY.route
+                                        )
                                     }
                                 }
                             }
                         }
                     }
+
+
                 }
             }
         }
@@ -699,45 +961,247 @@ fun RemainderCardView(
 }
 
 @Composable
-fun MemberHeaderView(
-    selectedUser: Login?,
-    currentMember: Member?,
-    nameClicked: () -> Unit,
-    amountClicked: () -> Unit
+fun SquadNameView(
+    squadName: String
 ) {
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 14.dp), // ⬅️ Added left & right padding
+            .background(
+                color = AppColors.surface,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = AppColors.primaryButton.copy(alpha = 0.10f),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(
+                horizontal = 10.dp,
+                vertical = 8.dp
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            horizontalAlignment = Alignment.Start,
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = "Hi, ${selectedUser?.squadUsername ?: ""}",
-                style = AppFont.ibmPlexSans(22, FontWeight.SemiBold),
-                color = AppColors.headerText,
-                textDecoration = TextDecoration.Underline,
-                modifier = Modifier.clickable { nameClicked() }
-            )
 
-            Text(
-                text = SquadStrings.yourCorrentContribution,
-                style = AppFont.ibmPlexSans(18, FontWeight.Normal),
-                color = AppColors.secondaryText
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(
+                    AppColors.primaryButton.copy(alpha = 0.10f)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+
+            AppIconView(
+                name = "person.3.fill",
+                tint = AppColors.primaryButton,
+                size = 12.dp
             )
         }
 
-        Text(
-            text = currentMember?.totalContributionPaid
-                ?.currencyFormattedWithCommas() ?: "₹ 0",
-            style = AppFont.ibmPlexSans(26, FontWeight.Bold),
-            color = AppColors.headerText,
-            modifier = Modifier.clickable { amountClicked() }
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+
+            Text(
+                text = SquadStrings.squadName,
+                style = AppFont.ibmPlexSans(
+                    size = 10,
+                    weight = FontWeight.Medium
+                ),
+                color = AppColors.secondaryText,
+                maxLines = 1
+            )
+
+            Text(
+                text = squadName,
+                style = AppFont.ibmPlexSans(
+                    size = 13,
+                    weight = FontWeight.SemiBold
+                ),
+                color = AppColors.headerText,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+fun TotalMembersCountView(
+    count: Int,
+    onClick: () -> Unit
+) {
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(AppColors.surface)
+            .border(
+                width = 1.dp,
+                color = AppColors.primaryButton.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable { onClick() }
+            .padding(
+                horizontal = 12.dp,
+                vertical = 10.dp
+            ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(
+                    AppColors.primaryButton.copy(alpha = 0.10f)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+
+            Icon(
+                imageVector = Icons.Default.People,
+                contentDescription = null,
+                tint = AppColors.primaryButton,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column(
+            verticalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+
+            Text(
+                text = SquadStrings.members,
+                style = AppFont.ibmPlexSans(
+                    11,
+                    FontWeight.Medium
+                ),
+                color = AppColors.secondaryText
+            )
+
+            Text(
+                text = count.toString(),
+                style = AppFont.ibmPlexSans(
+                    19,
+                    FontWeight.Bold
+                ),
+                color = AppColors.headerText
+            )
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+fun MemberHeaderView(
+    selectedUser: Login?,
+    currentMember: Member?,
+    amountClicked: () -> Unit
+) {
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                amountClicked()
+            }
+            .appShadow(
+                style = AppShadows.card,
+                shape = RoundedCornerShape(20.dp)
+            ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = AppColors.surface
         )
+    ) {
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+
+                    Icon(
+                        imageVector = Icons.Default.ArrowDownward,
+                        contentDescription = null,
+                        tint = AppColors.primaryButton,
+                        modifier = Modifier.size(16.dp)
+                    )
+
+                    Text(
+                        text = SquadStrings.yourCorrentContribution,
+                        style = AppFont.ibmPlexSans(
+                            14,
+                            FontWeight.Medium
+                        ),
+                        color = AppColors.secondaryText
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = AppColors.secondaryText.copy(alpha = 0.6f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            // Amount + Details
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom
+            ) {
+
+                Text(
+                    text = currentMember
+                        ?.totalContributionPaid
+                        ?.currencyFormattedWithCommas()
+                        ?: "₹ 0",
+                    style = AppFont.ibmPlexSans(
+                        30,
+                        FontWeight.Bold
+                    ),
+                    color = AppColors.headerText,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Text(
+                    text = "View details",
+                    style = AppFont.ibmPlexSans(
+                        11,
+                        FontWeight.Medium
+                    ),
+                    color = AppColors.primaryButton
+                )
+            }
+        }
     }
 }
 
@@ -747,64 +1211,93 @@ fun MemberDashBoardCard(
     title: String,
     value: String,
     subDetails: List<Pair<String, String>>,
-    onClick: (() -> Unit)? = null // 🔹 Optional click handler
+    onClick: (() -> Unit)? = null
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
+
+    val interactionSource = remember {
+        MutableInteractionSource()
+    }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        horizontalAlignment = Alignment.Start,
         modifier = Modifier
             .fillMaxWidth()
             .appShadow(AppShadows.card)
-            .background(AppColors.surface, RoundedCornerShape(16.dp))
-            // ✅ Safe modern clickable with ripple
-            .then(
-                if (onClick != null)
-                    Modifier
-                        .clickable(
-                            interactionSource = interactionSource,
-                            indication = androidx.compose.material3.ripple()
-                        ) { onClick() }
-                else Modifier
+            .background(
+                color = AppColors.surface,
+                shape = RoundedCornerShape(14.dp)
             )
-            .padding(16.dp)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = androidx.compose.material3.ripple()
+                    ) {
+                        onClick()
+                    }
+                } else {
+                    Modifier
+                }
+            )
+            .padding(12.dp),
+
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+        horizontalAlignment = Alignment.Start
     ) {
-        // 🔹 Title
+
+        // Title
         Text(
             text = title,
-            style = AppFont.ibmPlexSans(14, FontWeight.Normal),
-            color = AppColors.secondaryText
-        )
-
-        // 🔹 Value
-        Text(
-            text = value,
-            style = AppFont.ibmPlexSans(22, FontWeight.SemiBold),
-            color = AppColors.headerText,
+            style = AppFont.ibmPlexSans(
+                size = 12,
+                weight = FontWeight.Medium
+            ),
+            color = AppColors.secondaryText,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
 
-        // 🔹 Sub Details
+
+        // Value
+        Text(
+            text = value,
+            style = AppFont.ibmPlexSans(
+                size = 20,
+                weight = FontWeight.Bold
+            ),
+            color = AppColors.headerText,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            softWrap = false
+        )
+
+
+        // Sub Details
         if (subDetails.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                subDetails.forEach { (icon, text) ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        AppIconView(
-                            name = icon,
-                            tint = AppColors.secondaryText,
-                            size = 12.dp
-                        )
-                        Text(
-                            text = text,
-                            style = AppFont.ibmPlexSans(13, FontWeight.Normal),
-                            color = AppColors.secondaryText
-                        )
-                    }
+
+            subDetails.forEach { (icon, text) ->
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+
+                    AppIconView(
+                        name = icon,
+                        tint = AppColors.primaryButton,
+                        size = 9.dp
+                    )
+
+                    Text(
+                        text = text,
+                        style = AppFont.ibmPlexSans(
+                            size = 10,
+                            weight = FontWeight.Normal
+                        ),
+                        color = AppColors.secondaryText,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
