@@ -455,7 +455,7 @@ fun PaymentApprovalRow(
                             )
                             Spacer(Modifier.width(3.dp))
                             Text(
-                                text = "Force Closed",
+                                text = SquadStrings.forceClosed,
                                 style = AppFont.ibmPlexSans(10, FontWeight.Bold),
                                 color = Color(0xFFFF9800)
                             )

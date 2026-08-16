@@ -51,6 +51,8 @@ import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.RazorpayPaymentAction
 import com.android.savingssquad.singleton.SessionManager
+import com.android.savingssquad.singleton.SquadStringsEnglishDesc
+import com.android.savingssquad.singleton.SquadStringsTamilDesc
 import com.google.firebase.firestore.*
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
@@ -1100,7 +1102,7 @@ class SquadViewModel : ViewModel() {
                     userName = "SQUAD MANAGER",
                     memberId = "",
                     amount = 0,
-                    description = "Added a new member ${member.name} to the squad"
+                    description = SquadStringsEnglishDesc.addedNewMember(member.name), descriptionTamil = SquadStringsTamilDesc.addedNewMember(member.name), descriptionHindi = ""
                 )
             } else {
                 handleFetchError(message ?: "Unknown error") {
@@ -2886,51 +2888,102 @@ class SquadViewModel : ViewModel() {
 
                             AmountEditType.contribution -> {
 
+                                val oldAmount = member.totalContributionPaid
+
+                                member.totalContributionPaid = amount
 
                                 createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_EDIT,
                                     userName = "SQUAD MANAGER",
                                     memberId = memberID,
                                     amount = amount,
-                                    description = "Manager updated member contribution ${currentMember.value?.totalContributionPaid ?: 0} to $amount")
-
-                                member.totalContributionPaid = amount
+                                    description =
+                                        SquadStringsEnglishDesc.managerUpdatedMemberContribution(
+                                            oldAmount = oldAmount.toString(),
+                                            newAmount = amount.toString()
+                                        ),
+                                    descriptionTamil =
+                                        SquadStringsTamilDesc.managerUpdatedMemberContribution(
+                                            oldAmount = oldAmount.toString(),
+                                            newAmount = amount.toString()
+                                        ),
+                                    descriptionHindi = ""
+                                ) { _, _ -> }
                             }
 
                             AmountEditType.loanBorrowed -> {
 
+                                val oldAmount = member.totalLoanBorrowed
+
+                                member.totalLoanBorrowed = amount
+
                                 createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_EDIT,
                                     userName = "SQUAD MANAGER",
                                     memberId = memberID,
                                     amount = amount,
-                                    description = "Manager updated member loan borrowed ${currentMember.value?.totalLoanBorrowed ?: 0} to $amount")
-
-                                member.totalLoanBorrowed = amount
+                                    description =
+                                        SquadStringsEnglishDesc.managerUpdatedMemberLoanBorrowed(
+                                            oldAmount = oldAmount.toString(),
+                                            newAmount = amount.toString()
+                                        ),
+                                    descriptionTamil =
+                                        SquadStringsTamilDesc.managerUpdatedMemberLoanBorrowed(
+                                            oldAmount = oldAmount.toString(),
+                                            newAmount = amount.toString()
+                                        ),
+                                    descriptionHindi = ""
+                                ) { _, _ -> }
                             }
 
                             AmountEditType.paidLoadAmount -> {
 
+                                val oldAmount = member.totalLoanPaid
+
+                                member.totalLoanPaid = amount
+
                                 createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_EDIT,
                                     userName = "SQUAD MANAGER",
                                     memberId = memberID,
                                     amount = amount,
-                                    description = "Manager updated member loan paid ${currentMember.value?.totalLoanPaid ?: 0} to $amount")
-
-                                member.totalLoanPaid = amount
+                                    description =
+                                        SquadStringsEnglishDesc.managerUpdatedMemberLoanPaid(
+                                            oldAmount = oldAmount.toString(),
+                                            newAmount = amount.toString()
+                                        ),
+                                    descriptionTamil =
+                                        SquadStringsTamilDesc.managerUpdatedMemberLoanPaid(
+                                            oldAmount = oldAmount.toString(),
+                                            newAmount = amount.toString()
+                                        ),
+                                    descriptionHindi = ""
+                                ) { _, _ -> }
                             }
 
                             AmountEditType.intrestAmount -> {
 
+                                val oldAmount = member.totalInterestPaid
+
+                                member.totalInterestPaid = amount
+
                                 createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_EDIT,
                                     userName = "SQUAD MANAGER",
                                     memberId = memberID,
                                     amount = amount,
-                                    description = "Manager updated member pain interest ${currentMember.value?.totalInterestPaid ?: 0} to $amount")
-
-                                member.totalInterestPaid = amount
+                                    description =
+                                        SquadStringsEnglishDesc.managerUpdatedMemberInterestPaid(
+                                            oldAmount = oldAmount.toString(),
+                                            newAmount = amount.toString()
+                                        ),
+                                    descriptionTamil =
+                                        SquadStringsTamilDesc.managerUpdatedMemberInterestPaid(
+                                            oldAmount = oldAmount.toString(),
+                                            newAmount = amount.toString()
+                                        ),
+                                    descriptionHindi = ""
+                                ) { _, _ -> }
                             }
 
                             else -> {}
@@ -2940,7 +2993,6 @@ class SquadViewModel : ViewModel() {
                     }
 
                     completion(true, null)
-
                 } else {
 
                     val errorMsg = error ?: "❌ Failed to updateMemberAmount"
@@ -3789,6 +3841,8 @@ class SquadViewModel : ViewModel() {
         memberId: String,
         amount: Int,
         description: String,
+        descriptionTamil: String,
+        descriptionHindi: String,
         completion: ((Boolean, String?) -> Unit)? = null
     ) {
         val squad = _squad.value ?: run {
@@ -4593,7 +4647,7 @@ class SquadViewModel : ViewModel() {
             else
                 PaymentApproveStatus.REQUESTED,
 
-            description = "Loan disbursement",
+            description = SquadStrings.loanDisbursement,
             squadId = squad.value?.squadID ?: "",
             order_id = newLoan.id ?: "",
             contributionId = "",
@@ -4631,6 +4685,8 @@ class SquadViewModel : ViewModel() {
         forceCloseSummary: ForceCloseSummary,
         showLoader: Boolean = true,
         description: String,
+        descriptionTamil:String,
+        descriptionHindi:String,
         completion: (Boolean, String?) -> Unit
     ) {
 
@@ -4689,7 +4745,7 @@ class SquadViewModel : ViewModel() {
             upiID = squad.value?.upiID ?: "",
 
             isLoanForceClosed = true,
-            forceCloseSummary = forceCloseSummary
+            forceCloseSummary = forceCloseSummary, descriptionTamil = descriptionTamil, descriptionHindi = descriptionHindi
         )
 
         savePayments(

@@ -743,7 +743,7 @@ private fun saveSquadData(
                 paymentSubType = PaymentSubType.OTHERS_AMOUNT,
                 paymentStatus = PaymentStatus.SUCCESS,
                 paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
-                description = "Started a squad with an amount of",
+                description = SquadStringsEnglishDesc.startedSquadWithAmountOf,
                 squadId = squadID,
 
                 order_id = "",
@@ -762,7 +762,7 @@ private fun saveSquadData(
                 transferReferenceId = "",
 
                 recordStatus = RecordStatus.ACTIVE,
-                recordDate = Date().asTimestamp
+                recordDate = Date().asTimestamp, descriptionTamil = SquadStringsTamilDesc.startedSquadWithAmountOf, descriptionHindi = ""
             )
 
             squadViewModel.savePayments(
@@ -784,7 +784,8 @@ private fun saveSquadData(
             userName = "SQUAD MANAGER",
             memberId = "",
             amount = startAmountInt,
-            description = "Started a squad with an amount of"
+            description = SquadStringsEnglishDesc.startedSquadWithAmountOf,
+            descriptionTamil = SquadStringsTamilDesc.startedSquadWithAmountOf, descriptionHindi = ""
         ) { _, _ ->
             leave()
         }

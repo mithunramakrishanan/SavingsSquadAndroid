@@ -150,6 +150,10 @@ data class MemberOtherPayments(
 
     var amountRepaidDate: Timestamp? = null,
 
-    var recordDate: Date = Date()
+    var recordDate: Date = Date(),
+
+    var descriptionTamil: String = "",
+
+    var descriptionHindi: String = ""
 
 )

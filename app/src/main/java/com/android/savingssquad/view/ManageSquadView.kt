@@ -42,6 +42,8 @@ import com.android.savingssquad.singleton.SquadActivityType
 import kotlinx.coroutines.launch
 import java.util.Date
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.singleton.SquadStringsEnglishDesc
+import com.android.savingssquad.singleton.SquadStringsTamilDesc
 import com.android.savingssquad.singleton.asTimestamp
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.SSToast
@@ -289,7 +291,7 @@ fun ManageSquadView(
                                 userName = "SQUAD MANAGER",
                                 memberId = "",
                                 amount = newValue,
-                                description = "Squad manager updated squad amount from $totalSquadAmount to $newValue for $reason"
+                                description = SquadStringsEnglishDesc.squadAmountUpdated(totalSquadAmount.toString(),newValue.toString(), reason), descriptionTamil = SquadStringsTamilDesc.squadAmountUpdated(totalSquadAmount.toString(),newValue.toString(), reason), descriptionHindi = ""
                             ) { _, _ ->
 
                                 totalSquadAmount = newValue
@@ -364,20 +366,13 @@ private fun saveChanges(
             ) { contSuccess, message ->
                 LoaderManager.shared.hideLoader()
                 if (contSuccess) {
-                    val description = createActivityDescription(
-                        oldDuration = originalDuration,
-                        newDuration = currentDuration,
-                        oldSquadAmount = originalAmount,
-                        newSquadAmount = currentAmount,
-                        squadAmountEdited = squadAmountEdited,
-                        squadDurationEdited = squadDurationEdited
-                    )
+
                     squadViewModel.createSquadActivity(
                         activityType = com.android.savingssquad.singleton.SquadActivityType.OTHER_ACTIVITY,
                         userName = "SQUAD MANAGER",
                         memberId = "",
                         amount = 0,
-                        description = description
+                        description = getActivityDescriptionEnglish(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited), descriptionTamil = getActivityDescriptionTamil(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited), descriptionHindi = ""
                     )
                 } else {
                     println("❌ Error updating contributions: $message")
@@ -390,7 +385,7 @@ private fun saveChanges(
     }
 }
 
-private fun createActivityDescription(
+private fun getActivityDescriptionEnglish(
     oldDuration: Int,
     newDuration: Int,
     oldSquadAmount: Int,
@@ -398,12 +393,121 @@ private fun createActivityDescription(
     squadAmountEdited: Boolean,
     squadDurationEdited: Boolean
 ): String {
+
     return when {
         squadAmountEdited && squadDurationEdited -> {
-            "Changed squad duration from ${CommonFunctions.convertMonthsToYearsAndMonths(oldDuration)} to ${CommonFunctions.convertMonthsToYearsAndMonths(newDuration)} and squad amount from $oldSquadAmount to $newSquadAmount"
+            SquadStringsEnglishDesc.changedSquadDurationAndAmount(
+                oldDuration = CommonFunctions.convertMonthsToYearsAndMonths(oldDuration),
+                newDuration = CommonFunctions.convertMonthsToYearsAndMonths(newDuration),
+                oldAmount = oldSquadAmount.toString(),
+                newAmount = newSquadAmount.toString()
+            )
         }
-        squadAmountEdited -> "Changed squad amount from $oldSquadAmount to $newSquadAmount"
-        squadDurationEdited -> "Changed squad duration from ${CommonFunctions.convertMonthsToYearsAndMonths(oldDuration)} to ${CommonFunctions.convertMonthsToYearsAndMonths(newDuration)}"
+
+        squadAmountEdited -> {
+            SquadStringsEnglishDesc.changedSquadAmount(
+                oldAmount = oldSquadAmount.toString(),
+                newAmount = newSquadAmount.toString()
+            )
+        }
+
+        squadDurationEdited -> {
+            SquadStringsEnglishDesc.changedSquadDuration(
+                oldDuration = CommonFunctions.convertMonthsToYearsAndMonths(oldDuration),
+                newDuration = CommonFunctions.convertMonthsToYearsAndMonths(newDuration)
+            )
+        }
+
+        else -> ""
+    }
+}
+
+private fun getActivityDescriptionTamil(
+
+    oldDuration: Int,
+
+    newDuration: Int,
+
+    oldSquadAmount: Int,
+
+    newSquadAmount: Int,
+
+    squadAmountEdited: Boolean,
+
+    squadDurationEdited: Boolean
+
+): String {
+
+    return when {
+
+        squadAmountEdited && squadDurationEdited -> {
+
+            SquadStringsTamilDesc.changedSquadDurationAndAmount(
+
+                oldDuration = CommonFunctions.convertMonthsToYearsAndMonths(oldDuration),
+
+                newDuration = CommonFunctions.convertMonthsToYearsAndMonths(newDuration),
+
+                oldAmount = oldSquadAmount.toString(),
+
+                newAmount = newSquadAmount.toString()
+
+            )
+
+        }
+
+        squadAmountEdited -> {
+
+            SquadStringsTamilDesc.changedSquadAmount(
+
+                oldAmount = oldSquadAmount.toString(),
+
+                newAmount = newSquadAmount.toString()
+
+            )
+
+        }
+
+        squadDurationEdited -> {
+
+            SquadStringsTamilDesc.changedSquadDuration(
+
+                oldDuration = CommonFunctions.convertMonthsToYearsAndMonths(oldDuration),
+
+                newDuration = CommonFunctions.convertMonthsToYearsAndMonths(newDuration)
+
+            )
+
+        }
+
+        else -> ""
+
+    }
+
+}
+
+private fun getActivityDescriptionHindi(
+    oldDuration: Int,
+    newDuration: Int,
+    oldSquadAmount: Int,
+    newSquadAmount: Int,
+    squadAmountEdited: Boolean,
+    squadDurationEdited: Boolean
+): String {
+
+    return when {
+        squadAmountEdited && squadDurationEdited -> {
+            ""
+        }
+
+        squadAmountEdited -> {
+            ""
+        }
+
+        squadDurationEdited -> {
+            ""
+        }
+
         else -> ""
     }
 }

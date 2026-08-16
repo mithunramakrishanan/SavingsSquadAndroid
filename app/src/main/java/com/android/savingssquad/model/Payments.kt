@@ -215,6 +215,12 @@ data class PaymentsDetails(
     @get:PropertyName("memberOtherPaymentId") @set:PropertyName("memberOtherPaymentId")
     var memberOtherPaymentId: String = "",
 
+    @get:PropertyName("descriptionTamil") @set:PropertyName("descriptionTamil")
+    var descriptionTamil: String = "",
+
+    @get:PropertyName("descriptionHindi") @set:PropertyName("descriptionHindi")
+    var descriptionHindi: String = ""
+
 )
 {
     constructor() : this(
@@ -254,7 +260,9 @@ data class PaymentsDetails(
         cashRequestId = "",
         isLoanForceClosed = false,
         forceCloseSummary = ForceCloseSummary(),
-        memberOtherPaymentId = ""
+        memberOtherPaymentId = "",
+        descriptionTamil = "",
+        descriptionHindi = ""
     )
 
     fun toMap(): Map<String, Any?> = mapOf(
@@ -294,7 +302,10 @@ data class PaymentsDetails(
         "cashRequestId" to cashRequestId,
         "isLoanForceClosed" to isLoanForceClosed,
         "forceCloseSummary" to forceCloseSummary,
-        "memberOtherPaymentId" to memberOtherPaymentId
+        "memberOtherPaymentId" to memberOtherPaymentId,
+        "descriptionTamil" to descriptionTamil,
+        "descriptionHindi" to descriptionHindi
+
     )
 }
 

@@ -52,6 +52,7 @@ import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.model.EMIConfiguration
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.PaymentsDetails
+import com.android.savingssquad.singleton.AlertType
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.singleton.AppShadows
@@ -67,10 +68,16 @@ import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.singleton.SquadStringsEnglishDesc
+import com.android.savingssquad.singleton.SquadStringsTamil
+import com.android.savingssquad.singleton.SquadStringsTamilDesc
 import com.android.savingssquad.singleton.SquadUserType
+import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
 import com.android.savingssquad.singleton.asTimestamp
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
+import com.android.savingssquad.viewmodel.AlertManager
+import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.viewmodel.ToastManager
 import com.android.savingssquad.viewmodel.ToastType
@@ -113,6 +120,8 @@ fun ManagerPaymentView(
     var memberPaymentNotes by remember { mutableStateOf("") }
     var memberPaymentNotesError by remember { mutableStateOf("") }
 
+    var openCashRequestList by remember { mutableStateOf(false) }
+
     val activity = LocalContext.current as Activity
     val appContext = LocalContext.current.applicationContext
 
@@ -140,6 +149,13 @@ fun ManagerPaymentView(
 
         return memberPaymentAmountError.isEmpty() &&
                 memberPaymentNotesError.isEmpty()
+    }
+
+    LaunchedEffect(openCashRequestList) {
+        if (openCashRequestList) {
+            navController.navigate(AppDestination.CASH_REQUEST_LIST.route)
+            openCashRequestList = false
+        }
     }
 
     Box(
@@ -336,6 +352,11 @@ fun ManagerPaymentView(
                                                     context = appContext,
                                                     activity = activity,
                                                     entryType = PaymentEntryType.AUTOMATIC_ENTRY,
+                                                    cashRequestHandler = {
+
+                                                        openCashRequestList = true
+
+                                                    },
                                                     handler = {
                                                         loanSelectedMember = null
                                                         emiSelectedType = null
@@ -377,6 +398,11 @@ fun ManagerPaymentView(
                                                 context = appContext,
                                                 activity = activity,
                                                 entryType = PaymentEntryType.MANUAL_ENTRY,
+                                                cashRequestHandler = {
+
+                                                    openCashRequestList = true
+
+                                                },
                                                 handler = {
                                                     loanSelectedMember = null
                                                     emiSelectedType = null
@@ -584,7 +610,7 @@ fun ManagerPaymentView(
                                                     userName = selectedMember.name,
                                                     memberId = selectedMember.id ?: "",
                                                     amount = amount,
-                                                    description = "Amount $amount debited for $memberPaymentNotes"
+                                                    description = SquadStringsEnglishDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionTamil = SquadStringsTamilDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionHindi = ""
                                                 ) { _, _ ->
 
                                                     CoroutineScope(Dispatchers.Main).launch {
@@ -701,7 +727,7 @@ fun ManagerPaymentView(
                                                     userName = selectedMember.name,
                                                     memberId = selectedMember.id ?: "",
                                                     amount = amount,
-                                                    description = "Amount $amount debited for $memberPaymentNotes"
+                                                    description = SquadStringsEnglishDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionTamil = SquadStringsTamilDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionHindi = ""
                                                 ) { _, _ ->
 
                                                     CoroutineScope(Dispatchers.Main).launch {
@@ -821,8 +847,37 @@ private fun makeLoanPayment(
     selectedMember: Member,
     selectedLoan: EMIConfiguration,
     entryType : PaymentEntryType,
+    cashRequestHandler : () -> Unit,
     handler : () -> Unit
 ) {
+
+    if (selectedMember.cashRequested == true) {
+
+        AlertManager.shared.showAlert(
+            title =
+                SquadStrings.savingsSquad,
+
+            message =
+                SquadStrings.cashRequestPendingBeforeLoanPayment
+
+                    .format(selectedMember.name),
+
+            type = AlertType.INFO,
+
+            primaryButtonTitle =
+                SquadStrings.ok,
+
+            primaryAction = {
+
+                UserDefaultsManager.saveCashRequestPendingUser(selectedMember)
+                cashRequestHandler()
+            }
+        )
+
+        return
+
+    }
+
 
     squadViewModel.makeLoanPayment(
         activity = activity,
@@ -912,7 +967,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
                 userName = "CHIT MEMBER",
                 memberId = newPayment.memberId,
                 amount = amountInt,
-                description = "Amount $amountStr debited for $notes"
+                description = SquadStringsEnglishDesc.amountDebited(amountStr,notes), descriptionTamil = SquadStringsTamilDesc.amountDebited(amountStr,notes), descriptionHindi = ""
             )
             LoaderManager.shared.hideLoader()
 

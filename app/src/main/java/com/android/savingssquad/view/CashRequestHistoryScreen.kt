@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -117,6 +118,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CashRequestHistoryScreen(
@@ -126,6 +128,7 @@ fun CashRequestHistoryScreen(
 
     var selectedUser by remember { mutableStateOf(SquadStrings.all) }
     var selectedMemberId by remember { mutableStateOf<String?>(null) }
+    val showWaitingForPayment by squadViewModel.showWaitingForPayment.collectAsState()
 
     val screenType =
         if (UserDefaultsManager.getSquadManagerLogged())
@@ -191,6 +194,12 @@ fun CashRequestHistoryScreen(
             hasLoaded = true
 
             configureInitialFilter()
+
+            UserDefaultsManager.getCashRequestPendingUser()?.let { pendingUser ->
+                selectedUser = pendingUser.name
+                selectedMemberId = pendingUser.id
+            }
+            UserDefaultsManager.removeCashRequestPendingUser()
 
             reloadCashRequests()
         }
@@ -402,7 +411,31 @@ fun CashRequestHistoryScreen(
                 }
             }
 
+        if (showWaitingForPayment) {
+
+            val pendingPayment = UserDefaultsManager.getPendingPayment()
+
+            if (pendingPayment != null) {
+
+                PaymentWaitingView(
+
+                    payment = pendingPayment,
+
+                    squadViewModel = squadViewModel,
+
+                    onCancel = {
+
+                        UserDefaultsManager.clearPendingPayment()
+                        squadViewModel.setShowWaitingForPayment(false)
+                    }
+
+                )
+
+            }
+        }
     }
+
+
 }
 
 @Composable

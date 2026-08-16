@@ -42,7 +42,13 @@ data class SquadActivity(
     var recordStatus: RecordStatus = RecordStatus.ACTIVE, // Record state
 
     @get:PropertyName("recordDate") @set:PropertyName("recordDate")
-    var recordDate: Date = Date() // Timestamp for sorting or audit
+    var recordDate: Date = Date() ,
+
+    @get:PropertyName("descriptionTamil") @set:PropertyName("descriptionTamil")
+    var descriptionTamil: String = "",
+
+    @get:PropertyName("descriptionHindi") @set:PropertyName("descriptionHindi")
+    var descriptionHindi: String = ""
 ) {
     // 🔹 Required empty constructor for Firestore deserialization
     constructor() : this(
@@ -56,6 +62,8 @@ data class SquadActivity(
         amount = 0,
         description = "",
         recordStatus = RecordStatus.ACTIVE,
-        recordDate = Date()
+        recordDate = Date(),
+        descriptionTamil = "",
+        descriptionHindi = ""
     )
 }

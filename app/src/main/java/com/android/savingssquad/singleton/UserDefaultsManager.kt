@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.model.Login
+import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.RemainderModel
 import com.google.gson.Gson
@@ -41,6 +42,8 @@ object UserDefaultsManager {
         const val PENDING_PAYMENT = "PENDING_PAYMENT"
 
         const val KEY_LANGUAGE = "language"
+
+        const val cashRequestPendingUser = "CASH_REQUEST_PENDING_USER"
     }
 
     /**
@@ -67,6 +70,18 @@ object UserDefaultsManager {
     private fun getBool(key: String): Boolean {
         ensureInitialized()
         return prefs.getBoolean(key, false)
+    }
+
+    private fun saveString(key: String, value: String) {
+        ensureInitialized()
+        prefs.edit()
+            .putString(key, value)
+            .apply()
+    }
+
+    private fun getString(key: String): String {
+        ensureInitialized()
+        return prefs.getString(key, "") ?: ""
     }
 
     // 🔹 Save any Serializable (Codable) object
@@ -98,6 +113,12 @@ object UserDefaultsManager {
         ensureInitialized()
         prefs.edit().remove(key).apply()
     }
+
+
+    fun saveCashRequestPendingUser(cashRequestPendingUser: Member) = saveObject(Keys.cashRequestPendingUser, cashRequestPendingUser)
+
+    fun getCashRequestPendingUser(): Member? = getObject(Keys.cashRequestPendingUser)
+    fun removeCashRequestPendingUser() = removeObject(Keys.cashRequestPendingUser)
 
     // -----------------------------------------------------------
     // MARK: - Public Helper Methods (Same as Swift extension)

@@ -63,6 +63,9 @@ import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.RemainderType
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.singleton.SquadStringsEnglishDesc
+import com.android.savingssquad.singleton.SquadStringsTamil
+import com.android.savingssquad.singleton.SquadStringsTamilDesc
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.android.savingssquad.viewmodel.AppDestination
@@ -297,7 +300,7 @@ fun MemberPaymentView(
                                     paymentSubType = PaymentSubType.CONTRIBUTION_AMOUNT,
                                     paymentStatus = PaymentStatus.INVERIFICATION,
                                     paymentApproveStatus = PaymentApproveStatus.REQUESTED,
-                                    description = "Contribution for $contributionSelectedMonthYear.",
+                                    description = SquadStringsEnglishDesc.contributionFor(contributionSelectedMonthYear),
                                     squadId = gf.squadID,
                                     order_id = contributionID,
                                     contributionId = contributionID,
@@ -305,7 +308,7 @@ fun MemberPaymentView(
                                     installmentId = "",
                                     paymentResponseMessage = "Pending admin verification.",
                                     transferReferenceId = contributionID.split("-").lastOrNull() ?: "",
-                                    upiID = gf.upiID
+                                    upiID = gf.upiID, descriptionTamil = SquadStringsTamilDesc.contributionFor(contributionSelectedMonthYear), descriptionHindi = ""
                                 )
 
 
@@ -427,7 +430,7 @@ fun MemberPaymentView(
                                     paymentSubType = PaymentSubType.EMI_AMOUNT,
                                     paymentStatus = PaymentStatus.INVERIFICATION,
                                     paymentApproveStatus = PaymentApproveStatus.REQUESTED,
-                                    description = "EMI and Interest - ${selectedInstallment?.installmentNumber ?: ""} for #${loan?.loanNumber ?: "N/A"} ${total.currencyFormattedWithCommas()}",
+                                    description = SquadStringsEnglishDesc.emiAndInterest(selectedInstallment?.installmentNumber ?: "",loan?.loanNumber ?: "N/A",total.currencyFormattedWithCommas()),
                                     squadId = gf.squadID,
                                     order_id = "${selectedInstallment?.installmentNumber ?: ""} - ${loan?.loanNumber ?: "N/A"}",
                                     contributionId = "",
@@ -435,7 +438,7 @@ fun MemberPaymentView(
                                     installmentId = installId,
                                     paymentResponseMessage = "Pending admin verification.",
                                     transferReferenceId = "${selectedInstallment?.installmentNumber ?: ""} for #${loan?.loanNumber ?: "N/A"}",
-                                    upiID = squad!!.upiID
+                                    upiID = squad!!.upiID, descriptionTamil = SquadStringsTamilDesc.emiAndInterest(selectedInstallment?.installmentNumber ?: "",loan?.loanNumber ?: "N/A",total.currencyFormattedWithCommas()), descriptionHindi = ""
                                 )
 
 
@@ -646,7 +649,7 @@ fun MemberPaymentView(
                                 forceClosedInterest = summary.recalculatedInterest,
                                 paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
                                 forceCloseSummary = summary,
-                                description = "Force Closed ${loan.loanNumber})"
+                                description = SquadStringsEnglishDesc.forceClosedDesc(loan.loanNumber), descriptionTamil =  SquadStringsTamilDesc.forceClosedDesc(loan.loanNumber), descriptionHindi = ""
                             ) { success, error ->
 
                                 selectedInstallment = null

@@ -92,6 +92,8 @@ import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.singleton.SquadStringsEnglishDesc
+import com.android.savingssquad.singleton.SquadStringsTamilDesc
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
 import com.android.savingssquad.singleton.asTimestamp
@@ -186,7 +188,7 @@ fun ManageLoanView(
                                                     userName = "SQUAD MANAGER",
                                                     memberId = "",
                                                     amount = 0,
-                                                    description = "Deleted EMI Config - Loan Amount $amount with interest $rate"
+                                                    description = SquadStringsEnglishDesc.deletedEMIConfig(amount.toString(),rate.toString()), descriptionTamil = SquadStringsTamilDesc.deletedEMIConfig(amount.toString(),rate.toString()), descriptionHindi = ""
                                                 )
                                             } else {
                                                 Log.e("ManageLoan", error ?: "Failed delete")
@@ -281,29 +283,226 @@ private fun handleAddEditEMI(
     ) { success, error ->
         LoaderManager.shared.hideLoader()
 
-        if (success) {
-            val desc = if (selectedEMI == null) {
-                "EMI configuration created (Loan ₹${newEmi.loanAmount}, Interest ${newEmi.emiInterestRate}% - ${newEmi.interestType.name})"
+        if (success)
+        {
+            val actionEnglish: String
+            val actionTamil: String
+            val actionHindi: String
+
+            if (selectedEMI == null) {
+
+                // Interest type - English
+                val interestTypeEnglish = when (newEmi.interestType) {
+                    InterestType.YEARLY ->
+                        SquadStrings.yearly
+
+                    InterestType.DAILY ->
+                        SquadStrings.daily
+
+                    InterestType.MONTHLY ->
+                        SquadStrings.monthly
+
+                    else -> ""
+                }
+
+                // Interest type - Tamil
+                val interestTypeTamil = when (newEmi.interestType) {
+                    InterestType.YEARLY ->
+                        SquadStrings.yearly
+
+                    InterestType.DAILY ->
+                        SquadStrings.daily
+
+                    InterestType.MONTHLY ->
+                        SquadStrings.monthly
+
+                    else -> ""
+                }
+
+                // Hindi is currently not supported
+                val interestTypeHindi = ""
+
+                // English description
+                actionEnglish =
+                    SquadStringsEnglishDesc.emiConfigurationCreated(
+                        loanAmount = newEmi.loanAmount.toString(),
+                        interestRate = newEmi.emiInterestRate.toString(),
+                        interestType = interestTypeEnglish
+                    )
+
+                // Tamil description
+                actionTamil =
+                    SquadStringsTamilDesc.emiConfigurationCreated(
+                        loanAmount = newEmi.loanAmount.toString(),
+                        interestRate = newEmi.emiInterestRate.toString(),
+                        interestType = interestTypeTamil
+                    )
+
+                // Hindi description
+                actionHindi = ""
+
             } else {
-                "EMI configuration updated: Loan ₹${oldEMIConfig?.loanAmount ?: 0} → ₹${newEmi.loanAmount}, Interest ${oldEMIConfig?.emiInterestRate ?: 0}% (${oldEMIConfig?.interestType?.name ?: "-"}) → ${newEmi.emiInterestRate}% (${newEmi.interestType.name})"
+
+                // ---------------------------------------------------------
+                // OLD INTEREST TYPE
+                // ---------------------------------------------------------
+
+                val oldInterestTypeEnglish =
+                    when (oldEMIConfig?.interestType) {
+
+                        InterestType.YEARLY ->
+                            SquadStrings.yearly
+
+                        InterestType.DAILY ->
+                            SquadStrings.daily
+
+                        InterestType.MONTHLY ->
+                            SquadStrings.monthly
+
+                        else -> ""
+                    }
+
+                val oldInterestTypeTamil =
+                    when (oldEMIConfig?.interestType) {
+
+                        InterestType.YEARLY ->
+                            SquadStrings.yearly
+
+                        InterestType.DAILY ->
+                            SquadStrings.daily
+
+                        InterestType.MONTHLY ->
+                            SquadStrings.monthly
+
+                        else -> ""
+                    }
+
+                val oldInterestTypeHindi = ""
+
+                // ---------------------------------------------------------
+                // NEW INTEREST TYPE
+                // ---------------------------------------------------------
+
+                val newInterestTypeEnglish =
+                    when (newEmi.interestType) {
+
+                        InterestType.YEARLY ->
+                            SquadStrings.yearly
+
+                        InterestType.DAILY ->
+                            SquadStrings.daily
+
+                        InterestType.MONTHLY ->
+                            SquadStrings.monthly
+
+                        else -> ""
+                    }
+
+                val newInterestTypeTamil =
+                    when (newEmi.interestType) {
+
+                        InterestType.YEARLY ->
+                            SquadStrings.yearly
+
+                        InterestType.DAILY ->
+                            SquadStrings.daily
+
+                        InterestType.MONTHLY ->
+                            SquadStrings.monthly
+
+                        else -> ""
+                    }
+
+                val newInterestTypeHindi = ""
+
+                // ---------------------------------------------------------
+                // ENGLISH
+                // ---------------------------------------------------------
+
+                actionEnglish =
+                    SquadStringsEnglishDesc.emiConfigurationUpdated(
+                        oldLoanAmount =
+                            (oldEMIConfig?.loanAmount ?: 0).toString(),
+
+                        newLoanAmount =
+                            newEmi.loanAmount.toString(),
+
+                        oldInterestRate =
+                            (oldEMIConfig?.emiInterestRate ?: 0).toString(),
+
+                        oldInterestType =
+                            oldInterestTypeEnglish,
+
+                        newInterestRate =
+                            newEmi.emiInterestRate.toString(),
+
+                        newInterestType =
+                            newInterestTypeEnglish
+                    )
+
+                // ---------------------------------------------------------
+                // TAMIL
+                // ---------------------------------------------------------
+
+                actionTamil =
+                    SquadStringsTamilDesc.emiConfigurationUpdated(
+                        oldLoanAmount =
+                            (oldEMIConfig?.loanAmount ?: 0).toString(),
+
+                        newLoanAmount =
+                            newEmi.loanAmount.toString(),
+
+                        oldInterestRate =
+                            (oldEMIConfig?.emiInterestRate ?: 0).toString(),
+
+                        oldInterestType =
+                            oldInterestTypeTamil,
+
+                        newInterestRate =
+                            newEmi.emiInterestRate.toString(),
+
+                        newInterestType =
+                            newInterestTypeTamil
+                    )
+
+                // ---------------------------------------------------------
+                // HINDI
+                // ---------------------------------------------------------
+
+                actionHindi = ""
             }
 
-            // Create Activity Log
+            // -------------------------------------------------------------
+            // CREATE ACTIVITY WITH ALL LANGUAGES
+            // -------------------------------------------------------------
+
             squadViewModel.createSquadActivity(
                 activityType = SquadActivityType.OTHER_ACTIVITY,
                 userName = "SQUAD MANAGER",
                 memberId = "",
                 amount = 0,
-                description = desc
+                description = actionEnglish,
+                descriptionTamil = actionTamil,
+                descriptionHindi = actionHindi
             ) { success, error ->
 
                 if (success) {
 
-                    println("✅ Activity created")
+                    println("✅ EMI ${
+                        if (selectedEMI == null) "added" else "updated"
+                    } successfully")
+
+                    // Show language-specific message
+                    val message =
+                        if (SquadStrings.isTamil) {
+                            actionTamil
+                        } else {
+                            actionEnglish
+                        }
 
                     AlertManager.shared.showAlert(
                         title = SquadStrings.savingsSquad,
-                        message = desc,
+                        message = message,
                         primaryButtonTitle = SquadStrings.ok,
                         primaryAction = {}
                     )
@@ -313,9 +512,7 @@ private fun handleAddEditEMI(
                 } else {
 
                     println("❌ Error: $error")
-
                 }
-
             }
         } else {
             Log.e("ManageLoan", "❌ Failed to add/edit EMI: $error")
