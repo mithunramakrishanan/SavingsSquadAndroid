@@ -658,7 +658,7 @@ fun MemberTwoButtons(
         TwoButtonGradient(
             icon = Icons.Filled.AddCircle,
             title = SquadStrings.requestCash,
-            subtitle = if (isRequestCashEnabled) "Ask your squad" else "Coming soon",
+            subtitle = if (isRequestCashEnabled) SquadStrings.askYourSquad else "Coming soon",
             gradientColors = listOf(AppColors.primaryButton, AppColors.successAccent),
             onClick = requestCashAction,
             modifier = Modifier.weight(1f),

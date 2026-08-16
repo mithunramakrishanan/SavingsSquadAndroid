@@ -373,7 +373,7 @@ fun SSTextField(
     )
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable{ onDropdownTap?.invoke() },
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
 

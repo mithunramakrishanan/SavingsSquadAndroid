@@ -344,12 +344,10 @@ fun MemberHomeView(
 
                                 subDetails = listOf(
                                     "creditcard" to
-                                            "As of ${
-                                                CommonFunctions.dateToString(
-                                                    Date(),
-                                                    "MMM yyyy"
-                                                )
-                                            }"
+                                            SquadStrings.asOfDate(CommonFunctions.dateToString(
+                                                Date(),
+                                                "MMM yyyy"
+                                            ))
                                 ),
 
                                 onClick = {
@@ -430,8 +428,8 @@ fun MemberHomeView(
                             ) {
 
                                 AllCaughUPView(
-                                    title = "All Due's Paid",
-                                    subtitle = "Squad all caught up!",
+                                    title = SquadStrings.allDuesPaid,
+                                    subtitle = SquadStrings.squadAllCaughtUp,
                                     icon = Icons.Default.CheckCircle,
                                     iconColor = Color.Green,
                                     showChevron = false
@@ -1193,7 +1191,7 @@ fun MemberHeaderView(
                 )
 
                 Text(
-                    text = "View details",
+                    text = SquadStrings.viewDetails,
                     style = AppFont.ibmPlexSans(
                         11,
                         FontWeight.Medium
