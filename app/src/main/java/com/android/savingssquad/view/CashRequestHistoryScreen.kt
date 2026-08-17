@@ -146,7 +146,7 @@ fun CashRequestHistoryScreen(
     val userList = remember(members) {
         buildList {
             add(SquadStrings.all)
-            addAll(members.map { it.name }.distinct())
+            addAll(members.map { it.memberName }.distinct())
         }
     }
 
@@ -160,7 +160,7 @@ fun CashRequestHistoryScreen(
         if (screenType == SquadUserType.SQUAD_MEMBER) {
 
             selectedMemberId = squadViewModel.currentMember.value?.id
-            selectedUser = squadViewModel.currentMember.value?.name ?: ""
+            selectedUser = squadViewModel.currentMember.value?.memberName ?: ""
 
         } else {
 
@@ -196,7 +196,7 @@ fun CashRequestHistoryScreen(
             configureInitialFilter()
 
             UserDefaultsManager.getCashRequestPendingUser()?.let { pendingUser ->
-                selectedUser = pendingUser.name
+                selectedUser = pendingUser.memberName
                 selectedMemberId = pendingUser.id
             }
             UserDefaultsManager.removeCashRequestPendingUser()
@@ -244,7 +244,7 @@ fun CashRequestHistoryScreen(
                                     null
                                 } else {
                                     members.firstOrNull {
-                                        it.name == newUser
+                                        it.memberName == newUser
                                     }?.id
                                 }
 
@@ -325,7 +325,7 @@ fun CashRequestHistoryScreen(
 
                                     val member = Member(
                                         id = cashRequest.requestedByID,
-                                        name = cashRequest.requestedByName,
+                                        memberName = cashRequest.requestedByName,
                                         profileImage = "",
                                         phoneNumber = cashRequest.requestedByPhone,
                                         password = "",

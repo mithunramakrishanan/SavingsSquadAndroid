@@ -43,6 +43,8 @@ import kotlinx.coroutines.launch
 import java.util.Date
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.SquadStringsEnglishDesc
+import com.android.savingssquad.singleton.SquadStringsHindi
+import com.android.savingssquad.singleton.SquadStringsHindiDesc
 import com.android.savingssquad.singleton.SquadStringsTamilDesc
 import com.android.savingssquad.singleton.asTimestamp
 import com.android.savingssquad.viewmodel.AlertManager
@@ -291,7 +293,7 @@ fun ManageSquadView(
                                 userName = "SQUAD MANAGER",
                                 memberId = "",
                                 amount = newValue,
-                                description = SquadStringsEnglishDesc.squadAmountUpdated(totalSquadAmount.toString(),newValue.toString(), reason), descriptionTamil = SquadStringsTamilDesc.squadAmountUpdated(totalSquadAmount.toString(),newValue.toString(), reason), descriptionHindi = ""
+                                description = SquadStringsEnglishDesc.squadAmountUpdated(totalSquadAmount.toString(),newValue.toString(), reason), descriptionTamil = SquadStringsTamilDesc.squadAmountUpdated(totalSquadAmount.toString(),newValue.toString(), reason), descriptionHindi = SquadStringsHindiDesc.squadAmountUpdated(totalSquadAmount.toString(),newValue.toString(), reason)
                             ) { _, _ ->
 
                                 totalSquadAmount = newValue
@@ -372,8 +374,11 @@ private fun saveChanges(
                         userName = "SQUAD MANAGER",
                         memberId = "",
                         amount = 0,
-                        description = getActivityDescriptionEnglish(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited), descriptionTamil = getActivityDescriptionTamil(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited), descriptionHindi = ""
+                        description = getActivityDescriptionEnglish(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited), descriptionTamil = getActivityDescriptionTamil(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited), descriptionHindi = getActivityDescriptionHindi(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited)
                     )
+
+                    onSuccess()
+
                 } else {
                     println("❌ Error updating contributions: $message")
                 }
@@ -496,20 +501,51 @@ private fun getActivityDescriptionHindi(
 ): String {
 
     return when {
+
         squadAmountEdited && squadDurationEdited -> {
-            ""
+
+            SquadStringsHindiDesc.changedSquadDurationAndAmount(
+
+                oldDuration = CommonFunctions.convertMonthsToYearsAndMonths(oldDuration),
+
+                newDuration = CommonFunctions.convertMonthsToYearsAndMonths(newDuration),
+
+                oldAmount = oldSquadAmount.toString(),
+
+                newAmount = newSquadAmount.toString()
+
+            )
+
         }
 
         squadAmountEdited -> {
-            ""
+
+            SquadStringsHindiDesc.changedSquadAmount(
+
+                oldAmount = oldSquadAmount.toString(),
+
+                newAmount = newSquadAmount.toString()
+
+            )
+
         }
 
         squadDurationEdited -> {
-            ""
+
+            SquadStringsHindiDesc.changedSquadDuration(
+
+                oldDuration = CommonFunctions.convertMonthsToYearsAndMonths(oldDuration),
+
+                newDuration = CommonFunctions.convertMonthsToYearsAndMonths(newDuration)
+
+            )
+
         }
 
         else -> ""
+
     }
+
 }
 
 

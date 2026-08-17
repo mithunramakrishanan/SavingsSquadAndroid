@@ -424,5 +424,6 @@ enum class MemberPaymentSubType(
 
 enum class SquadLanguages(val value: String) {
     ENGLISH("English"),
-    TAMIL("தமிழ்")
+    TAMIL("தமிழ்"),
+    HINDI("हिन्दी");
 }

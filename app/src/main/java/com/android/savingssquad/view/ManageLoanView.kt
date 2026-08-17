@@ -91,8 +91,13 @@ import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
+import com.android.savingssquad.singleton.SquadLanguages
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.singleton.SquadStringsEnglish
 import com.android.savingssquad.singleton.SquadStringsEnglishDesc
+import com.android.savingssquad.singleton.SquadStringsHindi
+import com.android.savingssquad.singleton.SquadStringsHindiDesc
+import com.android.savingssquad.singleton.SquadStringsTamil
 import com.android.savingssquad.singleton.SquadStringsTamilDesc
 import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.appShadow
@@ -105,6 +110,7 @@ import com.android.savingssquad.viewmodel.FirebaseFunctionsManager
 import com.android.savingssquad.viewmodel.SSToast
 import com.yourapp.utils.CommonFunctions
 import kotlinx.coroutines.Dispatchers
+import org.intellij.lang.annotations.Language
 import java.util.Calendar
 import java.util.UUID
 import kotlin.math.pow
@@ -188,7 +194,7 @@ fun ManageLoanView(
                                                     userName = "SQUAD MANAGER",
                                                     memberId = "",
                                                     amount = 0,
-                                                    description = SquadStringsEnglishDesc.deletedEMIConfig(amount.toString(),rate.toString()), descriptionTamil = SquadStringsTamilDesc.deletedEMIConfig(amount.toString(),rate.toString()), descriptionHindi = ""
+                                                    description = SquadStringsEnglishDesc.deletedEMIConfig(amount.toString(),rate.toString()), descriptionTamil = SquadStringsTamilDesc.deletedEMIConfig(amount.toString(),rate.toString()), descriptionHindi = SquadStringsHindiDesc.deletedEMIConfig(amount.toString(),rate.toString())
                                                 )
                                             } else {
                                                 Log.e("ManageLoan", error ?: "Failed delete")
@@ -294,13 +300,13 @@ private fun handleAddEditEMI(
                 // Interest type - English
                 val interestTypeEnglish = when (newEmi.interestType) {
                     InterestType.YEARLY ->
-                        SquadStrings.yearly
+                        SquadStringsEnglish.yearly
 
                     InterestType.DAILY ->
-                        SquadStrings.daily
+                        SquadStringsEnglish.daily
 
                     InterestType.MONTHLY ->
-                        SquadStrings.monthly
+                        SquadStringsEnglish.monthly
 
                     else -> ""
                 }
@@ -308,19 +314,30 @@ private fun handleAddEditEMI(
                 // Interest type - Tamil
                 val interestTypeTamil = when (newEmi.interestType) {
                     InterestType.YEARLY ->
-                        SquadStrings.yearly
+                        SquadStringsTamil.yearly
 
                     InterestType.DAILY ->
-                        SquadStrings.daily
+                        SquadStringsTamil.daily
 
                     InterestType.MONTHLY ->
-                        SquadStrings.monthly
+                        SquadStringsTamil.monthly
 
                     else -> ""
                 }
 
                 // Hindi is currently not supported
-                val interestTypeHindi = ""
+                val interestTypeHindi = when (newEmi.interestType) {
+                    InterestType.YEARLY ->
+                        SquadStringsHindi.yearly
+
+                    InterestType.DAILY ->
+                        SquadStringsHindi.daily
+
+                    InterestType.MONTHLY ->
+                        SquadStringsHindi.monthly
+
+                    else -> ""
+                }
 
                 // English description
                 actionEnglish =
@@ -339,7 +356,11 @@ private fun handleAddEditEMI(
                     )
 
                 // Hindi description
-                actionHindi = ""
+                actionHindi = SquadStringsHindiDesc.emiConfigurationCreated(
+                    loanAmount = newEmi.loanAmount.toString(),
+                    interestRate = newEmi.emiInterestRate.toString(),
+                    interestType = interestTypeHindi
+                )
 
             } else {
 
@@ -377,7 +398,19 @@ private fun handleAddEditEMI(
                         else -> ""
                     }
 
-                val oldInterestTypeHindi = ""
+                val oldInterestTypeHindi = when (oldEMIConfig?.interestType) {
+
+                    InterestType.YEARLY ->
+                        SquadStringsHindi.yearly
+
+                    InterestType.DAILY ->
+                        SquadStringsHindi.daily
+
+                    InterestType.MONTHLY ->
+                        SquadStringsHindi.monthly
+
+                    else -> ""
+                }
 
                 // ---------------------------------------------------------
                 // NEW INTEREST TYPE
@@ -413,7 +446,19 @@ private fun handleAddEditEMI(
                         else -> ""
                     }
 
-                val newInterestTypeHindi = ""
+                val newInterestTypeHindi = when (newEmi.interestType) {
+
+                    InterestType.YEARLY ->
+                        SquadStringsHindi.yearly
+
+                    InterestType.DAILY ->
+                        SquadStringsHindi.daily
+
+                    InterestType.MONTHLY ->
+                        SquadStringsHindi.monthly
+
+                    else -> ""
+                }
 
                 // ---------------------------------------------------------
                 // ENGLISH
@@ -469,7 +514,25 @@ private fun handleAddEditEMI(
                 // HINDI
                 // ---------------------------------------------------------
 
-                actionHindi = ""
+                actionHindi =  SquadStringsHindiDesc.emiConfigurationUpdated(
+                    oldLoanAmount =
+                        (oldEMIConfig?.loanAmount ?: 0).toString(),
+
+                    newLoanAmount =
+                        newEmi.loanAmount.toString(),
+
+                    oldInterestRate =
+                        (oldEMIConfig?.emiInterestRate ?: 0).toString(),
+
+                    oldInterestType =
+                        oldInterestTypeHindi,
+
+                    newInterestRate =
+                        newEmi.emiInterestRate.toString(),
+
+                    newInterestType =
+                        newInterestTypeHindi
+                )
             }
 
             // -------------------------------------------------------------
@@ -494,10 +557,13 @@ private fun handleAddEditEMI(
 
                     // Show language-specific message
                     val message =
-                        if (SquadStrings.isTamil) {
+                        if (SquadStrings.currentLanguage == SquadLanguages.TAMIL) {
                             actionTamil
-                        } else {
+                        }else if (SquadStrings.currentLanguage == SquadLanguages.ENGLISH) {
                             actionEnglish
+                        }
+                        else {
+                            actionHindi
                         }
 
                     AlertManager.shared.showAlert(

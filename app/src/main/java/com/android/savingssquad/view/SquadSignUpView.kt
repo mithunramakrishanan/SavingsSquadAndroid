@@ -762,7 +762,7 @@ private fun saveSquadData(
                 transferReferenceId = "",
 
                 recordStatus = RecordStatus.ACTIVE,
-                recordDate = Date().asTimestamp, descriptionTamil = SquadStringsTamilDesc.startedSquadWithAmountOf, descriptionHindi = ""
+                recordDate = Date().asTimestamp, descriptionTamil = SquadStringsTamilDesc.startedSquadWithAmountOf, descriptionHindi = SquadStringsHindiDesc.startedSquadWithAmountOf
             )
 
             squadViewModel.savePayments(
@@ -785,7 +785,7 @@ private fun saveSquadData(
             memberId = "",
             amount = startAmountInt,
             description = SquadStringsEnglishDesc.startedSquadWithAmountOf,
-            descriptionTamil = SquadStringsTamilDesc.startedSquadWithAmountOf, descriptionHindi = ""
+            descriptionTamil = SquadStringsTamilDesc.startedSquadWithAmountOf, descriptionHindi = SquadStringsHindiDesc.startedSquadWithAmountOf
         ) { _, _ ->
             leave()
         }

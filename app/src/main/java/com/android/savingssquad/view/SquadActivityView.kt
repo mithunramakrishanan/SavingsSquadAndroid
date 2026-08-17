@@ -69,7 +69,7 @@ fun SquadActivityView(
 
     val userList = remember(squadMembers) {
         listOf(SquadStrings.all) + squadMembers
-            .map { it.name }
+            .map { it.memberName }
             .distinct()
     }
 
@@ -143,7 +143,7 @@ fun SquadActivityView(
                             null
                         } else {
                             squadMembers.firstOrNull {
-                                it.name == selected
+                                it.memberName == selected
                             }?.id
                         }
 
@@ -320,7 +320,7 @@ fun ActivityCardComposable(activity: SquadActivity) {
 
             // DESCRIPTION
             Text(
-                text = activity.description,
+                text = activity.localizedDescription,
                 style = AppFont.ibmPlexSans(14),
                 color = AppColors.secondaryText,
                 lineHeight = 20.sp

@@ -682,7 +682,7 @@ fun MemberHomeView(
                                 {
                                     val cashRequest = CashRequest(
                                         id = IDGenerator.generateCashRequestID(),
-                                        requestedByName = squadViewModel.currentMember.value?.name ?: "",
+                                        requestedByName = squadViewModel.currentMember.value?.memberName ?: "",
                                         requestedByID = squadViewModel.currentMember.value?.id ?: "",
                                         requestedByUPI = squadViewModel.currentMember.value?.upiID ?: "",
                                         requestedByPhone = squadViewModel.currentMember.value?.phoneNumber ?: "",
@@ -807,7 +807,7 @@ fun MemberHomeView(
 
                             RemainderModel(
 
-                                remainderTitle = payment.description,
+                                remainderTitle = payment.localizedDescription,
 
                                 remainderSubTitle = "",
 
@@ -827,7 +827,7 @@ fun MemberHomeView(
 
                 })
 
-                Log.d("MemberHomeView", "✅ Member fetched: ${fetchedMember.name}")
+                Log.d("MemberHomeView", "✅ Member fetched: ${fetchedMember.memberName}")
             } else {
                 Log.e("MemberHomeView", "❌ Error: $error")
                 LoaderManager.shared.hideLoader()

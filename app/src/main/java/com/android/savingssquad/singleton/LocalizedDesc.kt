@@ -307,6 +307,157 @@ object SquadStringsTamilDesc {
         "மேலாளர் உறுப்பினர் செலுத்திய வட்டி தொகையை $oldAmount இலிருந்து $newAmount ஆக மாற்றினார்"
 }
 
+object SquadStringsHindiDesc {
+
+    const val startedSquadWithAmountOf =
+        "एक समूह को इस राशि के साथ शुरू किया"
+
+    fun forceClosedDesc(loanNumber: String): String =
+        "बलपूर्वक बंद किया गया #$loanNumber"
+
+    fun contributionFor(monthYear: String): String =
+        "$monthYear के लिए योगदान।"
+
+    fun emiAndInterest(
+        installmentNumber: String,
+        loanNumber: String,
+        total: String
+    ): String =
+        "EMI और ब्याज - #$loanNumber की किस्त $installmentNumber $total"
+
+    fun amountDebited(
+        amount: String,
+        notes: String
+    ): String =
+        "$notes के लिए $amount की राशि डेबिट की गई"
+
+    fun squadAmountUpdated(
+        oldAmount: String,
+        newAmount: String,
+        reason: String
+    ): String =
+        "स्क्वाड मैनेजर ने स्क्वाड की राशि $oldAmount से $newAmount कर दी, कारण: $reason"
+
+    fun changedSquadDurationAndAmount(
+        oldDuration: String,
+        newDuration: String,
+        oldAmount: String,
+        newAmount: String
+    ): String =
+        "स्क्वाड की अवधि $oldDuration से $newDuration और स्क्वाड की राशि $oldAmount से $newAmount कर दी गई"
+
+    fun changedSquadAmount(
+        oldAmount: String,
+        newAmount: String
+    ): String =
+        "स्क्वाड की राशि $oldAmount से $newAmount कर दी गई"
+
+    fun changedSquadDuration(
+        oldDuration: String,
+        newDuration: String
+    ): String =
+        "स्क्वाड की अवधि $oldDuration से $newDuration कर दी गई"
+
+    fun recordedPayment(
+        amount: String,
+        note: String
+    ): String =
+        "$amount का भुगतान दर्ज किया गया। नोट: $note।"
+
+    fun loanForceClosedByManager(
+        loanNumber: String,
+        memberName: String
+    ): String =
+        "$memberName के लिए ऋण #$loanNumber को स्क्वाड मैनेजर द्वारा बलपूर्वक बंद किया गया।"
+
+    fun forceClosedLoanSettlement(
+        loanNumber: String,
+        memberName: String,
+        amount: String
+    ): String =
+        "$memberName का ऋण #$loanNumber बलपूर्वक बंद किया गया। कुल निपटान राशि: $amount।"
+
+    fun contributionPaymentUpdatedByManager(
+        memberName: String,
+        monthYear: String
+    ): String =
+        "$memberName के $monthYear के योगदान भुगतान को स्क्वाड मैनेजर द्वारा अपडेट किया गया।"
+
+    fun updatedContribution(
+        memberName: String,
+        monthYear: String,
+        amount: String
+    ): String =
+        "$memberName के $monthYear के योगदान को अपडेट किया गया — राशि: $amount।"
+
+    fun emiPaymentUpdatedByManager(
+        memberName: String,
+        installmentNumber: String,
+        loanNumber: String
+    ): String =
+        "$memberName के ऋण #$loanNumber की किस्त $installmentNumber का EMI भुगतान स्क्वाड मैनेजर द्वारा अपडेट किया गया।"
+
+    fun updatedEMIPayment(
+        memberName: String,
+        installmentNumber: String,
+        loanNumber: String,
+        amount: String
+    ): String =
+        "$memberName के ऋण #$loanNumber की $installmentNumber EMI भुगतान को अपडेट किया गया। राशि: $amount।"
+
+    fun deletedEMIConfig(
+        loanAmount: String,
+        interestRate: String
+    ): String =
+        "EMI कॉन्फ़िगरेशन हटाया गया - ऋण राशि $loanAmount, ब्याज $interestRate"
+
+    fun emiConfigurationCreated(
+        loanAmount: String,
+        interestRate: String,
+        interestType: String
+    ): String =
+        "EMI कॉन्फ़िगरेशन बनाया गया (ऋण ₹$loanAmount, ब्याज $interestRate% - $interestType)"
+
+    fun emiConfigurationUpdated(
+        oldLoanAmount: String,
+        newLoanAmount: String,
+        oldInterestRate: String,
+        oldInterestType: String,
+        newInterestRate: String,
+        newInterestType: String
+    ): String =
+        "EMI कॉन्फ़िगरेशन अपडेट किया गया: ऋण ₹$oldLoanAmount → ₹$newLoanAmount, " +
+                "ब्याज $oldInterestRate% ($oldInterestType) → " +
+                "$newInterestRate% ($newInterestType)"
+
+    fun addedNewMember(memberName: String): String =
+        "$memberName नाम के नए सदस्य को स्क्वाड में जोड़ा गया"
+
+    fun managerUpdatedMemberContribution(
+        oldAmount: String,
+        newAmount: String
+    ): String =
+        "मैनेजर ने सदस्य के योगदान की राशि $oldAmount से $newAmount कर दी"
+
+    fun managerUpdatedMemberLoanBorrowed(
+        oldAmount: String,
+        newAmount: String
+    ): String =
+        "मैनेजर ने सदस्य द्वारा लिए गए ऋण की राशि $oldAmount से $newAmount कर दी"
+
+    fun managerUpdatedMemberLoanPaid(
+        oldAmount: String,
+        newAmount: String
+    ): String =
+        "मैनेजर ने सदस्य द्वारा चुकाई गई ऋण राशि $oldAmount से $newAmount कर दी"
+
+    fun managerUpdatedMemberInterestPaid(
+        oldAmount: String,
+        newAmount: String
+    ): String =
+        "मैनेजर ने सदस्य द्वारा चुकाई गई ब्याज राशि $oldAmount से $newAmount कर दी"
+}
+
 
 object SquadStringsDesc {
 

@@ -78,7 +78,7 @@ fun LoanListView(
 
     // MARK: - User List (iOS style)
     val userList = remember(members.value) {
-        listOf(SquadStrings.all) + members.value.map { it.name }.distinct()
+        listOf(SquadStrings.all) + members.value.map { it.memberName }.distinct()
     }
 
     // MARK: - INIT LOAD GUARD (iOS equivalent)
@@ -112,7 +112,7 @@ fun LoanListView(
 
         selectedUser = if (screenType == SquadUserType.SQUAD_MEMBER) {
 
-            squadViewModel.currentMember.value?.name ?: ""
+            squadViewModel.currentMember.value?.memberName ?: ""
 
         } else {
 

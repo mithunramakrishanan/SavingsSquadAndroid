@@ -271,11 +271,11 @@ object CommonFunctions {
     }
 
     fun getMemberByName(name: String, members: List<Member>): Member? {
-        return members.firstOrNull { it.name == name }
+        return members.firstOrNull { it.memberName == name }
     }
 
     fun getMember(by: String, from: List<Member>): Member? {
-        return from.firstOrNull { it.name == by }
+        return from.firstOrNull { it.memberName == by }
     }
 
     fun cleanUpName(name: String): String {

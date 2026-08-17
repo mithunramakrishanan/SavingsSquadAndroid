@@ -47,7 +47,7 @@ fun PaymentHistoryView(
 
     // MARK: - User List (iOS style)
     val userList = remember(members.value) {
-        listOf(SquadStrings.all) + members.value.map { it.name }.distinct()
+        listOf(SquadStrings.all) + members.value.map { it.memberName }.distinct()
     }
 
     // MARK: - INIT LOAD GUARD (iOS equivalent)
@@ -111,7 +111,7 @@ fun PaymentHistoryView(
 
                     selectedMemberId =
                         members.value.firstOrNull {
-                            it.name == selected
+                            it.memberName == selected
                         }?.id
 
                     squadViewModel.resetPaymentsPagination()

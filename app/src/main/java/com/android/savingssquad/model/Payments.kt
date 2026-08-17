@@ -12,6 +12,8 @@ import androidx.annotation.Keep
 import com.android.savingssquad.model.forceCloseSummary
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PayoutStatus
+import com.android.savingssquad.singleton.SquadLanguages
+import com.android.savingssquad.singleton.SquadStrings
 import com.google.firebase.firestore.PropertyName
 
 // ----------------------
@@ -216,13 +218,32 @@ data class PaymentsDetails(
     var memberOtherPaymentId: String = "",
 
     @get:PropertyName("descriptionTamil") @set:PropertyName("descriptionTamil")
-    var descriptionTamil: String = "",
+    var descriptionTamil: String,
 
     @get:PropertyName("descriptionHindi") @set:PropertyName("descriptionHindi")
-    var descriptionHindi: String = ""
+    var descriptionHindi: String
 
 )
 {
+
+    val localizedDescription: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL ->
+
+                descriptionTamil.ifEmpty { description }
+
+            SquadLanguages.HINDI ->
+
+                descriptionHindi.ifEmpty { description }
+
+            SquadLanguages.ENGLISH ->
+
+                description
+
+        }
+
     constructor() : this(
         id = null,
         paymentUpdatedDate = null,

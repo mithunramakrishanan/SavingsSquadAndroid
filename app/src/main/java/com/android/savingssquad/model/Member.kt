@@ -7,6 +7,8 @@ import com.android.savingssquad.singleton.PaidStatus
 
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.RecordStatus
+import com.android.savingssquad.singleton.SquadLanguages
+import com.android.savingssquad.singleton.SquadStrings
 import com.google.firebase.Timestamp
 import java.util.Date
 
@@ -35,8 +37,8 @@ data class Member(
     @get:PropertyName("id") @set:PropertyName("id")
     var id: String? = null,
 
-    @get:PropertyName("name") @set:PropertyName("name")
-    var name: String = "",
+    @get:PropertyName("memberName") @set:PropertyName("memberName")
+    var memberName: String = "",
 
     @get:PropertyName("profileImage") @set:PropertyName("profileImage")
     var profileImage: String = "",
@@ -105,7 +107,7 @@ data class Member(
     // 🔹 Firestore needs a no-arg constructor
     constructor() : this(
         id = null,
-        name = "",
+        memberName = "",
         profileImage = "",
         mailID = null,
         phoneNumber = "",
@@ -156,4 +158,22 @@ data class MemberOtherPayments(
 
     var descriptionHindi: String = ""
 
-)
+) {
+    val localizedDescription: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL ->
+
+                descriptionTamil.ifEmpty { description }
+
+            SquadLanguages.HINDI ->
+
+                descriptionHindi.ifEmpty { description }
+
+            SquadLanguages.ENGLISH ->
+
+                description
+
+        }
+}

@@ -121,7 +121,7 @@ fun PaymentApprovalView(
     val pendingPayments by squadViewModel.pendingApprovalPayments.collectAsStateWithLifecycle()
 
     val userList = remember(squadMembers) {
-        listOf(SquadStrings.all) + squadMembers.map { it.name }.distinct()
+        listOf(SquadStrings.all) + squadMembers.map { it.memberName }.distinct()
     }
 
     // ❌ NO FILTERING HERE (Firestore already does it)
@@ -137,7 +137,7 @@ fun PaymentApprovalView(
             val memberId = if (selectedUser == SquadStrings.all) {
                 null
             } else {
-                squadViewModel.squadMembers.value.firstOrNull { it.name == selectedUser }?.id
+                squadViewModel.squadMembers.value.firstOrNull { it.memberName == selectedUser }?.id
             }
 
             squadViewModel.fetchPendingApprovalPayments(
@@ -223,7 +223,7 @@ fun PaymentApprovalView(
                         selectedUser = selected
 
                         val memberId = if (selected == SquadStrings.all) null else {
-                            squadMembers.firstOrNull { m -> m.name == selected }?.id
+                            squadMembers.firstOrNull { m -> m.memberName == selected }?.id
                         }
 
                         squadViewModel.fetchPendingApprovalPayments(
@@ -383,7 +383,7 @@ fun PaymentApprovalRow(
     onApprove: () -> Unit,
     onReject: () -> Unit
 ) {
-    val hasDescription = approval.description.isNotEmpty()
+    val hasDescription = approval.localizedDescription.isNotEmpty()
     val isForceClosed = approval.isLoanForceClosed == true
     var showForceCloseDetails by remember { mutableStateOf(false) }
 
@@ -494,7 +494,7 @@ fun PaymentApprovalRow(
                 )
                 Spacer(Modifier.height(5.dp))
                 Text(
-                    text = approval.description,
+                    text = approval.localizedDescription,
                     style = AppFont.ibmPlexSans(14),
                     color = AppColors.headerText,
                     lineHeight = 20.sp

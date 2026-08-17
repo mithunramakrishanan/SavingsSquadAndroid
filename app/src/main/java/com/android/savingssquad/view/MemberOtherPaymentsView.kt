@@ -60,7 +60,7 @@ fun MemberOtherPaymentsView(
     var hasLoaded by remember { mutableStateOf(false) }
 
     val userList = remember(members.value) {
-        listOf(SquadStrings.all) + members.value.map { it.name }.distinct()
+        listOf(SquadStrings.all) + members.value.map { it.memberName }.distinct()
     }
 
     // Member the request should be scoped to.
@@ -122,7 +122,7 @@ fun MemberOtherPaymentsView(
 
         if (screenType == SquadUserType.SQUAD_MEMBER) {
             selectedMemberId = currentMember.value?.id
-            selectedUser = currentMember.value?.name ?: ""
+            selectedUser = currentMember.value?.memberName ?: ""
         } else {
             selectedUser = SquadStrings.all
             selectedMemberId = null
@@ -218,7 +218,7 @@ fun MemberOtherPaymentsView(
 
                     selectedMemberId =
                         if (selected == SquadStrings.all) null
-                        else members.value.firstOrNull { it.name == selected }?.id
+                        else members.value.firstOrNull { it.memberName == selected }?.id
 
                     reloadCashRequests()
                 }

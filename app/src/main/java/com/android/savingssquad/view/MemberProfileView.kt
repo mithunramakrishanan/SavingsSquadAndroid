@@ -410,7 +410,7 @@ fun MemberProfileHeaderView(
             ) {
 
                 Text(
-                    text = member.name.take(1).uppercase(),
+                    text = member.memberName.take(1).uppercase(),
                     style = AppFont.ibmPlexSans(
                         size = 24,
                         weight = FontWeight.Bold
@@ -431,7 +431,7 @@ fun MemberProfileHeaderView(
         Spacer(Modifier.height(10.dp))
 
         Text(
-            text = member.name,
+            text = member.memberName,
             style = AppFont.ibmPlexSans(
                 size = 19,
                 weight = FontWeight.Bold

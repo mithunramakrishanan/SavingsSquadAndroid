@@ -84,7 +84,7 @@ fun MembersListView(
             members
         } else {
             members.filter {
-                it. name.contains(searchText, ignoreCase = true)
+                it. memberName.contains(searchText, ignoreCase = true)
             }
         }
     }
@@ -215,7 +215,7 @@ fun MembersListContent(
             if (success) {
 
                 ToastManager.show(
-                    message = "${member.name} is now ${newStatus.localizedName}",
+                    message = "${member.memberName} is now ${newStatus.localizedName}",
                     type = if (newStatus == RecordStatus.INACTIVE) {
                         ToastType.ERROR
                     } else {
@@ -249,7 +249,7 @@ fun MembersListContent(
 
             AlertManager.shared.showAlert(
                 title = SquadStrings.deactivateSquad,
-                message = SquadStrings.deactivateMemberMessage(member.name),
+                message = SquadStrings.deactivateMemberMessage(member.memberName),
                 type = AlertType.ERROR,
                 primaryButtonTitle = SquadStrings.deactivate,
                 primaryAction = {
@@ -326,7 +326,7 @@ fun MembersListCellView(member: Member,onSelectStatus: (RecordStatus) -> Unit) {
         )
         {
             Text(
-                text = member.name.first().toString(),
+                text = member.memberName.first().toString(),
                 style = AppFont.ibmPlexSans(20, FontWeight.Bold),
                 color = AppColors.primaryButton
             )
@@ -339,7 +339,7 @@ fun MembersListCellView(member: Member,onSelectStatus: (RecordStatus) -> Unit) {
         )
         {
             Text(
-                text = member.name,
+                text = member.memberName,
                 style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
                 color = AppColors.headerText,
                 maxLines = 1

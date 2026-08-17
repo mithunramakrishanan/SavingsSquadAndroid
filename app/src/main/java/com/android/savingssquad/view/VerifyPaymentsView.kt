@@ -87,7 +87,7 @@ fun VerifyPaymentsViewOld(
 
     val userList = remember {
         listOf(SquadStrings.all) + squadViewModel.squadMembers.value
-            .map { it.name }
+            .map { it.memberName }
             .distinct()
     }
 

@@ -117,7 +117,7 @@ fun BankDetailsView(
         }
 
         accountHoldernameState.value = if (screenType == SquadUserType.SQUAD_MEMBER) {
-            currentMember?.name ?: ""
+            currentMember?.memberName ?: ""
         }
         else {
             squad?.squadName ?: ""

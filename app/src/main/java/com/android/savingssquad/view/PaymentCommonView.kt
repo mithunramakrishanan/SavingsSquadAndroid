@@ -273,9 +273,9 @@ fun PaymentDetailSheet(
 
             // MARK: Description
 
-            if (payment.description.isNotEmpty()) {
+            if (payment.localizedDescription.isNotEmpty()) {
                 Text(
-                    text = payment.description,
+                    text = payment.localizedDescription,
                     style = AppFont.ibmPlexSans(size = 13, weight = FontWeight.Normal),
                     color = AppColors.secondaryText,
                     textAlign = TextAlign.Center

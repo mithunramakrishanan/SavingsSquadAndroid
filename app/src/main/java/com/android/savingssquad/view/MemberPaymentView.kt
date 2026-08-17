@@ -64,6 +64,7 @@ import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.RemainderType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.SquadStringsEnglishDesc
+import com.android.savingssquad.singleton.SquadStringsHindiDesc
 import com.android.savingssquad.singleton.SquadStringsTamil
 import com.android.savingssquad.singleton.SquadStringsTamilDesc
 import com.android.savingssquad.singleton.UserDefaultsManager
@@ -156,7 +157,7 @@ fun MemberPaymentView(
                         } else {
                             availableContributionMonths = emptyList()
 
-                            ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.noOutstandingDues(currentMember?.name ?: ""), type = ToastType.SUCCESS)
+                            ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.noOutstandingDues(currentMember?.memberName ?: ""), type = ToastType.SUCCESS)
 
                         }
                     }
@@ -256,7 +257,7 @@ fun MemberPaymentView(
                                 } else {
                                     availableContributionMonths = emptyList()
 
-                                    ToastManager.show(title = SquadStrings.savingsSquad, message =  SquadStrings.noOutstandingDues(currentMember?.name ?: ""), type = ToastType.SUCCESS)
+                                    ToastManager.show(title = SquadStrings.savingsSquad, message =  SquadStrings.noOutstandingDues(currentMember?.memberName ?: ""), type = ToastType.SUCCESS)
 
                                 }
                             }
@@ -289,7 +290,7 @@ fun MemberPaymentView(
                                     id = IDGenerator.generatePaymentID(squadId = gf.squadID),
                                     paymentUpdatedDate = Timestamp(date = Date()),
                                     memberId = selectedMember.id ?: "",
-                                    memberName = selectedMember.name,
+                                    memberName = selectedMember.memberName,
                                     paymentPhone = selectedMember.phoneNumber,
                                     paymentEmail = selectedMember.mailID ?: "",
                                     userType = SquadUserType.SQUAD_MEMBER, // adapt enum mapping
@@ -308,7 +309,7 @@ fun MemberPaymentView(
                                     installmentId = "",
                                     paymentResponseMessage = "Pending admin verification.",
                                     transferReferenceId = contributionID.split("-").lastOrNull() ?: "",
-                                    upiID = gf.upiID, descriptionTamil = SquadStringsTamilDesc.contributionFor(contributionSelectedMonthYear), descriptionHindi = ""
+                                    upiID = gf.upiID, descriptionTamil = SquadStringsTamilDesc.contributionFor(contributionSelectedMonthYear), descriptionHindi = SquadStringsHindiDesc.contributionFor(contributionSelectedMonthYear)
                                 )
 
 
@@ -419,7 +420,7 @@ fun MemberPaymentView(
                                     id = IDGenerator.generatePaymentID(squadId = gf.squadID),
                                     paymentUpdatedDate = Timestamp(date = Date()),
                                     memberId = member.id ?: "",
-                                    memberName = member.name,
+                                    memberName = member.memberName,
                                     paymentPhone = member.phoneNumber,
                                     paymentEmail = member.mailID ?: "",
                                     userType = SquadUserType.SQUAD_MEMBER,
@@ -438,7 +439,7 @@ fun MemberPaymentView(
                                     installmentId = installId,
                                     paymentResponseMessage = "Pending admin verification.",
                                     transferReferenceId = "${selectedInstallment?.installmentNumber ?: ""} for #${loan?.loanNumber ?: "N/A"}",
-                                    upiID = squad!!.upiID, descriptionTamil = SquadStringsTamilDesc.emiAndInterest(selectedInstallment?.installmentNumber ?: "",loan?.loanNumber ?: "N/A",total.currencyFormattedWithCommas()), descriptionHindi = ""
+                                    upiID = squad!!.upiID, descriptionTamil = SquadStringsTamilDesc.emiAndInterest(selectedInstallment?.installmentNumber ?: "",loan?.loanNumber ?: "N/A",total.currencyFormattedWithCommas()), descriptionHindi = SquadStringsHindiDesc.emiAndInterest(selectedInstallment?.installmentNumber ?: "",loan?.loanNumber ?: "N/A",total.currencyFormattedWithCommas())
                                 )
 
 
@@ -529,7 +530,7 @@ fun MemberPaymentView(
                                 )
 
                                 Text(
-                                    text = SquadStrings.noPendingPaymentsDescription(currentMember?.name
+                                    text = SquadStrings.noPendingPaymentsDescription(currentMember?.memberName
                                         ?: ""),
                                     style = AppFont.ibmPlexSans(14),
                                     color = AppColors.secondaryText,
@@ -649,7 +650,7 @@ fun MemberPaymentView(
                                 forceClosedInterest = summary.recalculatedInterest,
                                 paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
                                 forceCloseSummary = summary,
-                                description = SquadStringsEnglishDesc.forceClosedDesc(loan.loanNumber), descriptionTamil =  SquadStringsTamilDesc.forceClosedDesc(loan.loanNumber), descriptionHindi = ""
+                                description = SquadStringsEnglishDesc.forceClosedDesc(loan.loanNumber), descriptionTamil =  SquadStringsTamilDesc.forceClosedDesc(loan.loanNumber), descriptionHindi = SquadStringsHindiDesc.forceClosedDesc(loan.loanNumber)
                             ) { success, error ->
 
                                 selectedInstallment = null
@@ -679,7 +680,7 @@ private fun ContributionSection(
             // Member (disabled)
             SSTextField(
                 icon = Icons.Default.Person,
-                placeholder = currentMember?.name ?: "",
+                placeholder = currentMember?.memberName ?: "",
                 textState = remember { mutableStateOf("") }, // blank because it's disabled
                 keyboardType = KeyboardType.Text,
                 disabled = true
@@ -778,7 +779,7 @@ private fun EMISection(
         Column(verticalArrangement = Arrangement.spacedBy(15.dp)) {
             SSTextField(
                 icon = Icons.Default.Person,
-                placeholder = currentMember?.name ?: SquadStrings.member,
+                placeholder = currentMember?.memberName ?: SquadStrings.member,
                 textState = remember { mutableStateOf("") },
                 keyboardType = KeyboardType.Text,
                 disabled = true
@@ -867,7 +868,7 @@ private fun EMISection(
                         )
 
                         Text(
-                            text = SquadStrings.noPendingPaymentsDescription(currentMember?.name ?: ""),
+                            text = SquadStrings.noPendingPaymentsDescription(currentMember?.memberName ?: ""),
                             style = AppFont.ibmPlexSans(14),
                             color = AppColors.secondaryText,
                             textAlign = TextAlign.Center
@@ -945,7 +946,7 @@ fun MemberOtherPaymentRow(
             // Description
 
             Text(
-                text = payment.description,
+                text = payment.localizedDescription,
                 style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                 color = AppColors.secondaryText
             )

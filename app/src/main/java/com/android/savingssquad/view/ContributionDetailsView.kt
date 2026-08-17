@@ -183,7 +183,7 @@ fun ContributionDetailsView(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             SSNavigationBar(
-                title = member!!.name,
+                title = member!!.memberName,
                 navController = navController
             )
 

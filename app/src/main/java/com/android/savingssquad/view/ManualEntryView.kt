@@ -79,6 +79,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.singleton.MemberPaymentSubType
 import com.android.savingssquad.singleton.SquadStringsEnglishDesc
+import com.android.savingssquad.singleton.SquadStringsHindiDesc
 import com.android.savingssquad.singleton.SquadStringsTamil
 import com.android.savingssquad.singleton.SquadStringsTamilDesc
 import com.yourapp.utils.IDGenerator
@@ -300,7 +301,7 @@ fun ManualEntryView(
                                     id = contributionID,
                                     orderId = "",
                                     memberID = selectedMember.id ?: "",
-                                    memberName = selectedMember.name,
+                                    memberName = selectedMember.memberName,
                                     monthYear = contributionSelectedMonthYear,
                                     amount = squadLocal.monthlyContribution,
                                     paidOn = Date().asTimestamp,
@@ -343,7 +344,7 @@ fun ManualEntryView(
                                                 installmentId = "",
                                                 paymentSuccess = true,
                                                 payoutSuccess = true,
-                                                transferReferenceId = contributionID.split("-").lastOrNull() ?: "", descriptionTamil = SquadStringsTamilDesc.contributionPaymentUpdatedByManager(contributionSelectedMemberName,contributionSelectedMonthYear), descriptionHindi = ""
+                                                transferReferenceId = contributionID.split("-").lastOrNull() ?: "", descriptionTamil = SquadStringsTamilDesc.contributionPaymentUpdatedByManager(contributionSelectedMemberName,contributionSelectedMonthYear), descriptionHindi = SquadStringsHindiDesc.contributionPaymentUpdatedByManager(contributionSelectedMemberName,contributionSelectedMonthYear)
                                             )
 
                                             squadViewModel.savePayments(
@@ -360,7 +361,7 @@ fun ManualEntryView(
                                                 userName = newPayment.memberName,
                                                 memberId = newPayment.memberId,
                                                 amount = squadLocal.monthlyContribution,
-                                                description = SquadStringsEnglishDesc.updatedContribution(contributionSelectedMemberName,contributionSelectedMonthYear,squad?.monthlyContribution?.currencyFormattedWithCommas().toString()), descriptionTamil = SquadStringsTamilDesc.updatedContribution(contributionSelectedMemberName,contributionSelectedMonthYear,squad?.monthlyContribution?.currencyFormattedWithCommas().toString()), descriptionHindi = ""
+                                                description = SquadStringsEnglishDesc.updatedContribution(contributionSelectedMemberName,contributionSelectedMonthYear,squad?.monthlyContribution?.currencyFormattedWithCommas().toString()), descriptionTamil = SquadStringsTamilDesc.updatedContribution(contributionSelectedMemberName,contributionSelectedMonthYear,squad?.monthlyContribution?.currencyFormattedWithCommas().toString()), descriptionHindi = SquadStringsHindiDesc.updatedContribution(contributionSelectedMemberName,contributionSelectedMonthYear,squad?.monthlyContribution?.currencyFormattedWithCommas().toString())
                                             ) { success, error ->
                                                 coroutineScope.launch(Dispatchers.Main) {
                                                     LoaderManager.shared.hideLoader()
@@ -543,7 +544,7 @@ fun ManualEntryView(
                                                     loanId = loanId,
                                                     installmentId = selectedInstallment?.id ?: "",
                                                     paymentSuccess = true,
-                                                    payoutSuccess = true, descriptionTamil = SquadStringsTamilDesc.emiPaymentUpdatedByManager(emiSelectedMemberName,selectedInstallment!!.installmentNumber,loanNumber), descriptionHindi = ""
+                                                    payoutSuccess = true, descriptionTamil = SquadStringsTamilDesc.emiPaymentUpdatedByManager(emiSelectedMemberName,selectedInstallment!!.installmentNumber,loanNumber), descriptionHindi = SquadStringsHindiDesc.emiPaymentUpdatedByManager(emiSelectedMemberName,selectedInstallment!!.installmentNumber,loanNumber)
                                                 )
 //
 
@@ -558,7 +559,7 @@ fun ManualEntryView(
                                                     userName = emiSelectedMemberName,
                                                     memberId = loanPayment.memberId,
                                                     amount = total,
-                                                    description = SquadStringsEnglishDesc.updatedEMIPayment(emiSelectedMemberName,selectedInstallment!!.installmentNumber,loanNumber,total.currencyFormattedWithCommas()), descriptionTamil = SquadStringsTamilDesc.updatedEMIPayment(emiSelectedMemberName,selectedInstallment!!.installmentNumber,loanNumber,total.currencyFormattedWithCommas()), descriptionHindi = ""
+                                                    description = SquadStringsEnglishDesc.updatedEMIPayment(emiSelectedMemberName,selectedInstallment!!.installmentNumber,loanNumber,total.currencyFormattedWithCommas()), descriptionTamil = SquadStringsTamilDesc.updatedEMIPayment(emiSelectedMemberName,selectedInstallment!!.installmentNumber,loanNumber,total.currencyFormattedWithCommas()), descriptionHindi = SquadStringsHindiDesc.updatedEMIPayment(emiSelectedMemberName,selectedInstallment!!.installmentNumber,loanNumber,total.currencyFormattedWithCommas())
                                                 ) { success, error ->
                                                     coroutineScope.launch(Dispatchers.Main) {
                                                         LoaderManager.shared.hideLoader()
@@ -746,7 +747,7 @@ fun ManualEntryView(
                                         payoutSuccess = true,
 
                                         transferReferenceId = selectedMemberOtherPayment?.description ?: "",
-                                        memberOtherPaymentId = selectedMemberOtherPayment?.id ?: ""
+                                        memberOtherPaymentId = selectedMemberOtherPayment?.id ?: "", descriptionTamil = "${selectedMemberOtherPayment?.descriptionTamil} -  ${selectedMemberOtherPayment?.amount?.currencyFormattedWithCommas()}", descriptionHindi = "${selectedMemberOtherPayment?.descriptionHindi} -  ${selectedMemberOtherPayment?.amount?.currencyFormattedWithCommas()}"
                                     )
 
                                     squadViewModel.savePayments(
@@ -763,7 +764,7 @@ fun ManualEntryView(
                                                 userName = selectedMemberOtherPayment?.memberName ?: "",
                                                 memberId = payment.memberId,
                                                 amount = selectedMemberOtherPayment?.amount ?: 0,
-                                                description = SquadStringsEnglishDesc.recordedPayment(amountInt?.currencyFormattedWithCommas().toString(),paymentNotes), descriptionTamil = SquadStringsTamilDesc.recordedPayment(amountInt?.currencyFormattedWithCommas().toString(),paymentNotes), descriptionHindi = ""
+                                                description = SquadStringsEnglishDesc.recordedPayment(amountInt?.currencyFormattedWithCommas().toString(),paymentNotes), descriptionTamil = SquadStringsTamilDesc.recordedPayment(amountInt?.currencyFormattedWithCommas().toString(),paymentNotes), descriptionHindi = SquadStringsHindiDesc.recordedPayment(amountInt?.currencyFormattedWithCommas().toString(),paymentNotes)
                                             ) { _, _ ->
 
                                                 CoroutineScope(Dispatchers.Main).launch {
@@ -1023,11 +1024,11 @@ fun ManualEntryView(
                                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                                 forceCloseSummary = summary,
                                 description = SquadStringsEnglishDesc.loanForceClosedByManager(loan.loanNumber,
-                                    emiSelectedMember?.name ?: ""
+                                    emiSelectedMember?.memberName ?: ""
                                 ) , descriptionTamil = SquadStringsTamilDesc.loanForceClosedByManager(loan.loanNumber,
-                                    emiSelectedMember?.name ?: ""
-                                ), descriptionHindi = ""
-                            )
+                                    emiSelectedMember?.memberName ?: ""
+                                ), descriptionHindi = SquadStringsHindiDesc.loanForceClosedByManager(loan.loanNumber,emiSelectedMember?.memberName ?: ""
+                            ))
                             { success, error ->
 
                                 val pending = loan.installments.filter {
@@ -1041,10 +1042,10 @@ fun ManualEntryView(
                                 val total = outstandingPrincipal + summary.recalculatedInterest
                                 squadViewModel.createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_CREDIT,
-                                    userName = emiSelectedMember?.name ?: "",
+                                    userName = emiSelectedMember?.memberName ?: "",
                                     memberId = loan.memberID,
                                     amount = total,
-                                    description = SquadStringsEnglishDesc.forceClosedLoanSettlement(loan.loanNumber,loan.memberName,total.currencyFormattedWithCommas()), descriptionTamil = SquadStringsTamilDesc.forceClosedLoanSettlement(loan.loanNumber,loan.memberName,total.currencyFormattedWithCommas()), descriptionHindi = ""
+                                    description = SquadStringsEnglishDesc.forceClosedLoanSettlement(loan.loanNumber,loan.memberName,total.currencyFormattedWithCommas()), descriptionTamil = SquadStringsTamilDesc.forceClosedLoanSettlement(loan.loanNumber,loan.memberName,total.currencyFormattedWithCommas()), descriptionHindi = SquadStringsHindiDesc.forceClosedLoanSettlement(loan.loanNumber,loan.memberName,total.currencyFormattedWithCommas())
                                 ) { success, error ->
                                     coroutineScope.launch(Dispatchers.Main) {
                                         LoaderManager.shared.hideLoader()
@@ -1155,7 +1156,7 @@ private fun handleOtherPayment(
             transferReferenceId = notes,
 
             recordStatus = RecordStatus.ACTIVE,
-            recordDate = Date().asTimestamp
+            recordDate = Date().asTimestamp, descriptionTamil = "$notes - ${amount.currencyFormattedWithCommas()} ", descriptionHindi = "$notes - ${amount.currencyFormattedWithCommas()} "
         )
 
         // 🔹 Save payment
@@ -1175,7 +1176,7 @@ private fun handleOtherPayment(
                     userName = "CHIT MANAGER",
                     memberId = newPayment.memberId,
                     amount = amount,
-                    description = SquadStringsEnglishDesc.recordedPayment(amount.currencyFormattedWithCommas(),notes), descriptionTamil = SquadStringsTamilDesc.recordedPayment(amount.currencyFormattedWithCommas(),notes), descriptionHindi = ""
+                    description = SquadStringsEnglishDesc.recordedPayment(amount.currencyFormattedWithCommas(),notes), descriptionTamil = SquadStringsTamilDesc.recordedPayment(amount.currencyFormattedWithCommas(),notes), descriptionHindi = SquadStringsHindiDesc.recordedPayment(amount.currencyFormattedWithCommas(),notes)
                 ) { success, error ->
                     action()
                 }
@@ -1260,7 +1261,7 @@ fun ManualMemberOtherPaymentRow(
             Column {
 
                 Text(
-                    payments.description,
+                    payments.localizedDescription,
                     style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                     color = AppColors.secondaryText
                 )

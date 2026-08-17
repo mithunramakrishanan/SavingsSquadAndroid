@@ -4,6 +4,8 @@ import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.RecordStatus
 
 import androidx.annotation.Keep
+import com.android.savingssquad.singleton.SquadLanguages
+import com.android.savingssquad.singleton.SquadStrings
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.PropertyName
 import java.util.Date
@@ -50,7 +52,19 @@ data class SquadActivity(
     @get:PropertyName("descriptionHindi") @set:PropertyName("descriptionHindi")
     var descriptionHindi: String = ""
 ) {
-    // 🔹 Required empty constructor for Firestore deserialization
+
+    val localizedDescription: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL -> descriptionTamil.ifEmpty { description }
+
+            SquadLanguages.HINDI -> descriptionHindi.ifEmpty { description }
+
+            SquadLanguages.ENGLISH -> description
+
+        }
+
     constructor() : this(
         id = null,
         squadID = "",

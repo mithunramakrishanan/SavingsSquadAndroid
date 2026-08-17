@@ -51,7 +51,11 @@ import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.RazorpayPaymentAction
 import com.android.savingssquad.singleton.SessionManager
+import com.android.savingssquad.singleton.SquadStringsEnglish
 import com.android.savingssquad.singleton.SquadStringsEnglishDesc
+import com.android.savingssquad.singleton.SquadStringsHindi
+import com.android.savingssquad.singleton.SquadStringsHindiDesc
+import com.android.savingssquad.singleton.SquadStringsTamil
 import com.android.savingssquad.singleton.SquadStringsTamilDesc
 import com.google.firebase.firestore.*
 import com.google.firebase.Timestamp
@@ -521,7 +525,7 @@ class SquadViewModel : ViewModel() {
 
                     setSquadMembers(fetchedMembers)
                     setSquadMembersCount(fetchedMembers.size)
-                    setSquadMemberNames(fetchedMembers.map { it.name })
+                    setSquadMemberNames(fetchedMembers.map { it.memberName })
 
                     currentMember.let { member ->
                         setCurrentMember( fetchedMembers.find { it.id == member.value?.id })
@@ -570,7 +574,7 @@ class SquadViewModel : ViewModel() {
         val login = Login(
             squadID = member.squadID,
             squadName = squad.value?.squadName ?: "",
-            squadUsername = member.name,
+            squadUsername = member.memberName,
             squadUserId = member.id ?: "",
             phoneNumber = member.phoneNumber,
             role = SquadUserType.SQUAD_MEMBER,
@@ -885,7 +889,7 @@ class SquadViewModel : ViewModel() {
 
         val newMember = Member(
             id = IDGenerator.generateMemberID(),
-            name = name,
+            memberName = name,
             profileImage = "",
             mailID = "",
             phoneNumber = phone,
@@ -951,7 +955,7 @@ class SquadViewModel : ViewModel() {
                         return@launch
                     }
 
-                    if (memberNames != null && memberNames.map { it.name }.contains(name)) {
+                    if (memberNames != null && memberNames.map { it.memberName }.contains(name)) {
                         if (showLoader) LoaderManager.shared.hideLoader()
                         AlertManager.shared.showAlert(
                             title = SquadStrings.savingsSquad,
@@ -1046,7 +1050,7 @@ class SquadViewModel : ViewModel() {
 
                             setSquadMembers(fetchedMembers)
                             setSquadMembersCount(fetchedMembers.size)
-                            setSquadMemberNames(fetchedMembers.map { it.name }.toMutableList())
+                            setSquadMemberNames(fetchedMembers.map { it.memberName }.toMutableList())
 
                             loginMember?.squadUsername?.let { username ->
                                 CommonFunctions.getMemberByName(username, fetchedMembers)?.let {
@@ -1091,7 +1095,7 @@ class SquadViewModel : ViewModel() {
         manager.createContributionWhenMemberCreate(
             squadID = squad.squadID,
             memberID = member.id ?: "",
-            memberName = member.name,
+            memberName = member.memberName,
             squadStart = squad.squadStartDate?.toDate() ?: Date(),
             squadEnd = squad.squadEndDate?.toDate() ?: Date(),
             amount = squad.monthlyContribution
@@ -1102,7 +1106,7 @@ class SquadViewModel : ViewModel() {
                     userName = "SQUAD MANAGER",
                     memberId = "",
                     amount = 0,
-                    description = SquadStringsEnglishDesc.addedNewMember(member.name), descriptionTamil = SquadStringsTamilDesc.addedNewMember(member.name), descriptionHindi = ""
+                    description = SquadStringsEnglishDesc.addedNewMember(member.memberName), descriptionTamil = SquadStringsTamilDesc.addedNewMember(member.memberName), descriptionHindi = SquadStringsHindiDesc.addedNewMember(member.memberName)
                 )
             } else {
                 handleFetchError(message ?: "Unknown error") {
@@ -2788,7 +2792,7 @@ class SquadViewModel : ViewModel() {
                     }
 
                     setSquadMembersCount(_squadMembers.value.size)
-                    setSquadMemberNames(_squadMembers.value.map { it.name })
+                    setSquadMemberNames(_squadMembers.value.map { it.memberName })
 
                     completion(true, null)
                 } else {
@@ -2907,7 +2911,10 @@ class SquadViewModel : ViewModel() {
                                             oldAmount = oldAmount.toString(),
                                             newAmount = amount.toString()
                                         ),
-                                    descriptionHindi = ""
+                                    descriptionHindi = SquadStringsHindiDesc.managerUpdatedMemberContribution(
+                                        oldAmount = oldAmount.toString(),
+                                        newAmount = amount.toString()
+                                    )
                                 ) { _, _ -> }
                             }
 
@@ -2932,7 +2939,10 @@ class SquadViewModel : ViewModel() {
                                             oldAmount = oldAmount.toString(),
                                             newAmount = amount.toString()
                                         ),
-                                    descriptionHindi = ""
+                                    descriptionHindi = SquadStringsHindiDesc.managerUpdatedMemberLoanBorrowed(
+                                        oldAmount = oldAmount.toString(),
+                                        newAmount = amount.toString()
+                                    )
                                 ) { _, _ -> }
                             }
 
@@ -2957,7 +2967,10 @@ class SquadViewModel : ViewModel() {
                                             oldAmount = oldAmount.toString(),
                                             newAmount = amount.toString()
                                         ),
-                                    descriptionHindi = ""
+                                    descriptionHindi = SquadStringsHindiDesc.managerUpdatedMemberLoanPaid(
+                                        oldAmount = oldAmount.toString(),
+                                        newAmount = amount.toString()
+                                    )
                                 ) { _, _ -> }
                             }
 
@@ -2982,7 +2995,10 @@ class SquadViewModel : ViewModel() {
                                             oldAmount = oldAmount.toString(),
                                             newAmount = amount.toString()
                                         ),
-                                    descriptionHindi = ""
+                                    descriptionHindi = SquadStringsHindiDesc.managerUpdatedMemberInterestPaid(
+                                        oldAmount = oldAmount.toString(),
+                                        newAmount = amount.toString()
+                                    )
                                 ) { _, _ -> }
                             }
 
@@ -4605,7 +4621,7 @@ class SquadViewModel : ViewModel() {
         val newLoan = CommonFunctions.generateMemberLoan(
             emiConfig = selectedLoan,
             memberID = selectedMember.id ?: "",
-            memberName = selectedMember.name
+            memberName = selectedMember.memberName
         )
 
         val isManual = entryType == PaymentEntryType.MANUAL_ENTRY
@@ -4617,7 +4633,7 @@ class SquadViewModel : ViewModel() {
             paymentUpdatedDate = Timestamp.now(),
             payoutUpdatedDate = if (isManual) Timestamp.now() else null,
             memberId = selectedMember.id ?: "",
-            memberName = selectedMember.name,
+            memberName = selectedMember.memberName,
             paymentPhone = selectedMember.phoneNumber,
             paymentEmail = selectedMember.mailID ?: "",
             userType = SquadUserType.SQUAD_MANAGER,
@@ -4647,7 +4663,7 @@ class SquadViewModel : ViewModel() {
             else
                 PaymentApproveStatus.REQUESTED,
 
-            description = SquadStrings.loanDisbursement,
+            description = SquadStringsEnglish.loanDisbursement,
             squadId = squad.value?.squadID ?: "",
             order_id = newLoan.id ?: "",
             contributionId = "",
@@ -4658,10 +4674,10 @@ class SquadViewModel : ViewModel() {
             else
                 "Pending member verification.",
 
-            transferReferenceId = "Loan disbursement to ${selectedMember.name}",
+            transferReferenceId = "Loan disbursement to ${selectedMember.memberName}",
             upiID = selectedMember.upiID,
             selectedEMIConfig = selectedLoan,
-            cashRequestId = cashRequestId
+            cashRequestId = cashRequestId, descriptionTamil = SquadStringsTamil.loanDisbursement, descriptionHindi = SquadStringsHindi.loanDisbursement
         )
 
         savePayments(
@@ -4716,7 +4732,7 @@ class SquadViewModel : ViewModel() {
             paymentUpdatedDate = Timestamp.now(),
 
             memberId = member?.id ?: "",
-            memberName = member?.name ?: "",
+            memberName = member?.memberName ?: "",
             paymentPhone = member?.phoneNumber ?: "",
             paymentEmail = member?.mailID ?: "",
 
@@ -4777,7 +4793,7 @@ class SquadViewModel : ViewModel() {
             paymentUpdatedDate = Timestamp.now(),
 
             memberId = member.id ?: "",
-            memberName = member.name,
+            memberName = member.memberName,
             paymentPhone = member.phoneNumber,
             paymentEmail = member.mailID ?: "",
 
@@ -4793,7 +4809,7 @@ class SquadViewModel : ViewModel() {
             paymentStatus = PaymentStatus.INVERIFICATION,
             paymentApproveStatus = PaymentApproveStatus.REQUESTED,
 
-            description = "Repaying ${payment.description}.",
+            description = "${SquadStringsEnglish.repayment} ${payment.description}.",
 
             squadId = squad?.squadID ?: "",
             order_id = payment.id ?: "",
@@ -4806,7 +4822,7 @@ class SquadViewModel : ViewModel() {
             transferReferenceId = "Repaying ${payment.description}.",
 
             upiID = squad?.upiID ?: "",
-            memberOtherPaymentId = payment.id ?: ""
+            memberOtherPaymentId = payment.id ?: "", descriptionTamil = "${SquadStringsTamil.repayment} ${payment.description}.", descriptionHindi = "${SquadStringsHindi.repayment} ${payment.description}."
         )
 
         savePayments(

@@ -1233,7 +1233,7 @@ class FirestoreManager private constructor() {
         for (member in members) {
             val memberID = member.id
             if (memberID == null) {
-                updateErrors.add("Member ID missing for ${member.name}")
+                updateErrors.add("Member ID missing for ${member.memberName}")
                 latch.countDown()
                 continue
             }
@@ -1246,14 +1246,14 @@ class FirestoreManager private constructor() {
             try {
                 memberRef.set(member, SetOptions.merge())
                     .addOnFailureListener { e ->
-                        updateErrors.add("Error updating ${member.name}: ${e.localizedMessage}")
+                        updateErrors.add("Error updating ${member.memberName}: ${e.localizedMessage}")
                         latch.countDown()
                     }
                     .addOnSuccessListener {
                         latch.countDown()
                     }
             } catch (e: Exception) {
-                updateErrors.add("Error encoding ${member.name}: ${e.localizedMessage}")
+                updateErrors.add("Error encoding ${member.memberName}: ${e.localizedMessage}")
                 latch.countDown()
             }
         }
@@ -1410,7 +1410,7 @@ class FirestoreManager private constructor() {
                                     id = IDGenerator.generateContributionID(memberID, month),
                                     orderId = "",
                                     memberID = memberID,
-                                    memberName = member.name,
+                                    memberName = member.memberName,
                                     monthYear = month,
                                     amount = amount.toIntOrNull() ?: 0,
                                     paidOn = null,
