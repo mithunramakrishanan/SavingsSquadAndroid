@@ -849,7 +849,10 @@ fun EMIListRow(
         CommonFunctions.generateMemberLoan(
             emiConfig = emi,
             memberID = "",
-            memberName = ""
+            memberName = "",
+            memberNameTamil = "",
+            memberNameEnglish = "",
+            memberNameHindi = ""
         )
     }
 

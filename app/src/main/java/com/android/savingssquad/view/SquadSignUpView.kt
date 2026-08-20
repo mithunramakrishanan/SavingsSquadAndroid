@@ -729,7 +729,10 @@ private fun saveSquadData(
                 id = IDGenerator.generatePaymentID(squadID),
                 paymentUpdatedDate = Date().asTimestamp,
                 memberId = "",
-                memberName = "SQUAD MANAGER",
+                memberName = SquadStringsEnglish.squadManager,
+                memberNameTamil = SquadStringsTamil.squadManager,
+                memberNameEnglish = SquadStringsEnglish.squadManager,
+                memberNameHindi = SquadStringsHindi.squadManager,
                 paymentPhone = squad.phoneNumber,
                 paymentEmail = squad.mailID,
 

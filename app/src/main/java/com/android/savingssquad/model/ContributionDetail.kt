@@ -32,6 +32,15 @@ data class ContributionDetail(
     @get:PropertyName("memberName") @set:PropertyName("memberName")
     var memberName: String = "", // Snapshot of name at the time of payment
 
+    @get:PropertyName("memberNameHindi") @set:PropertyName("memberNameHindi")
+    var memberNameHindi: String,
+
+    @get:PropertyName("memberNameTamil") @set:PropertyName("memberNameTamil")
+    var memberNameTamil: String,
+
+    @get:PropertyName("memberNameEnglish") @set:PropertyName("memberNameEnglish")
+    var memberNameEnglish: String,
+
     @get:PropertyName("monthYear") @set:PropertyName("monthYear")
     var monthYear: String = "", // Format: "MMM yyyy", e.g., "Mar 2025"
 
@@ -62,6 +71,9 @@ data class ContributionDetail(
         orderId = "",
         memberID = "",
         memberName = "",
+        memberNameHindi = "",
+        memberNameTamil = "",
+        memberNameEnglish = "",
         monthYear = "",
         amount = 0,
         paidOn = null,

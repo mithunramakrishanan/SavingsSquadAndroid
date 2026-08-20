@@ -1002,7 +1002,10 @@ private fun EMIRequestRow(
         CommonFunctions.generateMemberLoan(
             emiConfig = emi,
             memberID = "",
-            memberName = ""
+            memberName = "",
+            memberNameTamil = "",
+            memberNameEnglish = "",
+            memberNameHindi = ""
         )
     }
 

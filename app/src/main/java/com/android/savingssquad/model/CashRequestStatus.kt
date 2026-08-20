@@ -24,6 +24,9 @@ data class CashRequest(
     var id: String? = null,
 
     var requestedByName: String = "",
+    var memberNameHindi: String = "",
+    var memberNameTamil: String = "",
+    var memberNameEnglish: String = "",
     var requestedByID: String = "",
     var requestedByUPI: String = "",
     var requestedByPhone: String = "",
@@ -41,6 +44,9 @@ data class CashRequest(
     constructor() : this(
         id = null,
         requestedByName = "",
+        memberNameHindi = "",
+        memberNameTamil = "",
+        memberNameEnglish = "",
         requestedByID = "",
         requestedByUPI = "",
         requestedByPhone = "",

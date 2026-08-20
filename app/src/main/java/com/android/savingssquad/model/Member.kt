@@ -40,6 +40,15 @@ data class Member(
     @get:PropertyName("memberName") @set:PropertyName("memberName")
     var memberName: String = "",
 
+    @get:PropertyName("memberNameHindi") @set:PropertyName("memberNameHindi")
+    var memberNameHindi: String = "",
+
+    @get:PropertyName("memberNameTamil") @set:PropertyName("memberNameTamil")
+    var memberNameTamil: String = "",
+
+    @get:PropertyName("memberNameEnglish") @set:PropertyName("memberNameEnglish")
+    var memberNameEnglish: String = "",
+
     @get:PropertyName("profileImage") @set:PropertyName("profileImage")
     var profileImage: String = "",
 
@@ -108,6 +117,9 @@ data class Member(
     constructor() : this(
         id = null,
         memberName = "",
+        memberNameHindi = "",
+        memberNameTamil = "",
+        memberNameEnglish = "",
         profileImage = "",
         mailID = null,
         phoneNumber = "",
@@ -143,6 +155,12 @@ data class MemberOtherPayments(
     var description: String = "",
 
     var memberName: String = "",
+
+    var memberNameHindi: String,
+
+    var memberNameTamil: String,
+
+    var memberNameEnglish: String,
 
     var memberId: String = "",
 

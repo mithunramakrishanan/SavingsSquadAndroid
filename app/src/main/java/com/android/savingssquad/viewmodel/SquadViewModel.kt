@@ -1095,7 +1095,7 @@ class SquadViewModel : ViewModel() {
         manager.createContributionWhenMemberCreate(
             squadID = squad.squadID,
             memberID = member.id ?: "",
-            memberName = member.memberName,
+            member = member,
             squadStart = squad.squadStartDate?.toDate() ?: Date(),
             squadEnd = squad.squadEndDate?.toDate() ?: Date(),
             amount = squad.monthlyContribution
@@ -2004,7 +2004,10 @@ class SquadViewModel : ViewModel() {
                         val newLoan = CommonFunctions.generateMemberLoan(
                             emiConfig = emiConfig,
                             memberID = payment.memberId ?: "",
-                            memberName = payment.memberName
+                            memberName = payment.memberName,
+                            memberNameTamil = payment.memberNameTamil,
+                            memberNameEnglish = payment.memberNameEnglish,
+                            memberNameHindi = payment.memberNameHindi
                         )
 
                         newLoan.id = payment.loanId
@@ -2093,6 +2096,10 @@ class SquadViewModel : ViewModel() {
 
                                 memberName = payment.memberName,
 
+                                memberNameTamil = payment.memberNameTamil,
+                                memberNameEnglish = payment.memberNameEnglish,
+                                memberNameHindi = payment.memberNameHindi,
+
                                 memberId = payment.memberId,
 
                                 paidStatus = PaidStatus.NOT_PAID
@@ -2127,6 +2134,10 @@ class SquadViewModel : ViewModel() {
                         description = payment.description,
 
                         memberName = payment.memberName,
+
+                        memberNameTamil = payment.memberNameTamil,
+                        memberNameEnglish = payment.memberNameEnglish,
+                        memberNameHindi = payment.memberNameHindi,
 
                         memberId = payment.memberId,
 
@@ -2337,7 +2348,10 @@ class SquadViewModel : ViewModel() {
                         val newLoan = CommonFunctions.generateMemberLoan(
                             emiConfig = emiConfig,
                             memberID = payment.memberId ?: "",
-                            memberName = payment.memberName
+                            memberName = payment.memberName,
+                            memberNameTamil = payment.memberNameTamil,
+                            memberNameEnglish = payment.memberNameEnglish,
+                            memberNameHindi = payment.memberNameHindi
                         )
 
                         newLoan.id = payment.loanId
@@ -2452,6 +2466,9 @@ class SquadViewModel : ViewModel() {
                                 amount = payment.amount,
                                 description = payment.description,
                                 memberName = payment.memberName,
+                                memberNameTamil = payment.memberNameTamil,
+                                memberNameEnglish = payment.memberNameEnglish,
+                                memberNameHindi = payment.memberNameHindi,
                                 memberId = payment.memberId,
                                 paidStatus = PaidStatus.NOT_PAID
                             )
@@ -2483,6 +2500,9 @@ class SquadViewModel : ViewModel() {
                             amount = payment.amount,
                             description = payment.description,
                             memberName = payment.memberName,
+                            memberNameTamil = payment.memberNameTamil,
+                            memberNameEnglish = payment.memberNameEnglish,
+                            memberNameHindi = payment.memberNameHindi,
                             memberId = payment.memberId,
                             paidStatus = PaidStatus.NOT_PAID
                         )
@@ -4621,7 +4641,10 @@ class SquadViewModel : ViewModel() {
         val newLoan = CommonFunctions.generateMemberLoan(
             emiConfig = selectedLoan,
             memberID = selectedMember.id ?: "",
-            memberName = selectedMember.memberName
+            memberName = selectedMember.memberName,
+            memberNameTamil =selectedMember.memberNameTamil ?: "",
+            memberNameEnglish = selectedMember.memberNameEnglish ?: "",
+            memberNameHindi = selectedMember.memberNameHindi ?: "",
         )
 
         val isManual = entryType == PaymentEntryType.MANUAL_ENTRY
@@ -4634,6 +4657,9 @@ class SquadViewModel : ViewModel() {
             payoutUpdatedDate = if (isManual) Timestamp.now() else null,
             memberId = selectedMember.id ?: "",
             memberName = selectedMember.memberName,
+            memberNameTamil = selectedMember.memberNameTamil,
+            memberNameEnglish = selectedMember.memberNameEnglish,
+            memberNameHindi = selectedMember.memberNameHindi,
             paymentPhone = selectedMember.phoneNumber,
             paymentEmail = selectedMember.mailID ?: "",
             userType = SquadUserType.SQUAD_MANAGER,
@@ -4733,6 +4759,9 @@ class SquadViewModel : ViewModel() {
 
             memberId = member?.id ?: "",
             memberName = member?.memberName ?: "",
+            memberNameTamil =member?.memberNameTamil ?: "",
+            memberNameEnglish = member?.memberNameEnglish ?: "",
+            memberNameHindi = member?.memberNameHindi ?: "",
             paymentPhone = member?.phoneNumber ?: "",
             paymentEmail = member?.mailID ?: "",
 
@@ -4794,6 +4823,9 @@ class SquadViewModel : ViewModel() {
 
             memberId = member.id ?: "",
             memberName = member.memberName,
+            memberNameTamil = member.memberNameTamil,
+            memberNameEnglish = member.memberNameEnglish,
+            memberNameHindi = member.memberNameHindi,
             paymentPhone = member.phoneNumber,
             paymentEmail = member.mailID ?: "",
 

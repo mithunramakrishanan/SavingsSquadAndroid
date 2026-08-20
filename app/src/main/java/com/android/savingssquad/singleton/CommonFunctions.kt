@@ -200,7 +200,10 @@ object CommonFunctions {
     fun generateMemberLoan(
         emiConfig: EMIConfiguration,
         memberID: String,
-        memberName: String
+        memberName: String,
+        memberNameHindi: String,
+        memberNameEnglish: String,
+        memberNameTamil: String
     ): MemberLoan {
         val cal = Calendar.getInstance()
         val today = Date()
@@ -228,6 +231,9 @@ object CommonFunctions {
                     orderId = "",
                     memberID = memberID,
                     memberName = memberName,
+                    memberNameTamil = memberNameTamil,
+                    memberNameEnglish = memberNameEnglish,
+                    memberNameHindi = memberNameHindi,
                     installmentNumber = "$suffix Installment",
                     installmentAmount = principalSplits[i],
                     interestAmount = interestSplits[i],
@@ -244,6 +250,9 @@ object CommonFunctions {
             orderId = "",
             memberID = memberID,
             memberName = memberName,
+            memberNameTamil = memberNameTamil,
+            memberNameEnglish = memberNameEnglish,
+            memberNameHindi = memberNameHindi,
             loanNumber = loanNumber, // ✅ fixed
             loanAmount = emiConfig.loanAmount,
             loanMonth = emiConfig.emiMonths,

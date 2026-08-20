@@ -68,6 +68,7 @@ import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.singleton.SquadStringsEnglish
 import com.android.savingssquad.singleton.SquadStringsEnglishDesc
 import com.android.savingssquad.singleton.SquadStringsHindi
 import com.android.savingssquad.singleton.SquadStringsHindiDesc
@@ -555,6 +556,9 @@ fun ManagerPaymentView(
 
                                             memberId = selectedMember.id ?: "",
                                             memberName = selectedMember.memberName,
+                                            memberNameTamil = selectedMember.memberNameTamil,
+                                            memberNameEnglish = selectedMember.memberNameEnglish,
+                                            memberNameHindi = selectedMember.memberNameHindi,
                                             paymentPhone = selectedMember.phoneNumber,
                                             paymentEmail = selectedMember.mailID ?: "",
 
@@ -672,6 +676,9 @@ fun ManagerPaymentView(
 
                                             memberId = selectedMember.id ?: "",
                                             memberName = selectedMember.memberName,
+                                            memberNameTamil = selectedMember.memberNameTamil,
+                                            memberNameEnglish = selectedMember.memberNameEnglish,
+                                            memberNameHindi = selectedMember.memberNameHindi,
                                             paymentPhone = selectedMember.phoneNumber,
                                             paymentEmail = selectedMember.mailID ?: "",
 
@@ -919,7 +926,10 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
         payoutUpdatedDate = null,
 
         memberId = "",
-        memberName = "SQUAD MANAGER",
+        memberName = SquadStringsEnglish.squadManager,
+        memberNameTamil = SquadStringsTamil.squadManager,
+        memberNameEnglish = SquadStringsEnglish.squadManager,
+        memberNameHindi = SquadStringsHindi.squadManager,
         paymentPhone = "",
         paymentEmail = "",
 

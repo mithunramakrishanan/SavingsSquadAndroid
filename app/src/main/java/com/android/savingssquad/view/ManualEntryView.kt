@@ -78,7 +78,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.graphicsLayer
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.singleton.MemberPaymentSubType
+import com.android.savingssquad.singleton.SquadStringsEnglish
 import com.android.savingssquad.singleton.SquadStringsEnglishDesc
+import com.android.savingssquad.singleton.SquadStringsHindi
 import com.android.savingssquad.singleton.SquadStringsHindiDesc
 import com.android.savingssquad.singleton.SquadStringsTamil
 import com.android.savingssquad.singleton.SquadStringsTamilDesc
@@ -302,6 +304,9 @@ fun ManualEntryView(
                                     orderId = "",
                                     memberID = selectedMember.id ?: "",
                                     memberName = selectedMember.memberName,
+                                    memberNameEnglish = selectedMember.memberNameEnglish,
+                                    memberNameTamil = selectedMember.memberNameTamil,
+                                    memberNameHindi = selectedMember.memberNameHindi,
                                     monthYear = contributionSelectedMonthYear,
                                     amount = squadLocal.monthlyContribution,
                                     paidOn = Date().asTimestamp,
@@ -325,6 +330,9 @@ fun ManualEntryView(
                                                 paymentUpdatedDate = Date().asTimestamp,
                                                 memberId = selectedMember.id ?: "",
                                                 memberName = contributionSelectedMemberName,
+                                                memberNameTamil = selectedMember.memberNameTamil,
+                                                memberNameEnglish = selectedMember.memberNameEnglish,
+                                                memberNameHindi = selectedMember.memberNameHindi,
                                                 paymentPhone = selectedMember.phoneNumber,
                                                 paymentEmail = selectedMember.mailID ?: "",
                                                 userType = SquadUserType.SQUAD_MEMBER,
@@ -528,6 +536,10 @@ fun ManualEntryView(
                                                     paymentUpdatedDate = Date().asTimestamp,
                                                     memberId = emiSelectedMember?.id ?: "",
                                                     memberName = emiSelectedMemberName,
+                                                    memberNameTamil = emiSelectedMember?.memberNameTamil
+                                                        ?: "",
+                                                    memberNameEnglish = emiSelectedMember?.memberNameEnglish ?: "",
+                                                    memberNameHindi = emiSelectedMember?.memberNameHindi ?: "",
                                                     paymentPhone = emiSelectedMember?.phoneNumber ?: "",
                                                     paymentEmail = emiSelectedMember?.mailID ?: "",
                                                     userType = SquadUserType.SQUAD_MANAGER,
@@ -718,6 +730,12 @@ fun ManualEntryView(
 
                                         memberId = selectedMemberOtherPayment?.memberId ?: "",
                                         memberName = selectedMemberOtherPayment?.memberName ?: "",
+                                        memberNameTamil = selectedMemberOtherPayment?.memberNameTamil
+                                            ?: "",
+                                        memberNameEnglish = selectedMemberOtherPayment?.memberNameEnglish
+                                            ?: "",
+                                        memberNameHindi = selectedMemberOtherPayment?.memberNameHindi
+                                            ?: "",
                                         paymentPhone = "",
                                         paymentEmail = "",
 
@@ -1125,7 +1143,10 @@ private fun handleOtherPayment(
             payoutUpdatedDate = null,
 
             memberId = "",
-            memberName = "SQUAD MANAGER",
+            memberName = SquadStringsEnglish.squadManager,
+            memberNameTamil = SquadStringsTamil.squadManager,
+            memberNameEnglish = SquadStringsEnglish.squadManager,
+            memberNameHindi = SquadStringsHindi.squadManager,
             paymentPhone = "",
             paymentEmail = "",
 

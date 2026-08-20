@@ -33,6 +33,15 @@ data class MemberLoan(
     @get:PropertyName("memberName") @set:PropertyName("memberName")
     var memberName: String = "",
 
+    @get:PropertyName("memberNameHindi") @set:PropertyName("memberNameHindi")
+    var memberNameHindi: String,
+
+    @get:PropertyName("memberNameTamil") @set:PropertyName("memberNameTamil")
+    var memberNameTamil: String,
+
+    @get:PropertyName("memberNameEnglish") @set:PropertyName("memberNameEnglish")
+    var memberNameEnglish: String,
+
     @get:PropertyName("loanNumber") @set:PropertyName("loanNumber")
     var loanNumber: String = "",
 
@@ -91,6 +100,9 @@ data class MemberLoan(
         orderId = "",
         memberID = "",
         memberName = "",
+        memberNameHindi = "",
+        memberNameTamil = "",
+        memberNameEnglish = "",
         loanNumber = "",
         loanAmount = 0,
         loanMonth = 0,
@@ -167,6 +179,15 @@ data class Installment(
     @get:PropertyName("memberName") @set:PropertyName("memberName")
     var memberName: String = "",
 
+    @get:PropertyName("memberNameHindi") @set:PropertyName("memberNameHindi")
+    var memberNameHindi: String,
+
+    @get:PropertyName("memberNameTamil") @set:PropertyName("memberNameTamil")
+    var memberNameTamil: String,
+
+    @get:PropertyName("memberNameEnglish") @set:PropertyName("memberNameEnglish")
+    var memberNameEnglish: String,
+
     @get:PropertyName("installmentNumber") @set:PropertyName("installmentNumber")
     var installmentNumber: String = "",
 
@@ -199,6 +220,9 @@ data class Installment(
         orderId = "",
         memberID = "",
         memberName = "",
+        memberNameHindi = "",
+        memberNameEnglish = "",
+        memberNameTamil = "",
         installmentNumber = "",
         installmentAmount = 0,
         interestAmount = 0,
@@ -215,6 +239,9 @@ data class Installment(
         "orderId" to orderId,
         "memberID" to memberID,
         "memberName" to memberName,
+        "memberNameHindi" to memberNameHindi,
+        "memberNameEnglish" to memberNameEnglish,
+        "memberNameTamil" to memberNameTamil,
         "installmentNumber" to installmentNumber,
         "installmentAmount" to installmentAmount,
         "interestAmount" to interestAmount,

@@ -121,6 +121,15 @@ data class PaymentsDetails(
     @get:PropertyName("memberName") @set:PropertyName("memberName")
     var memberName: String = "",
 
+    @get:PropertyName("memberNameHindi") @set:PropertyName("memberNameHindi")
+    var memberNameHindi: String,
+
+    @get:PropertyName("memberNameTamil") @set:PropertyName("memberNameTamil")
+    var memberNameTamil: String,
+
+    @get:PropertyName("memberNameEnglish") @set:PropertyName("memberNameEnglish")
+    var memberNameEnglish: String,
+
     @get:PropertyName("paymentPhone") @set:PropertyName("paymentPhone")
     var paymentPhone: String = "",
 
@@ -250,6 +259,9 @@ data class PaymentsDetails(
         payoutUpdatedDate = null,
         memberId = "",
         memberName = "",
+        memberNameHindi = "",
+        memberNameEnglish =  "",
+        memberNameTamil = "",
         paymentPhone = "",
         paymentEmail = "",
         userType = SquadUserType.SQUAD_MEMBER,
@@ -292,6 +304,9 @@ data class PaymentsDetails(
         "payoutUpdatedDate" to payoutUpdatedDate,
         "memberId" to memberId,
         "memberName" to memberName,
+        "memberNameHindi" to memberNameHindi,
+        "memberNameEnglish" to memberNameEnglish,
+        "memberNameTamil" to memberNameTamil,
         "paymentPhone" to paymentPhone,
         "paymentEmail" to paymentEmail,
         "userType" to userType.name,
