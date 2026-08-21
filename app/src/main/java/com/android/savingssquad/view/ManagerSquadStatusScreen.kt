@@ -189,7 +189,7 @@ fun LoginRow(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = login.squadName.first().uppercase(),
+                    text = login.localizedSquadName.first().uppercase(),
                     color = Color(0xFF1A9988),
                     fontWeight = FontWeight.Bold
                 )
@@ -200,7 +200,7 @@ fun LoginRow(
             Column(modifier = Modifier.weight(1f)) {
 
                 Text(
-                    text = login.squadName,
+                    text = login.localizedSquadName,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -248,7 +248,7 @@ fun applyStatus(
         if (success) {
 
             ToastManager.show(
-                message = "${login.squadName} is now ${newStatus.localizedName}",
+                message = "${login.localizedSquadName} is now ${newStatus.localizedName}",
                 type = if (newStatus == RecordStatus.INACTIVE) {
                     ToastType.ERROR
                 } else {
@@ -280,7 +280,7 @@ fun handleStatusSelection(
         // show dialog (Compose AlertDialog or custom bottom sheet)
         AlertManager.shared.showAlert(
             title = SquadStrings.deactivateSquad,
-            message = SquadStrings.deactivateSquadMessage(login.squadName),
+            message = SquadStrings.deactivateSquadMessage(login.localizedSquadName),
             type = AlertType.ERROR,
             primaryButtonTitle = SquadStrings.deactivate,
             primaryAction = {

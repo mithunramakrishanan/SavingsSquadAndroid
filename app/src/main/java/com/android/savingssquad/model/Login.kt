@@ -22,6 +22,15 @@ data class Login(
     @get:PropertyName("squadName") @set:PropertyName("squadName")
     var squadName: String = "",
 
+    @get:PropertyName("squadNameHindi") @set:PropertyName("squadNameHindi")
+    var squadNameHindi: String = "",
+
+    @get:PropertyName("squadNameTamil") @set:PropertyName("squadNameTamil")
+    var squadNameTamil: String = "",
+
+    @get:PropertyName("squadNameEnglish") @set:PropertyName("squadNameEnglish")
+    var squadNameEnglish: String = "",
+
     @get:PropertyName("memberName") @set:PropertyName("memberName")
     var memberName: String = "", // User who performed the activity
 
@@ -60,6 +69,9 @@ data class Login(
         id = null,
         squadID = "",
         squadName = "",
+        squadNameHindi = "",
+        squadNameTamil = "",
+        squadNameEnglish = "",
         memberName = "",
         memberNameHindi = "",
         memberNameTamil = "",
@@ -88,6 +100,24 @@ data class Login(
             SquadLanguages.ENGLISH ->
 
                 memberNameEnglish
+
+        }
+
+    val localizedSquadName: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL ->
+
+                squadNameTamil.ifEmpty { squadName }
+
+            SquadLanguages.HINDI ->
+
+                squadNameHindi.ifEmpty { squadName }
+
+            SquadLanguages.ENGLISH ->
+
+                squadNameEnglish
 
         }
 }

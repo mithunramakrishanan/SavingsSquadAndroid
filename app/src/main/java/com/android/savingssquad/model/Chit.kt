@@ -1,6 +1,8 @@
 package com.android.savingssquad.model
 import androidx.annotation.Keep
 import com.android.savingssquad.singleton.RecordStatus
+import com.android.savingssquad.singleton.SquadLanguages
+import com.android.savingssquad.singleton.SquadStrings
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.PropertyName
 import java.util.Date
@@ -17,6 +19,15 @@ data class Squad(
 
     @get:PropertyName("squadName") @set:PropertyName("squadName")
     var squadName: String = "",
+
+    @get:PropertyName("squadNameHindi") @set:PropertyName("squadNameHindi")
+    var squadNameHindi: String = "",
+
+    @get:PropertyName("squadNameTamil") @set:PropertyName("squadNameTamil")
+    var squadNameTamil: String = "",
+
+    @get:PropertyName("squadNameEnglish") @set:PropertyName("squadNameEnglish")
+    var squadNameEnglish: String = "",
 
     // 🔹 Manager / Creator Details
     @get:PropertyName("mailID") @set:PropertyName("mailID")
@@ -141,6 +152,9 @@ data class Squad(
         id = java.util.UUID.randomUUID().toString(),
         squadID = "",
         squadName = "",
+        squadNameHindi = "",
+        squadNameTamil = "",
+        squadNameEnglish = "",
         mailID = "",
         countryCode = "",
         phoneNumber = "",
@@ -179,4 +193,22 @@ data class Squad(
         lastActiveDate = null,
         cashRequestedCount = 0
     )
+
+    val localizedSquadName: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL ->
+
+                squadNameTamil.ifEmpty { squadName }
+
+            SquadLanguages.HINDI ->
+
+                squadNameHindi.ifEmpty { squadName }
+
+            SquadLanguages.ENGLISH ->
+
+                squadNameEnglish
+
+        }
 }

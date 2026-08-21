@@ -124,7 +124,7 @@ fun MemberHomeView(
                 item {
 
                     SSNavigationBar(
-                        title = "Hi, ${squadViewModel.selectedUser.collectAsState().value?.localizedMemberName ?: ""}",
+                        title = "${SquadStrings.hi}, ${squadViewModel.selectedUser.collectAsState().value?.localizedMemberName ?: ""}",
                         navController = navController,
                         showBackButton = false,
                         rightButtonDrawable =
@@ -233,7 +233,7 @@ fun MemberHomeView(
                             squad?.let { currentSquad ->
 
                                 SquadNameView(
-                                    squadName = currentSquad.squadName
+                                    squadName = currentSquad.localizedSquadName
                                 )
                             }
 

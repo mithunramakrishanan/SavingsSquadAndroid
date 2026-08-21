@@ -444,6 +444,9 @@ class FirestoreManager private constructor() {
                     val newLogin = Login(
                         squadID = login.squadID,
                         squadName = login.squadName,
+                        squadNameHindi = login.squadNameHindi,
+                        squadNameTamil = login.squadNameTamil,
+                        squadNameEnglish = login.squadNameEnglish,
                         memberName = login.memberName,
                         memberNameTamil = login.memberNameTamil,
                         memberNameEnglish = login.memberNameEnglish,

@@ -191,7 +191,7 @@ fun ManagerHomeView(
             {
                 // 🔹 Top Navigation Bar
                 SSNavigationBar(
-                    title = "Hi, ${squad!!.squadName}",
+                    title = "${SquadStrings.hi}, ${squad!!.localizedSquadName}",
                     navController = navController,
                     showBackButton = false,
                     rightButtonDrawable = if (UserDefaultsManager.getIsMultipleAccount())

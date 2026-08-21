@@ -577,6 +577,9 @@ class SquadViewModel : ViewModel() {
         val login = Login(
             squadID = member.squadID,
             squadName = squad.value?.squadName ?: "",
+            squadNameHindi = squad.value?.squadNameHindi ?: "",
+            squadNameTamil = squad.value?.squadNameTamil ?: "",
+            squadNameEnglish = squad.value?.squadNameEnglish ?: "",
             memberName = member.memberName,
             memberNameTamil = member.memberNameTamil,
             memberNameHindi = member.memberNameHindi,

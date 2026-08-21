@@ -1283,7 +1283,7 @@ fun UserSelectionCard(
             ) {
 
                 Text(
-                    text = user.squadName ?: "",
+                    text = user.localizedSquadName ?: "",
                     style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
                     color = AppColors.headerText
                 )

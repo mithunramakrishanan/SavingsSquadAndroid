@@ -120,7 +120,7 @@ fun BankDetailsView(
             currentMember?.memberName ?: ""
         }
         else {
-            squad?.squadName ?: ""
+            squad?.localizedSquadName ?: ""
         }
     }
 
