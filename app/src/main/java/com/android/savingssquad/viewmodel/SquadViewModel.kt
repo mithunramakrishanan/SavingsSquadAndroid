@@ -390,7 +390,10 @@ class SquadViewModel : ViewModel() {
             val defaultLogin = Login(
                 squadID = "",
                 squadName = "",
-                squadUsername = "",
+                memberName = "",
+                memberNameEnglish = "",
+                memberNameHindi = "",
+                memberNameTamil = "",
                 squadUserId = "",
                 phoneNumber = "",
                 role = SquadUserType.SQUAD_MANAGER,
@@ -525,7 +528,7 @@ class SquadViewModel : ViewModel() {
 
                     setSquadMembers(fetchedMembers)
                     setSquadMembersCount(fetchedMembers.size)
-                    setSquadMemberNames(fetchedMembers.map { it.memberName })
+                    setSquadMemberNames(fetchedMembers.map { it.localizedMemberName })
 
                     currentMember.let { member ->
                         setCurrentMember( fetchedMembers.find { it.id == member.value?.id })
@@ -535,7 +538,7 @@ class SquadViewModel : ViewModel() {
                         }
                     }
 
-                    loginMember?.squadUsername?.let { username ->
+                    loginMember?.localizedMemberName?.let { username ->
 
                         val member = CommonFunctions.getMemberByName(
                             username,
@@ -574,7 +577,10 @@ class SquadViewModel : ViewModel() {
         val login = Login(
             squadID = member.squadID,
             squadName = squad.value?.squadName ?: "",
-            squadUsername = member.memberName,
+            memberName = member.memberName,
+            memberNameTamil = member.memberNameTamil,
+            memberNameHindi = member.memberNameHindi,
+            memberNameEnglish = member.memberNameEnglish,
             squadUserId = member.id ?: "",
             phoneNumber = member.phoneNumber,
             role = SquadUserType.SQUAD_MEMBER,
@@ -955,7 +961,7 @@ class SquadViewModel : ViewModel() {
                         return@launch
                     }
 
-                    if (memberNames != null && memberNames.map { it.memberName }.contains(name)) {
+                    if (memberNames != null && memberNames.map { it.localizedMemberName }.contains(name)) {
                         if (showLoader) LoaderManager.shared.hideLoader()
                         AlertManager.shared.showAlert(
                             title = SquadStrings.savingsSquad,
@@ -1050,9 +1056,9 @@ class SquadViewModel : ViewModel() {
 
                             setSquadMembers(fetchedMembers)
                             setSquadMembersCount(fetchedMembers.size)
-                            setSquadMemberNames(fetchedMembers.map { it.memberName }.toMutableList())
+                            setSquadMemberNames(fetchedMembers.map { it.localizedMemberName }.toMutableList())
 
-                            loginMember?.squadUsername?.let { username ->
+                            loginMember?.localizedMemberName?.let { username ->
                                 CommonFunctions.getMemberByName(username, fetchedMembers)?.let {
                                     setMemberDetail(it)
 
@@ -1103,10 +1109,13 @@ class SquadViewModel : ViewModel() {
             if (success) {
                 createSquadActivity(
                     activityType = SquadActivityType.OTHER_ACTIVITY,
-                    userName = "SQUAD MANAGER",
+                    memberName = SquadStrings.squadManager,
+                    memberNameHindi = SquadStringsHindi.squadManager,
+                    memberNameTamil = SquadStringsTamil.squadManager,
+                    memberNameEnglish = SquadStringsEnglish.squadManager,
                     memberId = "",
                     amount = 0,
-                    description = SquadStringsEnglishDesc.addedNewMember(member.memberName), descriptionTamil = SquadStringsTamilDesc.addedNewMember(member.memberName), descriptionHindi = SquadStringsHindiDesc.addedNewMember(member.memberName)
+                    description = SquadStringsEnglishDesc.addedNewMember(member.memberNameEnglish), descriptionTamil = SquadStringsTamilDesc.addedNewMember(member.memberNameTamil), descriptionHindi = SquadStringsHindiDesc.addedNewMember(member.memberNameHindi)
                 )
             } else {
                 handleFetchError(message ?: "Unknown error") {
@@ -2918,7 +2927,10 @@ class SquadViewModel : ViewModel() {
 
                                 createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_EDIT,
-                                    userName = "SQUAD MANAGER",
+                                    memberName = SquadStrings.squadManager,
+                                    memberNameHindi = SquadStringsHindi.squadManager,
+                                    memberNameTamil = SquadStringsTamil.squadManager,
+                                    memberNameEnglish = SquadStringsEnglish.squadManager,
                                     memberId = memberID,
                                     amount = amount,
                                     description =
@@ -2946,7 +2958,10 @@ class SquadViewModel : ViewModel() {
 
                                 createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_EDIT,
-                                    userName = "SQUAD MANAGER",
+                                    memberName = SquadStrings.squadManager,
+                                    memberNameHindi = SquadStringsHindi.squadManager,
+                                    memberNameTamil = SquadStringsTamil.squadManager,
+                                    memberNameEnglish = SquadStringsEnglish.squadManager,
                                     memberId = memberID,
                                     amount = amount,
                                     description =
@@ -2974,7 +2989,10 @@ class SquadViewModel : ViewModel() {
 
                                 createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_EDIT,
-                                    userName = "SQUAD MANAGER",
+                                    memberName = SquadStrings.squadManager,
+                                    memberNameHindi = SquadStringsHindi.squadManager,
+                                    memberNameTamil = SquadStringsTamil.squadManager,
+                                    memberNameEnglish = SquadStringsEnglish.squadManager,
                                     memberId = memberID,
                                     amount = amount,
                                     description =
@@ -3002,7 +3020,10 @@ class SquadViewModel : ViewModel() {
 
                                 createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_EDIT,
-                                    userName = "SQUAD MANAGER",
+                                    memberName = SquadStrings.squadManager,
+                                    memberNameHindi = SquadStringsHindi.squadManager,
+                                    memberNameTamil = SquadStringsTamil.squadManager,
+                                    memberNameEnglish = SquadStringsEnglish.squadManager,
                                     memberId = memberID,
                                     amount = amount,
                                     description =
@@ -3873,7 +3894,10 @@ class SquadViewModel : ViewModel() {
 
     fun createSquadActivity(
         activityType: SquadActivityType,
-        userName: String,
+        memberName: String,
+        memberNameHindi: String,
+        memberNameTamil: String,
+        memberNameEnglish:String,
         memberId: String,
         amount: Int,
         description: String,
@@ -3893,9 +3917,14 @@ class SquadViewModel : ViewModel() {
             memberId = memberId,
             date = Timestamp.now(),
             activityType = activityType,
-            userName = userName,
+            memberName = memberName,
+            memberNameEnglish = memberNameEnglish,
+            memberNameHindi = memberNameHindi,
+            memberNameTamil = memberNameTamil,
             amount = amount,
-            description = description
+            description = description,
+            descriptionHindi = descriptionHindi,
+            descriptionTamil = descriptionTamil
         )
 
         addSquadActivity(false, activity) { success, error ->
@@ -4700,7 +4729,7 @@ class SquadViewModel : ViewModel() {
             else
                 "Pending member verification.",
 
-            transferReferenceId = "Loan disbursement to ${selectedMember.memberName}",
+            transferReferenceId = "",
             upiID = selectedMember.upiID,
             selectedEMIConfig = selectedLoan,
             cashRequestId = cashRequestId, descriptionTamil = SquadStringsTamil.loanDisbursement, descriptionHindi = SquadStringsHindi.loanDisbursement
@@ -4786,7 +4815,7 @@ class SquadViewModel : ViewModel() {
             installmentId = "",
 
             paymentResponseMessage = "Pending admin verification.",
-            transferReferenceId = loanNumber,
+            transferReferenceId = "",
             upiID = squad.value?.upiID ?: "",
 
             isLoanForceClosed = true,
@@ -4851,7 +4880,7 @@ class SquadViewModel : ViewModel() {
             installmentId = "",
 
             paymentResponseMessage = "Pending admin verification.",
-            transferReferenceId = "Repaying ${payment.description}.",
+            transferReferenceId = "",
 
             upiID = squad?.upiID ?: "",
             memberOtherPaymentId = payment.id ?: "", descriptionTamil = "${SquadStringsTamil.repayment} ${payment.description}.", descriptionHindi = "${SquadStringsHindi.repayment} ${payment.description}."

@@ -129,7 +129,7 @@ fun PaymentRow(
             )
 
             Text(
-                text = payment.transferReferenceId,
+                text = payment.localizedDescription,
                 style = AppFont.ibmPlexSans(size = 11, weight = FontWeight.Normal),
                 color = AppColors.secondaryText,
                 maxLines = 2,
@@ -344,7 +344,7 @@ fun PaymentDetailSheet(
                 DetailRow(
                     icon = Icons.Default.SwapHoriz,
                     title = "Reference",
-                    value = payment.transferReferenceId,
+                    value = payment.localizedDescription,
                     monospaced = true
                 )
 

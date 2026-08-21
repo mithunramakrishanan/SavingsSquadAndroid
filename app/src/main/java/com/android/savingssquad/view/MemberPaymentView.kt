@@ -157,7 +157,7 @@ fun MemberPaymentView(
                         } else {
                             availableContributionMonths = emptyList()
 
-                            ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.noOutstandingDues(currentMember?.memberName ?: ""), type = ToastType.SUCCESS)
+                            ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.noOutstandingDues(currentMember?.localizedMemberName ?: ""), type = ToastType.SUCCESS)
 
                         }
                     }
@@ -257,7 +257,7 @@ fun MemberPaymentView(
                                 } else {
                                     availableContributionMonths = emptyList()
 
-                                    ToastManager.show(title = SquadStrings.savingsSquad, message =  SquadStrings.noOutstandingDues(currentMember?.memberName ?: ""), type = ToastType.SUCCESS)
+                                    ToastManager.show(title = SquadStrings.savingsSquad, message =  SquadStrings.noOutstandingDues(currentMember?.localizedMemberName ?: ""), type = ToastType.SUCCESS)
 
                                 }
                             }
@@ -311,7 +311,7 @@ fun MemberPaymentView(
                                     loanId = "",
                                     installmentId = "",
                                     paymentResponseMessage = "Pending admin verification.",
-                                    transferReferenceId = contributionID.split("-").lastOrNull() ?: "",
+                                    transferReferenceId = "",
                                     upiID = gf.upiID, descriptionTamil = SquadStringsTamilDesc.contributionFor(contributionSelectedMonthYear), descriptionHindi = SquadStringsHindiDesc.contributionFor(contributionSelectedMonthYear)
                                 )
 
@@ -444,7 +444,7 @@ fun MemberPaymentView(
                                     loanId = loanId,
                                     installmentId = installId,
                                     paymentResponseMessage = "Pending admin verification.",
-                                    transferReferenceId = "${selectedInstallment?.installmentNumber ?: ""} for #${loan?.loanNumber ?: "N/A"}",
+                                    transferReferenceId = "",
                                     upiID = squad!!.upiID, descriptionTamil = SquadStringsTamilDesc.emiAndInterest(selectedInstallment?.installmentNumber ?: "",loan?.loanNumber ?: "N/A",total.currencyFormattedWithCommas()), descriptionHindi = SquadStringsHindiDesc.emiAndInterest(selectedInstallment?.installmentNumber ?: "",loan?.loanNumber ?: "N/A",total.currencyFormattedWithCommas())
                                 )
 
@@ -536,7 +536,7 @@ fun MemberPaymentView(
                                 )
 
                                 Text(
-                                    text = SquadStrings.noPendingPaymentsDescription(currentMember?.memberName
+                                    text = SquadStrings.noPendingPaymentsDescription(currentMember?.localizedMemberName
                                         ?: ""),
                                     style = AppFont.ibmPlexSans(14),
                                     color = AppColors.secondaryText,
@@ -686,7 +686,7 @@ private fun ContributionSection(
             // Member (disabled)
             SSTextField(
                 icon = Icons.Default.Person,
-                placeholder = currentMember?.memberName ?: "",
+                placeholder = currentMember?.localizedMemberName ?: "",
                 textState = remember { mutableStateOf("") }, // blank because it's disabled
                 keyboardType = KeyboardType.Text,
                 disabled = true
@@ -785,7 +785,7 @@ private fun EMISection(
         Column(verticalArrangement = Arrangement.spacedBy(15.dp)) {
             SSTextField(
                 icon = Icons.Default.Person,
-                placeholder = currentMember?.memberName ?: SquadStrings.member,
+                placeholder = currentMember?.localizedMemberName ?: SquadStrings.member,
                 textState = remember { mutableStateOf("") },
                 keyboardType = KeyboardType.Text,
                 disabled = true
@@ -874,7 +874,7 @@ private fun EMISection(
                         )
 
                         Text(
-                            text = SquadStrings.noPendingPaymentsDescription(currentMember?.memberName ?: ""),
+                            text = SquadStrings.noPendingPaymentsDescription(currentMember?.localizedMemberName ?: ""),
                             style = AppFont.ibmPlexSans(14),
                             color = AppColors.secondaryText,
                             textAlign = TextAlign.Center

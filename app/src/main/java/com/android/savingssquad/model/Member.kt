@@ -113,6 +113,25 @@ data class Member(
     var cashRequested: Boolean? = null,
 
 ) {
+
+    val localizedMemberName: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL ->
+
+                memberNameTamil.ifEmpty { memberName }
+
+            SquadLanguages.HINDI ->
+
+                memberNameHindi.ifEmpty { memberName }
+
+            SquadLanguages.ENGLISH ->
+
+                memberNameEnglish
+
+        }
+
     // 🔹 Firestore needs a no-arg constructor
     constructor() : this(
         id = null,
@@ -177,6 +196,26 @@ data class MemberOtherPayments(
     var descriptionHindi: String = ""
 
 ) {
+
+
+    val localizedMemberName: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL ->
+
+                memberNameTamil.ifEmpty { memberName }
+
+            SquadLanguages.HINDI ->
+
+                memberNameHindi.ifEmpty { memberName }
+
+            SquadLanguages.ENGLISH ->
+
+                memberNameEnglish
+
+        }
+
     val localizedDescription: String
 
         get() = when (SquadStrings.currentLanguage) {

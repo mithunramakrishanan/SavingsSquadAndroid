@@ -121,7 +121,7 @@ fun PaymentApprovalView(
     val pendingPayments by squadViewModel.pendingApprovalPayments.collectAsStateWithLifecycle()
 
     val userList = remember(squadMembers) {
-        listOf(SquadStrings.all) + squadMembers.map { it.memberName }.distinct()
+        listOf(SquadStrings.all) + squadMembers.map { it.localizedMemberName }.distinct()
     }
 
     // ❌ NO FILTERING HERE (Firestore already does it)
@@ -137,7 +137,7 @@ fun PaymentApprovalView(
             val memberId = if (selectedUser == SquadStrings.all) {
                 null
             } else {
-                squadViewModel.squadMembers.value.firstOrNull { it.memberName == selectedUser }?.id
+                squadViewModel.squadMembers.value.firstOrNull { it.localizedMemberName == selectedUser }?.id
             }
 
             squadViewModel.fetchPendingApprovalPayments(
@@ -223,7 +223,7 @@ fun PaymentApprovalView(
                         selectedUser = selected
 
                         val memberId = if (selected == SquadStrings.all) null else {
-                            squadMembers.firstOrNull { m -> m.memberName == selected }?.id
+                            squadMembers.firstOrNull { m -> m.localizedMemberName == selected }?.id
                         }
 
                         squadViewModel.fetchPendingApprovalPayments(
@@ -413,7 +413,7 @@ fun PaymentApprovalRow(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = initials(approval.memberName),
+                    text = initials(approval.localizedMemberName),
                     style = AppFont.ibmPlexSans(15, FontWeight.Bold),
                     color = Color.White
                 )
@@ -424,7 +424,7 @@ fun PaymentApprovalRow(
             Column(modifier = Modifier.weight(1f)) {
 
                 Text(
-                    text = approval.memberName,
+                    text = approval.localizedMemberName,
                     style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
                     color = AppColors.headerText
                 )

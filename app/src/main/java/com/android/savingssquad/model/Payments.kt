@@ -235,6 +235,25 @@ data class PaymentsDetails(
 )
 {
 
+    val localizedMemberName: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL ->
+
+                memberNameTamil.ifEmpty { memberName }
+
+            SquadLanguages.HINDI ->
+
+                memberNameHindi.ifEmpty { memberName }
+
+            SquadLanguages.ENGLISH ->
+
+                memberNameEnglish
+
+        }
+
+
     val localizedDescription: String
 
         get() = when (SquadStrings.currentLanguage) {

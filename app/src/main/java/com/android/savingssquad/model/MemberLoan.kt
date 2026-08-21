@@ -3,6 +3,7 @@ package com.android.savingssquad.model
 import androidx.annotation.Keep
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.RecordStatus
+import com.android.savingssquad.singleton.SquadLanguages
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.orNow
 
@@ -92,9 +93,25 @@ data class MemberLoan(
     @get:PropertyName("forceCloseSummary") @set:PropertyName("forceCloseSummary")
     var forceCloseSummary: ForceCloseSummary
 
-
-
 ) {
+    val localizedMemberName: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL ->
+
+                memberNameTamil.ifEmpty { memberName }
+
+            SquadLanguages.HINDI ->
+
+                memberNameHindi.ifEmpty { memberName }
+
+            SquadLanguages.ENGLISH ->
+
+                memberNameEnglish
+
+        }
+
     constructor() : this(
         id = null,
         orderId = "",
@@ -215,6 +232,26 @@ data class Installment(
     @get:PropertyName("recordDate") @set:PropertyName("recordDate")
     var recordDate: Timestamp? = Timestamp.now()
 ) {
+
+
+    val localizedMemberName: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL ->
+
+                memberNameTamil.ifEmpty { memberName }
+
+            SquadLanguages.HINDI ->
+
+                memberNameHindi.ifEmpty { memberName }
+
+            SquadLanguages.ENGLISH ->
+
+                memberNameEnglish
+
+        }
+
     constructor() : this(
         id = null,
         orderId = "",

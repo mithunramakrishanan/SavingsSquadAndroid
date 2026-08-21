@@ -1779,7 +1779,7 @@ fun AddMemberPopup(
             val cleanedName = CommonFunctions.cleanUpName(newValue)
 
             val exists = squadMembers
-                .map { it.memberName.trim().lowercase() }
+                .map { it.localizedMemberName.trim().lowercase() }
                 .contains(cleanedName.trim().lowercase())
 
             if (exists) {

@@ -708,8 +708,11 @@ private fun saveSquadData(
         val login = Login(
             squadID = squadID,
             squadName = squadName,
-            squadUsername = "",
-            squadUserId = "Manager",
+            memberName = SquadStrings.squadManager,
+            memberNameTamil = "",
+            memberNameEnglish = "",
+            memberNameHindi = "",
+            squadUserId = SquadStrings.squadManager,
             phoneNumber = phoneNumber,
             role = SquadUserType.SQUAD_MANAGER,
             squadCreatedDate = squadStartDate.asTimestamp,
@@ -784,7 +787,10 @@ private fun saveSquadData(
 
         squadViewModel.createSquadActivity(
             activityType = SquadActivityType.AMOUNT_CREDIT,
-            userName = "SQUAD MANAGER",
+            memberName = SquadStrings.squadManager,
+            memberNameHindi = SquadStringsHindi.squadManager,
+            memberNameTamil = SquadStringsTamil.squadManager,
+            memberNameEnglish = SquadStringsEnglish.squadManager,
             memberId = "",
             amount = startAmountInt,
             description = SquadStringsEnglishDesc.startedSquadWithAmountOf,

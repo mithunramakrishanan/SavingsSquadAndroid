@@ -112,7 +112,7 @@ fun LoanListView(
 
         selectedUser = if (screenType == SquadUserType.SQUAD_MEMBER) {
 
-            squadViewModel.currentMember.value?.memberName ?: ""
+            squadViewModel.currentMember.value?.localizedMemberName ?: ""
 
         } else {
 
@@ -428,7 +428,7 @@ fun LoanSummaryCard(loan: MemberLoan, onClick: () -> Unit) {
                     color = AppColors.headerText
                 )
                 Text(
-                    text = loan.memberName,
+                    text = loan.localizedMemberName,
                     style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Medium),
                     color = AppColors.secondaryText,
                     maxLines = 1
@@ -612,7 +612,7 @@ fun LoanFullDetailView(
                         color = AppColors.headerText
                     )
                     Text(
-                        text = loan.memberName,
+                        text = loan.localizedMemberName,
                         style = AppFont.ibmPlexSans(size = 13, weight = FontWeight.Medium),
                         color = AppColors.secondaryText
                     )
@@ -851,7 +851,7 @@ private fun LoanStoryCard(loan: MemberLoan, paidCount: Int) {
             )
 
             SquadStrings.loanForceClosedStory(
-                name = loan.memberName,
+                name = loan.localizedMemberName,
                 paidCount = paidCount,
                 total = total,
                 date = asOf,
@@ -873,7 +873,7 @@ private fun LoanStoryCard(loan: MemberLoan, paidCount: Int) {
             )
 
             SquadStrings.loanFullyRepaidStory(
-                loan.memberName,
+                loan.localizedMemberName,
                 total,
                 closeDate
             )
@@ -911,7 +911,7 @@ private fun LoanStoryCard(loan: MemberLoan, paidCount: Int) {
 
             if (installment != null) {
                 SquadStrings.loanNoPaymentStory(
-                    loan.memberName,
+                    loan.localizedMemberName,
                     installment.installmentAmount
                         .currencyFormattedWithCommas(),
                     CommonFunctions.dateToString(
@@ -920,7 +920,7 @@ private fun LoanStoryCard(loan: MemberLoan, paidCount: Int) {
                 )
             } else {
                 SquadStrings.loanNoPaymentStory(
-                    loan.memberName,
+                    loan.localizedMemberName,
                     "",
                     ""
                 )
@@ -936,7 +936,7 @@ private fun LoanStoryCard(loan: MemberLoan, paidCount: Int) {
 
             if (nextDue != null) {
                 SquadStrings.loanRepaymentStory(
-                    loan.memberName,
+                    loan.localizedMemberName,
                     total,
                     emi.currencyFormattedWithCommas(),
                     paidCount,
@@ -946,7 +946,7 @@ private fun LoanStoryCard(loan: MemberLoan, paidCount: Int) {
                 )
             } else {
                 SquadStrings.loanRepaymentCompletedStory(
-                    loan.memberName,
+                    loan.localizedMemberName,
                     total,
                     paidCount
                 )

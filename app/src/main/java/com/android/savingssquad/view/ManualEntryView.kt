@@ -352,7 +352,7 @@ fun ManualEntryView(
                                                 installmentId = "",
                                                 paymentSuccess = true,
                                                 payoutSuccess = true,
-                                                transferReferenceId = contributionID.split("-").lastOrNull() ?: "", descriptionTamil = SquadStringsTamilDesc.contributionPaymentUpdatedByManager(contributionSelectedMemberName,contributionSelectedMonthYear), descriptionHindi = SquadStringsHindiDesc.contributionPaymentUpdatedByManager(contributionSelectedMemberName,contributionSelectedMonthYear)
+                                                transferReferenceId = "", descriptionTamil = SquadStringsTamilDesc.contributionPaymentUpdatedByManager(contributionSelectedMemberName,contributionSelectedMonthYear), descriptionHindi = SquadStringsHindiDesc.contributionPaymentUpdatedByManager(contributionSelectedMemberName,contributionSelectedMonthYear)
                                             )
 
                                             squadViewModel.savePayments(
@@ -366,7 +366,10 @@ fun ManualEntryView(
 
                                             squadViewModel.createSquadActivity(
                                                 activityType = SquadActivityType.AMOUNT_CREDIT,
-                                                userName = newPayment.memberName,
+                                                memberName = newPayment.memberName,
+                                                memberNameHindi = newPayment.memberNameHindi,
+                                                memberNameEnglish = newPayment.memberNameEnglish,
+                                                memberNameTamil = newPayment.memberNameTamil,
                                                 memberId = newPayment.memberId,
                                                 amount = squadLocal.monthlyContribution,
                                                 description = SquadStringsEnglishDesc.updatedContribution(contributionSelectedMemberName,contributionSelectedMonthYear,squad?.monthlyContribution?.currencyFormattedWithCommas().toString()), descriptionTamil = SquadStringsTamilDesc.updatedContribution(contributionSelectedMemberName,contributionSelectedMonthYear,squad?.monthlyContribution?.currencyFormattedWithCommas().toString()), descriptionHindi = SquadStringsHindiDesc.updatedContribution(contributionSelectedMemberName,contributionSelectedMonthYear,squad?.monthlyContribution?.currencyFormattedWithCommas().toString())
@@ -568,7 +571,13 @@ fun ManualEntryView(
 
                                                 squadViewModel.createSquadActivity(
                                                     activityType = SquadActivityType.AMOUNT_CREDIT,
-                                                    userName = emiSelectedMemberName,
+                                                    memberName = emiSelectedMemberName,
+                                                    memberNameHindi = emiSelectedMember?.memberNameHindi
+                                                        ?: "",
+                                                    memberNameEnglish = emiSelectedMember?.memberNameEnglish
+                                                        ?: "",
+                                                    memberNameTamil = emiSelectedMember?.memberNameTamil
+                                                        ?: "",
                                                     memberId = loanPayment.memberId,
                                                     amount = total,
                                                     description = SquadStringsEnglishDesc.updatedEMIPayment(emiSelectedMemberName,selectedInstallment!!.installmentNumber,loanNumber,total.currencyFormattedWithCommas()), descriptionTamil = SquadStringsTamilDesc.updatedEMIPayment(emiSelectedMemberName,selectedInstallment!!.installmentNumber,loanNumber,total.currencyFormattedWithCommas()), descriptionHindi = SquadStringsHindiDesc.updatedEMIPayment(emiSelectedMemberName,selectedInstallment!!.installmentNumber,loanNumber,total.currencyFormattedWithCommas())
@@ -764,7 +773,7 @@ fun ManualEntryView(
                                         paymentSuccess = true,
                                         payoutSuccess = true,
 
-                                        transferReferenceId = selectedMemberOtherPayment?.description ?: "",
+                                        transferReferenceId = "",
                                         memberOtherPaymentId = selectedMemberOtherPayment?.id ?: "", descriptionTamil = "${selectedMemberOtherPayment?.descriptionTamil} -  ${selectedMemberOtherPayment?.amount?.currencyFormattedWithCommas()}", descriptionHindi = "${selectedMemberOtherPayment?.descriptionHindi} -  ${selectedMemberOtherPayment?.amount?.currencyFormattedWithCommas()}"
                                     )
 
@@ -779,7 +788,14 @@ fun ManualEntryView(
 
                                             squadViewModel.createSquadActivity(
                                                 activityType = SquadActivityType.AMOUNT_CREDIT,
-                                                userName = selectedMemberOtherPayment?.memberName ?: "",
+
+                                                memberName = selectedMemberOtherPayment?.memberName ?: "",
+                                                memberNameHindi = selectedMemberOtherPayment?.memberNameHindi
+                                                    ?: "",
+                                                memberNameEnglish = selectedMemberOtherPayment?.memberNameEnglish
+                                                    ?: "",
+                                                memberNameTamil = selectedMemberOtherPayment?.memberNameTamil
+                                                    ?: "",
                                                 memberId = payment.memberId,
                                                 amount = selectedMemberOtherPayment?.amount ?: 0,
                                                 description = SquadStringsEnglishDesc.recordedPayment(amountInt?.currencyFormattedWithCommas().toString(),paymentNotes), descriptionTamil = SquadStringsTamilDesc.recordedPayment(amountInt?.currencyFormattedWithCommas().toString(),paymentNotes), descriptionHindi = SquadStringsHindiDesc.recordedPayment(amountInt?.currencyFormattedWithCommas().toString(),paymentNotes)
@@ -1060,7 +1076,14 @@ fun ManualEntryView(
                                 val total = outstandingPrincipal + summary.recalculatedInterest
                                 squadViewModel.createSquadActivity(
                                     activityType = SquadActivityType.AMOUNT_CREDIT,
-                                    userName = emiSelectedMember?.memberName ?: "",
+                                    memberName = emiSelectedMember?.memberName ?: "",
+                                    memberNameHindi = emiSelectedMember?.memberNameHindi
+                                        ?: "",
+                                    memberNameEnglish = emiSelectedMember?.memberNameEnglish
+                                        ?: "",
+                                    memberNameTamil = emiSelectedMember?.memberNameTamil
+                                        ?: "",
+
                                     memberId = loan.memberID,
                                     amount = total,
                                     description = SquadStringsEnglishDesc.forceClosedLoanSettlement(loan.loanNumber,loan.memberName,total.currencyFormattedWithCommas()), descriptionTamil = SquadStringsTamilDesc.forceClosedLoanSettlement(loan.loanNumber,loan.memberName,total.currencyFormattedWithCommas()), descriptionHindi = SquadStringsHindiDesc.forceClosedLoanSettlement(loan.loanNumber,loan.memberName,total.currencyFormattedWithCommas())
@@ -1174,7 +1197,7 @@ private fun handleOtherPayment(
             paymentResponseMessage = "",
             payoutSuccess = true,
             payoutResponseMessage = "",
-            transferReferenceId = notes,
+            transferReferenceId = "",
 
             recordStatus = RecordStatus.ACTIVE,
             recordDate = Date().asTimestamp, descriptionTamil = "$notes - ${amount.currencyFormattedWithCommas()} ", descriptionHindi = "$notes - ${amount.currencyFormattedWithCommas()} "
@@ -1194,7 +1217,10 @@ private fun handleOtherPayment(
                 // 🔹 Record activity entry
                 squadViewModel.createSquadActivity(
                     activityType = SquadActivityType.AMOUNT_CREDIT,
-                    userName = "CHIT MANAGER",
+                    memberName = SquadStrings.squadManager,
+                    memberNameHindi = SquadStringsHindi.squadManager,
+                    memberNameEnglish = SquadStringsEnglish.squadManager,
+                    memberNameTamil = SquadStringsTamil.squadManager,
                     memberId = newPayment.memberId,
                     amount = amount,
                     description = SquadStringsEnglishDesc.recordedPayment(amount.currencyFormattedWithCommas(),notes), descriptionTamil = SquadStringsTamilDesc.recordedPayment(amount.currencyFormattedWithCommas(),notes), descriptionHindi = SquadStringsHindiDesc.recordedPayment(amount.currencyFormattedWithCommas(),notes)

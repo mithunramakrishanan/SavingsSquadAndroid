@@ -215,7 +215,7 @@ fun MembersListContent(
             if (success) {
 
                 ToastManager.show(
-                    message = "${member.memberName} is now ${newStatus.localizedName}",
+                    message = "${member.localizedMemberName} is now ${newStatus.localizedName}",
                     type = if (newStatus == RecordStatus.INACTIVE) {
                         ToastType.ERROR
                     } else {
@@ -249,7 +249,7 @@ fun MembersListContent(
 
             AlertManager.shared.showAlert(
                 title = SquadStrings.deactivateSquad,
-                message = SquadStrings.deactivateMemberMessage(member.memberName),
+                message = SquadStrings.deactivateMemberMessage(member.localizedMemberName),
                 type = AlertType.ERROR,
                 primaryButtonTitle = SquadStrings.deactivate,
                 primaryAction = {
@@ -326,7 +326,7 @@ fun MembersListCellView(member: Member,onSelectStatus: (RecordStatus) -> Unit) {
         )
         {
             Text(
-                text = member.memberName.first().toString(),
+                text = member.localizedMemberName.first().toString(),
                 style = AppFont.ibmPlexSans(20, FontWeight.Bold),
                 color = AppColors.primaryButton
             )
@@ -339,7 +339,7 @@ fun MembersListCellView(member: Member,onSelectStatus: (RecordStatus) -> Unit) {
         )
         {
             Text(
-                text = member.memberName,
+                text = member.localizedMemberName,
                 style = AppFont.ibmPlexSans(18, FontWeight.SemiBold),
                 color = AppColors.headerText,
                 maxLines = 1

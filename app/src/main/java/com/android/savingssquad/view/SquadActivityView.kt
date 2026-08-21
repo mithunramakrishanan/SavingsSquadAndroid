@@ -11,7 +11,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -24,7 +23,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.android.savingssquad.viewmodel.SquadViewModel
-import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import java.util.Date
@@ -37,7 +35,6 @@ import com.android.savingssquad.singleton.currencyFormattedWithCommas
 import com.yourapp.utils.CommonFunctions
 import com.android.savingssquad.singleton.SquadActivityType
 import com.android.savingssquad.singleton.SquadStrings
-import com.android.savingssquad.viewmodel.SSToast
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -302,7 +299,7 @@ fun ActivityCardComposable(activity: SquadActivity) {
             ) {
 
                 Text(
-                    text = activity.userName,
+                    text = activity.memberName,
                     style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
                     color = AppColors.headerText
                 )

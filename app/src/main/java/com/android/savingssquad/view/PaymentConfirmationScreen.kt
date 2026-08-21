@@ -361,7 +361,7 @@ private fun StatusHero(payment: PaymentsDetails?, pulseScale: Float, pulseAlpha:
             )
 
             Text(
-                text = payment?.transferReferenceId ?: "",
+                text = payment?.localizedDescription ?: "",
                 style = AppFont.ibmPlexSans(10, FontWeight.SemiBold),
                 color = AppColors.secondaryText.copy(alpha = 0.7f)
             )
@@ -715,7 +715,7 @@ private fun DetailsCard(payment: PaymentsDetails?) {
             .border(1.dp, AppColors.border.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
             .padding(vertical = 2.dp)
     ) {
-        InfoRow(icon = Icons.Default.Person, title = SquadStrings.member, value = payment?.memberName ?: "")
+        InfoRow(icon = Icons.Default.Person, title = SquadStrings.member, value = payment?.localizedMemberName ?: "")
         HorizontalDivider(
             color = AppColors.border.copy(alpha = 0.5f),
             modifier = Modifier.padding(start = 42.dp)

@@ -11,6 +11,8 @@ import java.util.*
 
 import androidx.annotation.Keep
 import androidx.annotation.RequiresApi
+import com.android.savingssquad.singleton.SquadLanguages
+import com.android.savingssquad.singleton.SquadStrings
 import com.google.firebase.firestore.PropertyName
 import com.yourapp.utils.IDGenerator
 import java.time.YearMonth
@@ -65,6 +67,26 @@ data class ContributionDetail(
     @get:PropertyName("dueDate") @set:PropertyName("dueDate")
     var dueDate: Timestamp? = null // When this contribution was due
 ) {
+
+
+    val localizedMemberName: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL ->
+
+                memberNameTamil.ifEmpty { memberName }
+
+            SquadLanguages.HINDI ->
+
+                memberNameHindi.ifEmpty { memberName }
+
+            SquadLanguages.ENGLISH ->
+
+                memberNameEnglish
+
+        }
+
     // 🔹 Required empty constructor for Firestore
     constructor() : this(
         id = null,

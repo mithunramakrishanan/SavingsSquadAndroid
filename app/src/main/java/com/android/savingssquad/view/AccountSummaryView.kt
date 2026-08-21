@@ -354,7 +354,7 @@ fun AccountsSummaryCellView(payment: PaymentsDetails) {
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = "${payment.memberName} - ${payment.localizedDescription}",
+                text = "${payment.localizedMemberName} - ${payment.localizedDescription}",
                 style = AppFont.ibmPlexSans(14, FontWeight.Medium),
                 color = AppColors.headerText
             )

@@ -1,8 +1,10 @@
 package com.android.savingssquad.model
 
 import com.android.savingssquad.singleton.RecordStatus
+import com.android.savingssquad.singleton.SquadLanguages
 import com.android.savingssquad.singleton.SquadStrings
 import com.google.firebase.Timestamp
+import kotlin.text.ifEmpty
 
 
 enum class CashRequestStatus {
@@ -41,6 +43,26 @@ data class CashRequest(
     var cashRequestStatus: CashRequestStatus = CashRequestStatus.CREATED
 
 ) {
+
+    val localizedMemberName: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL ->
+
+                memberNameTamil.ifEmpty { requestedByName }
+
+            SquadLanguages.HINDI ->
+
+                memberNameHindi.ifEmpty { requestedByName }
+
+            SquadLanguages.ENGLISH ->
+
+                memberNameEnglish
+
+        }
+
+
     constructor() : this(
         id = null,
         requestedByName = "",

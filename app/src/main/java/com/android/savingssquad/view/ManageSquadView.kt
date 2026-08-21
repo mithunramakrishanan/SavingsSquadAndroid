@@ -42,9 +42,11 @@ import com.android.savingssquad.singleton.SquadActivityType
 import kotlinx.coroutines.launch
 import java.util.Date
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.singleton.SquadStringsEnglish
 import com.android.savingssquad.singleton.SquadStringsEnglishDesc
 import com.android.savingssquad.singleton.SquadStringsHindi
 import com.android.savingssquad.singleton.SquadStringsHindiDesc
+import com.android.savingssquad.singleton.SquadStringsTamil
 import com.android.savingssquad.singleton.SquadStringsTamilDesc
 import com.android.savingssquad.singleton.asTimestamp
 import com.android.savingssquad.viewmodel.AlertManager
@@ -290,7 +292,10 @@ fun ManageSquadView(
 
                             squadViewModel.createSquadActivity(
                                 activityType = SquadActivityType.OTHER_ACTIVITY,
-                                userName = "SQUAD MANAGER",
+                                memberName = SquadStrings.squadManager,
+                                memberNameHindi = SquadStringsHindi.squadManager,
+                                memberNameTamil = SquadStringsTamil.squadManager,
+                                memberNameEnglish = SquadStringsEnglish.squadManager,
                                 memberId = "",
                                 amount = newValue,
                                 description = SquadStringsEnglishDesc.squadAmountUpdated(totalSquadAmount.toString(),newValue.toString(), reason), descriptionTamil = SquadStringsTamilDesc.squadAmountUpdated(totalSquadAmount.toString(),newValue.toString(), reason), descriptionHindi = SquadStringsHindiDesc.squadAmountUpdated(totalSquadAmount.toString(),newValue.toString(), reason)
@@ -371,7 +376,10 @@ private fun saveChanges(
 
                     squadViewModel.createSquadActivity(
                         activityType = com.android.savingssquad.singleton.SquadActivityType.OTHER_ACTIVITY,
-                        userName = "SQUAD MANAGER",
+                        memberName = SquadStrings.squadManager,
+                        memberNameHindi = SquadStringsHindi.squadManager,
+                        memberNameTamil = SquadStringsTamil.squadManager,
+                        memberNameEnglish = SquadStringsEnglish.squadManager,
                         memberId = "",
                         amount = 0,
                         description = getActivityDescriptionEnglish(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited), descriptionTamil = getActivityDescriptionTamil(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited), descriptionHindi = getActivityDescriptionHindi(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited)

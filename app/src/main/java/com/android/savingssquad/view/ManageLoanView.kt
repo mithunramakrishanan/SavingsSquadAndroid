@@ -191,7 +191,10 @@ fun ManageLoanView(
 
                                                 squadViewModel.createSquadActivity(
                                                     activityType = SquadActivityType.OTHER_ACTIVITY,
-                                                    userName = "SQUAD MANAGER",
+                                                    memberName = SquadStrings.squadManager,
+                                                    memberNameHindi = SquadStringsHindi.squadManager,
+                                                    memberNameTamil = SquadStringsTamil.squadManager,
+                                                    memberNameEnglish = SquadStringsEnglish.squadManager,
                                                     memberId = "",
                                                     amount = 0,
                                                     description = SquadStringsEnglishDesc.deletedEMIConfig(amount.toString(),rate.toString()), descriptionTamil = SquadStringsTamilDesc.deletedEMIConfig(amount.toString(),rate.toString()), descriptionHindi = SquadStringsHindiDesc.deletedEMIConfig(amount.toString(),rate.toString())
@@ -541,7 +544,10 @@ private fun handleAddEditEMI(
 
             squadViewModel.createSquadActivity(
                 activityType = SquadActivityType.OTHER_ACTIVITY,
-                userName = "SQUAD MANAGER",
+                memberName = SquadStrings.squadManager,
+                memberNameHindi = SquadStringsHindi.squadManager,
+                memberNameTamil = SquadStringsTamil.squadManager,
+                memberNameEnglish = SquadStringsEnglish.squadManager,
                 memberId = "",
                 amount = 0,
                 description = actionEnglish,

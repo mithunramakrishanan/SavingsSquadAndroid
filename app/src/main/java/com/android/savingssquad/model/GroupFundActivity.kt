@@ -31,8 +31,17 @@ data class SquadActivity(
     @get:PropertyName("activityType") @set:PropertyName("activityType")
     var activityType: SquadActivityType = SquadActivityType.AMOUNT_CREDIT, // Default type
 
-    @get:PropertyName("userName") @set:PropertyName("userName")
-    var userName: String = "", // User who performed the activity
+    @get:PropertyName("memberName") @set:PropertyName("memberName")
+    var memberName: String = "", // User who performed the activity
+
+    @get:PropertyName("memberNameHindi") @set:PropertyName("memberNameHindi")
+    var memberNameHindi: String,
+
+    @get:PropertyName("memberNameTamil") @set:PropertyName("memberNameTamil")
+    var memberNameTamil: String,
+
+    @get:PropertyName("memberNameEnglish") @set:PropertyName("memberNameEnglish")
+    var memberNameEnglish: String,
 
     @get:PropertyName("amount") @set:PropertyName("amount")
     var amount: Int = 0, // Amount involved
@@ -44,7 +53,7 @@ data class SquadActivity(
     var recordStatus: RecordStatus = RecordStatus.ACTIVE, // Record state
 
     @get:PropertyName("recordDate") @set:PropertyName("recordDate")
-    var recordDate: Date = Date() ,
+    var recordDate: Date = Date(),
 
     @get:PropertyName("descriptionTamil") @set:PropertyName("descriptionTamil")
     var descriptionTamil: String = "",
@@ -72,7 +81,10 @@ data class SquadActivity(
         memberId = null,
         date = null,
         activityType = SquadActivityType.AMOUNT_CREDIT,
-        userName = "",
+        memberName = "",
+        memberNameHindi = "",
+        memberNameTamil = "",
+        memberNameEnglish = "",
         amount = 0,
         description = "",
         recordStatus = RecordStatus.ACTIVE,
@@ -80,4 +92,23 @@ data class SquadActivity(
         descriptionTamil = "",
         descriptionHindi = ""
     )
+
+
+    val localizedMemberName: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL ->
+
+                memberNameTamil.ifEmpty { memberName }
+
+            SquadLanguages.HINDI ->
+
+                memberNameHindi.ifEmpty { memberName }
+
+            SquadLanguages.ENGLISH ->
+
+                memberNameEnglish
+
+        }
 }

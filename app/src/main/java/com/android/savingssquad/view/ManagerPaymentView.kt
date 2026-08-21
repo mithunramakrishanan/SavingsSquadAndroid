@@ -202,8 +202,8 @@ fun ManagerPaymentView(
                     SectionView(title = SquadStrings.selectMember) {
                         SSTextField(
                             icon = Icons.Default.Person,
-                            placeholder = loanSelectedMember?.memberName ?: SquadStrings.selectSquadMember,
-                            textState = remember { mutableStateOf(loanSelectedMember?.memberName ?: "") },
+                            placeholder = loanSelectedMember?.localizedMemberName ?: SquadStrings.selectSquadMember,
+                            textState = remember { mutableStateOf(loanSelectedMember?.localizedMemberName ?: "") },
                             keyboardType = KeyboardType.Text,
                             showDropdown = true,
                             error = loanSelectedMemberNameError,
@@ -247,15 +247,14 @@ fun ManagerPaymentView(
                                     )
 
                                     Text(
-                                        text = "Pending loan exists",
+                                        text = SquadStrings.pendingLoanExists,
                                         style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
                                         color = AppColors.errorAccent,
                                         textAlign = TextAlign.Center
                                     )
 
                                     Text(
-                                        text = "${loanSelectedMember?.memberName ?: "This member"} already has a pending loan. " +
-                                                "Please complete or close the existing loan before creating a new one.",
+                                        text = SquadStrings.memberHasPendingLoan(loanSelectedMember?.localizedMemberName.toString()),
                                         style = AppFont.ibmPlexSans(14),
                                         color = AppColors.secondaryText,
                                         textAlign = TextAlign.Center,
@@ -282,16 +281,14 @@ fun ManagerPaymentView(
                                     )
 
                                     Text(
-                                        text = "Loan verification is pending",
+                                        text = SquadStrings.loanVerificationPending,
                                         style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
                                         color = AppColors.infoAccent,
                                         textAlign = TextAlign.Center
                                     )
 
                                     Text(
-                                        text = "A loan verification request is already pending for " +
-                                                "${loanSelectedMember?.memberName ?: "this member"}. Please wait until it is " +
-                                                "approved or rejected before creating another loan.",
+                                        text = SquadStrings.loanVerificationRequestAlreadyPending(loanSelectedMember?.localizedMemberName.toString()),
                                         style = AppFont.ibmPlexSans(14),
                                         color = AppColors.secondaryText,
                                         textAlign = TextAlign.Center,
@@ -338,7 +335,7 @@ fun ManagerPaymentView(
 
                                 SSButton(
                                     title = if (emiSelectedType != null && loanSelectedMember != null)
-                                        "Pay ₹${emiSelectedType!!.loanAmount} to ${loanSelectedMember!!.memberName}'s UPI"
+                                        SquadStrings.payEMIToUPI(emiSelectedType!!.loanAmount.toString(),loanSelectedMember!!.localizedMemberName)
                                     else
                                         SquadStrings.pay,
                                     isDisabled = !buttonEnabled,
@@ -537,7 +534,7 @@ fun ManagerPaymentView(
 
                             SSButton(
                                 title = if (loanSelectedMember != null)
-                                    "Pay ₹${memberPaymentAmount.value} to ${loanSelectedMember!!.memberName}'s UPI"
+                                    SquadStrings.payEMIToUPI(memberPaymentAmount.value,loanSelectedMember!!.localizedMemberName)
                                 else
                                     SquadStrings.pay,
                                 isDisabled = !buttonEnabled,
@@ -579,7 +576,10 @@ fun ManagerPaymentView(
                                             paymentStatus = PaymentStatus.INVERIFICATION,
                                             paymentApproveStatus = PaymentApproveStatus.REQUESTED,
 
-                                            description = memberPaymentNotes,
+                                            description = if (selectedMemberPaymentSubType == SquadStrings.repayment)
+                                                "$memberPaymentNotes - ${selectedMember.memberNameEnglish}"
+                                            else
+                                                SquadStringsEnglish.settlementTo(selectedMember.memberNameEnglish),
 
                                             squadId = squad.squadID,
 
@@ -591,13 +591,16 @@ fun ManagerPaymentView(
                                             paymentResponseMessage = "Pending member verification.",
 
                                             transferReferenceId =
-                                                if (selectedMemberPaymentSubType == SquadStrings.repayment)
-                                                    "$memberPaymentNotes - ${selectedMember.memberName}"
-                                                else
-                                                    "Settlement to ${selectedMember.memberName}",
+                                                "",
 
                                             upiID = selectedMember.upiID,
-                                            cashRequestId = "", descriptionTamil = memberPaymentNotes, descriptionHindi = memberPaymentNotes
+                                            cashRequestId = "", descriptionTamil = if (selectedMemberPaymentSubType == SquadStrings.repayment)
+                                                "$memberPaymentNotes - ${selectedMember.memberNameTamil}"
+                                            else
+                                                SquadStringsTamil.settlementTo(selectedMember.memberNameTamil), descriptionHindi = if (selectedMemberPaymentSubType == SquadStrings.repayment)
+                                                "$memberPaymentNotes - ${selectedMember.memberNameEnglish}"
+                                            else
+                                                SquadStringsEnglish.settlementTo(selectedMember.memberNameEnglish)
                                         )
 
                                         squadViewModel.savePayments(
@@ -613,7 +616,10 @@ fun ManagerPaymentView(
 
                                                 squadViewModel.createSquadActivity(
                                                     activityType = SquadActivityType.AMOUNT_DEBIT,
-                                                    userName = selectedMember.memberName,
+                                                    memberName =selectedMember.memberName,
+                                                    memberNameHindi = selectedMember.memberNameHindi,
+                                                    memberNameTamil = selectedMember.memberNameTamil,
+                                                    memberNameEnglish = selectedMember.memberNameEnglish,
                                                     memberId = selectedMember.id ?: "",
                                                     amount = amount,
                                                     description = SquadStringsEnglishDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionTamil = SquadStringsTamilDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionHindi = SquadStringsEnglishDesc.amountDebited(amount.toString(),memberPaymentNotes)
@@ -699,7 +705,10 @@ fun ManagerPaymentView(
                                             paymentStatus = PaymentStatus.SUCCESS,
                                             paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
 
-                                            description = memberPaymentNotes,
+                                            description = if (selectedMemberPaymentSubType == SquadStrings.repayment)
+                                                "$memberPaymentNotes - ${selectedMember.memberNameEnglish}"
+                                            else
+                                                SquadStringsEnglish.settlementTo(selectedMember.memberNameEnglish),
 
                                             squadId = squad.squadID,
 
@@ -711,13 +720,16 @@ fun ManagerPaymentView(
                                             paymentResponseMessage = "Payment Updated",
 
                                             transferReferenceId =
-                                                if (selectedMemberPaymentSubType == SquadStrings.repayment)
-                                                    "$memberPaymentNotes - ${selectedMember.memberName}"
-                                                else
-                                                    "Settlement to ${selectedMember.memberName}",
+                                                "",
 
                                             upiID = selectedMember.upiID,
-                                            cashRequestId = "", descriptionTamil = memberPaymentNotes, descriptionHindi = memberPaymentNotes
+                                            cashRequestId = "", descriptionTamil = if (selectedMemberPaymentSubType == SquadStrings.repayment)
+                                                "$memberPaymentNotes - ${selectedMember.memberNameTamil}"
+                                            else
+                                                SquadStringsTamil.settlementTo(selectedMember.memberNameTamil), descriptionHindi = if (selectedMemberPaymentSubType == SquadStrings.repayment)
+                                                "$memberPaymentNotes - ${selectedMember.memberNameHindi}"
+                                            else
+                                                SquadStringsHindi.settlementTo(selectedMember.memberNameHindi)
                                         )
 
                                         squadViewModel.savePayments(
@@ -733,7 +745,10 @@ fun ManagerPaymentView(
 
                                                 squadViewModel.createSquadActivity(
                                                     activityType = SquadActivityType.AMOUNT_DEBIT,
-                                                    userName = selectedMember.memberName,
+                                                    memberName =selectedMember.memberName,
+                                                    memberNameHindi = selectedMember.memberNameHindi,
+                                                    memberNameTamil = selectedMember.memberNameTamil,
+                                                    memberNameEnglish = selectedMember.memberNameEnglish,
                                                     memberId = selectedMember.id ?: "",
                                                     amount = amount,
                                                     description = SquadStringsEnglishDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionTamil = SquadStringsTamilDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionHindi = SquadStringsHindiDesc.amountDebited(amount.toString(),memberPaymentNotes)
@@ -869,7 +884,7 @@ private fun makeLoanPayment(
             message =
                 SquadStrings.cashRequestPendingBeforeLoanPayment
 
-                    .format(selectedMember.memberName),
+                    .format(selectedMember.localizedMemberName),
 
             type = AlertType.INFO,
 
@@ -957,7 +972,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
         paymentResponseMessage = "",
         payoutSuccess = true,
         payoutResponseMessage = "",
-        transferReferenceId = notes,
+        transferReferenceId = "",
 
         recordStatus = RecordStatus.ACTIVE,
         recordDate = Date().asTimestamp, descriptionTamil = notes, descriptionHindi = notes
@@ -976,7 +991,10 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
 
             squadViewModel.createSquadActivity(
                 activityType = SquadActivityType.AMOUNT_DEBIT,
-                userName = "CHIT MEMBER",
+                memberName =SquadStrings.squadManager,
+                memberNameHindi = SquadStringsHindi.squadManager,
+                memberNameTamil = SquadStringsTamil.squadManager,
+                memberNameEnglish = SquadStringsEnglish.squadManager,
                 memberId = newPayment.memberId,
                 amount = amountInt,
                 description = SquadStringsEnglishDesc.amountDebited(amountStr,notes), descriptionTamil = SquadStringsTamilDesc.amountDebited(amountStr,notes), descriptionHindi = SquadStringsHindiDesc.amountDebited(amountStr,notes)

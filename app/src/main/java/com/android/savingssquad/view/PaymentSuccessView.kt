@@ -475,7 +475,7 @@ fun PaymentSuccessView(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = payment.transferReferenceId,
+                        text = payment.localizedDescription,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = AppColors.secondaryText.copy(alpha = 0.85f)

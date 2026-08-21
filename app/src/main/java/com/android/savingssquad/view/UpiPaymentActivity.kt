@@ -63,7 +63,7 @@ class UpiPaymentActivity : ComponentActivity() {
                 showPaymentResult(
                     success = false,
                     message = "Unable to start payment",
-                    recipientName = payment.memberName,
+                    recipientName = payment.localizedMemberName,
                     totalAmount = "₹${payment.amount}",
                     txnId = "NA"
                 )
@@ -76,7 +76,7 @@ class UpiPaymentActivity : ComponentActivity() {
             if (transferId != null) {
                 startUpiPayment(
                     upiId = payment.upiID,
-                    payerName = payment.memberName,
+                    payerName = payment.localizedMemberName,
                     amount = payment.amount.toString(),
                     note = transferId
                 )
@@ -119,7 +119,7 @@ class UpiPaymentActivity : ComponentActivity() {
             showPaymentResult(
                 success = success,
                 message = message ?: if (success) "Payment Successful" else "Payment Failed",
-                recipientName = payment.memberName,
+                recipientName = payment.localizedMemberName,
                 totalAmount = "₹${payment.amount}",
                 txnId = txnId ?: orderId
             )

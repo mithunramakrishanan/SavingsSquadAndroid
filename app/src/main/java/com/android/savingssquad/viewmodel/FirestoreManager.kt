@@ -444,7 +444,10 @@ class FirestoreManager private constructor() {
                     val newLogin = Login(
                         squadID = login.squadID,
                         squadName = login.squadName,
-                        squadUsername = login.squadUsername,
+                        memberName = login.memberName,
+                        memberNameTamil = login.memberNameTamil,
+                        memberNameEnglish = login.memberNameEnglish,
+                        memberNameHindi = login.memberNameHindi,
                         squadUserId = memberID,
                         phoneNumber = mobileNumber,
                         role = login.role,
@@ -1233,7 +1236,7 @@ class FirestoreManager private constructor() {
         for (member in members) {
             val memberID = member.id
             if (memberID == null) {
-                updateErrors.add("Member ID missing for ${member.memberName}")
+                updateErrors.add("Member ID missing for ${member.localizedMemberName}")
                 latch.countDown()
                 continue
             }
@@ -1246,14 +1249,14 @@ class FirestoreManager private constructor() {
             try {
                 memberRef.set(member, SetOptions.merge())
                     .addOnFailureListener { e ->
-                        updateErrors.add("Error updating ${member.memberName}: ${e.localizedMessage}")
+                        updateErrors.add("Error updating ${member.localizedMemberName}: ${e.localizedMessage}")
                         latch.countDown()
                     }
                     .addOnSuccessListener {
                         latch.countDown()
                     }
             } catch (e: Exception) {
-                updateErrors.add("Error encoding ${member.memberName}: ${e.localizedMessage}")
+                updateErrors.add("Error encoding ${member.localizedMemberName}: ${e.localizedMessage}")
                 latch.countDown()
             }
         }

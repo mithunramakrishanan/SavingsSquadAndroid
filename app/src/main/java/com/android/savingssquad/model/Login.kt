@@ -3,9 +3,12 @@ package com.android.savingssquad.model
 import androidx.annotation.Keep
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.RecordStatus
+import com.android.savingssquad.singleton.SquadLanguages
+import com.android.savingssquad.singleton.SquadStrings
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.PropertyName
 import java.util.Date
+import kotlin.text.ifEmpty
 
 @Keep
 data class Login(
@@ -19,8 +22,17 @@ data class Login(
     @get:PropertyName("squadName") @set:PropertyName("squadName")
     var squadName: String = "",
 
-    @get:PropertyName("squadUsername") @set:PropertyName("squadUsername")
-    var squadUsername: String = "",
+    @get:PropertyName("memberName") @set:PropertyName("memberName")
+    var memberName: String = "", // User who performed the activity
+
+    @get:PropertyName("memberNameHindi") @set:PropertyName("memberNameHindi")
+    var memberNameHindi: String,
+
+    @get:PropertyName("memberNameTamil") @set:PropertyName("memberNameTamil")
+    var memberNameTamil: String,
+
+    @get:PropertyName("memberNameEnglish") @set:PropertyName("memberNameEnglish")
+    var memberNameEnglish: String,
 
     @get:PropertyName("squadUserId") @set:PropertyName("squadUserId")
     var squadUserId: String = "",
@@ -48,7 +60,10 @@ data class Login(
         id = null,
         squadID = "",
         squadName = "",
-        squadUsername = "",
+        memberName = "",
+        memberNameHindi = "",
+        memberNameTamil = "",
+        memberNameEnglish = "",
         squadUserId = "",
         phoneNumber = "",
         role = SquadUserType.SQUAD_MANAGER, // MUST HAVE DEFAULT
@@ -57,4 +72,22 @@ data class Login(
         recordStatus = RecordStatus.ACTIVE,
         recordDate = Date()
     )
+
+    val localizedMemberName: String
+
+        get() = when (SquadStrings.currentLanguage) {
+
+            SquadLanguages.TAMIL ->
+
+                memberNameTamil.ifEmpty { memberName }
+
+            SquadLanguages.HINDI ->
+
+                memberNameHindi.ifEmpty { memberName }
+
+            SquadLanguages.ENGLISH ->
+
+                memberNameEnglish
+
+        }
 }
