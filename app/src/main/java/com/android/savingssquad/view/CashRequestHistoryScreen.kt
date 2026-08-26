@@ -326,6 +326,9 @@ fun CashRequestHistoryScreen(
                                     val member = Member(
                                         id = cashRequest.requestedByID,
                                         memberName = cashRequest.requestedByName,
+                                        memberNameHindi = cashRequest.memberNameHindi,
+                                        memberNameTamil = cashRequest.memberNameTamil,
+                                        memberNameEnglish = cashRequest.memberNameEnglish,
                                         profileImage = "",
                                         phoneNumber = cashRequest.requestedByPhone,
                                         password = "",
@@ -508,8 +511,8 @@ fun CashRequestRow(
 
             StatusChip(
                 text = if (cashRequest.cashRequestStatus == CashRequestStatus.CREATED){
-                    SquadStrings.requested}else{cashRequest.cashRequestStatus.name} ,
-                statusDate = CommonFunctions.dateToString(cashRequest.requestAcceptedOn?.toDate() ?: Date()),
+                    SquadStrings.requested}else{cashRequest.cashRequestStatus.localizedName} ,
+                statusDate = SquadStrings.localizedMonthInText(CommonFunctions.dateToString(cashRequest.requestAcceptedOn?.toDate() ?: Date())),
                 color = statusColor
             )
 
@@ -582,7 +585,7 @@ fun CashRequestRow(
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = emi.interestType.name.lowercase()
+                                text = emi.interestType.localizedName.lowercase()
                                     .replaceFirstChar { it.uppercase() },
                                 style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                                 color = AppColors.primaryBrand
@@ -1056,7 +1059,7 @@ private fun EMIRequestRow(
                 ) {
 
                     Text(
-                        "${emi.emiMonths} Months",
+                        "${emi.emiMonths} ${SquadStrings.months}",
                         style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                         color = AppColors.primaryBrand
                     )
@@ -1075,7 +1078,7 @@ private fun EMIRequestRow(
                     Spacer(Modifier.width(6.dp))
 
                     Text(
-                        "${"%.2f".format(emi.emiInterestRate)}% ${emi.interestType}",
+                        "${"%.2f".format(emi.emiInterestRate)}% ${emi.interestType.localizedName}",
                         style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                         color = AppColors.secondaryText
                     )
@@ -1195,7 +1198,7 @@ private fun EMIRequestRow(
 
                                 installment.dueDate?.toDate()?.let { date ->
                                     Text(
-                                        CommonFunctions.dateToString(date),
+                                        SquadStrings.localizedMonthInText(CommonFunctions.dateToString(date)),
                                         style = AppFont.ibmPlexSans(10, FontWeight.Normal),
                                         color = AppColors.secondaryText
                                     )
@@ -1211,7 +1214,7 @@ private fun EMIRequestRow(
                                 )
 
                                 Text(
-                                    "Interest ${installment.interestAmount.currencyFormattedWithCommas()}",
+                                    "${SquadStrings.interest} ${installment.interestAmount.currencyFormattedWithCommas()}",
                                     style = AppFont.ibmPlexSans(10, FontWeight.Normal),
                                     color = AppColors.secondaryText
                                 )

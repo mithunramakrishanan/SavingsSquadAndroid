@@ -1657,6 +1657,7 @@ class SquadViewModel : ViewModel() {
         loanID: String,
         showLoader: Boolean = true,
         isForceClosed : Boolean,
+        forceCloseSummary : ForceCloseSummary,
         completion: (Boolean, String?) -> Unit
     )  {
         if (!CommonFunctions.isInternetAvailable()) {
@@ -1672,7 +1673,7 @@ class SquadViewModel : ViewModel() {
 
         if (showLoader) LoaderManager.shared.showLoader()
 
-        manager.updateLoanStatusPaid(squadID, memberID, loanID,isForceClosed) { success, message ->
+        manager.updateLoanStatusPaid(squadID, memberID, loanID,isForceClosed,forceCloseSummary) { success, message ->
             if (showLoader) LoaderManager.shared.hideLoader()
             completion(success, message)
         }
@@ -1960,7 +1961,7 @@ class SquadViewModel : ViewModel() {
 
                         if (payment.isLoanForceClosed) {
 
-                            updateLoanStatusPaid(payment.squadId,payment.memberId,payment.loanId,false,payment.isLoanForceClosed) {_,_->}
+                            updateLoanStatusPaid(payment.squadId,payment.memberId,payment.loanId,false,payment.isLoanForceClosed,payment.forceCloseSummary) {_,_->}
                         }
                         else {
 
@@ -2304,7 +2305,7 @@ class SquadViewModel : ViewModel() {
                     when (status) {
 
                         PaymentApproveStatus.ACCEPTED -> {
-                            updateLoanStatusPaid(payment.squadId,payment.memberId,payment.loanId,false,payment.isLoanForceClosed) {_,_->}
+                            updateLoanStatusPaid(payment.squadId,payment.memberId,payment.loanId,false,payment.isLoanForceClosed,payment.forceCloseSummary) {_,_->}
                         }
 
                         PaymentApproveStatus.REJECTED -> {

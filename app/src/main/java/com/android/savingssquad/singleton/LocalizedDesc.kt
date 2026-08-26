@@ -244,7 +244,7 @@ object SquadStringsTamilDesc {
         installmentNumber: String,
         loanNumber: String
     ): String =
-        "$memberName அவர்களின் #$loanNumber கடனுக்கான $installmentNumber தவணை EMI பணம் குழு மேலாளரால் புதுப்பிக்கப்பட்டது."
+        "$memberName அவர்களின் #$loanNumber கடனுக்கான $installmentNumber பணம் குழு மேலாளரால் புதுப்பிக்கப்பட்டது."
 
     fun updatedEMIPayment(
         memberName: String,
@@ -395,7 +395,7 @@ object SquadStringsHindiDesc {
         installmentNumber: String,
         loanNumber: String
     ): String =
-        "$memberName के ऋण #$loanNumber की किस्त $installmentNumber का EMI भुगतान स्क्वाड मैनेजर द्वारा अपडेट किया गया।"
+        "$memberName के ऋण #$loanNumber की किस्त $installmentNumber का भुगतान स्क्वाड मैनेजर द्वारा अपडेट किया गया।"
 
     fun updatedEMIPayment(
         memberName: String,

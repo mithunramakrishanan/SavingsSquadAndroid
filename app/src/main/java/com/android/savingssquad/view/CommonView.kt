@@ -539,7 +539,8 @@ fun SingleSelectionPopupView(
             Text(
                 text = title,
                 style = AppFont.ibmPlexSans(20, FontWeight.Bold),
-                color = AppColors.headerText
+                color = AppColors.headerText,
+                textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -630,7 +631,7 @@ fun SingleSelectionPopupView(
                                         )
                                 ) {
                                     Text(
-                                        text = value,
+                                        text = SquadStrings.localizedMonthInText(value),
                                         style = AppFont.ibmPlexSans(
                                             14,
                                             FontWeight.Medium
@@ -1291,13 +1292,13 @@ fun UserSelectionCard(
                 Text(
                     text =
                         if (user.role == SquadUserType.SQUAD_MANAGER)
-                            SquadStrings.managerSince(CommonFunctions.dateToString(
+                            SquadStrings.localizedMonthInText(SquadStrings.managerSince(CommonFunctions.dateToString(
                                 user.userCreatedDate?.toDate() ?: Date()
-                            ))
+                            )))
                         else
-                            SquadStrings.memberSince(CommonFunctions.dateToString(
+                            SquadStrings.localizedMonthInText(SquadStrings.memberSince(CommonFunctions.dateToString(
                                 user.userCreatedDate?.toDate() ?: Date()
-                            )),
+                            ))),
                     style = AppFont.ibmPlexSans(13),
                     color = AppColors.secondaryText
                 )
@@ -2806,7 +2807,7 @@ private fun InstallmentDetailsRow(
                 DetailChip(
                     icon = Icons.Default.DateRange,
                     caption = SquadStrings.dueDate,
-                    value = CommonFunctions.dateToString(it.toDate(), format = "MMM dd yyyy"),
+                    value = SquadStrings.localizedMonthInText(CommonFunctions.dateToString(it.toDate(), format = "MMM dd yyyy")),
                     modifier = Modifier.weight(1f)
                 )
             } ?: Spacer(modifier = Modifier.weight(1f))

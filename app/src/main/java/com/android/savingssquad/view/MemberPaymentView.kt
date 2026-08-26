@@ -695,7 +695,7 @@ private fun ContributionSection(
             // Month picker (disabled text + dropdown action)
             SSTextField(
                 icon = Icons.Default.CalendarToday,
-                placeholder = if (contributionSelectedMonthYear.isEmpty()) SquadStrings.selectContributionDate else contributionSelectedMonthYear,
+                placeholder = if (contributionSelectedMonthYear.isEmpty()) SquadStrings.selectContributionDate else SquadStrings.localizedMonthInText(contributionSelectedMonthYear),
                 textState = remember { mutableStateOf("") },
                 keyboardType = KeyboardType.Text,
                 disabled = true,
@@ -726,7 +726,7 @@ private fun ContributionButton(upiID: String, onClick: () -> Unit) {
 
             Text(
 
-                text = "UPI ID not available for this squad yet",
+                text = SquadStrings.upiIdNotAvailable,
 
                 style = AppFont.ibmPlexSans(12, FontWeight.Normal),
 
@@ -822,7 +822,7 @@ private fun EMISection(
             else if (isPendingLoanAvailable) {
                 SSTextField(
                     icon = Icons.Default.CalendarToday,
-                    placeholder = if (emiSelectedMonthYear.isEmpty()) SquadStrings.selectEMI else emiSelectedMonthYear,
+                    placeholder = if (emiSelectedMonthYear.isEmpty()) SquadStrings.selectEMI else SquadStrings.localizedMonthInText(emiSelectedMonthYear),
                     textState = remember { mutableStateOf("") },
                     keyboardType = KeyboardType.Text,
                     disabled = true,
@@ -997,7 +997,7 @@ fun MemberOtherPaymentRow(
                 Spacer(modifier = Modifier.width(6.dp))
 
                 Text(
-                    CommonFunctions.dateToString(payment.amountReceivedDate?.toDate() ?: Date()),
+                    SquadStrings.localizedMonthInText(CommonFunctions.dateToString(payment.amountReceivedDate?.toDate() ?: Date())),
                     style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                     color = AppColors.secondaryText
                 )
@@ -1041,9 +1041,9 @@ fun MemberOtherPaymentRow(
                                 Spacer(Modifier.width(6.dp))
 
                                 Text(
-                                    CommonFunctions.dateToString(
+                                    SquadStrings.localizedMonthInText(CommonFunctions.dateToString(
                                         payment.amountRepaidDate?.toDate() ?: Date()
-                                    ),
+                                    )),
                                     style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                                     color = Color(0xFF2E7D32)
                                 )
@@ -1220,11 +1220,11 @@ fun MemberOtherPaymentRow(
                                 Spacer(Modifier.width(6.dp))
 
                                 Text(
-                                    CommonFunctions.dateToString(
+                                    SquadStrings.localizedMonthInText(CommonFunctions.dateToString(
                                         payment.amountRepaidDate?.toDate()
                                             ?: payment.amountReceivedDate?.toDate()
                                             ?: Date()
-                                    ),
+                                    )),
                                     style = AppFont.ibmPlexSans(10, FontWeight.Medium),
                                     color = AppColors.primaryBrand
                                 )

@@ -423,7 +423,7 @@ fun LoanSummaryCard(loan: MemberLoan, onClick: () -> Unit) {
 
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
-                    text = "Loan #${loan.loanNumber}",
+                    text = "${SquadStrings.loan} #${loan.loanNumber}",
                     style = AppFont.ibmPlexSans(size = 14, weight = FontWeight.Bold),
                     color = AppColors.headerText
                 )
@@ -565,7 +565,7 @@ fun LoanFullDetailView(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Loan #${loan.loanNumber}",
+                text = "${SquadStrings.loan} #${loan.loanNumber}",
                 style = AppFont.ibmPlexSans(size = 16, weight = FontWeight.Bold),
                 color = AppColors.headerText
             )
@@ -607,7 +607,7 @@ fun LoanFullDetailView(
 
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
-                        text = "Loan #${loan.loanNumber}",
+                        text = "${SquadStrings.loan} #${loan.loanNumber}",
                         style = AppFont.ibmPlexSans(size = 16, weight = FontWeight.Bold),
                         color = AppColors.headerText
                     )
@@ -669,7 +669,7 @@ fun LoanFullDetailView(
                     modifier = Modifier.weight(1f),
                     icon = Icons.Default.ArrowUpward,
                     title = SquadStrings.startDate,
-                    value = CommonFunctions.dateToString(loan.amountSentDate?.toDate() ?: java.util.Date()),
+                    value = SquadStrings.localizedMonthInText(CommonFunctions.dateToString(loan.amountSentDate?.toDate() ?: java.util.Date())),
                     small = true
                 )
                 StatDivider()
@@ -678,7 +678,7 @@ fun LoanFullDetailView(
                     icon = Icons.Default.Verified,
                     title = SquadStrings.closeDate,
                     value = if (loan.loanStatus == EMIStatus.PAID || loan.isForceClosed)
-                        CommonFunctions.dateToString(loan.loanClosedDate?.toDate() ?: java.util.Date())
+                        SquadStrings.localizedMonthInText(CommonFunctions.dateToString(loan.loanClosedDate?.toDate() ?: java.util.Date()))
                     else "—",
                     small = true
                 )
@@ -846,9 +846,9 @@ private fun LoanStoryCard(loan: MemberLoan, paidCount: Int) {
 
     val message = when {
         loan.isForceClosed -> {
-            val asOf = CommonFunctions.dateToString(
+            val asOf = SquadStrings.localizedMonthInText(CommonFunctions.dateToString(
                 loan.forceCloseSummary.asOfDate
-            )
+            ))
 
             SquadStrings.loanForceClosedStory(
                 name = loan.localizedMemberName,
@@ -868,9 +868,9 @@ private fun LoanStoryCard(loan: MemberLoan, paidCount: Int) {
         }
 
         loan.loanStatus == EMIStatus.PAID -> {
-            val closeDate = CommonFunctions.dateToString(
+            val closeDate = SquadStrings.localizedMonthInText(CommonFunctions.dateToString(
                 loan.loanClosedDate?.toDate() ?: java.util.Date()
-            )
+            ))
 
             SquadStrings.loanFullyRepaidStory(
                 loan.localizedMemberName,
@@ -890,9 +890,9 @@ private fun LoanStoryCard(loan: MemberLoan, paidCount: Int) {
                 SquadStrings.loanOverdueStory(
                     installment.installmentAmount
                         .currencyFormattedWithCommas(),
-                    CommonFunctions.dateToString(
+                    SquadStrings.localizedMonthInText(CommonFunctions.dateToString(
                         installment.dueDate?.toDate() ?: java.util.Date()
-                    ),
+                    )),
                     paidCount,
                     total
                 )
@@ -914,9 +914,9 @@ private fun LoanStoryCard(loan: MemberLoan, paidCount: Int) {
                     loan.localizedMemberName,
                     installment.installmentAmount
                         .currencyFormattedWithCommas(),
-                    CommonFunctions.dateToString(
+                    SquadStrings.localizedMonthInText(CommonFunctions.dateToString(
                         installment.dueDate?.toDate() ?: java.util.Date()
-                    )
+                    ))
                 )
             } else {
                 SquadStrings.loanNoPaymentStory(
@@ -940,9 +940,9 @@ private fun LoanStoryCard(loan: MemberLoan, paidCount: Int) {
                     total,
                     emi.currencyFormattedWithCommas(),
                     paidCount,
-                    CommonFunctions.dateToString(
+                    SquadStrings.localizedMonthInText(CommonFunctions.dateToString(
                         nextDue.dueDate?.toDate() ?: java.util.Date()
-                    )
+                    ))
                 )
             } else {
                 SquadStrings.loanRepaymentCompletedStory(
@@ -1047,7 +1047,7 @@ fun ForecloseSettlementRow(loan: MemberLoan, isLast: Boolean) {
                 LabeledValue(
                     modifier = Modifier.weight(1f),
                     title = "Settled On",
-                    value = CommonFunctions.dateToString(loan.forceCloseSummary.asOfDate)
+                    value = SquadStrings.localizedMonthInText(CommonFunctions.dateToString(loan.forceCloseSummary.asOfDate))
                 )
                 Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f)) {
                     Text(
@@ -1072,7 +1072,7 @@ fun ForecloseSettlementRow(loan: MemberLoan, isLast: Boolean) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                 LabeledValue(
                     modifier = Modifier.weight(1f),
-                    title = "Remaining Principal",
+                    title = SquadStrings.remainingPrinciple,
                     value = loan.forceCloseSummary.outstandingPrincipal.currencyFormattedWithCommas()
                 )
                 LabeledValue(
@@ -1082,7 +1082,7 @@ fun ForecloseSettlementRow(loan: MemberLoan, isLast: Boolean) {
                 )
                 Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Total Paid",
+                        text = SquadStrings.totalPaid,
                         style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Medium),
                         color = AppColors.secondaryText
                     )
@@ -1096,7 +1096,7 @@ fun ForecloseSettlementRow(loan: MemberLoan, isLast: Boolean) {
             }
 
             Text(
-                text = "Instead of continuing with the remaining monthly installments, the full outstanding balance was paid off here in a single payment.",
+                text = SquadStrings.insteadOfContinuingFullOutstandingBalanceWasPaid,
                 style = AppFont.ibmPlexSans(size = 11, weight = FontWeight.Medium),
                 color = AppColors.secondaryText
             )
@@ -1236,12 +1236,12 @@ fun InstallmentRow(
                 LabeledValue(
                     modifier = Modifier.weight(1f),
                     title = SquadStrings.dueDate,
-                    value = CommonFunctions.dateToString(installment.dueDate?.toDate() ?: java.util.Date())
+                    value = SquadStrings.localizedMonthInText(CommonFunctions.dateToString(installment.dueDate?.toDate() ?: java.util.Date()))
                 )
                 LabeledValue(
                     modifier = Modifier.weight(1f),
                     title = SquadStrings.paidDate,
-                    value = installment.duePaidDate?.let { CommonFunctions.dateToString(it.toDate()) } ?: "—",
+                    value = installment.duePaidDate?.let { SquadStrings.localizedMonthInText(CommonFunctions.dateToString(it.toDate())) } ?: "—",
                     alignEnd = true
                 )
             }

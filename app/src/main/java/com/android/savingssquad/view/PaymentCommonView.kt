@@ -138,7 +138,7 @@ fun PaymentRow(
 
             payment.paymentUpdatedDate?.let { date ->
                 Text(
-                    text = CommonFunctions.dateToString(date.toDate()),
+                    text = SquadStrings.localizedMonthInText(CommonFunctions.dateToString(date.toDate())),
                     style = AppFont.ibmPlexSans(size = 10, weight = FontWeight.Medium),
                     color = AppColors.placeholderText
                 )
@@ -353,7 +353,7 @@ fun PaymentDetailSheet(
                     DetailRow(
                         icon = Icons.Default.Schedule,
                         title = "Date",
-                        value = CommonFunctions.dateToString(date.toDate())
+                        value = SquadStrings.localizedMonthInText(CommonFunctions.dateToString(date.toDate()))
                     )
                 }
             }

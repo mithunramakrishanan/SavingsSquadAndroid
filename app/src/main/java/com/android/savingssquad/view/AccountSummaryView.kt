@@ -260,7 +260,7 @@ fun PaymentFilterSegmentedControl(
                 ) {
 
                     Text(
-                        text = filter.name.lowercase()
+                        text = filter.localizedName.lowercase()
                             .replaceFirstChar { it.uppercase() },
                         style = AppFont.ibmPlexSans(13, FontWeight.Medium),
                         color = if (isSelected)
@@ -354,13 +354,13 @@ fun AccountsSummaryCellView(payment: PaymentsDetails) {
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = "${payment.localizedMemberName} - ${payment.localizedDescription}",
+                text = SquadStrings.localizedMonthInText("${payment.localizedMemberName} - ${payment.localizedDescription}"),
                 style = AppFont.ibmPlexSans(14, FontWeight.Medium),
                 color = AppColors.headerText
             )
 
             Text(
-                text = CommonFunctions.dateToString(payment.paymentUpdatedDate?.toDate() ?: Date()),
+                text = SquadStrings.localizedMonthInText(CommonFunctions.dateToString(payment.paymentUpdatedDate?.toDate() ?: Date())),
                 style = AppFont.ibmPlexSans(12, FontWeight.Normal),
                 color = AppColors.secondaryText
             )

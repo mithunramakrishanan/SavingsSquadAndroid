@@ -305,9 +305,9 @@ fun ActivityCardComposable(activity: SquadActivity) {
                 )
 
                 Text(
-                    text = CommonFunctions.dateToString(
+                    text = SquadStrings.localizedMonthInText(SquadStrings.localizedMonthInText(CommonFunctions.dateToString(
                         activity.date?.toDate() ?: Date()
-                    ),
+                    ))),
                     style = AppFont.ibmPlexSans(11),
                     color = AppColors.secondaryText.copy(alpha = 0.8f)
                 )

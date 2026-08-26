@@ -43,6 +43,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.firestore
 import com.google.firebase.messaging.FirebaseMessaging
 import com.yourapp.utils.IDGenerator
+import org.checkerframework.checker.units.qual.Force
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -606,7 +607,8 @@ class FirestoreManager private constructor() {
         squadID: String,
         memberID: String,
         loanID: String,
-        isForceClosed : Boolean,
+        isForceClosed: Boolean,
+        forceCloseSummary: ForceCloseSummary?,
         completion: (Boolean, String?) -> Unit
     ) {
 
@@ -615,13 +617,24 @@ class FirestoreManager private constructor() {
             .collection("loans")
             .document(loanID)
 
-        loanRef.update(
-            mapOf(
-                "duePaidDate" to FieldValue.serverTimestamp(),
-                "loanStatus" to EMIStatus.PAID.name,
-                "isForceClosed" to isForceClosed
-            )
+        val loanData = mutableMapOf<String, Any>(
+            "duePaidDate" to FieldValue.serverTimestamp(),
+            "loanStatus" to EMIStatus.PAID.name,
+            "isForceClosed" to isForceClosed
         )
+
+        // Add force close summary only when available
+        forceCloseSummary?.let { summary ->
+            loanData["forceCloseSummary"] = mapOf(
+                "outstandingPrincipal" to summary.outstandingPrincipal,
+                "daysElapsed" to summary.daysElapsed,
+                "recalculatedInterest" to summary.recalculatedInterest,
+                "totalPayable" to summary.totalPayable,
+                "asOfDate" to summary.asOfDate
+            )
+        }
+
+        loanRef.update(loanData)
             .addOnSuccessListener {
 
                 val memberRef = db.collection("squads")

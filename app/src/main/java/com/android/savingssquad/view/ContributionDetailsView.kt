@@ -305,9 +305,9 @@ fun ContributionDetailCell(fund: ContributionDetail) {
 
             if (isPaid) {
                 Text(
-                    text = "${SquadStrings.paidOn} ${
+                    text = SquadStrings.localizedMonthInText("${SquadStrings.paidOn} ${
                         CommonFunctions.dateToString(fund.paidOn?.toDate() ?: Date())
-                    }",
+                    }"),
                     style = AppFont.ibmPlexSans(12, FontWeight.Normal),
                     color = AppColors.secondaryText
                 )
