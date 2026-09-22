@@ -50,15 +50,15 @@ data class CashRequest(
 
             SquadLanguages.TAMIL ->
 
-                memberNameTamil.ifEmpty { requestedByName }
+                memberNameTamil.ifBlank { requestedByName }
 
             SquadLanguages.HINDI ->
 
-                memberNameHindi.ifEmpty { requestedByName }
+                memberNameHindi.ifBlank { requestedByName }
 
             SquadLanguages.ENGLISH ->
 
-                memberNameEnglish
+                memberNameEnglish.ifBlank { requestedByName }
 
         }
 

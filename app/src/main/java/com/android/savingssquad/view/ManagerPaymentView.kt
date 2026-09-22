@@ -1001,7 +1001,7 @@ private fun handleOtherPayment(squadViewModel: SquadViewModel, amountStr: String
             )
             LoaderManager.shared.hideLoader()
 
-            ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.paymentStatusUpdated, type = ToastType.SUCCESS)
+//            ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.paymentStatusUpdated, type = ToastType.SUCCESS)
         } else {
             println("❌ Error adding payment: $error")
         }

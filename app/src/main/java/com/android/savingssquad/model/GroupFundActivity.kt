@@ -66,11 +66,11 @@ data class SquadActivity(
 
         get() = when (SquadStrings.currentLanguage) {
 
-            SquadLanguages.TAMIL -> descriptionTamil.ifEmpty { description }
+            SquadLanguages.TAMIL -> descriptionTamil.ifBlank { description }
 
-            SquadLanguages.HINDI -> descriptionHindi.ifEmpty { description }
+            SquadLanguages.HINDI -> descriptionHindi.ifBlank { description }
 
-            SquadLanguages.ENGLISH -> description
+            SquadLanguages.ENGLISH -> description.ifBlank { description }
 
         }
 
@@ -100,15 +100,15 @@ data class SquadActivity(
 
             SquadLanguages.TAMIL ->
 
-                memberNameTamil.ifEmpty { memberName }
+                memberNameTamil.ifBlank { memberName }
 
             SquadLanguages.HINDI ->
 
-                memberNameHindi.ifEmpty { memberName }
+                memberNameHindi.ifBlank { memberName }
 
             SquadLanguages.ENGLISH ->
 
-                memberNameEnglish
+                memberNameEnglish.ifBlank { memberName }
 
         }
 }

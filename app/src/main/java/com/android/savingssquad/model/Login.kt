@@ -91,15 +91,15 @@ data class Login(
 
             SquadLanguages.TAMIL ->
 
-                memberNameTamil.ifEmpty { memberName }
+                memberNameTamil.ifBlank { memberName }
 
             SquadLanguages.HINDI ->
 
-                memberNameHindi.ifEmpty { memberName }
+                memberNameHindi.ifBlank { memberName }
 
             SquadLanguages.ENGLISH ->
 
-                memberNameEnglish
+                memberNameEnglish.ifBlank { memberName }
 
         }
 
@@ -109,15 +109,15 @@ data class Login(
 
             SquadLanguages.TAMIL ->
 
-                squadNameTamil.ifEmpty { squadName }
+                squadNameTamil.ifBlank { squadName }
 
             SquadLanguages.HINDI ->
 
-                squadNameHindi.ifEmpty { squadName }
+                squadNameHindi.ifBlank { squadName }
 
             SquadLanguages.ENGLISH ->
 
-                squadNameEnglish
+                squadNameEnglish.ifBlank { squadName }
 
         }
 }

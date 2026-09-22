@@ -75,15 +75,15 @@ data class ContributionDetail(
 
             SquadLanguages.TAMIL ->
 
-                memberNameTamil.ifEmpty { memberName }
+                memberNameTamil.ifBlank { memberName }
 
             SquadLanguages.HINDI ->
 
-                memberNameHindi.ifEmpty { memberName }
+                memberNameHindi.ifBlank { memberName }
 
             SquadLanguages.ENGLISH ->
 
-                memberNameEnglish
+                memberNameEnglish.ifBlank { memberName }
 
         }
 

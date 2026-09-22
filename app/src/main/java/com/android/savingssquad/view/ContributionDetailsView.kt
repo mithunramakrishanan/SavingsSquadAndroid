@@ -258,7 +258,7 @@ fun ContributionDetailCell(fund: ContributionDetail) {
             horizontalAlignment = Alignment.Start
         ) {
             Text(
-                text = fund.monthYear,
+                text = SquadStrings.localizedMonthInText(fund.monthYear),
                 style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
                 color = AppColors.headerText
             )

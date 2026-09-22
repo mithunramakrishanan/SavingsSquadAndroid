@@ -200,15 +200,15 @@ data class Squad(
 
             SquadLanguages.TAMIL ->
 
-                squadNameTamil.ifEmpty { squadName }
+                squadNameTamil.ifBlank { squadName }
 
             SquadLanguages.HINDI ->
 
-                squadNameHindi.ifEmpty { squadName }
+                squadNameHindi.ifBlank { squadName }
 
             SquadLanguages.ENGLISH ->
 
-                squadNameEnglish
+                squadNameEnglish.ifBlank { squadName }
 
         }
 }

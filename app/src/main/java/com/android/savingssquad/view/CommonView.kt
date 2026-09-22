@@ -172,7 +172,7 @@ fun SSNavigationBar(
             text = title,
             style = AppFont.ibmPlexSans(21, FontWeight.Bold),
             color = AppColors.headerText,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .weight(1f)
@@ -3537,7 +3537,7 @@ fun SSSearchField(
                 Text(
                     placeHolder,
                     color = Color(0xFF9CA3AF),
-                    fontSize = 15.sp
+                    fontSize = 12.sp
                 )
             },
             colors = TextFieldDefaults.colors(
@@ -3592,7 +3592,7 @@ fun SSStatusMenuButton(
                 .clip(CircleShape)
                 .background(current.tintColor().copy(alpha = 0.1f))
                 .clickable { expanded = true }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
 
@@ -3604,7 +3604,7 @@ fun SSStatusMenuButton(
 
             Spacer(modifier = Modifier.width(6.dp))
 
-            Text(current.localizedName)
+            Text(text= current.localizedName,style = AppFont.ibmPlexSans(10, FontWeight.Bold))
 
             Icon(
                 imageVector = Icons.Default.ArrowDropDown,

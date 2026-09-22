@@ -31,6 +31,8 @@ import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentEntryType
 import com.android.savingssquad.singleton.PaymentFilter
 import com.android.savingssquad.singleton.PaymentStatus
+import com.android.savingssquad.singleton.PaymentSubType
+import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.SessionManager
 import com.android.savingssquad.singleton.SquadStrings
@@ -687,8 +689,8 @@ class FirestoreManager private constructor() {
                 "forceCloseSummary" to forceCloseSummary
             )
         ).addOnSuccessListener {
-                completion(true, "Loan force close verification updated successfully.")
-            }
+            completion(true, "Loan force close verification updated successfully.")
+        }
             .addOnFailureListener { exception ->
                 completion(
                     false,
@@ -853,98 +855,277 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - savePayments (single payment, Firestore write)
+    // MARK: - savePayments (single payment, transaction-safe financial update)
     fun savePayments(
         squadID: String,
         payment: PaymentsDetails?,
         completion: (Boolean, String?) -> Unit
     ) {
-
         val paymentID = payment?.id
 
-        if (squadID.isEmpty() || paymentID.isNullOrEmpty()) {
+        if (squadID.isEmpty() || paymentID.isNullOrEmpty() || payment == null) {
             completion(false, "Payment ID is missing.")
             return
         }
 
-        val batch = db.batch()
         val squadRef = db.collection("squads").document(squadID)
         val paymentRef = squadRef.collection("payments").document(paymentID)
 
-        batch.set(paymentRef, payment, SetOptions.merge())
+        try {
+            db.runTransaction { transaction ->
+                val existingSnapshot = transaction.get(paymentRef)
 
-        batch.commit()
-            .addOnSuccessListener {
+                val existingPayment = if (existingSnapshot.exists()) {
+                    try {
+                        existingSnapshot.toObject(PaymentsDetails::class.java)
+                    } catch (e: Exception) {
+                        throw IllegalStateException("Decode error: ${e.localizedMessage}", e)
+                    }
+                } else {
+                    null
+                }
 
-                // FIX: replaced the force-unwrap (payment.cashRequestId!!) with a safe
-                // local val. Behavior is identical when cashRequestId is non-null/non-empty;
-                // this just removes a crash surface if that invariant ever breaks upstream.
-                val cashRequestId = payment.cashRequestId
+                val oldStatus = existingPayment?.paymentApproveStatus
+                val newStatus = payment.paymentApproveStatus ?: PaymentApproveStatus.REQUESTED
 
-                if (!cashRequestId.isNullOrEmpty()) {
+    // Never allow a stale/retried write to move an already accepted
+    // payment back to a non-accepted state.
+                if (oldStatus == PaymentApproveStatus.ACCEPTED &&
+                    newStatus != PaymentApproveStatus.ACCEPTED
+                ) {
+                    return@runTransaction null
+                }
 
-                    updateCashRequestStatus(
-                        squadID = squadID,
-                        cashRequestId = cashRequestId,
-                        memberId = payment.memberId,
-                        status = CashRequestStatus.ACCEPTED
-                    ) { error ->
-                        if (error != null) {
-                            completion(false, error)
-                        } else {
-                            completion(true, null)
-                        }
+                val multiplier = financialMultiplier(
+                    oldStatus = oldStatus,
+                    newStatus = newStatus
+                )
+                transaction.set(
+                    paymentRef,
+                    payment.toMap(),
+                    SetOptions.merge()
+                )
+
+                if (multiplier != 0L) {
+                    val squadUpdates = paymentFinancialUpdates(payment, multiplier)
+                    if (squadUpdates.isNotEmpty()) {
+                        transaction.update(squadRef, squadUpdates)
                     }
 
-                } else {
-                    completion(true, null)
+                    if (payment.memberId.isNotEmpty()) {
+                        val memberRef = squadRef.collection("members").document(payment.memberId)
+                        val memberUpdates = memberFinancialUpdates(payment, multiplier)
+                        if (memberUpdates.isNotEmpty()) {
+                            transaction.update(memberRef, memberUpdates)
+                        }
+                    }
+                }
+
+                null
+            }
+                .addOnSuccessListener {
+                    val cashRequestId = payment.cashRequestId
+
+                    if (!cashRequestId.isNullOrEmpty()) {
+                        updateCashRequestStatus(
+                            squadID = squadID,
+                            cashRequestId = cashRequestId,
+                            memberId = payment.memberId,
+                            status = CashRequestStatus.ACCEPTED
+                        ) { error ->
+                            if (error != null) {
+                                completion(false, error)
+                            } else {
+                                completion(true, null)
+                            }
+                        }
+                    } else {
+                        completion(true, null)
+                    }
+                }
+                .addOnFailureListener { error ->
+                    completion(false, "Transaction failed: ${error.localizedMessage}")
+                }
+        } catch (e: Exception) {
+            completion(false, "Transaction error: ${e.localizedMessage}")
+        }
+    }
+
+    // Returns the financial delta caused by a payment approval transition.
+    //
+    // Non-accepted -> ACCEPTED : +1
+    // ACCEPTED -> REJECTED     : -1
+    // REJECTED -> ACCEPTED     : +1
+    // Same status              :  0
+    // REQUESTED -> REJECTED    :  0
+    private fun financialMultiplier(
+        oldStatus: PaymentApproveStatus?,
+        newStatus: PaymentApproveStatus
+    ): Long {
+        val oldAccepted = oldStatus == PaymentApproveStatus.ACCEPTED
+        val newAccepted = newStatus == PaymentApproveStatus.ACCEPTED
+
+        return when {
+            oldAccepted && !newAccepted -> -1L
+            !oldAccepted && newAccepted -> 1L
+            else -> 0L
+        }
+    }
+
+    private fun paymentFinancialUpdates(
+        payment: PaymentsDetails,
+        multiplier: Long
+    ): Map<String, Any> {
+        if (multiplier == 0L) return emptyMap()
+
+        val updates = mutableMapOf<String, Any>()
+
+        when (payment.paymentType) {
+            PaymentType.PAYMENT_CREDIT -> {
+                when (payment.paymentSubType) {
+                    PaymentSubType.CONTRIBUTION_AMOUNT -> {
+                        updates["totalContributionAmountReceived"] =
+                            FieldValue.increment(payment.amount.toLong() * multiplier)
+                        updates["currentCreditAmount"] =
+                            FieldValue.increment(payment.amount.toLong() * multiplier)
+                        updates["currentAvailableAmount"] =
+                            FieldValue.increment(payment.amount.toLong() * multiplier)
+                    }
+
+                    PaymentSubType.INTEREST_AMOUNT -> {
+                        updates["totalInterestAmountReceived"] =
+                            FieldValue.increment(payment.intrestAmount.toLong() * multiplier)
+                        updates["currentCreditAmount"] =
+                            FieldValue.increment(payment.intrestAmount.toLong() * multiplier)
+                        updates["currentAvailableAmount"] =
+                            FieldValue.increment(payment.amount.toLong() * multiplier)
+                    }
+
+                    PaymentSubType.EMI_AMOUNT -> {
+                        updates["totalLoanAmountReceived"] =
+                            FieldValue.increment(payment.amount.toLong() * multiplier)
+                        updates["totalInterestAmountReceived"] =
+                            FieldValue.increment(payment.intrestAmount.toLong() * multiplier)
+                        updates["currentCreditAmount"] =
+                            FieldValue.increment((payment.amount + payment.intrestAmount).toLong() * multiplier)
+                        updates["currentAvailableAmount"] =
+                            FieldValue.increment((payment.amount + payment.intrestAmount).toLong() * multiplier)
+                    }
+
+                    else -> {
+                        updates["currentCreditAmount"] =
+                            FieldValue.increment(payment.amount.toLong() * multiplier)
+                        updates["currentAvailableAmount"] =
+                            FieldValue.increment(payment.amount.toLong() * multiplier)
+                    }
                 }
             }
-            .addOnFailureListener { error ->
-                completion(false, "Batch commit failed: ${error.localizedMessage}")
+
+            PaymentType.PAYMENT_DEBIT -> {
+                if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
+                    updates["totalLoanAmountSent"] =
+                        FieldValue.increment(
+                            (payment.amount - payment.intrestAmount).toLong() * multiplier
+                        )
+                }
+
+                updates["currentDebitAmount"] =
+                    FieldValue.increment(
+                        (payment.amount - payment.intrestAmount).toLong() * multiplier
+                    )
+                updates["currentAvailableAmount"] =
+                    FieldValue.increment((-payment.amount).toLong() * multiplier)
             }
+        }
+
+        return updates
+    }
+
+    private fun memberFinancialUpdates(
+        payment: PaymentsDetails,
+        multiplier: Long
+    ): Map<String, Any> {
+        if (multiplier == 0L) return emptyMap()
+
+        val updates = mutableMapOf<String, Any>()
+
+        when (payment.paymentType) {
+            PaymentType.PAYMENT_CREDIT -> {
+                when (payment.paymentSubType) {
+                    PaymentSubType.CONTRIBUTION_AMOUNT -> {
+                        updates["totalContributionPaid"] =
+                            FieldValue.increment(payment.amount.toLong() * multiplier)
+                    }
+
+                    PaymentSubType.INTEREST_AMOUNT -> {
+                        updates["totalInterestPaid"] =
+                            FieldValue.increment(payment.intrestAmount.toLong() * multiplier)
+                    }
+
+                    PaymentSubType.EMI_AMOUNT -> {
+                        updates["totalLoanPaid"] =
+                            FieldValue.increment(payment.amount.toLong() * multiplier)
+                        updates["totalInterestPaid"] =
+                            FieldValue.increment(payment.intrestAmount.toLong() * multiplier)
+                    }
+
+                    else -> Unit
+                }
+            }
+
+            PaymentType.PAYMENT_DEBIT -> {
+                if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
+                    updates["totalLoanBorrowed"] =
+                        FieldValue.increment(
+                            (payment.amount - payment.intrestAmount).toLong() * multiplier
+                        )
+                }
+            }
+        }
+
+        return updates
     }
 
     // MARK: - updatePaymentApproveStatus (Firestore read -> update -> re-read)
+    // MARK: - updatePaymentApproveStatus (atomic payment + financial update)
     fun updatePaymentApproveStatus(
         squadID: String,
         paymentID: String,
         status: PaymentApproveStatus,
         completion: (Boolean, PaymentsDetails?, String?) -> Unit
     ) {
-
-        // FIX: guard against empty squadID/paymentID before building the document path.
         if (squadID.isEmpty() || paymentID.isEmpty()) {
             completion(false, null, "Squad ID or Payment ID is missing.")
             return
         }
 
-        val paymentRef = db.collection("squads")
-            .document(squadID)
-            .collection("payments")
-            .document(paymentID)
+        val squadRef = db.collection("squads").document(squadID)
+        val paymentRef = squadRef.collection("payments").document(paymentID)
 
-        paymentRef.get()
-            .addOnSuccessListener { snapshot ->
+        try {
+            db.runTransaction { transaction ->
+                val snapshot = transaction.get(paymentRef)
 
                 if (!snapshot.exists()) {
-                    completion(false, null, "Payment not found")
-                    return@addOnSuccessListener
+                    throw IllegalStateException("Payment not found")
                 }
 
-                // FIX: toObject() can throw RuntimeException on malformed/mismatched data.
-                // It was previously called with no try/catch inside addOnSuccessListener,
-                // so a decode failure here would propagate as an uncaught crash instead of
-                // being reported through the completion callback like every other error path.
                 val existingPayment = try {
                     snapshot.toObject(PaymentsDetails::class.java)
                 } catch (e: Exception) {
-                    completion(false, null, "Decode error: ${e.localizedMessage}")
-                    return@addOnSuccessListener
+                    throw IllegalStateException("Decode error: ${e.localizedMessage}", e)
                 }
 
-                if (existingPayment?.paymentApproveStatus?.name == status.name) {
-                    completion(false, existingPayment, "Already in ${status.name} status")
-                    return@addOnSuccessListener
+                if (existingPayment == null) {
+                    throw IllegalStateException("Payment decode failed")
+                }
+
+                val oldStatus = existingPayment.paymentApproveStatus
+
+                // Idempotent: repeated taps/retries/concurrent calls for the
+                // same status do not change financial totals.
+                if (oldStatus == status) {
+                    return@runTransaction existingPayment
                 }
 
                 val paymentStatus: PaymentStatus
@@ -967,36 +1148,44 @@ class FirestoreManager private constructor() {
                     "paymentUpdatedDate" to FieldValue.serverTimestamp()
                 )
 
-                paymentRef.update(updateData)
-                    .addOnSuccessListener {
+                val multiplier = financialMultiplier(oldStatus, status)
 
-                        paymentRef.get()
-                            .addOnSuccessListener { updatedSnapshot ->
+                transaction.update(paymentRef, updateData)
 
-                                if (!updatedSnapshot.exists()) {
-                                    completion(false, null, "Payment not found")
-                                    return@addOnSuccessListener
-                                }
-
-                                try {
-                                    val payment = updatedSnapshot.toObject(PaymentsDetails::class.java)
-                                    completion(true, payment, null)
-                                } catch (e: Exception) {
-                                    completion(false, null, "Decode error: ${e.localizedMessage}")
-                                }
-                            }
-                            .addOnFailureListener { e ->
-                                completion(false, null, "Failed to fetch updated payment: ${e.localizedMessage}")
-                            }
-                    }
-                    .addOnFailureListener { e ->
-                        completion(false, null, "Failed to update approval status: ${e.localizedMessage}")
+                if (multiplier != 0L) {
+                    val squadUpdates = paymentFinancialUpdates(existingPayment, multiplier)
+                    if (squadUpdates.isNotEmpty()) {
+                        transaction.update(squadRef, squadUpdates)
                     }
 
+                    if (existingPayment.memberId.isNotEmpty()) {
+                        val memberRef = squadRef
+                            .collection("members")
+                            .document(existingPayment.memberId)
+
+                        val memberUpdates = memberFinancialUpdates(existingPayment, multiplier)
+                        if (memberUpdates.isNotEmpty()) {
+                            transaction.update(memberRef, memberUpdates)
+                        }
+                    }
+                }
+
+                existingPayment.copy(
+                    paymentStatus = paymentStatus,
+                    paymentResponseMessage = paymentResponseMessage,
+                    paymentApproveStatus = status,
+                    paymentUpdatedDate = Timestamp.now()
+                )
             }
-            .addOnFailureListener { e ->
-                completion(false, null, "Failed to fetch payment: ${e.localizedMessage}")
-            }
+                .addOnSuccessListener { payment ->
+                    completion(true, payment, null)
+                }
+                .addOnFailureListener { error ->
+                    completion(false, null, error.localizedMessage ?: "Failed to update payment")
+                }
+        } catch (e: Exception) {
+            completion(false, null, e.localizedMessage ?: "Transaction error")
+        }
     }
 
     // MARK: - 🔹 Fetch Payments

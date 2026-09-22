@@ -120,15 +120,15 @@ data class Member(
 
             SquadLanguages.TAMIL ->
 
-                memberNameTamil.ifEmpty { memberName }
+                memberNameTamil.ifBlank { memberName }
 
             SquadLanguages.HINDI ->
 
-                memberNameHindi.ifEmpty { memberName }
+                memberNameHindi.ifBlank { memberName }
 
             SquadLanguages.ENGLISH ->
 
-                memberNameEnglish
+                memberNameEnglish.ifBlank { memberName }
 
         }
 
@@ -204,15 +204,15 @@ data class MemberOtherPayments(
 
             SquadLanguages.TAMIL ->
 
-                memberNameTamil.ifEmpty { memberName }
+                memberNameTamil.ifBlank { memberName }
 
             SquadLanguages.HINDI ->
 
-                memberNameHindi.ifEmpty { memberName }
+                memberNameHindi.ifBlank { memberName }
 
             SquadLanguages.ENGLISH ->
 
-                memberNameEnglish
+                memberNameEnglish.ifBlank { memberName }
 
         }
 
@@ -222,15 +222,15 @@ data class MemberOtherPayments(
 
             SquadLanguages.TAMIL ->
 
-                descriptionTamil.ifEmpty { description }
+                descriptionTamil.ifBlank { description }
 
             SquadLanguages.HINDI ->
 
-                descriptionHindi.ifEmpty { description }
+                descriptionHindi.ifBlank { description }
 
             SquadLanguages.ENGLISH ->
 
-                description
+                description.ifBlank { description }
 
         }
 }
