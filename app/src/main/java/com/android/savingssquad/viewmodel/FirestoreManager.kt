@@ -673,7 +673,7 @@ class FirestoreManager private constructor() {
         squadID: String,
         memberID: String,
         loanID: String,
-        forceCloseSummary : ForceCloseSummary,
+        forceCloseSummary: ForceCloseSummary,
         isForceCloseVerification: Boolean,
         completion: (Boolean, String?) -> Unit
     ) {
@@ -683,14 +683,29 @@ class FirestoreManager private constructor() {
             .collection("loans")
             .document(loanID)
 
+        val forceCloseSummaryData = hashMapOf<String, Any>(
+            "outstandingPrincipal" to forceCloseSummary.outstandingPrincipal,
+            "daysElapsed" to forceCloseSummary.daysElapsed,
+            "recalculatedInterest" to forceCloseSummary.recalculatedInterest,
+            "totalPayable" to forceCloseSummary.totalPayable
+        )
+
+        forceCloseSummary.asOfDate?.let {
+            forceCloseSummaryData["asOfDate"] = it
+        }
+
         loanRef.update(
             mapOf(
                 "isForceCloseVerification" to isForceCloseVerification,
-                "forceCloseSummary" to forceCloseSummary
+                "forceCloseSummary" to forceCloseSummaryData
             )
-        ).addOnSuccessListener {
-            completion(true, "Loan force close verification updated successfully.")
-        }
+        )
+            .addOnSuccessListener {
+                completion(
+                    true,
+                    "Loan force close verification updated successfully."
+                )
+            }
             .addOnFailureListener { exception ->
                 completion(
                     false,
@@ -1196,43 +1211,158 @@ class FirestoreManager private constructor() {
         lastDocument: DocumentSnapshot? = null,
         showRejected: Boolean = true,
         limit: Int,
-        completion: (List<PaymentsDetails>?, DocumentSnapshot?, String?) -> Unit
+        completion: (
+            List<PaymentsDetails>?,
+            DocumentSnapshot?,
+            String?
+        ) -> Unit
     ) {
 
         var query: Query = db
             .collection("squads")
             .document(squadID)
             .collection("payments")
-            .orderBy("recordDate", Query.Direction.DESCENDING)
+            .orderBy(
+                "recordDate",
+                Query.Direction.DESCENDING
+            )
             .limit(limit.toLong())
 
+        // Member filter
         if (!memberId.isNullOrEmpty()) {
-            query = query.whereEqualTo("memberId", memberId)
+            query = query.whereEqualTo(
+                "memberId",
+                memberId
+            )
         }
 
-        if (filterType == PaymentFilter.CREDIT) {
-            query = query.whereEqualTo("paymentType", "PAYMENT_CREDIT")
-        } else if (filterType == PaymentFilter.DEBIT) {
-            query = query.whereEqualTo("paymentType", "PAYMENT_DEBIT")
+        // Payment type filter
+        when (filterType) {
+
+            PaymentFilter.CREDIT -> {
+                query = query.whereEqualTo(
+                    "paymentType",
+                    "PAYMENT_CREDIT"
+                )
+            }
+
+            PaymentFilter.DEBIT -> {
+                query = query.whereEqualTo(
+                    "paymentType",
+                    "PAYMENT_DEBIT"
+                )
+            }
+
+            PaymentFilter.ALL -> {
+                // No additional filter
+            }
         }
 
+        // Rejected filter
         if (!showRejected) {
-            query = query.whereNotEqualTo("paymentApproveStatus", "REJECTED")
+            query = query.whereNotEqualTo(
+                "paymentApproveStatus",
+                "REJECTED"
+            )
         }
 
+        // Pagination
         if (lastDocument != null) {
             query = query.startAfter(lastDocument)
         }
 
         query.get()
             .addOnSuccessListener { snapshot ->
-                val payments = snapshot.documents.mapNotNull {
-                    it.toObject(PaymentsDetails::class.java)
+
+                val payments = mutableListOf<PaymentsDetails>()
+
+                var deserializationError: String? = null
+
+                snapshot.documents.forEach { document ->
+
+                    try {
+
+                        val payment =
+                            document.toObject(
+                                PaymentsDetails::class.java
+                            )
+
+                        if (payment != null) {
+                            payments.add(payment)
+                        }
+
+                    } catch (e: Exception) {
+
+                        val errorMessage = buildString {
+
+                            append(
+                                "Failed to deserialize payment."
+                            )
+
+                            append(
+                                "\nDocument ID: ${document.id}"
+                            )
+
+                            append(
+                                "\nPath: ${document.reference.path}"
+                            )
+
+                            append(
+                                "\nData: ${document.data}"
+                            )
+
+                            append(
+                                "\nError: ${e.message}"
+                            )
+                        }
+
+                        Log.e(
+                            "FirestoreManager",
+                            errorMessage,
+                            e
+                        )
+
+                        deserializationError =
+                            errorMessage
+                    }
                 }
-                completion(payments, snapshot.documents.lastOrNull(), null)
+
+                /*
+                 * If at least one payment failed to deserialize,
+                 * report the problem instead of silently pretending
+                 * that the complete payment list was loaded.
+                 */
+                if (deserializationError != null) {
+
+                    completion(
+                        payments,
+                        snapshot.documents.lastOrNull(),
+                        deserializationError
+                    )
+
+                    return@addOnSuccessListener
+                }
+
+                completion(
+                    payments,
+                    snapshot.documents.lastOrNull(),
+                    null
+                )
             }
-            .addOnFailureListener {
-                completion(null, null, it.localizedMessage)
+            .addOnFailureListener { error ->
+
+                Log.e(
+                    "FirestoreManager",
+                    "Failed to fetch payments",
+                    error
+                )
+
+                completion(
+                    emptyList(),
+                    null,
+                    error.message
+                        ?: "Failed to fetch payments"
+                )
             }
     }
 
