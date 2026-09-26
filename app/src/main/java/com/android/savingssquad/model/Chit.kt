@@ -145,7 +145,12 @@ data class Squad(
     @get:PropertyName("lastActiveDate") @set:PropertyName("lastActiveDate")
     var lastActiveDate: Timestamp? = null,
     @get:PropertyName("cashRequestedCount") @set:PropertyName("cashRequestedCount")
-    var cashRequestedCount: Int = 0
+    var cashRequestedCount: Int = 0,
+
+    @get:PropertyName("activeEMIConfigurationCount") @set:PropertyName("activeEMIConfigurationCount")
+    var activeEMIConfigurationCount: Int? = 0
+
+
 ) {
     // Required empty constructor for Firestore deserialization
     constructor() : this(
@@ -191,7 +196,8 @@ data class Squad(
         fcmToken = "",
         verifyAmountCount = 0,
         lastActiveDate = null,
-        cashRequestedCount = 0
+        cashRequestedCount = 0,
+        activeEMIConfigurationCount = 0
     )
 
     val localizedSquadName: String

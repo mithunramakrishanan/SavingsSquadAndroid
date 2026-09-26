@@ -62,7 +62,7 @@ fun UpgradePlanScreen(
     val sub by viewModel.subscription.collectAsState()
 
     var selectedPlan by remember {
-        mutableStateOf(SubscriptionModel.Plan.FREE)
+        mutableStateOf(SubscriptionModel.Plan.BASIC)
     }
 
     // ⭐ NEW — mirrors iOS selectedPeriod
@@ -203,7 +203,7 @@ fun UpgradePlanScreen(
             }
 
             // ---------------- FREE PLAN ----------------
-            PlanCard(
+            /*PlanCard(
                 title = SquadStrings.freePlan,
                 subtitle = SquadStrings.freePlanDescription,
                 price = cfg.free_priceText,
@@ -224,7 +224,7 @@ fun UpgradePlanScreen(
                         if (expandedPlan == SubscriptionModel.Plan.FREE) null
                         else SubscriptionModel.Plan.FREE
                 }
-            )
+            ) */
 
             // ---------------- BASIC PLAN ----------------
             PlanCard(

@@ -205,11 +205,21 @@ class SubscriptionManager private constructor() : ViewModel() {
         val sub = _subscription.value ?: return false
         val config = _remoteConfig.value
 
-        if (isTrialActive()) return false
-        if (sub.plan != SubscriptionModel.Plan.FREE) return false
+        // Trial active → never force upgrade
+        if (isTrialActive()) {
+            return false
+        }
 
+        // Trial expired and still on FREE plan
+        // → user must choose a paid subscription
+        if (sub.plan == SubscriptionModel.Plan.FREE) {
+            return true
+        }
+
+        // Paid plan → check member limit
         val maxMembers = config.maxMembers(sub.plan)
 
+        // Force upgrade if member limit is exceeded
         return memberCount > maxMembers
     }
 }

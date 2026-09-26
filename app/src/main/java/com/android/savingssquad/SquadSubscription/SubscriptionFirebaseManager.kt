@@ -1,6 +1,7 @@
 package com.android.savingssquad.SquadSubscription
 
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 
 class SubscriptionFirebaseManager private constructor() {
@@ -19,40 +20,154 @@ class SubscriptionFirebaseManager private constructor() {
         completion: (Boolean, String?) -> Unit
     ) {
 
-        val config = RemoteConfig()
+        val globalConfigRef = db
+            .collection("subscriptionSettings")
+            .document("current")
 
-        db.collection("squads")
+        val squadSubscriptionRef = db
+            .collection("squads")
             .document(squadID)
-            .collection("config")
-            .document("subscriptionSettings")
-            .set(config)
-            .continueWithTask {
+            .collection("subscription")
+            .document("current")
 
-                val (start, end) = createTrialDates(config.trialDays)
+        // =========================================================
+        // 1. Fetch global subscription configuration
+        // =========================================================
 
-                val subscription = SubscriptionModel(
-                    plan = SubscriptionModel.Plan.FREE,
-                    billingPeriod = SubscriptionModel.BillingPeriod.MONTHLY,   // ⭐ NEW
-                    loanAddon = false,
-                    isTrialActive = true,
-                    trialStartDate = start,
-                    trialEndDate = end,
-                    trialDays = config.trialDays,
-                    createdAt = Timestamp.now(),
-                    updatedAt = Timestamp.now()
-                )
+        globalConfigRef
+            .get()
+            .addOnSuccessListener { snapshot ->
 
-                db.collection("squads")
-                    .document(squadID)
-                    .collection("subscription")
-                    .document("current")
-                    .set(subscription)
+                // =================================================
+                // 2. Global config exists
+                // =================================================
+
+                if (snapshot.exists()) {
+
+                    try {
+
+                        val config =
+                            snapshot.toObject(RemoteConfig::class.java)
+
+                        if (config == null) {
+                            completion(
+                                false,
+                                "Failed to decode RemoteConfig."
+                            )
+                            return@addOnSuccessListener
+                        }
+
+                        createSquadSubscription(
+                            squadID = squadID,
+                            config = config,
+                            subscriptionRef = squadSubscriptionRef,
+                            completion = completion
+                        )
+
+                    } catch (e: Exception) {
+
+                        completion(
+                            false,
+                            e.localizedMessage
+                                ?: "Failed to decode RemoteConfig."
+                        )
+                    }
+
+                    return@addOnSuccessListener
+                }
+
+                // =================================================
+                // 3. Global config DOES NOT exist
+                //
+                // Create it using RemoteConfig() defaults.
+                // =================================================
+
+                val config = RemoteConfig()
+
+                globalConfigRef
+                    .set(config)
+                    .addOnSuccessListener {
+
+                        createSquadSubscription(
+                            squadID = squadID,
+                            config = config,
+                            subscriptionRef = squadSubscriptionRef,
+                            completion = completion
+                        )
+                    }
+                    .addOnFailureListener { error ->
+
+                        completion(
+                            false,
+                            error.localizedMessage
+                                ?: "Failed to create subscription configuration."
+                        )
+                    }
             }
+            .addOnFailureListener { error ->
+
+                completion(
+                    false,
+                    error.localizedMessage
+                        ?: "Failed to fetch subscription configuration."
+                )
+            }
+    }
+
+    private fun createSquadSubscription(
+        squadID: String,
+        config: RemoteConfig,
+        subscriptionRef: DocumentReference,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        val (start, end) =
+            createTrialDates(config.trialDays)
+
+        val subscription = SubscriptionModel(
+            plan = SubscriptionModel.Plan.FREE,
+
+            billingPeriod =
+                SubscriptionModel.BillingPeriod.MONTHLY,
+
+            loanAddon = false,
+
+            isTrialActive = true,
+
+            trialStartDate = start,
+            trialEndDate = end,
+
+            trialDays = config.trialDays,
+
+            createdAt = Timestamp.now(),
+            updatedAt = Timestamp.now()
+        )
+
+        // =========================================================
+        // IMPORTANT:
+        //
+        // Only create:
+        //
+        // squads/{squadID}/subscription/current
+        //
+        // We DO NOT create:
+        //
+        // squads/{squadID}/config/subscriptionSettings
+        // =========================================================
+
+        subscriptionRef
+            .set(subscription)
             .addOnSuccessListener {
+
                 completion(true, null)
             }
-            .addOnFailureListener {
-                completion(false, it.localizedMessage)
+            .addOnFailureListener { error ->
+
+                completion(
+                    false,
+                    error.localizedMessage
+                        ?: "Failed to create subscription."
+                )
             }
     }
 
@@ -62,33 +177,68 @@ class SubscriptionFirebaseManager private constructor() {
         completion: (RemoteConfig?, String?) -> Unit
     ) {
 
-        db.collection("squads")
-            .document(squadID)
-            .collection("config")
-            .document("subscriptionSettings")
+        // =========================================================
+        // Subscription configuration is now GLOBAL.
+        //
+        // squadID is kept in the function signature so existing
+        // callers don't need to change.
+        //
+        // It is intentionally not used here.
+        // =========================================================
+
+        db.collection("subscriptionSettings")
+            .document("current")
             .get()
             .addOnSuccessListener { snapshot ->
 
                 if (!snapshot.exists()) {
-                    completion(null, "RemoteConfig not found.")
+
+                    completion(
+                        null,
+                        "RemoteConfig not found."
+                    )
+
                     return@addOnSuccessListener
                 }
 
                 try {
-                    val config = snapshot.toObject(RemoteConfig::class.java)
+
+                    val config =
+                        snapshot.toObject(
+                            RemoteConfig::class.java
+                        )
 
                     if (config != null) {
-                        completion(config, null)
+
+                        completion(
+                            config,
+                            null
+                        )
+
                     } else {
-                        completion(null, "Failed to decode RemoteConfig.")
+
+                        completion(
+                            null,
+                            "Failed to decode RemoteConfig."
+                        )
                     }
 
                 } catch (e: Exception) {
-                    completion(null, e.localizedMessage ?: "Decoding error")
+
+                    completion(
+                        null,
+                        e.localizedMessage
+                            ?: "Decoding error"
+                    )
                 }
             }
-            .addOnFailureListener {
-                completion(null, it.localizedMessage ?: "Unknown error")
+            .addOnFailureListener { error ->
+
+                completion(
+                    null,
+                    error.localizedMessage
+                        ?: "Unknown error"
+                )
             }
     }
 
