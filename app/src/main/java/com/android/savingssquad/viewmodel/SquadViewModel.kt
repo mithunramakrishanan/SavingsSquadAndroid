@@ -2145,6 +2145,54 @@ class SquadViewModel : ViewModel() {
                         }
 
                     }
+                    else {
+
+                        if (payment.paymentType == PaymentType.PAYMENT_CREDIT) {
+
+                            FirestoreManager.shared.updateMemberOtherPaymentStatus(
+
+                                squadID = payment.squadId,
+
+                                memberID = payment.memberId,
+
+                                otherPaymentsId = payment.memberOtherPaymentId,
+
+                                paidStatus = PaidStatus.INVERIFICATION,
+
+                                updateDate = true
+
+                            ) { success, _ ->
+
+                                if (success) {
+
+                                    val index = _memberOtherPayments.value?.indexOfFirst {
+
+                                        it.id == payment.memberOtherPaymentId
+
+                                    } ?: -1
+
+                                    if (index >= 0) {
+
+                                        val updated = _memberOtherPayments.value!!.toMutableList()
+
+                                        updated[index] = updated[index].copy(
+
+                                            paidStatus = PaidStatus.PAID,
+
+                                            amountRepaidDate = Timestamp.now()
+
+                                        )
+
+                                        setMemberOtherPayments(updated)
+
+                                    }
+
+                                }
+
+                            }
+
+                        }
+                    }
 
                 }
                 else if (payment.paymentSubType == PaymentSubType.SETTLEMENT) {
@@ -2533,7 +2581,7 @@ class SquadViewModel : ViewModel() {
                             memberNameEnglish = payment.memberNameEnglish,
                             memberNameHindi = payment.memberNameHindi,
                             memberId = payment.memberId,
-                            paidStatus = PaidStatus.NOT_PAID
+                            paidStatus = PaidStatus.PAID
                         )
 
                         createMemberOtherPayment(

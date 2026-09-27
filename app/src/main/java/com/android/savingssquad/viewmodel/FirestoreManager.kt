@@ -2348,7 +2348,7 @@ class FirestoreManager private constructor() {
             .collection("squads")
             .document(squadID)
             .collection("otherPayments")
-            .orderBy("amountReceivedDate", Query.Direction.DESCENDING)
+            .orderBy("recordDate", Query.Direction.DESCENDING)
             .limit(limit.toLong())
 
         if (!memberID.isNullOrEmpty()) {
