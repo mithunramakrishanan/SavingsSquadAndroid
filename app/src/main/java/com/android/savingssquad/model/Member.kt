@@ -82,6 +82,15 @@ data class Member(
     @get:PropertyName("totalInterestPaid") @set:PropertyName("totalInterestPaid")
     var totalInterestPaid: Int = 0,
 
+    @get:PropertyName("totalSettlementReceived") @set:PropertyName("totalSettlementReceived")
+    var totalSettlementReceived: Int = 0,
+
+    @get:PropertyName("totalRepaymentReceived") @set:PropertyName("totalRepaymentReceived")
+    var totalRepaymentReceived: Int = 0,
+
+    @get:PropertyName("totalRepaymentPaid") @set:PropertyName("totalRepaymentPaid")
+    var totalRepaymentPaid: Int = 0,
+
     @get:PropertyName("recordStatus") @set:PropertyName("recordStatus")
     var recordStatus: RecordStatus = RecordStatus.ACTIVE,
 
@@ -150,6 +159,7 @@ data class Member(
         totalLoanBorrowed = 0,
         totalLoanPaid = 0,
         totalInterestPaid = 0,
+        totalSettlementReceived = 0, totalRepaymentReceived = 0, totalRepaymentPaid = 0,
         recordStatus = RecordStatus.ACTIVE,
         recordDate = Date(),
         upiBeneId = "",

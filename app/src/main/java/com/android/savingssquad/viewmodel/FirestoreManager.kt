@@ -991,65 +991,187 @@ class FirestoreManager private constructor() {
         payment: PaymentsDetails,
         multiplier: Long
     ): Map<String, Any> {
+
         if (multiplier == 0L) return emptyMap()
 
         val updates = mutableMapOf<String, Any>()
 
         when (payment.paymentType) {
+
             PaymentType.PAYMENT_CREDIT -> {
-                when (payment.paymentSubType) {
-                    PaymentSubType.CONTRIBUTION_AMOUNT -> {
-                        updates["totalContributionAmountReceived"] =
-                            FieldValue.increment(payment.amount.toLong() * multiplier)
-                        updates["currentCreditAmount"] =
-                            FieldValue.increment(payment.amount.toLong() * multiplier)
-                        updates["currentAvailableAmount"] =
-                            FieldValue.increment(payment.amount.toLong() * multiplier)
-                    }
 
-                    PaymentSubType.INTEREST_AMOUNT -> {
-                        updates["totalInterestAmountReceived"] =
-                            FieldValue.increment(payment.intrestAmount.toLong() * multiplier)
-                        updates["currentCreditAmount"] =
-                            FieldValue.increment(payment.intrestAmount.toLong() * multiplier)
-                        updates["currentAvailableAmount"] =
-                            FieldValue.increment(payment.amount.toLong() * multiplier)
-                    }
+                // =====================================================
+                // CURRENT CREDIT / AVAILABLE
+                //
+                // EMI:
+                //     amount + interest
+                //
+                // All other credits:
+                //     amount
+                // =====================================================
 
-                    PaymentSubType.EMI_AMOUNT -> {
-                        updates["totalLoanAmountReceived"] =
-                            FieldValue.increment(payment.amount.toLong() * multiplier)
-                        updates["totalInterestAmountReceived"] =
-                            FieldValue.increment(payment.intrestAmount.toLong() * multiplier)
-                        updates["currentCreditAmount"] =
-                            FieldValue.increment((payment.amount + payment.intrestAmount).toLong() * multiplier)
-                        updates["currentAvailableAmount"] =
-                            FieldValue.increment((payment.amount + payment.intrestAmount).toLong() * multiplier)
-                    }
+                if (
+                    payment.paymentSubType ==
+                    PaymentSubType.EMI_AMOUNT
+                ) {
 
-                    else -> {
-                        updates["currentCreditAmount"] =
-                            FieldValue.increment(payment.amount.toLong() * multiplier)
-                        updates["currentAvailableAmount"] =
-                            FieldValue.increment(payment.amount.toLong() * multiplier)
-                    }
-                }
-            }
-
-            PaymentType.PAYMENT_DEBIT -> {
-                if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT) {
-                    updates["totalLoanAmountSent"] =
+                    updates["currentCreditAmount"] =
                         FieldValue.increment(
-                            (payment.amount - payment.intrestAmount).toLong() * multiplier
+                            (payment.amount + payment.intrestAmount)
+                                .toLong() * multiplier
+                        )
+
+                    updates["currentAvailableAmount"] =
+                        FieldValue.increment(
+                            (payment.amount + payment.intrestAmount)
+                                .toLong() * multiplier
+                        )
+
+                } else {
+
+                    updates["currentCreditAmount"] =
+                        FieldValue.increment(
+                            payment.amount.toLong() * multiplier
+                        )
+
+                    updates["currentAvailableAmount"] =
+                        FieldValue.increment(
+                            payment.amount.toLong() * multiplier
                         )
                 }
 
+
+                // =====================================================
+                // SUBTYPE SPECIFIC FINANCIAL VALUES
+                // =====================================================
+
+                if (
+                    payment.paymentSubType ==
+                    PaymentSubType.CONTRIBUTION_AMOUNT
+                ) {
+
+                    updates["totalContributionAmountReceived"] =
+                        FieldValue.increment(
+                            payment.amount.toLong() * multiplier
+                        )
+
+                }
+                else if (
+                    payment.paymentSubType ==
+                    PaymentSubType.INTEREST_AMOUNT
+                ) {
+
+                    updates["totalInterestAmountReceived"] =
+                        FieldValue.increment(
+                            payment.intrestAmount.toLong() * multiplier
+                        )
+
+                }
+                else if (
+                    payment.paymentSubType ==
+                    PaymentSubType.EMI_AMOUNT
+                ) {
+
+                    updates["totalLoanAmountReceived"] =
+                        FieldValue.increment(
+                            payment.amount.toLong() * multiplier
+                        )
+
+                    updates["totalInterestAmountReceived"] =
+                        FieldValue.increment(
+                            payment.intrestAmount.toLong() * multiplier
+                        )
+
+                }
+                else if (
+                    payment.paymentSubType ==
+                    PaymentSubType.RE_PAYMENT
+                ) {
+
+                    updates["totalRepaymentReceived"] =
+                        FieldValue.increment(
+                            payment.amount.toLong() * multiplier
+                        )
+                }
+            }
+
+
+            PaymentType.PAYMENT_DEBIT -> {
+
+                // =====================================================
+                // LOAN
+                // =====================================================
+
+                if (
+                    payment.paymentSubType ==
+                    PaymentSubType.LOAN_AMOUNT
+                ) {
+
+                    updates["totalLoanAmountSent"] =
+                        FieldValue.increment(
+                            (
+                                    payment.amount -
+                                            payment.intrestAmount
+                                    ).toLong() * multiplier
+                        )
+                }
+
+
+                // =====================================================
+                // SETTLEMENT
+                // =====================================================
+
+                else if (
+                    payment.paymentSubType ==
+                    PaymentSubType.SETTLEMENT
+                ) {
+
+                    updates["totalSettlementSent"] =
+                        FieldValue.increment(
+                            payment.amount.toLong() * multiplier
+                        )
+                }
+
+
+                // =====================================================
+                // REPAYMENT
+                // =====================================================
+
+                else if (
+                    payment.paymentSubType ==
+                    PaymentSubType.RE_PAYMENT
+                ) {
+
+                    updates["totalRepaymentSent"] =
+                        FieldValue.increment(
+                            payment.amount.toLong() * multiplier
+                        )
+                }
+
+
+                // =====================================================
+                // CURRENT DEBIT
+                // =====================================================
+
                 updates["currentDebitAmount"] =
                     FieldValue.increment(
-                        (payment.amount - payment.intrestAmount).toLong() * multiplier
+                        (
+                                payment.amount -
+                                        payment.intrestAmount
+                                ).toLong() * multiplier
                     )
+
+
+                // =====================================================
+                // CURRENT AVAILABLE
+                //
+                // Always decreases by full payment amount.
+                // =====================================================
+
                 updates["currentAvailableAmount"] =
-                    FieldValue.increment((-payment.amount).toLong() * multiplier)
+                    FieldValue.increment(
+                        (-payment.amount).toLong() * multiplier
+                    )
             }
         }
 
@@ -1084,6 +1206,11 @@ class FirestoreManager private constructor() {
                             FieldValue.increment(payment.intrestAmount.toLong() * multiplier)
                     }
 
+                    PaymentSubType.RE_PAYMENT -> {
+                        updates["totalRepaymentPaid"] =
+                            FieldValue.increment(payment.amount.toLong() * multiplier)
+                    }
+
                     else -> Unit
                 }
             }
@@ -1094,6 +1221,16 @@ class FirestoreManager private constructor() {
                         FieldValue.increment(
                             (payment.amount - payment.intrestAmount).toLong() * multiplier
                         )
+                }
+                else if (payment.paymentSubType == PaymentSubType.RE_PAYMENT) {
+                    updates["totalRepaymentReceived"] =
+                        FieldValue.increment(payment.amount.toLong() * multiplier)
+
+                }
+                else if (payment.paymentSubType == PaymentSubType.SETTLEMENT) {
+                    updates["totalSettlementReceived"] =
+                        FieldValue.increment(payment.amount.toLong() * multiplier)
+
                 }
             }
         }

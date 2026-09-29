@@ -110,6 +110,10 @@ data class Squad(
     @get:PropertyName("totalLoanAmountSent") @set:PropertyName("totalLoanAmountSent")
     var totalLoanAmountSent: Int = 0,
 
+    @get:PropertyName("totalSettlementSent") @set:PropertyName("totalSettlementSent")
+    var totalSettlementSent: Int = 0,
+
+
     @get:PropertyName("totalInterestAmountReceived") @set:PropertyName("totalInterestAmountReceived")
     var totalInterestAmountReceived: Int = 0,
 
@@ -148,8 +152,12 @@ data class Squad(
     var cashRequestedCount: Int = 0,
 
     @get:PropertyName("activeEMIConfigurationCount") @set:PropertyName("activeEMIConfigurationCount")
-    var activeEMIConfigurationCount: Int? = 0
+    var activeEMIConfigurationCount: Int? = 0,
 
+    @get:PropertyName("totalRepaymentSent") @set:PropertyName("totalRepaymentSent")
+var totalRepaymentSent: Int = 0,
+@get:PropertyName("totalRepaymentReceived") @set:PropertyName("totalRepaymentReceived")
+var totalRepaymentReceived: Int = 0
 
 ) {
     // Required empty constructor for Firestore deserialization
@@ -184,7 +192,7 @@ data class Squad(
         totalAmount = 0,
         totalContributionAmountReceived = 0,
         totalLoanAmountReceived = 0,
-        totalLoanAmountSent = 0,
+        totalLoanAmountSent = 0,totalSettlementSent =0,
         totalInterestAmountReceived = 0,
         currentAvailableAmount = 0,
         currentDebitAmount = 0,
@@ -197,7 +205,7 @@ data class Squad(
         verifyAmountCount = 0,
         lastActiveDate = null,
         cashRequestedCount = 0,
-        activeEMIConfigurationCount = 0
+        activeEMIConfigurationCount = 0,totalRepaymentSent=0,totalRepaymentReceived=0
     )
 
     val localizedSquadName: String
