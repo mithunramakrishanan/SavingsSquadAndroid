@@ -1148,6 +1148,17 @@ class FirestoreManager private constructor() {
                         )
                 }
 
+                else if (
+                    payment.paymentSubType ==
+                    PaymentSubType.OTHERS_AMOUNT
+                ) {
+
+                    updates["totalOtherPaymentSend"] =
+                        FieldValue.increment(
+                            payment.amount.toLong() * multiplier
+                        )
+                }
+
 
                 // =====================================================
                 // CURRENT DEBIT

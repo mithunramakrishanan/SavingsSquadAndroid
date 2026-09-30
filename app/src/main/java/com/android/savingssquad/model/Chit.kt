@@ -157,7 +157,16 @@ data class Squad(
     @get:PropertyName("totalRepaymentSent") @set:PropertyName("totalRepaymentSent")
 var totalRepaymentSent: Int = 0,
 @get:PropertyName("totalRepaymentReceived") @set:PropertyName("totalRepaymentReceived")
-var totalRepaymentReceived: Int = 0
+var totalRepaymentReceived: Int = 0,
+
+    @get:PropertyName("totalOtherPaymentSend") @set:PropertyName("totalOtherPaymentSend")
+    var totalOtherPaymentSend: Int = 0,
+
+    @get:PropertyName("totalOtherPaymentReceived") @set:PropertyName("totalOtherPaymentReceived")
+    var totalOtherPaymentReceived: Int = 0
+
+
+
 
 ) {
     // Required empty constructor for Firestore deserialization
@@ -205,7 +214,7 @@ var totalRepaymentReceived: Int = 0
         verifyAmountCount = 0,
         lastActiveDate = null,
         cashRequestedCount = 0,
-        activeEMIConfigurationCount = 0,totalRepaymentSent=0,totalRepaymentReceived=0
+        activeEMIConfigurationCount = 0,totalRepaymentSent=0,totalRepaymentReceived=0,totalOtherPaymentSend=0,totalOtherPaymentReceived=0
     )
 
     val localizedSquadName: String
