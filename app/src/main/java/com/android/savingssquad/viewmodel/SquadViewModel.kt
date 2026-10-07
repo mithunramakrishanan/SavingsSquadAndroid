@@ -1853,7 +1853,7 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-    fun savePayments(
+    /*fun savePayments(
         activity: Activity,
         context: Context,
         showUPIIntent: Boolean = true,
@@ -2602,6 +2602,455 @@ class SquadViewModel : ViewModel() {
             if (showLoader) LoaderManager.shared.hideLoader()
 
             completion(true, null)
+        }
+    } */
+
+    fun savePayments(
+        activity: Activity,
+        context: Context,
+        showUPIIntent: Boolean = true,
+        showLoader: Boolean = true,
+        squadID: String,
+        payment: List<PaymentsDetails>,
+        completion: (Boolean, String?) -> Unit
+    ) {
+        // =========================================================
+        // INTERNET CHECK
+        // =========================================================
+
+        if (!CommonFunctions.isInternetAvailable()) {
+
+            AlertManager.shared.showAlert(
+                title = SquadStrings.savingsSquad,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+
+            completion(
+                false,
+                SquadStrings.networkError
+            )
+
+            return
+        }
+
+        // =========================================================
+        // FIRST PAYMENT
+        // =========================================================
+
+        val firstPayment =
+            payment.firstOrNull()
+
+        if (firstPayment == null) {
+
+            completion(
+                false,
+                "No payment provided"
+            )
+
+            return
+        }
+
+        // =========================================================
+        // UPI FLOW
+        // =========================================================
+
+        if (
+            firstPayment.paymentApproveStatus !=
+            PaymentApproveStatus.ACCEPTED &&
+            showUPIIntent
+        ) {
+
+            if (showLoader) {
+                LoaderManager.shared.hideLoader()
+            }
+
+            copyToClipboard(
+                context = context,
+                label = "UPI ID",
+                text = firstPayment.upiID
+            )
+
+            UserDefaultsManager.savePendingPayment(
+                firstPayment
+            )
+
+            setShowWaitingForPayment(true)
+
+            completion(
+                true,
+                "UPI_OPENED"
+            )
+
+            return
+        }
+
+        // =========================================================
+        // PREPARE PAYMENT
+        // =========================================================
+
+        val paymentNew =
+            firstPayment.copy()
+
+        // =========================================================
+        // MANUAL / OTHER PAYMENT
+        // =========================================================
+
+        if (
+            paymentNew.paymentSubType ==
+            PaymentSubType.OTHERS_AMOUNT ||
+            paymentNew.paymentEntryType ==
+            PaymentEntryType.MANUAL_ENTRY
+        ) {
+
+            paymentNew.paymentApproveStatus =
+                PaymentApproveStatus.ACCEPTED
+
+            paymentNew.paymentStatus =
+                PaymentStatus.SUCCESS
+
+            paymentNew.paymentUpdatedDate =
+                Timestamp.now()
+        }
+
+        // =========================================================
+        // SHOW LOADER
+        // =========================================================
+
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        // =========================================================
+        // ONE ATOMIC FIRESTORE OPERATION
+        // =========================================================
+
+        manager.savePayments(
+            squadID = squadID,
+            payment = paymentNew
+        ) { success, error ->
+
+            activity.runOnUiThread {
+
+                // =====================================================
+                // FAILURE
+                // =====================================================
+
+                if (!success) {
+
+                    if (showLoader) {
+                        LoaderManager.shared.hideLoader()
+                    }
+
+                    val errorMsg =
+                        error ?: "❌ Failed to add payment"
+
+                    println(errorMsg)
+
+                    handleFetchError(errorMsg) {
+
+                        // Retry WITHOUT opening UPI again.
+                        savePayments(
+                            activity = activity,
+                            context = context,
+                            showUPIIntent = false,
+                            showLoader = showLoader,
+                            squadID = squadID,
+                            payment = payment,
+                            completion = completion
+                        )
+                    }
+
+                    completion(
+                        false,
+                        errorMsg
+                    )
+
+                    return@runOnUiThread
+                }
+
+                // =====================================================
+                // UPDATE LOCAL PAYMENT CACHE
+                // =====================================================
+
+                val updatedPayments =
+                    _squadPayments.value.toMutableList()
+
+                val paymentID =
+                    paymentNew.id
+
+                if (!paymentID.isNullOrEmpty()) {
+
+                    val existingIndex =
+                        updatedPayments.indexOfFirst {
+                            it.id == paymentID
+                        }
+
+                    if (existingIndex >= 0) {
+
+                        updatedPayments[existingIndex] =
+                            paymentNew
+
+                    } else {
+
+                        updatedPayments.add(
+                            0,
+                            paymentNew
+                        )
+                    }
+                }
+
+                setSquadPayments(
+                    updatedPayments
+                )
+
+                // =====================================================
+                // UPDATE LOCAL CASH REQUEST CACHE
+                // =====================================================
+
+                if (
+                    paymentNew.paymentSubType ==
+                    PaymentSubType.LOAN_AMOUNT &&
+                    paymentNew.paymentEntryType ==
+                    PaymentEntryType.AUTOMATIC_ENTRY &&
+                    !paymentNew.cashRequestId.isNullOrEmpty()
+                ) {
+
+                    val cashRequestIndex =
+                        _squadCashRequests.value.indexOfFirst {
+                            it.id ==
+                                    paymentNew.cashRequestId
+                        }
+
+                    if (cashRequestIndex >= 0) {
+
+                        val updatedCashRequests =
+                            _squadCashRequests.value.toMutableList()
+
+                        updatedCashRequests[
+                            cashRequestIndex
+                        ] =
+                            updatedCashRequests[
+                                cashRequestIndex
+                            ].copy(
+                                cashRequestStatus =
+                                    CashRequestStatus.ACCEPTED,
+
+                                requestAcceptedOn =
+                                    Timestamp.now()
+                            )
+
+                        setSquadCashRequests(
+                            updatedCashRequests
+                        )
+                    }
+                }
+
+                // =====================================================
+                // IMPORTANT
+                // =====================================================
+                //
+                // DO NOT call any of these here:
+                //
+                // updateContributionStatus()
+                // updateInstallmentStatus()
+                // updateLoanStatusPaid()
+                // updateLoanForceCloseVerification()
+                // addOrUpdateMemberLoan()
+                // updateMemberOtherPaymentStatus()
+                // createMemberOtherPayment()
+                // updateCurrentLoanApproveStatus()
+                //
+                // They are already handled atomically by:
+                //
+                // manager.savePayments()
+                //
+                // =====================================================
+
+                if (showLoader) {
+                    LoaderManager.shared.hideLoader()
+                }
+
+                completion(
+                    true,
+                    null
+                )
+            }
+        }
+    }
+
+    fun updatePaymentApproveStatus(
+        showLoader: Boolean = true,
+        squadID: String,
+        paymentID: String,
+        status: PaymentApproveStatus,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        // =========================================================
+        // INTERNET CHECK
+        // =========================================================
+
+        if (!CommonFunctions.isInternetAvailable()) {
+
+            AlertManager.shared.showAlert(
+                title = SquadStrings.savingsSquad,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+
+            completion(
+                false,
+                SquadStrings.networkError
+            )
+
+            return
+        }
+
+        // =========================================================
+        // SHOW LOADER
+        // =========================================================
+
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        // =========================================================
+        // ONE ATOMIC FIRESTORE OPERATION
+        // =========================================================
+
+        manager.updatePaymentApproveStatus(
+            squadID = squadID,
+            paymentID = paymentID,
+            status = status
+        ) { success, payment, error ->
+
+            viewModelScope.launch(Dispatchers.Main) {
+
+                // =====================================================
+                // FAILURE
+                // =====================================================
+
+                if (!success || payment == null) {
+
+                    if (showLoader) {
+                        LoaderManager.shared.hideLoader()
+                    }
+
+                    val errorMsg =
+                        error ?: "Failed to update approval status"
+
+                    println(errorMsg)
+
+                    handleFetchError(errorMsg) {
+
+                        updatePaymentApproveStatus(
+                            showLoader = showLoader,
+                            squadID = squadID,
+                            paymentID = paymentID,
+                            status = status,
+                            completion = completion
+                        )
+                    }
+
+                    completion(
+                        false,
+                        errorMsg
+                    )
+
+                    return@launch
+                }
+
+                // =====================================================
+                // FIRESTORE TRANSACTION IS THE SOURCE OF TRUTH
+                // =====================================================
+
+                val effectivePayment = payment
+
+                // =====================================================
+                // UPDATE LOCAL PAYMENT CACHE
+                // =====================================================
+
+                val updatedPayments =
+                    _squadPayments.value.toMutableList()
+
+                val paymentIndex =
+                    updatedPayments.indexOfFirst {
+                        it.id == paymentID
+                    }
+
+                if (paymentIndex >= 0) {
+
+                    updatedPayments[paymentIndex] =
+                        effectivePayment
+
+                } else {
+
+                    updatedPayments.add(
+                        0,
+                        effectivePayment
+                    )
+                }
+
+                setSquadPayments(updatedPayments)
+
+                // =====================================================
+                // REMOVE FROM PENDING APPROVAL LIST
+                // =====================================================
+
+                val updatedPendingPayments =
+                    _pendingApprovalPayments.value.toMutableList()
+
+                updatedPendingPayments.removeAll {
+                    it.id == paymentID
+                }
+
+                setPendingApprovalPayments(
+                    updatedPendingPayments
+                )
+
+                // =====================================================
+                // IMPORTANT
+                // =====================================================
+                //
+                // DO NOT call:
+                //
+                // updateContributionStatus()
+                // updateInstallmentStatus()
+                // updateLoanStatusPaid()
+                // updateLoanForceCloseVerification()
+                // addOrUpdateMemberLoan()
+                // updateMemberOtherPaymentStatus()
+                // createMemberOtherPayment()
+                // updateCurrentLoanApproveStatus()
+                //
+                // FirestoreManager transaction already handles:
+                //
+                // 1. Payment status
+                // 2. Squad financials
+                // 3. Member financials
+                // 4. Contribution
+                // 5. EMI
+                // 6. Force close
+                // 7. Loan creation/update
+                // 8. Repayment
+                // 9. Settlement
+                // 10. Other payment
+                // 11. Cash request
+                //
+                // =====================================================
+
+                if (showLoader) {
+                    LoaderManager.shared.hideLoader()
+                }
+
+                completion(
+                    true,
+                    null
+                )
+            }
         }
     }
 
@@ -3863,58 +4312,108 @@ class SquadViewModel : ViewModel() {
 
     fun fetchDueContributionsAndInstallments(
         squadID: String,
-        completion: (List<ContributionDetail>, List<Installment>) -> Unit
+        completion: (
+            List<ContributionDetail>,
+            List<Installment>
+        ) -> Unit
     ) {
         val db = FirebaseFirestore.getInstance()
-        val membersRef = db.collection("squads").document(squadID).collection("members")
-        val squadRef = db.collection("squads").document(squadID)
-        val dueContributions = mutableListOf<ContributionDetail>()
-        val dueInstallments = mutableListOf<Installment>()
+
+        val membersRef =
+            db.collection("squads")
+                .document(squadID)
+                .collection("members")
+
+        val squadRef =
+            db.collection("squads")
+                .document(squadID)
+
+        val dueContributions =
+            mutableListOf<ContributionDetail>()
+
+        val dueInstallments =
+            mutableListOf<Installment>()
 
         membersRef.get()
             .addOnSuccessListener { snapshot ->
 
-                val members = snapshot.documents
+                val members =
+                    snapshot.documents
 
                 if (members.isEmpty()) {
-                    completion(emptyList(), emptyList())
+                    completion(
+                        emptyList(),
+                        emptyList()
+                    )
                     return@addOnSuccessListener
                 }
 
-                val latch = CountDownLatch(members.size * 2)
+                val latch =
+                    CountDownLatch(
+                        members.size * 2
+                    )
 
-                val formatter = SimpleDateFormat("MMM yyyy", Locale.ENGLISH)
+                val formatter =
+                    SimpleDateFormat(
+                        "MMM yyyy",
+                        Locale.ENGLISH
+                    )
 
                 for (memberDoc in members) {
 
-                    val memberID = memberDoc.id
+                    val memberID =
+                        memberDoc.id
 
                     val contribRef =
-                        membersRef.document(memberID).collection("contributions")
+                        membersRef
+                            .document(memberID)
+                            .collection("contributions")
 
                     val loansRef =
-                        squadRef.collection("loans").whereEqualTo("memberID",memberID)
+                        squadRef
+                            .collection("loans")
+                            .whereEqualTo(
+                                "memberID",
+                                memberID
+                            )
+
+                    // =====================================================
+                    // CONTRIBUTIONS
+                    // =====================================================
 
                     contribRef.get()
                         .addOnSuccessListener { contribSnap ->
 
                             for (doc in contribSnap.documents) {
 
-                                doc.toObject(ContributionDetail::class.java)?.let { contribution ->
+                                doc.toObject(
+                                    ContributionDetail::class.java
+                                )?.let { contribution ->
 
-                                    val dueDate = try {
-                                        formatter.parse(contribution.monthYear)
-                                    } catch (e: Exception) {
-                                        null
-                                    }
+                                    val dueDate =
+                                        try {
+                                            formatter.parse(
+                                                contribution.monthYear
+                                            )
+                                        } catch (
+                                            e: Exception
+                                        ) {
+                                            null
+                                        }
 
                                     if (
-                                        contribution.paidStatus == PaidStatus.NOT_PAID &&
+                                        contribution.paidStatus ==
+                                        PaidStatus.NOT_PAID &&
                                         dueDate != null &&
                                         dueDate.before(Date())
                                     ) {
-                                        synchronized(dueContributions) {
-                                            dueContributions.add(contribution)
+
+                                        synchronized(
+                                            dueContributions
+                                        ) {
+                                            dueContributions.add(
+                                                contribution
+                                            )
                                         }
                                     }
                                 }
@@ -3926,38 +4425,89 @@ class SquadViewModel : ViewModel() {
                             latch.countDown()
                         }
 
+                    // =====================================================
+                    // LOANS + INSTALLMENTS
+                    // =====================================================
+
                     loansRef.get()
                         .addOnSuccessListener { loanSnap ->
 
-                            val currentCal = Calendar.getInstance()
+                            val currentCal =
+                                Calendar.getInstance()
+
                             val currentKey =
-                                currentCal.get(Calendar.YEAR) * 12 +
-                                        currentCal.get(Calendar.MONTH)
+                                currentCal.get(
+                                    Calendar.YEAR
+                                ) * 12 +
+                                        currentCal.get(
+                                            Calendar.MONTH
+                                        )
 
                             for (loanDoc in loanSnap.documents) {
 
-                                loanDoc.toObject(MemberLoan::class.java)?.let { loan ->
+                                loanDoc.toObject(
+                                    MemberLoan::class.java
+                                )?.let { loan ->
 
-                                    for (installment in loan.installments) {
+                                    // =================================================
+                                    // IMPORTANT:
+                                    // IGNORE FORCE-CLOSED LOANS COMPLETELY
+                                    // =================================================
 
-                                        val dueDate = installment.dueDate?.toDate()
+                                    if (loan.isForceClosed) {
+
+                                        println(
+                                            "ℹ️ Ignoring force-closed loan: ${loanDoc.id}"
+                                        )
+
+                                        return@let
+                                    }
+
+                                    // =================================================
+                                    // NORMAL LOAN INSTALLMENTS
+                                    // =================================================
+
+                                    for (
+                                    installment
+                                    in loan.installments
+                                    ) {
+
+                                        val dueDate =
+                                            installment.dueDate
+                                                ?.toDate()
 
                                         if (
-                                            installment.status == EMIStatus.PENDING &&
+                                            installment.status ==
+                                            EMIStatus.PENDING &&
                                             dueDate != null
                                         ) {
 
-                                            val dueCal = Calendar.getInstance().apply {
-                                                time = dueDate
-                                            }
+                                            val dueCal =
+                                                Calendar.getInstance()
+                                                    .apply {
+                                                        time =
+                                                            dueDate
+                                                    }
 
                                             val dueKey =
-                                                dueCal.get(Calendar.YEAR) * 12 +
-                                                        dueCal.get(Calendar.MONTH)
+                                                dueCal.get(
+                                                    Calendar.YEAR
+                                                ) * 12 +
+                                                        dueCal.get(
+                                                            Calendar.MONTH
+                                                        )
 
-                                            if (dueKey <= currentKey) {
-                                                synchronized(dueInstallments) {
-                                                    dueInstallments.add(installment)
+                                            if (
+                                                dueKey <=
+                                                currentKey
+                                            ) {
+
+                                                synchronized(
+                                                    dueInstallments
+                                                ) {
+                                                    dueInstallments.add(
+                                                        installment
+                                                    )
                                                 }
                                             }
                                         }
@@ -3972,20 +4522,36 @@ class SquadViewModel : ViewModel() {
                         }
                 }
 
+                // =====================================================
+                // WAIT FOR ALL REQUESTS
+                // =====================================================
+
                 Thread {
+
                     latch.await()
 
-                    Handler(Looper.getMainLooper()).post {
+                    Handler(
+                        Looper.getMainLooper()
+                    ).post {
+
                         completion(
                             dueContributions.toList(),
                             dueInstallments.toList()
                         )
                     }
+
                 }.start()
             }
             .addOnFailureListener {
-                println("❌ Error fetching members: ${it.localizedMessage}")
-                completion(emptyList(), emptyList())
+
+                println(
+                    "❌ Error fetching members: ${it.localizedMessage}"
+                )
+
+                completion(
+                    emptyList(),
+                    emptyList()
+                )
             }
     }
 

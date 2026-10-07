@@ -869,9 +869,2413 @@ class FirestoreManager private constructor() {
             }
     }
 
+
+
+    // MARK: - savePayments
+// Single payment + financial + subtype updates in ONE transaction
+    fun savePayments(
+        squadID: String,
+        payment: PaymentsDetails?,
+        completion: (Boolean, String?) -> Unit
+    ) {
+        val paymentID = payment?.id
+
+        if (
+            squadID.isEmpty() ||
+            paymentID.isNullOrEmpty() ||
+            payment == null
+        ) {
+            completion(false, "Payment ID is missing.")
+            return
+        }
+
+        val squadRef =
+            db
+                .collection("squads")
+                .document(squadID)
+
+        val paymentRef =
+            squadRef
+                .collection("payments")
+                .document(paymentID)
+
+        // =========================================================
+        // PREPARE DETERMINISTIC LOAN OUTSIDE TRANSACTION
+        // =========================================================
+
+        var preparedLoan: MemberLoan? = null
+
+        if (
+            payment.paymentSubType ==
+            PaymentSubType.LOAN_AMOUNT &&
+            payment.paymentEntryType ==
+            PaymentEntryType.MANUAL_ENTRY &&
+            payment.selectedEMIConfig != null
+        ) {
+            val loan =
+                CommonFunctions.generateMemberLoan(
+                    emiConfig = payment.selectedEMIConfig!!,
+                    memberID = payment.memberId,
+                    memberName = payment.memberName,
+                    memberNameEnglish = payment.memberNameEnglish,
+                    memberNameTamil = payment.memberNameTamil,
+                    memberNameHindi = payment.memberNameHindi
+                ).apply {
+                    id = payment.loanId
+                }
+
+            preparedLoan = loan
+        }
+
+        try {
+
+            db.runTransaction { transaction ->
+
+                // =====================================================
+                // 1. READ PAYMENT
+                // =====================================================
+
+                val paymentSnapshot =
+                    transaction.get(paymentRef)
+
+                val existingPayment =
+                    if (paymentSnapshot.exists()) {
+
+                        try {
+                            paymentSnapshot.toObject(
+                                PaymentsDetails::class.java
+                            )
+                        } catch (e: Exception) {
+                            throw IllegalStateException(
+                                "Payment decode error: ${e.localizedMessage}",
+                                e
+                            )
+                        }
+
+                    } else {
+                        null
+                    }
+
+                val oldStatus =
+                    existingPayment?.paymentApproveStatus
+
+                val newStatus =
+                    payment.paymentApproveStatus
+                        ?: PaymentApproveStatus.REQUESTED
+
+                // =====================================================
+                // EXISTING ACCEPTED PAYMENT MUST NOT BE MOVED BACK
+                // =====================================================
+
+                if (
+                    oldStatus ==
+                    PaymentApproveStatus.ACCEPTED &&
+                    newStatus !=
+                    PaymentApproveStatus.ACCEPTED
+                ) {
+                    return@runTransaction null
+                }
+
+                // =====================================================
+                // 2. READ ALL REQUIRED DOCUMENTS
+                // =====================================================
+
+                var loanSnapshot: DocumentSnapshot? = null
+
+                var cashRequestSnapshot: DocumentSnapshot? = null
+
+                // -----------------------------------------------------
+                // EMI -> READ LOAN
+                // -----------------------------------------------------
+
+                if (
+                    payment.paymentSubType ==
+                    PaymentSubType.EMI_AMOUNT
+                ) {
+
+                    if (payment.loanId.isEmpty()) {
+                        throw IllegalStateException(
+                            "Loan ID is missing."
+                        )
+                    }
+
+                    val loanRef =
+                        squadRef
+                            .collection("loans")
+                            .document(payment.loanId)
+
+                    loanSnapshot =
+                        transaction.get(loanRef)
+
+                    if (!loanSnapshot.exists()) {
+                        throw IllegalStateException(
+                            "Loan not found."
+                        )
+                    }
+                }
+
+                // -----------------------------------------------------
+                // LOAN AMOUNT -> READ EXISTING LOAN
+                // -----------------------------------------------------
+
+                if (
+                    payment.paymentSubType ==
+                    PaymentSubType.LOAN_AMOUNT &&
+                    payment.loanId.isNotEmpty()
+                ) {
+
+                    val loanRef =
+                        squadRef
+                            .collection("loans")
+                            .document(payment.loanId)
+
+                    loanSnapshot =
+                        transaction.get(loanRef)
+                }
+
+                // -----------------------------------------------------
+                // CASH REQUEST -> READ BEFORE WRITE
+                // -----------------------------------------------------
+
+                if (
+                    payment.paymentSubType ==
+                    PaymentSubType.LOAN_AMOUNT &&
+                    payment.paymentEntryType ==
+                    PaymentEntryType.AUTOMATIC_ENTRY &&
+                    !payment.cashRequestId.isNullOrEmpty()
+                ) {
+
+                    val cashRequestRef =
+                        squadRef
+                            .collection("cashrequest")
+                            .document(payment.cashRequestId!!)
+
+                    cashRequestSnapshot =
+                        transaction.get(cashRequestRef)
+
+                    if (!cashRequestSnapshot.exists()) {
+                        throw IllegalStateException(
+                            "Cash request not found."
+                        )
+                    }
+                }
+
+                // =====================================================
+                // 3. FINANCIAL MULTIPLIER
+                // =====================================================
+
+                val shouldApplyFinancialEffect =
+                    !(
+                            oldStatus ==
+                                    PaymentApproveStatus.ACCEPTED &&
+                                    newStatus ==
+                                    PaymentApproveStatus.ACCEPTED
+                            )
+
+                val multiplier =
+                    if (shouldApplyFinancialEffect) {
+
+                        financialMultiplier(
+                            oldStatus = oldStatus,
+                            newStatus = newStatus
+                        )
+
+                    } else {
+                        0L
+                    }
+
+                // =====================================================
+                // 4. SAVE PAYMENT
+                // =====================================================
+
+                transaction.set(
+                    paymentRef,
+                    payment.toMap(),
+                    SetOptions.merge()
+                )
+
+                // =====================================================
+                // 5. SQUAD FINANCIALS
+                // =====================================================
+
+                if (multiplier != 0L) {
+
+                    val squadUpdates =
+                        paymentFinancialUpdates(
+                            payment,
+                            multiplier
+                        )
+
+                    if (squadUpdates.isNotEmpty()) {
+
+                        transaction.update(
+                            squadRef,
+                            squadUpdates
+                        )
+                    }
+
+                    // =================================================
+                    // 6. MEMBER FINANCIALS
+                    // =================================================
+
+                    if (payment.memberId.isNotEmpty()) {
+
+                        val memberRef =
+                            squadRef
+                                .collection("members")
+                                .document(payment.memberId)
+
+                        val memberUpdates =
+                            memberFinancialUpdates(
+                                payment,
+                                multiplier
+                            )
+
+                        if (memberUpdates.isNotEmpty()) {
+
+                            transaction.update(
+                                memberRef,
+                                memberUpdates
+                            )
+                        }
+                    }
+                }
+
+                // =====================================================
+                // 7. SUBTYPE PROCESSING
+                // =====================================================
+
+                when (payment.paymentSubType) {
+
+                    // =================================================
+                    // CONTRIBUTION
+                    // =================================================
+
+                    PaymentSubType.CONTRIBUTION_AMOUNT -> {
+
+                        if (
+                            payment.memberId.isEmpty() ||
+                            payment.contributionId.isNullOrEmpty()
+                        ) {
+                            throw IllegalStateException(
+                                "Member ID or Contribution ID is missing."
+                            )
+                        }
+
+                        val contributionRef =
+                            squadRef
+                                .collection("members")
+                                .document(payment.memberId)
+                                .collection("contributions")
+                                .document(payment.contributionId!!)
+
+                        if (
+                            payment.paymentEntryType ==
+                            PaymentEntryType.MANUAL_ENTRY
+                        ) {
+
+                            transaction.update(
+                                contributionRef,
+                                mapOf(
+                                    "amount" to payment.amount,
+                                    "paidStatus" to
+                                            PaidStatus.PAID.name,
+                                    "paidOn" to
+                                            FieldValue.serverTimestamp()
+                                )
+                            )
+
+                        } else {
+
+                            transaction.update(
+                                contributionRef,
+                                mapOf(
+                                    "amount" to payment.amount,
+                                    "paidStatus" to
+                                            PaidStatus.INVERIFICATION.name,
+                                    "paidOn" to null
+                                )
+                            )
+                        }
+                    }
+
+                    // =================================================
+                    // EMI
+                    // =================================================
+
+                    PaymentSubType.EMI_AMOUNT -> {
+
+                        if (payment.loanId.isEmpty()) {
+                            throw IllegalStateException(
+                                "Loan ID is missing."
+                            )
+                        }
+
+                        val loanRef =
+                            squadRef
+                                .collection("loans")
+                                .document(payment.loanId)
+
+                        val loanData =
+                            loanSnapshot?.data
+                                ?: throw IllegalStateException(
+                                    "Loan not found."
+                                )
+
+                        // =================================================
+                        // FORCE CLOSE
+                        // =================================================
+
+                        if (payment.isLoanForceClosed) {
+
+                            val summary =
+                                payment.forceCloseSummary
+
+                            val loanUpdates =
+                                mutableMapOf<String, Any?>(
+                                    "updatedAt" to
+                                            FieldValue.serverTimestamp(),
+
+                                    "forceCloseSummary" to
+                                            mapOf(
+                                                "outstandingPrincipal" to
+                                                        summary.outstandingPrincipal,
+
+                                                "daysElapsed" to
+                                                        summary.daysElapsed,
+
+                                                "recalculatedInterest" to
+                                                        summary.recalculatedInterest,
+
+                                                "totalPayable" to
+                                                        summary.totalPayable,
+
+                                                "asOfDate" to
+                                                        summary.asOfDate
+                                            )
+                                )
+
+                            if (
+                                payment.paymentEntryType ==
+                                PaymentEntryType.MANUAL_ENTRY
+                            ) {
+
+                                loanUpdates["duePaidDate"] =
+                                    FieldValue.serverTimestamp()
+
+                                loanUpdates["loanStatus"] =
+                                    EMIStatus.PAID.name
+
+                                loanUpdates["isForceClosed"] =
+                                    true
+
+                                loanUpdates[
+                                    "isForceCloseVerification"
+                                ] = false
+
+                            } else {
+
+                                loanUpdates[
+                                    "isForceCloseVerification"
+                                ] = true
+                            }
+
+                            transaction.update(
+                                loanRef,
+                                loanUpdates
+                            )
+
+                            // -------------------------------------------------
+                            // Manual force close
+                            // -------------------------------------------------
+
+                            if (
+                                payment.paymentEntryType ==
+                                PaymentEntryType.MANUAL_ENTRY
+                            ) {
+
+                                val memberRef =
+                                    squadRef
+                                        .collection("members")
+                                        .document(payment.memberId)
+
+                                transaction.set(
+                                    memberRef,
+                                    mapOf(
+                                        "currentLoanApproveStatus" to
+                                                EMIStatus.CREATED.name,
+
+                                        "cashRequested" to false
+                                    ),
+                                    SetOptions.merge()
+                                )
+                            }
+
+                        } else {
+
+                            // =================================================
+                            // REGULAR EMI
+                            // =================================================
+
+                            val rawInstallments =
+                                loanData["installments"]
+                                        as? List<*>
+
+                            if (rawInstallments == null) {
+                                throw IllegalStateException(
+                                    "Installments not found."
+                                )
+                            }
+
+                            val installments =
+                                rawInstallments
+                                    .mapNotNull { item ->
+
+                                        (item as? Map<*, *>)
+                                            ?.entries
+                                            ?.associate { entry ->
+                                                entry.key.toString() to
+                                                        entry.value
+                                            }
+                                            ?.toMutableMap()
+                                    }
+                                    .toMutableList()
+
+                            if (
+                                payment.installmentId.isNullOrEmpty()
+                            ) {
+                                throw IllegalStateException(
+                                    "Installment ID is missing."
+                                )
+                            }
+
+                            val now =
+                                Timestamp.now()
+
+                            var found = false
+
+                            for (index in installments.indices) {
+
+                                val installmentID =
+                                    installments[index]["id"]
+                                        ?.toString()
+                                        ?: ""
+
+                                if (
+                                    installmentID ==
+                                    payment.installmentId
+                                ) {
+
+                                    found = true
+
+                                    if (
+                                        payment.paymentEntryType ==
+                                        PaymentEntryType.MANUAL_ENTRY
+                                    ) {
+
+                                        installments[index]["status"] =
+                                            EMIStatus.PAID.name
+
+                                        installments[index][
+                                            "duePaidDate"
+                                        ] = now
+
+                                    } else {
+
+                                        installments[index]["status"] =
+                                            EMIStatus.INVERIFICATION.name
+
+                                        installments[index][
+                                            "duePaidDate"
+                                        ] = null
+                                    }
+
+                                    break
+                                }
+                            }
+
+                            if (!found) {
+                                throw IllegalStateException(
+                                    "Installment ID not found."
+                                )
+                            }
+
+                            val loanUpdates =
+                                mutableMapOf<String, Any?>(
+                                    "installments" to
+                                            installments,
+
+                                    "updatedAt" to
+                                            FieldValue.serverTimestamp()
+                                )
+
+                            if (
+                                payment.paymentEntryType ==
+                                PaymentEntryType.MANUAL_ENTRY
+                            ) {
+
+                                val allPaid =
+                                    installments.all {
+
+                                        it["status"]
+                                            ?.toString()
+                                            ?.uppercase() == "PAID"
+                                    }
+
+                                if (allPaid) {
+
+                                    loanUpdates[
+                                        "loanStatus"
+                                    ] =
+                                        EMIStatus.PAID.name
+
+                                    loanUpdates[
+                                        "loanClosedDate"
+                                    ] = now
+                                }
+                            }
+
+                            transaction.update(
+                                loanRef,
+                                loanUpdates
+                            )
+                        }
+                    }
+
+                    // =================================================
+                    // LOAN AMOUNT
+                    // =================================================
+
+                    PaymentSubType.LOAN_AMOUNT -> {
+
+                        if (payment.memberId.isEmpty()) {
+                            throw IllegalStateException(
+                                "Member ID is missing."
+                            )
+                        }
+
+                        val memberRef =
+                            squadRef
+                                .collection("members")
+                                .document(payment.memberId)
+
+                        val loanRef =
+                            squadRef
+                                .collection("loans")
+                                .document(payment.loanId)
+
+                        if (
+                            payment.paymentEntryType ==
+                            PaymentEntryType.MANUAL_ENTRY
+                        ) {
+
+                            val loan =
+                                preparedLoan
+                                    ?: throw IllegalStateException(
+                                        "Unable to prepare loan."
+                                    )
+
+                            // -------------------------------------------------
+                            // Do not overwrite already-created loan on retry.
+                            // -------------------------------------------------
+
+                            if (loanSnapshot?.exists() != true) {
+
+                                transaction.set(
+                                    loanRef,
+                                    loan,
+                                    SetOptions.merge()
+                                )
+                            }
+
+                            transaction.set(
+                                memberRef,
+                                mapOf(
+                                    "currentLoanApproveStatus" to
+                                            EMIStatus.PENDING.name,
+
+                                    "cashRequested" to false
+                                ),
+                                SetOptions.merge()
+                            )
+
+                        } else {
+
+                            // -------------------------------------------------
+                            // Automatic loan payment:
+                            // Loan is created during approval.
+                            // -------------------------------------------------
+
+                            transaction.set(
+                                memberRef,
+                                mapOf(
+                                    "currentLoanApproveStatus" to
+                                            "INVERIFICATION"
+                                ),
+                                SetOptions.merge()
+                            )
+                        }
+                    }
+
+                    // =================================================
+                    // REPAYMENT
+                    // =================================================
+
+                    PaymentSubType.RE_PAYMENT -> {
+
+                        val otherPaymentID =
+                            if (
+                                !payment.memberOtherPaymentId
+                                    .isNullOrEmpty()
+                            ) {
+                                payment.memberOtherPaymentId!!
+                            } else {
+                                payment.id
+                            }
+
+                        if (otherPaymentID.isNullOrEmpty()) {
+                            throw IllegalStateException(
+                                "Other payment ID is missing."
+                            )
+                        }
+
+                        val otherPaymentRef =
+                            squadRef
+                                .collection("otherPayments")
+                                .document(otherPaymentID)
+
+                        if (
+                            payment.paymentType ==
+                            PaymentType.PAYMENT_CREDIT
+                        ) {
+
+                            if (
+                                payment.paymentEntryType ==
+                                PaymentEntryType.MANUAL_ENTRY
+                            ) {
+
+                                transaction.set(
+                                    otherPaymentRef,
+                                    mapOf(
+                                        "paidStatus" to
+                                                PaidStatus.PAID.name,
+
+                                        "amountRepaidDate" to
+                                                FieldValue.serverTimestamp()
+                                    ),
+                                    SetOptions.merge()
+                                )
+
+                            } else {
+
+                                transaction.set(
+                                    otherPaymentRef,
+                                    mapOf(
+                                        "paidStatus" to
+                                                PaidStatus.INVERIFICATION.name,
+
+                                        "amountRepaidDate" to
+                                                FieldValue.serverTimestamp()
+                                    ),
+                                    SetOptions.merge()
+                                )
+                            }
+
+                        } else if (
+                            payment.paymentEntryType ==
+                            PaymentEntryType.MANUAL_ENTRY
+                        ) {
+
+                            val otherPaymentData =
+                                mapOf<String, Any?>(
+                                    "id" to otherPaymentID,
+
+                                    "memberOtherPaymentType" to
+                                            "REPAYMENT",
+
+                                    "amount" to
+                                            payment.amount,
+
+                                    "description" to
+                                            payment.description,
+
+                                    "memberName" to
+                                            payment.memberName,
+
+                                    "memberNameHindi" to
+                                            payment.memberNameHindi,
+
+                                    "memberNameTamil" to
+                                            payment.memberNameTamil,
+
+                                    "memberNameEnglish" to
+                                            payment.memberNameEnglish,
+
+                                    "memberId" to
+                                            payment.memberId,
+
+                                    "paidStatus" to
+                                            PaidStatus.NOT_PAID.name,
+
+                                    "amountReceivedDate" to
+                                            null,
+
+                                    "amountRepaidDate" to
+                                            null,
+
+                                    "descriptionTamil" to
+                                            payment.descriptionTamil,
+
+                                    "descriptionHindi" to
+                                            payment.descriptionHindi,
+
+                                    "recordDate" to
+                                            (
+                                                    payment.recordDate
+                                                        ?: Timestamp.now()
+                                                    )
+                                )
+
+                            transaction.set(
+                                otherPaymentRef,
+                                otherPaymentData,
+                                SetOptions.merge()
+                            )
+                        }
+                    }
+
+                    // =================================================
+                    // SETTLEMENT
+                    // =================================================
+
+                    PaymentSubType.SETTLEMENT -> {
+
+                        val otherPaymentID =
+                            if (
+                                !payment.memberOtherPaymentId
+                                    .isNullOrEmpty()
+                            ) {
+                                payment.memberOtherPaymentId!!
+                            } else {
+                                payment.id
+                            }
+
+                        if (otherPaymentID.isNullOrEmpty()) {
+                            throw IllegalStateException(
+                                "Other payment ID is missing."
+                            )
+                        }
+
+                        val otherPaymentRef =
+                            squadRef
+                                .collection("otherPayments")
+                                .document(otherPaymentID)
+
+                        if (
+                            payment.paymentEntryType ==
+                            PaymentEntryType.MANUAL_ENTRY
+                        ) {
+
+                            val otherPaymentData =
+                                mapOf<String, Any?>(
+                                    "id" to otherPaymentID,
+
+                                    "memberOtherPaymentType" to
+                                            "SETTLEMENT",
+
+                                    "amount" to
+                                            payment.amount,
+
+                                    "description" to
+                                            payment.description,
+
+                                    "memberName" to
+                                            payment.memberName,
+
+                                    "memberNameHindi" to
+                                            payment.memberNameHindi,
+
+                                    "memberNameTamil" to
+                                            payment.memberNameTamil,
+
+                                    "memberNameEnglish" to
+                                            payment.memberNameEnglish,
+
+                                    "memberId" to
+                                            payment.memberId,
+
+                                    "paidStatus" to
+                                            PaidStatus.NOT_PAID.name,
+
+                                    "amountReceivedDate" to
+                                            null,
+
+                                    "amountRepaidDate" to
+                                            null,
+
+                                    "descriptionTamil" to
+                                            payment.descriptionTamil,
+
+                                    "descriptionHindi" to
+                                            payment.descriptionHindi,
+
+                                    "recordDate" to
+                                            (
+                                                    payment.recordDate
+                                                        ?: Timestamp.now()
+                                                    )
+                                )
+
+                            transaction.set(
+                                otherPaymentRef,
+                                otherPaymentData,
+                                SetOptions.merge()
+                            )
+                        }
+                    }
+
+                    else -> Unit
+                }
+
+                // =====================================================
+                // 8. CASH REQUEST
+                // =====================================================
+
+                if (
+                    payment.paymentSubType ==
+                    PaymentSubType.LOAN_AMOUNT &&
+                    payment.paymentEntryType ==
+                    PaymentEntryType.AUTOMATIC_ENTRY &&
+                    !payment.cashRequestId.isNullOrEmpty()
+                ) {
+
+                    val cashRequestRef =
+                        squadRef
+                            .collection("cashrequest")
+                            .document(payment.cashRequestId!!)
+
+                    transaction.update(
+                        cashRequestRef,
+                        mapOf(
+                            "cashRequestStatus" to
+                                    CashRequestStatus.ACCEPTED.name,
+
+                            "requestAcceptedOn" to
+                                    FieldValue.serverTimestamp()
+                        )
+                    )
+                }
+
+                null
+            }
+                .addOnSuccessListener {
+                    completion(true, null)
+                }
+                .addOnFailureListener { error ->
+
+                    completion(
+                        false,
+                        "Transaction failed: ${
+                            error.localizedMessage
+                        }"
+                    )
+                }
+
+        } catch (e: Exception) {
+
+            completion(
+                false,
+                "Transaction error: ${e.localizedMessage}"
+            )
+        }
+    }
+
+    fun updatePaymentApproveStatus(
+        squadID: String,
+        paymentID: String,
+        status: PaymentApproveStatus,
+        completion: (
+            Boolean,
+            PaymentsDetails?,
+            String?
+        ) -> Unit
+    ) {
+        if (
+            squadID.isEmpty() ||
+            paymentID.isEmpty()
+        ) {
+            completion(
+                false,
+                null,
+                "Squad ID or Payment ID is missing."
+            )
+            return
+        }
+
+        val squadRef =
+            db.collection("squads")
+                .document(squadID)
+
+        val paymentRef =
+            squadRef
+                .collection("payments")
+                .document(paymentID)
+
+        // =========================================================
+        // READ PAYMENT BEFORE TRANSACTION
+        // =========================================================
+
+        paymentRef.get()
+            .addOnSuccessListener { snapshot ->
+
+                if (!snapshot.exists()) {
+
+                    completion(
+                        false,
+                        null,
+                        "Payment not found."
+                    )
+
+                    return@addOnSuccessListener
+                }
+
+                val payment: PaymentsDetails
+
+                try {
+
+                    payment =
+                        snapshot.toObject(
+                            PaymentsDetails::class.java
+                        ) ?: run {
+
+                            completion(
+                                false,
+                                null,
+                                "Payment decode failed."
+                            )
+
+                            return@addOnSuccessListener
+                        }
+
+                } catch (e: Exception) {
+
+                    completion(
+                        false,
+                        null,
+                        "Failed to decode payment: ${
+                            e.localizedMessage
+                        }"
+                    )
+
+                    return@addOnSuccessListener
+                }
+
+                // =====================================================
+                // PREPARE LOAN OUTSIDE TRANSACTION
+                //
+                // If loanId is empty and payment is accepted,
+                // generate a new loan ID and MemberLoan.
+                // =====================================================
+
+                var preparedLoan: MemberLoan? = null
+                var preparedLoanID: String? = null
+
+                if (
+                    status ==
+                    PaymentApproveStatus.ACCEPTED &&
+                    payment.paymentSubType ==
+                    PaymentSubType.LOAN_AMOUNT &&
+                    payment.selectedEMIConfig != null
+                ) {
+
+                    val loanID =
+                        if (payment.loanId.isNotEmpty()) {
+                            payment.loanId
+                        } else {
+                            UUID.randomUUID().toString()
+                        }
+
+                    val loan =
+                        CommonFunctions.generateMemberLoan(
+                            emiConfig =
+                                payment.selectedEMIConfig!!,
+
+                            memberID =
+                                payment.memberId,
+
+                            memberName =
+                                payment.memberName,
+
+                            memberNameEnglish =
+                                payment.memberNameEnglish,
+
+                            memberNameTamil =
+                                payment.memberNameTamil,
+
+                            memberNameHindi =
+                                payment.memberNameHindi
+                        ).apply {
+
+                            id = loanID
+                        }
+
+                    preparedLoan = loan
+                    preparedLoanID = loanID
+                }
+
+                // =====================================================
+                // TRANSACTION
+                // =====================================================
+
+                try {
+
+                    db.runTransaction { transaction ->
+
+                        // =================================================
+                        // 1. READ PAYMENT
+                        // =================================================
+
+                        val paymentSnapshot =
+                            transaction.get(paymentRef)
+
+                        if (!paymentSnapshot.exists()) {
+
+                            throw IllegalStateException(
+                                "Payment not found."
+                            )
+                        }
+
+                        val currentPayment =
+                            try {
+
+                                paymentSnapshot.toObject(
+                                    PaymentsDetails::class.java
+                                ) ?: throw IllegalStateException(
+                                    "Payment decode failed."
+                                )
+
+                            } catch (e: Exception) {
+
+                                throw IllegalStateException(
+                                    "Payment decode error: ${
+                                        e.localizedMessage
+                                    }",
+                                    e
+                                )
+                            }
+
+                        val oldStatus =
+                            currentPayment.paymentApproveStatus
+
+                        // =================================================
+                        // IMPORTANT:
+                        // Existing ACCEPTED payment must not be moved
+                        // back to REQUESTED/REJECTED by stale request.
+                        // =================================================
+
+                        if (
+                            oldStatus ==
+                            PaymentApproveStatus.ACCEPTED &&
+                            status !=
+                            PaymentApproveStatus.ACCEPTED
+                        ) {
+
+                            return@runTransaction currentPayment
+                        }
+
+                        // =================================================
+                        // 2. READ ALL RELATED DOCUMENTS
+                        // =================================================
+
+                        var loanSnapshot:
+                                DocumentSnapshot? = null
+
+                        // -------------------------------------------------
+                        // EMI -> READ LOAN
+                        // -------------------------------------------------
+
+                        if (
+                            currentPayment.paymentSubType ==
+                            PaymentSubType.EMI_AMOUNT
+                        ) {
+
+                            if (
+                                currentPayment.loanId.isEmpty()
+                            ) {
+
+                                throw IllegalStateException(
+                                    "Loan ID is missing."
+                                )
+                            }
+
+                            val loanRef =
+                                squadRef
+                                    .collection("loans")
+                                    .document(
+                                        currentPayment.loanId
+                                    )
+
+                            loanSnapshot =
+                                transaction.get(loanRef)
+
+                            if (!loanSnapshot.exists()) {
+
+                                throw IllegalStateException(
+                                    "Loan not found."
+                                )
+                            }
+                        }
+
+                        // -------------------------------------------------
+                        // LOAN AMOUNT
+                        //
+                        // Only read existing loan when loanId exists.
+                        // -------------------------------------------------
+
+                        if (
+                            currentPayment.paymentSubType ==
+                            PaymentSubType.LOAN_AMOUNT &&
+                            currentPayment.loanId.isNotEmpty()
+                        ) {
+
+                            val loanRef =
+                                squadRef
+                                    .collection("loans")
+                                    .document(
+                                        currentPayment.loanId
+                                    )
+
+                            loanSnapshot =
+                                transaction.get(loanRef)
+                        }
+
+                        // =================================================
+                        // 3. FINANCIAL MULTIPLIER
+                        // =================================================
+
+                        val shouldApplyFinancialEffect =
+                            !(
+                                    oldStatus ==
+                                            PaymentApproveStatus.ACCEPTED &&
+                                            status ==
+                                            PaymentApproveStatus.ACCEPTED
+                                    )
+
+                        val multiplier =
+                            if (shouldApplyFinancialEffect) {
+
+                                financialMultiplier(
+                                    oldStatus = oldStatus,
+                                    newStatus = status
+                                )
+
+                            } else {
+
+                                0L
+                            }
+
+                        // =================================================
+                        // 4. PAYMENT RESULT
+                        // =================================================
+
+                        val paymentStatus:
+                                PaymentStatus
+
+                        val paymentResponseMessage:
+                                String
+
+                        if (
+                            status ==
+                            PaymentApproveStatus.ACCEPTED
+                        ) {
+
+                            paymentStatus =
+                                PaymentStatus.SUCCESS
+
+                            paymentResponseMessage =
+                                "Your payment has been successfully processed and verified."
+
+                        } else {
+
+                            paymentStatus =
+                                PaymentStatus.FAILED
+
+                            paymentResponseMessage =
+                                "Your payment was rejected by the admin as the amount was not received. Please verify and try again."
+                        }
+
+                        // =================================================
+                        // 5. UPDATE PAYMENT
+                        // =================================================
+
+                        transaction.update(
+                            paymentRef,
+                            mapOf(
+                                "paymentStatus" to
+                                        paymentStatus.name,
+
+                                "paymentResponseMessage" to
+                                        paymentResponseMessage,
+
+                                "paymentApproveStatus" to
+                                        status.name,
+
+                                "paymentUpdatedDate" to
+                                        FieldValue.serverTimestamp()
+                            )
+                        )
+
+                        // =================================================
+                        // 6. SQUAD FINANCIALS
+                        // =================================================
+
+                        if (multiplier != 0L) {
+
+                            val squadUpdates =
+                                paymentFinancialUpdates(
+                                    currentPayment,
+                                    multiplier
+                                )
+
+                            if (squadUpdates.isNotEmpty()) {
+
+                                transaction.update(
+                                    squadRef,
+                                    squadUpdates
+                                )
+                            }
+
+                            // =================================================
+                            // 7. MEMBER FINANCIALS
+                            // =================================================
+
+                            if (
+                                currentPayment.memberId.isNotEmpty()
+                            ) {
+
+                                val memberRef =
+                                    squadRef
+                                        .collection("members")
+                                        .document(
+                                            currentPayment.memberId
+                                        )
+
+                                val memberUpdates =
+                                    memberFinancialUpdates(
+                                        currentPayment,
+                                        multiplier
+                                    )
+
+                                if (memberUpdates.isNotEmpty()) {
+
+                                    transaction.update(
+                                        memberRef,
+                                        memberUpdates
+                                    )
+                                }
+                            }
+                        }
+
+                        // =================================================
+                        // 8. SUBTYPE PROCESSING
+                        // =================================================
+
+                        when (
+                            currentPayment.paymentSubType
+                        ) {
+
+                            // =================================================
+                            // CONTRIBUTION
+                            // =================================================
+
+                            PaymentSubType.CONTRIBUTION_AMOUNT -> {
+
+                                if (
+                                    currentPayment.memberId.isEmpty() ||
+                                    currentPayment.contributionId.isNullOrEmpty()
+                                ) {
+
+                                    throw IllegalStateException(
+                                        "Member ID or Contribution ID is missing."
+                                    )
+                                }
+
+                                val contributionRef =
+                                    squadRef
+                                        .collection("members")
+                                        .document(
+                                            currentPayment.memberId
+                                        )
+                                        .collection("contributions")
+                                        .document(
+                                            currentPayment
+                                                .contributionId!!
+                                        )
+
+                                if (
+                                    status ==
+                                    PaymentApproveStatus.ACCEPTED
+                                ) {
+
+                                    transaction.update(
+                                        contributionRef,
+                                        mapOf(
+                                            "amount" to
+                                                    currentPayment.amount,
+
+                                            "paidStatus" to
+                                                    PaidStatus.PAID.name,
+
+                                            "paidOn" to
+                                                    FieldValue.serverTimestamp()
+                                        )
+                                    )
+
+                                } else {
+
+                                    transaction.update(
+                                        contributionRef,
+                                        mapOf(
+                                            "amount" to
+                                                    currentPayment.amount,
+
+                                            "paidStatus" to
+                                                    PaidStatus.NOT_PAID.name,
+
+                                            "paidOn" to
+                                                    null
+                                        )
+                                    )
+                                }
+                            }
+
+                            // =================================================
+                            // EMI
+                            // =================================================
+
+                            PaymentSubType.EMI_AMOUNT -> {
+
+                                if (
+                                    currentPayment.loanId.isEmpty()
+                                ) {
+
+                                    throw IllegalStateException(
+                                        "Loan ID is missing."
+                                    )
+                                }
+
+                                val loanRef =
+                                    squadRef
+                                        .collection("loans")
+                                        .document(
+                                            currentPayment.loanId
+                                        )
+
+                                val loanData =
+                                    loanSnapshot?.data
+                                        ?: throw IllegalStateException(
+                                            "Loan not found."
+                                        )
+
+                                // =================================================
+                                // FORCE CLOSE
+                                // =================================================
+
+                                if (
+                                    currentPayment.isLoanForceClosed
+                                ) {
+
+                                    val summary =
+                                        currentPayment
+                                            .forceCloseSummary
+
+                                    val loanUpdates =
+                                        mutableMapOf<String, Any?>(
+                                            "updatedAt" to
+                                                    FieldValue.serverTimestamp(),
+
+                                            "forceCloseSummary" to
+                                                    mapOf(
+                                                        "outstandingPrincipal" to
+                                                                summary.outstandingPrincipal,
+
+                                                        "daysElapsed" to
+                                                                summary.daysElapsed,
+
+                                                        "recalculatedInterest" to
+                                                                summary.recalculatedInterest,
+
+                                                        "totalPayable" to
+                                                                summary.totalPayable,
+
+                                                        "asOfDate" to
+                                                                summary.asOfDate
+                                                    )
+                                        )
+
+                                    if (
+                                        status ==
+                                        PaymentApproveStatus.ACCEPTED
+                                    ) {
+
+                                        loanUpdates[
+                                            "duePaidDate"
+                                        ] =
+                                            FieldValue.serverTimestamp()
+
+                                        loanUpdates[
+                                            "loanStatus"
+                                        ] =
+                                            EMIStatus.PAID.name
+
+                                        loanUpdates[
+                                            "isForceClosed"
+                                        ] = true
+
+                                        loanUpdates[
+                                            "isForceCloseVerification"
+                                        ] = false
+
+                                        transaction.update(
+                                            loanRef,
+                                            loanUpdates
+                                        )
+
+                                        val memberRef =
+                                            squadRef
+                                                .collection("members")
+                                                .document(
+                                                    currentPayment.memberId
+                                                )
+
+                                        transaction.set(
+                                            memberRef,
+                                            mapOf(
+                                                "currentLoanApproveStatus" to
+                                                        EMIStatus.CREATED.name,
+
+                                                "cashRequested" to
+                                                        false
+                                            ),
+                                            SetOptions.merge()
+                                        )
+
+                                    } else {
+
+                                        loanUpdates[
+                                            "isForceCloseVerification"
+                                        ] = false
+
+                                        transaction.update(
+                                            loanRef,
+                                            loanUpdates
+                                        )
+                                    }
+
+                                } else {
+
+                                    // =================================================
+                                    // REGULAR EMI
+                                    // =================================================
+
+                                    val rawInstallments =
+                                        loanData["installments"]
+                                                as? List<*>
+
+                                    if (rawInstallments == null) {
+
+                                        throw IllegalStateException(
+                                            "Installments not found."
+                                        )
+                                    }
+
+                                    val installments =
+                                        rawInstallments
+                                            .mapNotNull { item ->
+
+                                                (item as? Map<*, *>)
+                                                    ?.entries
+                                                    ?.associate { entry ->
+
+                                                        entry.key.toString() to
+                                                                entry.value
+                                                    }
+                                                    ?.toMutableMap()
+                                            }
+                                            .toMutableList()
+
+                                    if (
+                                        currentPayment.installmentId
+                                            .isNullOrEmpty()
+                                    ) {
+
+                                        throw IllegalStateException(
+                                            "Installment ID is missing."
+                                        )
+                                    }
+
+                                    val now =
+                                        Timestamp.now()
+
+                                    var installmentFound =
+                                        false
+
+                                    for (
+                                    index in
+                                    installments.indices
+                                    ) {
+
+                                        val installmentID =
+                                            installments[index]["id"]
+                                                ?.toString()
+                                                ?: ""
+
+                                        if (
+                                            installmentID ==
+                                            currentPayment.installmentId
+                                        ) {
+
+                                            installmentFound =
+                                                true
+
+                                            if (
+                                                status ==
+                                                PaymentApproveStatus.ACCEPTED
+                                            ) {
+
+                                                installments[index][
+                                                    "status"
+                                                ] =
+                                                    EMIStatus.PAID.name
+
+                                                installments[index][
+                                                    "duePaidDate"
+                                                ] = now
+
+                                            } else {
+
+                                                installments[index][
+                                                    "status"
+                                                ] =
+                                                    EMIStatus.PENDING.name
+
+                                                installments[index][
+                                                    "duePaidDate"
+                                                ] = null
+                                            }
+
+                                            break
+                                        }
+                                    }
+
+                                    if (!installmentFound) {
+
+                                        throw IllegalStateException(
+                                            "Installment ID not found."
+                                        )
+                                    }
+
+                                    val loanUpdates =
+                                        mutableMapOf<String, Any?>(
+                                            "installments" to
+                                                    installments,
+
+                                            "updatedAt" to
+                                                    FieldValue.serverTimestamp()
+                                        )
+
+                                    val allPaid =
+                                        installments.all {
+
+                                            it["status"]
+                                                ?.toString()
+                                                ?.uppercase() ==
+                                                    "PAID"
+                                        }
+
+                                    if (
+                                        status ==
+                                        PaymentApproveStatus.ACCEPTED &&
+                                        allPaid
+                                    ) {
+
+                                        loanUpdates[
+                                            "loanStatus"
+                                        ] =
+                                            EMIStatus.PAID.name
+
+                                        loanUpdates[
+                                            "loanClosedDate"
+                                        ] = now
+                                    }
+
+                                    if (
+                                        status ==
+                                        PaymentApproveStatus.REJECTED
+                                    ) {
+
+                                        loanUpdates[
+                                            "loanStatus"
+                                        ] =
+                                            EMIStatus.PENDING.name
+                                    }
+
+                                    transaction.update(
+                                        loanRef,
+                                        loanUpdates
+                                    )
+
+                                    if (
+                                        status ==
+                                        PaymentApproveStatus.ACCEPTED &&
+                                        allPaid
+                                    ) {
+
+                                        val memberRef =
+                                            squadRef
+                                                .collection("members")
+                                                .document(
+                                                    currentPayment.memberId
+                                                )
+
+                                        transaction.set(
+                                            memberRef,
+                                            mapOf(
+                                                "currentLoanApproveStatus" to
+                                                        EMIStatus.CREATED.name,
+
+                                                "cashRequested" to
+                                                        false
+                                            ),
+                                            SetOptions.merge()
+                                        )
+                                    }
+                                }
+                            }
+
+                            // =================================================
+                            // LOAN AMOUNT
+                            // =================================================
+
+                            PaymentSubType.LOAN_AMOUNT -> {
+
+                                if (
+                                    currentPayment.memberId.isEmpty()
+                                ) {
+
+                                    throw IllegalStateException(
+                                        "Member ID is missing."
+                                    )
+                                }
+
+                                val memberRef =
+                                    squadRef
+                                        .collection("members")
+                                        .document(
+                                            currentPayment.memberId
+                                        )
+
+                                if (
+                                    status ==
+                                    PaymentApproveStatus.ACCEPTED
+                                ) {
+
+                                    // =================================================
+                                    // EXISTING LOAN ID
+                                    // =================================================
+
+                                    if (
+                                        currentPayment.loanId.isNotEmpty()
+                                    ) {
+
+                                        val loanRef =
+                                            squadRef
+                                                .collection("loans")
+                                                .document(
+                                                    currentPayment.loanId
+                                                )
+
+                                        // ---------------------------------------------
+                                        // Create only if loan does not already exist.
+                                        // ---------------------------------------------
+
+                                        if (
+                                            loanSnapshot?.exists() != true
+                                        ) {
+
+                                            val loan =
+                                                preparedLoan
+                                                    ?: throw IllegalStateException(
+                                                        "Unable to prepare loan."
+                                                    )
+
+                                            transaction.set(
+                                                loanRef,
+                                                loan,
+                                                SetOptions.merge()
+                                            )
+                                        }
+
+                                    } else {
+
+                                        // =================================================
+                                        // EMPTY LOAN ID
+                                        //
+                                        // Generate and create new loan.
+                                        // =================================================
+
+                                        val loan =
+                                            preparedLoan
+                                                ?: throw IllegalStateException(
+                                                    "Unable to prepare new loan. selectedEMIConfig is missing."
+                                                )
+
+                                        val loanID =
+                                            preparedLoanID
+                                                ?: throw IllegalStateException(
+                                                    "Unable to generate loan ID."
+                                                )
+
+                                        val loanRef =
+                                            squadRef
+                                                .collection("loans")
+                                                .document(
+                                                    loanID
+                                                )
+
+                                        transaction.set(
+                                            loanRef,
+                                            loan,
+                                            SetOptions.merge()
+                                        )
+
+                                        // ---------------------------------------------
+                                        // Save generated loanId into payment.
+                                        // ---------------------------------------------
+
+                                        transaction.update(
+                                            paymentRef,
+                                            mapOf(
+                                                "loanId" to
+                                                        loanID
+                                            )
+                                        )
+                                    }
+
+                                    // =================================================
+                                    // MEMBER STATUS
+                                    // =================================================
+
+                                    transaction.set(
+                                        memberRef,
+                                        mapOf(
+                                            "currentLoanApproveStatus" to
+                                                    EMIStatus.PENDING.name,
+
+                                            "cashRequested" to
+                                                    false
+                                        ),
+                                        SetOptions.merge()
+                                    )
+
+                                } else {
+
+                                    // =================================================
+                                    // REJECTED
+                                    // =================================================
+
+                                    transaction.set(
+                                        memberRef,
+                                        mapOf(
+                                            "currentLoanApproveStatus" to
+                                                    EMIStatus.CREATED.name,
+
+                                            "cashRequested" to
+                                                    false
+                                        ),
+                                        SetOptions.merge()
+                                    )
+                                }
+                            }
+
+                            // =================================================
+                            // REPAYMENT
+                            // =================================================
+
+                            PaymentSubType.RE_PAYMENT -> {
+
+                                val otherPaymentID =
+                                    if (
+                                        !currentPayment
+                                            .memberOtherPaymentId
+                                            .isNullOrEmpty()
+                                    ) {
+                                        currentPayment
+                                            .memberOtherPaymentId!!
+                                    } else {
+                                        currentPayment.id
+                                    }
+
+                                if (
+                                    otherPaymentID.isNullOrEmpty()
+                                ) {
+
+                                    throw IllegalStateException(
+                                        "Other payment ID is missing."
+                                    )
+                                }
+
+                                val otherPaymentRef =
+                                    squadRef
+                                        .collection("otherPayments")
+                                        .document(
+                                            otherPaymentID
+                                        )
+
+                                if (
+                                    currentPayment.paymentType ==
+                                    PaymentType.PAYMENT_CREDIT
+                                ) {
+
+                                    if (
+                                        status ==
+                                        PaymentApproveStatus.ACCEPTED
+                                    ) {
+
+                                        transaction.set(
+                                            otherPaymentRef,
+                                            mapOf(
+                                                "paidStatus" to
+                                                        PaidStatus.PAID.name,
+
+                                                "amountRepaidDate" to
+                                                        FieldValue.serverTimestamp()
+                                            ),
+                                            SetOptions.merge()
+                                        )
+
+                                    } else {
+
+                                        transaction.set(
+                                            otherPaymentRef,
+                                            mapOf(
+                                                "paidStatus" to
+                                                        PaidStatus.NOT_PAID.name,
+
+                                                "amountRepaidDate" to
+                                                        null
+                                            ),
+                                            SetOptions.merge()
+                                        )
+                                    }
+
+                                } else if (
+                                    status ==
+                                    PaymentApproveStatus.ACCEPTED
+                                ) {
+
+                                    val otherPaymentData =
+                                        mapOf<String, Any?>(
+                                            "id" to
+                                                    otherPaymentID,
+
+                                            "memberOtherPaymentType" to
+                                                    "REPAYMENT",
+
+                                            "amount" to
+                                                    currentPayment.amount,
+
+                                            "description" to
+                                                    currentPayment.description,
+
+                                            "memberName" to
+                                                    currentPayment.memberName,
+
+                                            "memberNameHindi" to
+                                                    currentPayment.memberNameHindi,
+
+                                            "memberNameTamil" to
+                                                    currentPayment.memberNameTamil,
+
+                                            "memberNameEnglish" to
+                                                    currentPayment.memberNameEnglish,
+
+                                            "memberId" to
+                                                    currentPayment.memberId,
+
+                                            "paidStatus" to
+                                                    PaidStatus.NOT_PAID.name,
+
+                                            "amountReceivedDate" to
+                                                    null,
+
+                                            "amountRepaidDate" to
+                                                    null,
+
+                                            "descriptionTamil" to
+                                                    currentPayment.descriptionTamil,
+
+                                            "descriptionHindi" to
+                                                    currentPayment.descriptionHindi,
+
+                                            "recordDate" to
+                                                    (
+                                                            currentPayment.recordDate
+                                                                ?: Timestamp.now()
+                                                            )
+                                        )
+
+                                    transaction.set(
+                                        otherPaymentRef,
+                                        otherPaymentData,
+                                        SetOptions.merge()
+                                    )
+                                }
+                            }
+
+                            // =================================================
+                            // SETTLEMENT
+                            // =================================================
+
+                            PaymentSubType.SETTLEMENT -> {
+
+                                val otherPaymentID =
+                                    if (
+                                        !currentPayment
+                                            .memberOtherPaymentId
+                                            .isNullOrEmpty()
+                                    ) {
+                                        currentPayment
+                                            .memberOtherPaymentId!!
+                                    } else {
+                                        currentPayment.id
+                                    }
+
+                                if (
+                                    otherPaymentID.isNullOrEmpty()
+                                ) {
+
+                                    throw IllegalStateException(
+                                        "Other payment ID is missing."
+                                    )
+                                }
+
+                                val otherPaymentRef =
+                                    squadRef
+                                        .collection("otherPayments")
+                                        .document(
+                                            otherPaymentID
+                                        )
+
+                                if (
+                                    status ==
+                                    PaymentApproveStatus.ACCEPTED
+                                ) {
+
+                                    val otherPaymentData =
+                                        mapOf<String, Any?>(
+                                            "id" to
+                                                    otherPaymentID,
+
+                                            "memberOtherPaymentType" to
+                                                    "SETTLEMENT",
+
+                                            "amount" to
+                                                    currentPayment.amount,
+
+                                            "description" to
+                                                    currentPayment.description,
+
+                                            "memberName" to
+                                                    currentPayment.memberName,
+
+                                            "memberNameHindi" to
+                                                    currentPayment.memberNameHindi,
+
+                                            "memberNameTamil" to
+                                                    currentPayment.memberNameTamil,
+
+                                            "memberNameEnglish" to
+                                                    currentPayment.memberNameEnglish,
+
+                                            "memberId" to
+                                                    currentPayment.memberId,
+
+                                            "paidStatus" to
+                                                    PaidStatus.PAID.name,
+
+                                            "amountReceivedDate" to
+                                                    FieldValue.serverTimestamp(),
+
+                                            "amountRepaidDate" to
+                                                    null,
+
+                                            "descriptionTamil" to
+                                                    currentPayment.descriptionTamil,
+
+                                            "descriptionHindi" to
+                                                    currentPayment.descriptionHindi,
+
+                                            "recordDate" to
+                                                    (
+                                                            currentPayment.recordDate
+                                                                ?: Timestamp.now()
+                                                            )
+                                        )
+
+                                    transaction.set(
+                                        otherPaymentRef,
+                                        otherPaymentData,
+                                        SetOptions.merge()
+                                    )
+                                }
+                            }
+
+                            else -> Unit
+                        }
+
+                        // =================================================
+                        // 9. RETURN UPDATED PAYMENT
+                        // =================================================
+
+                        var updatedPayment =
+                            currentPayment.copy(
+                                paymentStatus =
+                                    paymentStatus,
+
+                                paymentResponseMessage =
+                                    paymentResponseMessage,
+
+                                paymentApproveStatus =
+                                    status,
+
+                                paymentUpdatedDate =
+                                    Timestamp.now()
+                            )
+
+                        // =================================================
+                        // IF NEW LOAN WAS CREATED
+                        // RETURN GENERATED LOAN ID
+                        // =================================================
+
+                        if (
+                            currentPayment.paymentSubType ==
+                            PaymentSubType.LOAN_AMOUNT &&
+                            status ==
+                            PaymentApproveStatus.ACCEPTED &&
+                            currentPayment.loanId.isEmpty() &&
+                            !preparedLoanID.isNullOrEmpty()
+                        ) {
+
+                            updatedPayment =
+                                updatedPayment.copy(
+                                    loanId =
+                                        preparedLoanID!!
+                                )
+                        }
+
+                        updatedPayment
+                    }
+                        .addOnSuccessListener { updatedPayment ->
+
+                            completion(
+                                true,
+                                updatedPayment,
+                                null
+                            )
+                        }
+                        .addOnFailureListener { error ->
+
+                            completion(
+                                false,
+                                null,
+                                error.localizedMessage
+                                    ?: "Failed to update payment."
+                            )
+                        }
+
+                } catch (e: Exception) {
+
+                    completion(
+                        false,
+                        null,
+                        e.localizedMessage
+                            ?: "Transaction error."
+                    )
+                }
+            }
+            .addOnFailureListener { error ->
+
+                completion(
+                    false,
+                    null,
+                    error.localizedMessage
+                        ?: "Failed to read payment."
+                )
+            }
+    }
+
+    private fun financialMultiplier(
+        oldStatus: PaymentApproveStatus?,
+        newStatus: PaymentApproveStatus
+    ): Long {
+
+        val wasAccepted =
+            oldStatus == PaymentApproveStatus.ACCEPTED
+
+        val isAccepted =
+            newStatus == PaymentApproveStatus.ACCEPTED
+
+        return when {
+            !wasAccepted && isAccepted -> 1L
+            wasAccepted && !isAccepted -> -1L
+            else -> 0L
+        }
+    }
+
+    private fun paymentFinancialUpdates(
+        payment: PaymentsDetails,
+        multiplier: Long
+    ): Map<String, Any> {
+
+        if (multiplier == 0L) {
+            return emptyMap()
+        }
+
+        val updates = mutableMapOf<String, Any>()
+
+        fun increment(amount: Int): FieldValue {
+            return FieldValue.increment(
+                amount.toLong() * multiplier
+            )
+        }
+
+        when (payment.paymentType) {
+
+            PaymentType.PAYMENT_CREDIT -> {
+
+                val creditAmount =
+                    if (
+                        payment.paymentSubType ==
+                        PaymentSubType.EMI_AMOUNT
+                    ) {
+                        payment.amount +
+                                payment.intrestAmount
+                    } else {
+                        payment.amount
+                    }
+
+                updates["currentCreditAmount"] =
+                    increment(creditAmount)
+
+                updates["currentAvailableAmount"] =
+                    increment(creditAmount)
+
+                when (payment.paymentSubType) {
+
+                    PaymentSubType.CONTRIBUTION_AMOUNT -> {
+
+                        updates[
+                            "totalContributionAmountReceived"
+                        ] =
+                            increment(payment.amount)
+                    }
+
+                    PaymentSubType.INTEREST_AMOUNT -> {
+
+                        updates[
+                            "totalInterestAmountReceived"
+                        ] =
+                            increment(
+                                payment.intrestAmount
+                            )
+                    }
+
+                    PaymentSubType.EMI_AMOUNT -> {
+
+                        updates[
+                            "totalLoanAmountReceived"
+                        ] =
+                            increment(payment.amount)
+
+                        updates[
+                            "totalInterestAmountReceived"
+                        ] =
+                            increment(
+                                payment.intrestAmount
+                            )
+                    }
+
+                    PaymentSubType.RE_PAYMENT -> {
+
+                        updates[
+                            "totalRepaymentReceived"
+                        ] =
+                            increment(payment.amount)
+                    }
+
+                    PaymentSubType.OTHERS_AMOUNT -> {
+
+                        updates[
+                            "totalOtherPaymentReceived"
+                        ] =
+                            increment(payment.amount)
+                    }
+
+                    else -> Unit
+                }
+            }
+
+            PaymentType.PAYMENT_DEBIT -> {
+
+                updates["currentDebitAmount"] =
+                    increment(payment.amount)
+
+                updates["currentAvailableAmount"] =
+                    increment(-payment.amount)
+
+                when (payment.paymentSubType) {
+
+                    PaymentSubType.LOAN_AMOUNT -> {
+
+                        updates[
+                            "totalLoanAmountSent"
+                        ] =
+                            increment(payment.amount)
+                    }
+
+                    PaymentSubType.SETTLEMENT -> {
+
+                        updates[
+                            "totalSettlementSent"
+                        ] =
+                            increment(payment.amount)
+                    }
+
+                    PaymentSubType.RE_PAYMENT -> {
+
+                        updates[
+                            "totalRepaymentSent"
+                        ] =
+                            increment(payment.amount)
+                    }
+
+                    PaymentSubType.OTHERS_AMOUNT -> {
+
+                        updates[
+                            "totalOtherPaymentSend"
+                        ] =
+                            increment(payment.amount)
+                    }
+
+                    else -> Unit
+                }
+            }
+        }
+
+        return updates
+    }
+
+    private fun memberFinancialUpdates(
+        payment: PaymentsDetails,
+        multiplier: Long
+    ): Map<String, Any> {
+
+        if (multiplier == 0L) {
+            return emptyMap()
+        }
+
+        val updates = mutableMapOf<String, Any>()
+
+        fun increment(amount: Int): FieldValue {
+            return FieldValue.increment(
+                amount.toLong() * multiplier
+            )
+        }
+
+        when (payment.paymentType) {
+
+            // =====================================================
+            // MEMBER MONEY IN
+            // =====================================================
+
+            PaymentType.PAYMENT_CREDIT -> {
+
+                when (payment.paymentSubType) {
+
+                    PaymentSubType.CONTRIBUTION_AMOUNT -> {
+
+                        updates["totalContributionPaid"] =
+                            increment(payment.amount)
+                    }
+
+                    PaymentSubType.INTEREST_AMOUNT -> {
+
+                        updates["totalInterestPaid"] =
+                            increment(
+                                payment.intrestAmount
+                            )
+                    }
+
+                    PaymentSubType.EMI_AMOUNT -> {
+
+                        updates["totalLoanPaid"] =
+                            increment(payment.amount)
+
+                        updates["totalInterestPaid"] =
+                            increment(
+                                payment.intrestAmount
+                            )
+                    }
+
+                    PaymentSubType.RE_PAYMENT -> {
+
+                        updates["totalRepaymentPaid"] =
+                            increment(payment.amount)
+                    }
+
+                    else -> Unit
+                }
+            }
+
+            // =====================================================
+            // MEMBER MONEY OUT
+            // =====================================================
+
+            PaymentType.PAYMENT_DEBIT -> {
+
+                when (payment.paymentSubType) {
+
+                    PaymentSubType.LOAN_AMOUNT -> {
+
+                        updates["totalLoanBorrowed"] =
+                            increment(payment.amount)
+                    }
+
+                    PaymentSubType.RE_PAYMENT -> {
+
+                        updates["totalRepaymentReceived"] =
+                            increment(payment.amount)
+                    }
+
+                    PaymentSubType.SETTLEMENT -> {
+
+                        updates["totalSettlementReceived"] =
+                            increment(payment.amount)
+                    }
+
+                    else -> Unit
+                }
+            }
+        }
+
+        return updates
+    }
+
+
     // MARK: - savePayments (single payment, Firestore write)
     // MARK: - savePayments (single payment, transaction-safe financial update)
-    fun savePayments(
+    /*fun savePayments(
         squadID: String,
         payment: PaymentsDetails?,
         completion: (Boolean, String?) -> Unit
@@ -966,13 +3370,109 @@ class FirestoreManager private constructor() {
         }
     }
 
-    // Returns the financial delta caused by a payment approval transition.
-    //
-    // Non-accepted -> ACCEPTED : +1
-    // ACCEPTED -> REJECTED     : -1
-    // REJECTED -> ACCEPTED     : +1
-    // Same status              :  0
-    // REQUESTED -> REJECTED    :  0
+    // MARK: - updatePaymentApproveStatus (Firestore read -> update -> re-read)
+    // MARK: - updatePaymentApproveStatus (atomic payment + financial update)
+    fun updatePaymentApproveStatus(
+        squadID: String,
+        paymentID: String,
+        status: PaymentApproveStatus,
+        completion: (Boolean, PaymentsDetails?, String?) -> Unit
+    ) {
+        if (squadID.isEmpty() || paymentID.isEmpty()) {
+            completion(false, null, "Squad ID or Payment ID is missing.")
+            return
+        }
+
+        val squadRef = db.collection("squads").document(squadID)
+        val paymentRef = squadRef.collection("payments").document(paymentID)
+
+        try {
+            db.runTransaction { transaction ->
+                val snapshot = transaction.get(paymentRef)
+
+                if (!snapshot.exists()) {
+                    throw IllegalStateException("Payment not found")
+                }
+
+                val existingPayment = try {
+                    snapshot.toObject(PaymentsDetails::class.java)
+                } catch (e: Exception) {
+                    throw IllegalStateException("Decode error: ${e.localizedMessage}", e)
+                }
+
+                if (existingPayment == null) {
+                    throw IllegalStateException("Payment decode failed")
+                }
+
+                val oldStatus = existingPayment.paymentApproveStatus
+
+                // Idempotent: repeated taps/retries/concurrent calls for the
+                // same status do not change financial totals.
+                if (oldStatus == status) {
+                    return@runTransaction existingPayment
+                }
+
+                val paymentStatus: PaymentStatus
+                val paymentResponseMessage: String
+
+                if (status == PaymentApproveStatus.ACCEPTED) {
+                    paymentStatus = PaymentStatus.SUCCESS
+                    paymentResponseMessage =
+                        "Your payment has been successfully processed and verified."
+                } else {
+                    paymentStatus = PaymentStatus.FAILED
+                    paymentResponseMessage =
+                        "Your payment was rejected by the admin as the amount was not received. Please verify and try again."
+                }
+
+                val updateData = hashMapOf<String, Any>(
+                    "paymentStatus" to paymentStatus.name,
+                    "paymentResponseMessage" to paymentResponseMessage,
+                    "paymentApproveStatus" to status.name,
+                    "paymentUpdatedDate" to FieldValue.serverTimestamp()
+                )
+
+                val multiplier = financialMultiplier(oldStatus, status)
+
+                transaction.update(paymentRef, updateData)
+
+                if (multiplier != 0L) {
+                    val squadUpdates = paymentFinancialUpdates(existingPayment, multiplier)
+                    if (squadUpdates.isNotEmpty()) {
+                        transaction.update(squadRef, squadUpdates)
+                    }
+
+                    if (existingPayment.memberId.isNotEmpty()) {
+                        val memberRef = squadRef
+                            .collection("members")
+                            .document(existingPayment.memberId)
+
+                        val memberUpdates = memberFinancialUpdates(existingPayment, multiplier)
+                        if (memberUpdates.isNotEmpty()) {
+                            transaction.update(memberRef, memberUpdates)
+                        }
+                    }
+                }
+
+                existingPayment.copy(
+                    paymentStatus = paymentStatus,
+                    paymentResponseMessage = paymentResponseMessage,
+                    paymentApproveStatus = status,
+                    paymentUpdatedDate = Timestamp.now()
+                )
+            }
+                .addOnSuccessListener { payment ->
+                    completion(true, payment, null)
+                }
+                .addOnFailureListener { error ->
+                    completion(false, null, error.localizedMessage ?: "Failed to update payment")
+                }
+        } catch (e: Exception) {
+            completion(false, null, e.localizedMessage ?: "Transaction error")
+        }
+    }
+
+
     private fun financialMultiplier(
         oldStatus: PaymentApproveStatus?,
         newStatus: PaymentApproveStatus
@@ -1247,109 +3747,7 @@ class FirestoreManager private constructor() {
         }
 
         return updates
-    }
-
-    // MARK: - updatePaymentApproveStatus (Firestore read -> update -> re-read)
-    // MARK: - updatePaymentApproveStatus (atomic payment + financial update)
-    fun updatePaymentApproveStatus(
-        squadID: String,
-        paymentID: String,
-        status: PaymentApproveStatus,
-        completion: (Boolean, PaymentsDetails?, String?) -> Unit
-    ) {
-        if (squadID.isEmpty() || paymentID.isEmpty()) {
-            completion(false, null, "Squad ID or Payment ID is missing.")
-            return
-        }
-
-        val squadRef = db.collection("squads").document(squadID)
-        val paymentRef = squadRef.collection("payments").document(paymentID)
-
-        try {
-            db.runTransaction { transaction ->
-                val snapshot = transaction.get(paymentRef)
-
-                if (!snapshot.exists()) {
-                    throw IllegalStateException("Payment not found")
-                }
-
-                val existingPayment = try {
-                    snapshot.toObject(PaymentsDetails::class.java)
-                } catch (e: Exception) {
-                    throw IllegalStateException("Decode error: ${e.localizedMessage}", e)
-                }
-
-                if (existingPayment == null) {
-                    throw IllegalStateException("Payment decode failed")
-                }
-
-                val oldStatus = existingPayment.paymentApproveStatus
-
-                // Idempotent: repeated taps/retries/concurrent calls for the
-                // same status do not change financial totals.
-                if (oldStatus == status) {
-                    return@runTransaction existingPayment
-                }
-
-                val paymentStatus: PaymentStatus
-                val paymentResponseMessage: String
-
-                if (status == PaymentApproveStatus.ACCEPTED) {
-                    paymentStatus = PaymentStatus.SUCCESS
-                    paymentResponseMessage =
-                        "Your payment has been successfully processed and verified."
-                } else {
-                    paymentStatus = PaymentStatus.FAILED
-                    paymentResponseMessage =
-                        "Your payment was rejected by the admin as the amount was not received. Please verify and try again."
-                }
-
-                val updateData = hashMapOf<String, Any>(
-                    "paymentStatus" to paymentStatus.name,
-                    "paymentResponseMessage" to paymentResponseMessage,
-                    "paymentApproveStatus" to status.name,
-                    "paymentUpdatedDate" to FieldValue.serverTimestamp()
-                )
-
-                val multiplier = financialMultiplier(oldStatus, status)
-
-                transaction.update(paymentRef, updateData)
-
-                if (multiplier != 0L) {
-                    val squadUpdates = paymentFinancialUpdates(existingPayment, multiplier)
-                    if (squadUpdates.isNotEmpty()) {
-                        transaction.update(squadRef, squadUpdates)
-                    }
-
-                    if (existingPayment.memberId.isNotEmpty()) {
-                        val memberRef = squadRef
-                            .collection("members")
-                            .document(existingPayment.memberId)
-
-                        val memberUpdates = memberFinancialUpdates(existingPayment, multiplier)
-                        if (memberUpdates.isNotEmpty()) {
-                            transaction.update(memberRef, memberUpdates)
-                        }
-                    }
-                }
-
-                existingPayment.copy(
-                    paymentStatus = paymentStatus,
-                    paymentResponseMessage = paymentResponseMessage,
-                    paymentApproveStatus = status,
-                    paymentUpdatedDate = Timestamp.now()
-                )
-            }
-                .addOnSuccessListener { payment ->
-                    completion(true, payment, null)
-                }
-                .addOnFailureListener { error ->
-                    completion(false, null, error.localizedMessage ?: "Failed to update payment")
-                }
-        } catch (e: Exception) {
-            completion(false, null, e.localizedMessage ?: "Transaction error")
-        }
-    }
+    } */
 
     // MARK: - 🔹 Fetch Payments
     fun fetchPayments(
