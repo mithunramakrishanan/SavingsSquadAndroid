@@ -799,35 +799,7 @@ private fun saveSquadData(
             leave()
         }
 
-        // MARK: 4. EMI
-        enter()
-
-        val endOfMonth = CommonFunctions.getEndOfMonthFromDate(Date())
-
-        var newEMI = EMIConfiguration(
-            id = UUID.randomUUID().toString(),
-            loanAmount = 15000,
-            emiMonths = 5,
-            emiInterestRate = 5.0,
-            emiAmount = 0,
-            interestAmount = 0,
-            emiDate = endOfMonth?.asTimestamp ?: Date().asTimestamp,
-            emiCreatedDate = Date().asTimestamp
-        )
-
-        val (emi, interest) = newEMI.calculateEMIAndInterest()
-        newEMI.emiAmount = emi
-        newEMI.interestAmount = interest
-
-        squadViewModel.addOrUpdateEMIConfiguration(
-            showLoader = false,
-            squadID = squadID,
-            emi = newEMI
-        ) { _, _ ->
-            leave()
-        }
-
-        // MARK: 5. CONFIG
+        // MARK: 4. CONFIG
         enter()
 
         SubscriptionFirebaseManager.shared.createDefaultSubscriptionData(
