@@ -596,7 +596,7 @@ private fun verifyOTP(
 }
 
 private fun saveSquadData(
-    squadViewModel : SquadViewModel,
+    squadViewModel: SquadViewModel,
     squadName: String,
     email: String,
     phoneNumber: String,
@@ -612,10 +612,13 @@ private fun saveSquadData(
     LoaderManager.shared.showLoader()
 
     val squadID = IDGenerator.generateSquadID()
-    val squadStartDate = java.util.Date()
+    val squadStartDate = Date()
+
     val monthsInt = totalMonths.toIntOrNull() ?: 12
     val squadAmountInt = squadAmount.toIntOrNull() ?: 0
     val startAmountInt = squadStartAmount.toIntOrNull() ?: 0
+
+    // MARK: 1. Create Squad Model
 
     val squad = Squad(
         squadID = squadID,
@@ -623,189 +626,168 @@ private fun saveSquadData(
         mailID = email,
         countryCode = "+91",
         phoneNumber = phoneNumber,
+
         virtualAccountNumber = "",
         paymentInstrumentId = "",
         virtualUPI = "",
+
         squadAccountName = "",
         squadAccountNumber = "",
         squadIFSCCode = "",
+
         upiBeneId = "",
         bankBeneId = "",
         upiID = "",
+
         squadStartDate = squadStartDate.asTimestamp,
+
         squadEndDate = CommonFunctions.getFutureMonthYearDate(
             squadStartDate,
             monthsInt
         )?.asTimestamp ?: squadStartDate.asTimestamp,
+
         squadCreatedDate = squadStartDate.asTimestamp,
+
         squadDueDate = CommonFunctions.getEndOfMonthFromDate(
             squadStartDate
         )?.asTimestamp ?: squadStartDate.asTimestamp,
+
         totalDuration = monthsInt,
         remainingDuration = monthsInt,
         totalMembers = 0,
+
         monthlyContribution = squadAmountInt,
         squadStartAmount = startAmountInt,
+
         totalAmount = 0,
         totalContributionAmountReceived = 0,
         totalLoanAmountReceived = 0,
         totalLoanAmountSent = 0,
         totalInterestAmountReceived = 0,
         currentAvailableAmount = 0,
+
         emiConfiguration = emptyList(),
-        recordStatus = RecordStatus.ACTIVE,   // ✅ MUST be enum, not string
+
+        recordStatus = RecordStatus.ACTIVE,
         recordDate = Date(),
         password = null
     )
 
-    // Using FirestoreManager (assumed present in your project)
-    FirestoreManager.shared.addSquad(squad) { success, error ->
+    // MARK: 2. Prepare Login Model
 
-        LoaderManager.shared.hideLoader()
+    val login = Login(
+        squadID = squadID,
+        squadName = squadName,
 
-        if (!success) {
+        memberName = SquadStrings.squadManager,
+        memberNameTamil = "",
+        memberNameEnglish = "",
+        memberNameHindi = "",
 
-            AlertManager.shared.showAlert(
-                title = SquadStrings.savingsSquad,
-                message = SquadStrings.genericError,
-                primaryButtonTitle = SquadStrings.ok
-            )
+        squadUserId = SquadStrings.squadManager,
+        phoneNumber = phoneNumber,
 
-            return@addSquad
-        }
+        role = SquadUserType.SQUAD_MANAGER,
 
-        squadViewModel.setSquad(squad)
-        val squadID = squad.squadID
+        squadCreatedDate = squadStartDate.asTimestamp,
+        userCreatedDate = squadStartDate.asTimestamp
+    )
 
-        // ⭐ DispatchGroup equivalent
-        val counter = java.util.concurrent.atomic.AtomicInteger(0)
+    // MARK: 3. Prepare Activity Model
+    //
+    // Construct the same SquadActivity model that your existing
+    // createSquadActivity() method currently saves.
+    //
+    // Update the constructor/property names below to match your
+    // actual SquadActivity model.
 
-        fun enter() {
-            counter.incrementAndGet()
-        }
+    val squadActivity = SquadActivity(
+        id = "",
+        squadID = squadID,
 
-        fun leave() {
-            if (counter.decrementAndGet() == 0) {
-                // ⭐ THIS = group.notify (FINAL BLOCK)
+        activityType = SquadActivityType.AMOUNT_CREDIT,
 
-                LoaderManager.shared.hideLoader()
+        memberName = SquadStrings.squadManager,
+        memberNameHindi = SquadStringsHindi.squadManager,
+        memberNameTamil = SquadStringsTamil.squadManager,
+        memberNameEnglish = SquadStringsEnglish.squadManager,
+
+        memberId = "",
+        amount = startAmountInt,
+
+        description = SquadStringsEnglishDesc.startedSquadWithAmountOf,
+        descriptionTamil = SquadStringsTamilDesc.startedSquadWithAmountOf,
+        descriptionHindi = SquadStringsHindiDesc.startedSquadWithAmountOf,
+
+        recordDate = squadStartDate
+    )
+
+    // MARK: 4. Prepare Subscription and Commit All Documents
+
+    SubscriptionFirebaseManager.shared.prepareDefaultSquadSubscription { result ->
+
+        result.fold(
+            onSuccess = { subscription ->
+
+                FirestoreManager.shared.createSquadAtomically(
+                    squad = squad,
+                    login = login,
+                    activity = squadActivity,
+                    subscription = subscription
+                ) { success, error ->
+
+                    activity.runOnUiThread {
+
+                        LoaderManager.shared.hideLoader()
+
+                        if (!success) {
+                            val errorMessage = error
+                                ?: SquadStrings.genericError
+
+                            AlertManager.shared.showAlert(
+                                title = SquadStrings.savingsSquad,
+                                message = errorMessage,
+                                primaryButtonTitle = SquadStrings.ok
+                            )
+
+                            onError(errorMessage)
+                            return@runOnUiThread
+                        }
+
+                        // All four documents have been committed.
+                        squadViewModel.setSquad(squad)
+
+                        AlertManager.shared.showAlert(
+                            title = SquadStrings.savingsSquad,
+                            message = SquadStrings.squadCreatedSuccessfully,
+                            primaryButtonTitle = SquadStrings.loginTitle,
+                            primaryAction = {
+                                navController.popBackStack()
+                                onComplete()
+                            }
+                        )
+                    }
+                }
+            },
+
+            onFailure = { exception ->
+
+                activity.runOnUiThread {
+
+                    LoaderManager.shared.hideLoader()
+
+                    val errorMessage = exception.localizedMessage
+                        ?: SquadStrings.genericError
 
                     AlertManager.shared.showAlert(
                         title = SquadStrings.savingsSquad,
-                        message = SquadStrings.squadCreatedSuccessfully,
-                        primaryButtonTitle = SquadStrings.loginTitle,
-                        primaryAction = {
-
-                            navController.popBackStack()
-                        }
+                        message = errorMessage,
+                        primaryButtonTitle = SquadStrings.ok
                     )
 
+                    onError(errorMessage)
+                }
             }
-        }
-
-        // MARK: 1. LOGIN
-        enter()
-        val login = Login(
-            squadID = squadID,
-            squadName = squadName,
-            memberName = SquadStrings.squadManager,
-            memberNameTamil = "",
-            memberNameEnglish = "",
-            memberNameHindi = "",
-            squadUserId = SquadStrings.squadManager,
-            phoneNumber = phoneNumber,
-            role = SquadUserType.SQUAD_MANAGER,
-            squadCreatedDate = squadStartDate.asTimestamp,
-            userCreatedDate = squadStartDate.asTimestamp
         )
-
-        FirestoreManager.shared.addUserLogin(login) { _, _ ->
-            leave()
-        }
-
-        // MARK: 2. PAYMENT
-        if (startAmountInt > 0) {
-
-            enter()
-
-            val newPayment = PaymentsDetails(
-                id = IDGenerator.generatePaymentID(squadID),
-                paymentUpdatedDate = Date().asTimestamp,
-                memberId = "",
-                memberName = SquadStringsEnglish.squadManager,
-                memberNameTamil = SquadStringsTamil.squadManager,
-                memberNameEnglish = SquadStringsEnglish.squadManager,
-                memberNameHindi = SquadStringsHindi.squadManager,
-                paymentPhone = squad.phoneNumber,
-                paymentEmail = squad.mailID,
-
-                userType = SquadUserType.SQUAD_MANAGER,
-
-                amount = startAmountInt,
-                intrestAmount = 0,
-
-                paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
-                paymentType = PaymentType.PAYMENT_CREDIT,
-                paymentSubType = PaymentSubType.OTHERS_AMOUNT,
-                paymentStatus = PaymentStatus.SUCCESS,
-                paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
-                description = SquadStringsEnglishDesc.startedSquadWithAmountOf,
-                squadId = squadID,
-
-                order_id = "",
-                contributionId = "",
-                loanId = "",
-                installmentId = "",
-
-                transferMode = "",
-                beneId = "",
-
-                paymentSuccess = true,
-                paymentResponseMessage = "",
-                payoutSuccess = true,
-                payoutResponseMessage = "",
-
-                transferReferenceId = "",
-
-                recordStatus = RecordStatus.ACTIVE,
-                recordDate = Date().asTimestamp, descriptionTamil = SquadStringsTamilDesc.startedSquadWithAmountOf, descriptionHindi = SquadStringsHindiDesc.startedSquadWithAmountOf
-            )
-
-            squadViewModel.savePayments(
-                activity = activity,
-                context = context,
-                showLoader = false,
-                squadID = squadID,
-                payment = listOf(newPayment)
-            ) { _, _ ->
-                leave()
-            }
-        }
-
-        // MARK: 3. ACTIVITY
-        enter()
-
-        squadViewModel.createSquadActivity(
-            activityType = SquadActivityType.AMOUNT_CREDIT,
-            memberName = SquadStrings.squadManager,
-            memberNameHindi = SquadStringsHindi.squadManager,
-            memberNameTamil = SquadStringsTamil.squadManager,
-            memberNameEnglish = SquadStringsEnglish.squadManager,
-            memberId = "",
-            amount = startAmountInt,
-            description = SquadStringsEnglishDesc.startedSquadWithAmountOf,
-            descriptionTamil = SquadStringsTamilDesc.startedSquadWithAmountOf, descriptionHindi = SquadStringsHindiDesc.startedSquadWithAmountOf
-        ) { _, _ ->
-            leave()
-        }
-
-        // MARK: 4. CONFIG
-        enter()
-
-        SubscriptionFirebaseManager.shared.createDefaultSubscriptionData(
-            squadID = squadID,
-        ) { _, _ ->
-            leave()
-        }
     }
 }

@@ -1,6 +1,7 @@
 package com.android.savingssquad.viewmodel
 
 import android.util.Log
+import com.android.savingssquad.SquadSubscription.SubscriptionModel
 import com.android.savingssquad.model.CashRequest
 import com.android.savingssquad.model.CashRequestStatus
 import com.android.savingssquad.model.ContributionDetail
@@ -141,6 +142,73 @@ class FirestoreManager private constructor() {
             .addOnFailureListener { error ->
                 completion(null, "Failed to fetch logins: ${error.localizedMessage}")
             }
+    }
+
+    fun createSquadAtomically(
+        squad: Squad,
+        login: Login,
+        activity: SquadActivity,
+        subscription: SubscriptionModel,
+        completion: (Boolean, String?) -> Unit
+    ) {
+        val batch = db.batch()
+
+        // 1. Squad document
+        val squadRef = db.collection("squads")
+            .document(squad.squadID)
+
+        // 2. Manager login document
+        val loginRef = db.collection("users")
+            .document(login.phoneNumber)
+            .collection("logins")
+            .document()
+
+        // 3. Initial activity document
+        val activityRef = squadRef
+            .collection("activities")
+            .document()
+
+        // 4. Subscription document
+        val subscriptionRef = squadRef
+            .collection("subscription")
+            .document("current")
+
+        try {
+            // Assign generated document IDs.
+            val newLogin = login.copy(
+                id = loginRef.id
+            )
+
+            val newActivity = activity.copy(
+                id = activityRef.id
+            )
+
+            // Add all four documents to the same batch.
+            batch.set(squadRef, squad)
+            batch.set(loginRef, newLogin)
+            batch.set(activityRef, newActivity)
+            batch.set(subscriptionRef, subscription)
+
+            // Commit all documents atomically.
+            batch.commit()
+                .addOnSuccessListener {
+                    completion(true, null)
+                }
+                .addOnFailureListener { exception ->
+                    completion(
+                        false,
+                        exception.localizedMessage
+                            ?: "Failed to create squad."
+                    )
+                }
+
+        } catch (exception: Exception) {
+            completion(
+                false,
+                exception.localizedMessage
+                    ?: "Failed to prepare squad data."
+            )
+        }
     }
 
     // MARK: - 🔹 Add Squad

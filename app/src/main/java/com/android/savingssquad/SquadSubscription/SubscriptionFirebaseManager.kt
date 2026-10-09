@@ -14,6 +14,84 @@ class SubscriptionFirebaseManager private constructor() {
 
     private val db = FirebaseFirestore.getInstance()
 
+
+    fun prepareDefaultSquadSubscription(
+        completion: (Result<SubscriptionModel>) -> Unit
+    ) {
+        val globalConfigRef = FirebaseFirestore.getInstance()
+            .collection("subscriptionSettings")
+            .document("current")
+
+        // 1. Read the global subscription configuration.
+        globalConfigRef.get()
+            .addOnSuccessListener { snapshot ->
+
+                // Helper to prepare the subscription from configuration.
+                fun prepareSubscription(config: RemoteConfig) {
+                    try {
+                        val (start, end) =
+                            createTrialDates(config.trialDays)
+
+                        val subscription = SubscriptionModel().apply {
+                            plan = SubscriptionModel.Plan.FREE
+                            loanAddon = false
+                            isTrialActive = true
+
+                            trialStartDate = start
+                            trialEndDate = end
+
+                            trialDays = config.trialDays
+
+                            createdAt = Timestamp.now()
+                            updatedAt = Timestamp.now()
+                        }
+
+                        // Return the model without saving the squad subscription.
+                        completion(Result.success(subscription))
+
+                    } catch (exception: Exception) {
+                        completion(Result.failure(exception))
+                    }
+                }
+
+                // 2. Use the existing configuration.
+                if (snapshot.exists()) {
+
+                    val config = snapshot.toObject(
+                        RemoteConfig::class.java
+                    )
+
+                    if (config == null) {
+                        completion(
+                            Result.failure(
+                                IllegalStateException(
+                                    "Unable to decode subscription configuration."
+                                )
+                            )
+                        )
+                        return@addOnSuccessListener
+                    }
+
+                    prepareSubscription(config)
+                    return@addOnSuccessListener
+                }
+
+                // 3. Initialize the global configuration if missing.
+                val config = RemoteConfig()
+
+                globalConfigRef.set(config)
+                    .addOnSuccessListener {
+                        prepareSubscription(config)
+                    }
+                    .addOnFailureListener { exception ->
+                        completion(Result.failure(exception))
+                    }
+            }
+            .addOnFailureListener { exception ->
+                completion(Result.failure(exception))
+            }
+    }
+
     // MARK: - CREATE DEFAULT CONFIG
     fun createDefaultSubscriptionData(
         squadID: String,

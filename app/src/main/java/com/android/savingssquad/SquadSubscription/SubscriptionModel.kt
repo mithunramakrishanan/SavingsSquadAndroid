@@ -1,5 +1,5 @@
 package com.android.savingssquad.SquadSubscription
-
+import com.google.firebase.firestore.PropertyName
 import com.android.savingssquad.singleton.SquadStrings
 import com.google.firebase.Timestamp
 
@@ -9,6 +9,8 @@ data class SubscriptionModel(
     var billingPeriod: BillingPeriod = BillingPeriod.MONTHLY,   // ⭐ NEW
     var loanAddon: Boolean = false,
 
+    @get:PropertyName("isTrialActive")
+    @set:PropertyName("isTrialActive")
     var isTrialActive: Boolean = true,
 
     var trialStartDate: Timestamp = Timestamp.now(),
