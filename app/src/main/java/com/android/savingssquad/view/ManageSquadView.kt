@@ -270,7 +270,7 @@ fun ManageSquadView(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            SquadAmountQuickEditView(
+            /*SquadAmountQuickEditView(
                 squadViewModel = squadViewModel,
                 onSave = { newValue, reason ->
                     println("Amount: $newValue")
@@ -315,7 +315,7 @@ fun ManageSquadView(
                         }
                     }
                 }
-            )
+            ) */
         }
     }
 }

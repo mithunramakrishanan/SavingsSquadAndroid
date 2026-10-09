@@ -297,7 +297,7 @@ fun SquadSignUpView(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Squad Start Amount
-                SSTextField(
+                /*SSTextField(
                     icon = Icons.Default.AccountBalanceWallet,
                     placeholder = SquadStrings.squadStartAmount,
                     textState = remember { mutableStateOf(squadStartAmount) }.also { state ->
@@ -307,7 +307,7 @@ fun SquadSignUpView(
                     error = squadStartAmountError
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(20.dp)) */
             }
 
             // Footer (Terms + Button)

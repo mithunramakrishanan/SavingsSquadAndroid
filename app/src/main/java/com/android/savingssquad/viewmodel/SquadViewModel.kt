@@ -872,7 +872,7 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-    fun addMember(
+    /*fun addMember(
         showLoader: Boolean = true,
         name: String,
         phone: String,
@@ -973,6 +973,237 @@ class SquadViewModel : ViewModel() {
                             primaryAction = {}
                         )
                         completion(false, SquadStrings.nameAlreadyExists)
+                        return@launch
+                    }
+
+                    addAndSave()
+                }
+            }
+        } else {
+            addAndSave()
+        }
+    } */
+
+    fun addMember(
+        showLoader: Boolean = true,
+        name: String,
+        phone: String,
+        contributionReceived: Int = 0,
+        interestReceived: Int = 0,
+        markCurrentMonthPaid: Boolean = false,
+        completion: (Boolean, String?) -> Unit
+    ) {
+        // ---------------------------------------------------------
+        // INTERNET VALIDATION
+        // ---------------------------------------------------------
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            AlertManager.shared.showAlert(
+                title = SquadStrings.savingsSquad,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+
+            completion(false, SquadStrings.networkError)
+            return
+        }
+
+        // ---------------------------------------------------------
+        // SQUAD VALIDATION
+        // ---------------------------------------------------------
+
+        val currentSquad = _squad.value
+
+        if (currentSquad == null) {
+            completion(false, "Squad not found.")
+            return
+        }
+
+        // ---------------------------------------------------------
+        // FINANCIAL VALIDATION
+        // ---------------------------------------------------------
+
+        if (contributionReceived < 0 || interestReceived < 0) {
+            completion(
+                false,
+                "Contribution and interest amounts cannot be negative."
+            )
+            return
+        }
+
+        // ---------------------------------------------------------
+        // LOADER
+        // ---------------------------------------------------------
+
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        // ---------------------------------------------------------
+        // CREATE MEMBER
+        // ---------------------------------------------------------
+
+        val newMember = Member(
+            id = IDGenerator.generateMemberID(),
+            memberName = name,
+            memberNameHindi = "",
+            memberNameTamil = "",
+            memberNameEnglish = "",
+            profileImage = "",
+            mailID = "",
+            phoneNumber = phone,
+            password = phone,
+            squadID = currentSquad.squadID,
+            role = SquadUserType.SQUAD_MEMBER,
+            memberCreatedDate = Date().asTimestamp,
+            recordStatus = RecordStatus.ACTIVE,
+            upiBeneId = "",
+            bankBeneId = "",
+            upiID = "",
+            fcmToken = "",
+            currentLoanApproveStatus = EMIStatus.CREATED,
+            verifyAmountCount = 0,
+            cashRequested = false
+        )
+
+        // ---------------------------------------------------------
+        // SAVE MEMBER + LOGIN + CONTRIBUTIONS + FINANCIALS
+        // ---------------------------------------------------------
+
+        fun addAndSave() {
+            manager.addMemberWithInitialFinancials(
+                squadID = currentSquad.squadID,
+                squad = currentSquad,
+                member = newMember,
+                contributionReceived = contributionReceived,
+                interestReceived = interestReceived,
+                markCurrentMonthPaid = markCurrentMonthPaid
+            ) { success, message ->
+
+                viewModelScope.launch(Dispatchers.Main) {
+
+                    if (showLoader) {
+                        LoaderManager.shared.hideLoader()
+                    }
+
+                    if (!success) {
+                        val errorMessage =
+                            message ?: "Failed to add member."
+
+                        handleFetchError(errorMessage) {}
+                        completion(false, errorMessage)
+                        return@launch
+                    }
+
+                    // Update local members only after the batch succeeds.
+                    val alreadyExists = _squadMembers.value.any {
+                        it.id == newMember.id
+                    }
+
+                    if (!alreadyExists) {
+                        setSquadMembers(
+                            _squadMembers.value + newMember
+                        )
+
+                        setSquadMembersCount(
+                            _squadMembersCount.value + 1
+                        )
+
+                        _squad.value?.let { latestSquad ->
+                            _squad.value = latestSquad.copy(
+                                totalMembers = latestSquad.totalMembers + 1,
+                                totalContributionAmountReceived =
+                                    latestSquad.totalContributionAmountReceived +
+                                            contributionReceived,
+                                totalInterestAmountReceived =
+                                    latestSquad.totalInterestAmountReceived +
+                                            interestReceived,
+                                currentAvailableAmount =
+                                    latestSquad.currentAvailableAmount +
+                                            contributionReceived +
+                                            interestReceived,
+                                currentCreditAmount =
+                                    latestSquad.currentCreditAmount +
+                                            contributionReceived +
+                                            interestReceived
+                            )
+                        }
+                    }
+
+                    setShowAddMemberPopup(false)
+
+                    // IMPORTANT:
+                    // Do not call addUserLogin().
+                    // The manager batch already creates the login and
+                    // monthly contribution records.
+
+                    completion(true, null)
+                }
+            }
+        }
+
+        // ---------------------------------------------------------
+        // DUPLICATE NAME VALIDATION
+        // ---------------------------------------------------------
+
+        if (_squadMembersCount.value > 0) {
+
+            manager.fetchMembers(
+                squadID = currentSquad.squadID
+            ) { memberNames, error ->
+
+                viewModelScope.launch(Dispatchers.Main) {
+
+                    if (error != null) {
+                        if (showLoader) {
+                            LoaderManager.shared.hideLoader()
+                        }
+
+                        handleFetchError(error) {
+                            addMember(
+                                showLoader = showLoader,
+                                name = name,
+                                phone = phone,
+                                contributionReceived = contributionReceived,
+                                interestReceived = interestReceived,
+                                markCurrentMonthPaid = markCurrentMonthPaid,
+                                completion = completion
+                            )
+                        }
+
+                        completion(false, error)
+                        return@launch
+                    }
+
+                    val normalizedName = CommonFunctions
+                        .cleanUpName(name)
+                        .trim()
+                        .lowercase()
+
+                    val nameExists = memberNames?.any {
+                        it.localizedMemberName
+                            .trim()
+                            .lowercase() == normalizedName
+                    } ?: false
+
+                    if (nameExists) {
+                        if (showLoader) {
+                            LoaderManager.shared.hideLoader()
+                        }
+
+                        AlertManager.shared.showAlert(
+                            title = SquadStrings.savingsSquad,
+                            message = SquadStrings.nameAlreadyExists,
+                            primaryButtonTitle = SquadStrings.ok,
+                            primaryAction = {}
+                        )
+
+                        completion(
+                            false,
+                            SquadStrings.nameAlreadyExists
+                        )
+
                         return@launch
                     }
 

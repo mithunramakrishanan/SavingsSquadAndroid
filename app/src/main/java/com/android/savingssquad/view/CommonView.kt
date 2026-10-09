@@ -1720,203 +1720,466 @@ fun UserPicker(
         }
     }
 }
-private val NON_PHONE_NUMBERS = listOf("1111111111", "2222222222", "3333333333")
+private val NON_PHONE_NUMBERS = listOf(
+    "1111111111",
+    "2222222222",
+    "3333333333"
+)
+
 @Composable
 fun AddMemberPopup(
     squadViewModel: SquadViewModel,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val auth = remember { FirebaseAuth.getInstance() }
 
-    // ✅ State variables as MutableState
+    // MARK: - Text fields
+
     val memberNameState = remember { mutableStateOf("") }
     val phoneNumberState = remember { mutableStateOf("") }
     val otpCodeState = remember { mutableStateOf("") }
     val verificationIDState = remember { mutableStateOf("") }
 
+    val contributionReceivedState = remember { mutableStateOf("") }
+    val interestReceivedState = remember { mutableStateOf("") }
+
+    // MARK: - UI state
+
     var isOTPSent by remember { mutableStateOf(false) }
     var otpVerified by remember { mutableStateOf(false) }
     var otpProcessStarted by remember { mutableStateOf(false) }
+    var isOTPVerificationInProgress by remember { mutableStateOf(false) }
+
+    var otpAttemptedCode by remember { mutableStateOf("") }
+
+    var markCurrentMonthPaid by remember {
+        mutableStateOf(false)
+    }
 
     var memberNameError by remember { mutableStateOf("") }
     var phoneError by remember { mutableStateOf("") }
     var sendOTPError by remember { mutableStateOf("") }
     var verifyOTPError by remember { mutableStateOf("") }
 
+    var nameValidationJob by remember { mutableStateOf<Job?>(null) }
+    var phoneValidationJob by remember { mutableStateOf<Job?>(null) }
+
     val coroutineScope = rememberCoroutineScope()
-    var debounceJob by remember { mutableStateOf<Job?>(null) }
 
-    val isNonPhoneNumber = NON_PHONE_NUMBERS.contains(phoneNumberState.value)
-    val nonPhoneMembersUsedCount = squadViewModel.squadMembers.collectAsState().value
-        .count { NON_PHONE_NUMBERS.contains(it.phoneNumber) }
+    val squadMembers by squadViewModel.squadMembers.collectAsState()
+    val squad = squadViewModel.squad.collectAsState().value
 
-    // ----------------- Validation -----------------
-    fun validateFields(): Boolean {
-        memberNameError = if (memberNameState.value.trim().isEmpty()) SquadStrings.nameRequired else ""
-        phoneError = if (Regex("^[0-9]{10}$").matches(phoneNumberState.value))
-            "" else SquadStrings.enterValidPhoneNumber
+    // MARK: - Squad start date
 
-        return memberNameError.isEmpty() && phoneError.isEmpty()
+    /*
+     * Assumes squadStartDate is a Firebase Timestamp.
+     * If your Kotlin model uses another date type, adjust this conversion.
+     */
+    val squadHasStarted = remember(squad?.squadStartDate) {
+        val startDate = squad?.squadStartDate?.toDate()
+        startDate != null && !startDate.after(Date())
     }
 
-    fun handleMemberNameChange(
-        newValue: String,
-        setError: (String) -> Unit,
-        squadMembers: List<Member>,   // list from ViewModel
-        coroutineScope: CoroutineScope,
-        debounceJob: Job?,
-        onUpdateDebounceJob: (Job?) -> Unit
+    // MARK: - Financial amounts
+
+    val contributionReceived = contributionReceivedState.value
+        .toIntOrNull() ?: 0
+
+    val interestReceived = interestReceivedState.value
+        .toIntOrNull() ?: 0
+
+    val contributionValid =
+        contributionReceivedState.value.isEmpty() ||
+                (
+                        contributionReceivedState.value.all { it in '0'..'9' } &&
+                                contributionReceivedState.value.toIntOrNull() != null
+                        )
+
+    val interestValid =
+        interestReceivedState.value.isEmpty() ||
+                (
+                        interestReceivedState.value.all { it in '0'..'9' } &&
+                                interestReceivedState.value.toIntOrNull() != null
+                        )
+
+    val financialAmountsValid =
+        contributionValid && interestValid
+
+    val isNonPhoneNumber = phoneNumberState.value in NON_PHONE_NUMBERS
+
+    val nonPhoneMembersUsedCount = squadMembers.count {
+        it.phoneNumber in NON_PHONE_NUMBERS
+    }
+
+    // MARK: - Name validation
+
+    fun validateMemberName(): Boolean {
+        val cleanedName = CommonFunctions.cleanUpName(
+            memberNameState.value
+        )
+
+        if (cleanedName.isBlank()) {
+            memberNameError = SquadStrings.nameRequired
+            return false
+        }
+
+        val normalizedName = cleanedName.trim().lowercase()
+
+        val alreadyExists = squadMembers.any {
+            CommonFunctions.cleanUpName(it.localizedMemberName)
+                .trim()
+                .lowercase() == normalizedName
+        }
+
+        if (alreadyExists) {
+            memberNameError = SquadStrings.nameAlreadyExists
+            return false
+        }
+
+        memberNameError = ""
+        return true
+    }
+
+    // MARK: - Phone validation
+
+    fun validatePhoneNumber(): Boolean {
+        val cleanedPhone = CommonFunctions.cleanUpPhoneNumber(
+            phoneNumberState.value
+        )
+
+        if (!Regex("^[0-9]{10}$").matches(cleanedPhone)) {
+            phoneError = SquadStrings.enterValidPhoneNumber
+            return false
+        }
+
+        val alreadyExists = squadMembers.any {
+            CommonFunctions.cleanUpPhoneNumber(it.phoneNumber) == cleanedPhone
+        }
+
+        if (alreadyExists) {
+            phoneError = SquadStrings.mobileNumberAlreadyExists
+            return false
+        }
+
+        phoneError = ""
+        return true
+    }
+
+    // MARK: - Debounced name validation
+
+    LaunchedEffect(memberNameState.value, squadMembers) {
+        memberNameError = ""
+
+        nameValidationJob?.cancel()
+
+        nameValidationJob = coroutineScope.launch {
+            delay(500)
+
+            val cleanedName = CommonFunctions.cleanUpName(
+                memberNameState.value
+            ).trim()
+
+            if (cleanedName.isBlank()) {
+                return@launch
+            }
+
+            val normalizedName = cleanedName.lowercase()
+
+            val exists = squadMembers.any {
+                CommonFunctions.cleanUpName(it.localizedMemberName)
+                    .trim()
+                    .lowercase() == normalizedName
+            }
+
+            if (exists) {
+                memberNameError = SquadStrings.nameAlreadyExists
+            }
+        }
+    }
+
+    // MARK: - Debounced phone validation
+
+    LaunchedEffect(phoneNumberState.value, squadMembers) {
+        phoneError = ""
+
+        phoneValidationJob?.cancel()
+
+        phoneValidationJob = coroutineScope.launch {
+            delay(500)
+
+            val cleanedPhone = CommonFunctions.cleanUpPhoneNumber(
+                phoneNumberState.value
+            )
+
+            if (cleanedPhone.length != 10 ||
+                !cleanedPhone.all { it in '0'..'9' }
+            ) {
+                return@launch
+            }
+
+            val exists = squadMembers.any {
+                CommonFunctions.cleanUpPhoneNumber(it.phoneNumber) ==
+                        cleanedPhone
+            }
+
+            if (exists) {
+                phoneError = SquadStrings.mobileNumberAlreadyExists
+            }
+        }
+    }
+
+    // MARK: - Financial amount sanitization
+
+    LaunchedEffect(contributionReceivedState.value) {
+        val current = contributionReceivedState.value
+        val cleaned = current.filter { it in '0'..'9' }
+
+        if (current != cleaned) {
+            contributionReceivedState.value = cleaned
+        }
+    }
+
+    LaunchedEffect(interestReceivedState.value) {
+        val current = interestReceivedState.value
+        val cleaned = current.filter { it in '0'..'9' }
+
+        if (current != cleaned) {
+            interestReceivedState.value = cleaned
+        }
+    }
+
+    // MARK: - OTP automatic verification
+
+    fun signInWithPhoneCredential(
+        credential: PhoneAuthCredential
     ) {
-        // Clear error immediately (like Swift)
-        setError("")
+        if (isOTPVerificationInProgress) return
 
-        // Cancel previous debounce job
-        debounceJob?.cancel()
+        isOTPVerificationInProgress = true
+        squadViewModel.setIsVerifyingOTP(true)
 
-        // Create new debounce job
-        val newJob = coroutineScope.launch {
-            delay(500)
+        auth.signInWithCredential(credential)
+            .addOnCompleteListener { task ->
 
-            val cleanedName = CommonFunctions.cleanUpName(newValue)
+                isOTPVerificationInProgress = false
+                squadViewModel.setIsVerifyingOTP(false)
 
-            val exists = squadMembers
-                .map { it.localizedMemberName.trim().lowercase() }
-                .contains(cleanedName.trim().lowercase())
-
-            if (exists) {
-                setError(SquadStrings.nameAlreadyExists)
+                if (task.isSuccessful) {
+                    otpVerified = true
+                    verifyOTPError = ""
+                    sendOTPError = ""
+                } else {
+                    otpVerified = false
+                    verifyOTPError =
+                        task.exception?.localizedMessage
+                            ?: "Verification failed"
+                }
             }
-        }
-
-        // Update external reference
-        onUpdateDebounceJob(newJob)
     }
 
-    fun handlePhoneNameChange(
-        newValue: String,
-        setError: (String) -> Unit,
-        squadMembers: List<Member>,   // list from ViewModel
-        coroutineScope: CoroutineScope,
-        debounceJob: Job?,
-        onUpdateDebounceJob: (Job?) -> Unit
-    )
-    {
-        // Clear error immediately (like Swift)
-        setError("")
+    // MARK: - OTP code verification
 
-        // Cancel previous debounce job
-        debounceJob?.cancel()
+    LaunchedEffect(otpCodeState.value, verificationIDState.value) {
+        val code = otpCodeState.value
 
-        // Create new debounce job
-        val newJob = coroutineScope.launch {
-            delay(500)
-
-            val cleanedName = CommonFunctions.cleanUpPhoneNumber(newValue)
-
-            val exists = squadMembers
-                .map { it.phoneNumber.trim().lowercase() }
-                .contains(cleanedName.trim().lowercase())
-
-            if (exists) {
-                setError(SquadStrings.mobileNumberAlreadyExists)
-            }
+        if (code.length != 6) {
+            otpAttemptedCode = ""
+            otpVerified = false
+            return@LaunchedEffect
         }
 
-        // Update external reference
-        onUpdateDebounceJob(newJob)
-    }
-
-    // ----------------- Handle Add Member -----------------
-    fun handleAddMember() {
-        if (!validateFields()) return
-
-        if (otpVerified) {
-
-            val squad = squadViewModel.squad.value ?: return
-
-            val currentCount = squad.totalMembers
-
-            if (!SubscriptionManager.shared.canAddMember(currentCount)) {
-                LoaderManager.shared.hideLoader()
-                squadViewModel.setShowUpgradePlan(true)
-                return
-            }
-
-            val name = CommonFunctions.cleanUpName(memberNameState.value)
-            val phone = CommonFunctions.cleanUpPhoneNumber(phoneNumberState.value)
-            LoaderManager.shared.showLoader()
-            squadViewModel.addMember(true, name, phone) { success, error ->
-                LoaderManager.shared.hideLoader()
-                onDismiss()
-            }
-        } else {
-            // ✅ OTP not yet verified -> send OTP
-            val phoneWithCode = "+91${phoneNumberState.value}"
-
-            squadViewModel.setIsSendingOTP(true)
-
-            otpProcessStarted = true
-
-            val auth = FirebaseAuth.getInstance()
-            val activity = context as? Activity
-            if (activity != null) {
-                val options = PhoneAuthOptions.newBuilder(auth)
-                    .setPhoneNumber(phoneWithCode)       // your phone number with country code
-                    .setTimeout(60L, TimeUnit.SECONDS)       // timeout
-                    .setActivity(activity)                   // required for verification
-                    .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-                        override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                            otpVerified = true
-                            verifyOTPError = ""
-                            squadViewModel.setIsVerifyingOTP(false)
-                            Log.d("AddMember", "OTP auto-verified")
-                        }
-
-                        override fun onVerificationFailed(e: FirebaseException) {
-                            sendOTPError = e.localizedMessage ?: "OTP failed"
-                            squadViewModel.setIsSendingOTP(false)
-                            otpProcessStarted = false
-                            Log.d("AddMember", "OTP verification failed: ${e.localizedMessage}")
-                        }
-
-                        override fun onCodeSent(
-                            verificationId: String,
-                            token: PhoneAuthProvider.ForceResendingToken
-                        ) {
-                            verificationIDState.value = verificationId
-                            squadViewModel.setIsSendingOTP(false)
-                            otpProcessStarted = false
-                            isOTPSent = true
-                            Log.d("AddMember", "OTP code sent: $verificationId")
-                        }
-                    })
-                    .build()
-
-                PhoneAuthProvider.verifyPhoneNumber(options)
-            }
+        if (verificationIDState.value.isBlank()) {
+            return@LaunchedEffect
         }
-    }
 
-    // ----------------- Handle OTP Change -----------------
-    fun handleOTPChange(newValue: String) {
-        otpCodeState.value = newValue
+        if (otpVerified ||
+            isOTPVerificationInProgress ||
+            otpAttemptedCode == code
+        ) {
+            return@LaunchedEffect
+        }
+
+        otpAttemptedCode = code
         verifyOTPError = ""
 
-        if (newValue.length == 6) {
-            squadViewModel.setIsVerifyingOTP(true)
-            val credential = PhoneAuthProvider.getCredential(verificationIDState.value, newValue)
-            FirebaseAuth.getInstance().signInWithCredential(credential)
-                .addOnCompleteListener { task ->
-                    squadViewModel.setIsVerifyingOTP(false)
-                    otpVerified = task.isSuccessful
-                    if (!task.isSuccessful) {
-                        verifyOTPError = task.exception?.localizedMessage ?: "Verification failed"
+        val credential = PhoneAuthProvider.getCredential(
+            verificationIDState.value,
+            code
+        )
+
+        signInWithPhoneCredential(credential)
+    }
+
+    // MARK: - Send OTP
+
+    fun sendOTP() {
+        if (!validateMemberName() || !validatePhoneNumber()) {
+            return
+        }
+
+        val activity = context as? Activity
+
+        if (activity == null) {
+            sendOTPError = "Unable to verify phone number. Please try again."
+            return
+        }
+
+        val phone = CommonFunctions.cleanUpPhoneNumber(
+            phoneNumberState.value
+        )
+
+        val phoneWithCountryCode = "+91$phone"
+
+        // Reset the previous verification state.
+        otpVerified = false
+        isOTPSent = false
+        otpCodeState.value = ""
+        verificationIDState.value = ""
+        otpAttemptedCode = ""
+
+        sendOTPError = ""
+        verifyOTPError = ""
+
+        otpProcessStarted = true
+        squadViewModel.setIsSendingOTP(true)
+
+        val options = PhoneAuthOptions.newBuilder(auth)
+            .setPhoneNumber(phoneWithCountryCode)
+            .setTimeout(60L, TimeUnit.SECONDS)
+            .setActivity(activity)
+            .setCallbacks(
+                object :
+                    PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+
+                    override fun onVerificationCompleted(
+                        credential: PhoneAuthCredential
+                    ) {
+                        /*
+                         * Complete Firebase sign-in rather than marking
+                         * the phone verified before authentication succeeds.
+                         */
+                        signInWithPhoneCredential(credential)
+
+                        squadViewModel.setIsSendingOTP(false)
+                        otpProcessStarted = false
+                    }
+
+                    override fun onVerificationFailed(
+                        exception: FirebaseException
+                    ) {
+                        sendOTPError =
+                            exception.localizedMessage ?: "OTP verification failed"
+
+                        squadViewModel.setIsSendingOTP(false)
+                        otpProcessStarted = false
+
+                        Log.e(
+                            "AddMember",
+                            "Phone verification failed",
+                            exception
+                        )
+                    }
+
+                    override fun onCodeSent(
+                        verificationId: String,
+                        token: PhoneAuthProvider.ForceResendingToken
+                    ) {
+                        verificationIDState.value = verificationId
+
+                        isOTPSent = true
+                        otpProcessStarted = false
+
+                        squadViewModel.setIsSendingOTP(false)
+
+                        Log.d("AddMember", "OTP code sent")
+                    }
+
+                    override fun onCodeAutoRetrievalTimeOut(
+                        verificationId: String
+                    ) {
+                        verificationIDState.value = verificationId
                     }
                 }
+            )
+            .build()
+
+        PhoneAuthProvider.verifyPhoneNumber(options)
+    }
+
+    // MARK: - Add member
+
+    fun handleAddMember() {
+        if (!validateMemberName() || !validatePhoneNumber()) {
+            return
+        }
+
+        if (!financialAmountsValid) {
+            return
+        }
+
+        /*
+         * If the squad hasn't started, the iOS flow doesn't show these
+         * fields and therefore sends zero for both amounts.
+         */
+        val initialContribution =
+            if (squadHasStarted) contributionReceived else 0
+
+        val initialInterest =
+            if (squadHasStarted) interestReceived else 0
+
+        val currentMonthPaid =
+            squadHasStarted && markCurrentMonthPaid
+
+        if (!otpVerified) {
+            sendOTP()
+            return
+        }
+
+        val currentSquad = squad ?: return
+
+        if (!SubscriptionManager.shared.canAddMember(
+                currentSquad.totalMembers
+            )
+        ) {
+            squadViewModel.setShowUpgradePlan(true)
+            return
+        }
+
+        val cleanedName = CommonFunctions.cleanUpName(
+            memberNameState.value
+        )
+
+        val cleanedPhone = CommonFunctions.cleanUpPhoneNumber(
+            phoneNumberState.value
+        )
+
+        LoaderManager.shared.showLoader()
+
+        squadViewModel.addMember(
+            showLoader = false,
+            name = cleanedName,
+            phone = cleanedPhone,
+            contributionReceived = initialContribution,
+            interestReceived = initialInterest,
+            markCurrentMonthPaid = currentMonthPaid
+        ) { success, error ->
+
+            LoaderManager.shared.hideLoader()
+
+            if (success) {
+                onDismiss()
+            } else {
+                Log.e(
+                    "AddMember",
+                    error ?: "Unable to add member"
+                )
+            }
         }
     }
 
-    // ----------------- UI -----------------
+    // MARK: - UI
+
     AnimatedVisibility(
         visible = true,
         enter = fadeIn() + scaleIn(),
@@ -1924,23 +2187,34 @@ fun AddMemberPopup(
     ) {
         Column(
             modifier = Modifier
+                .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .clip(RoundedCornerShape(20.dp))
                 .background(AppColors.background)
                 .appShadow(AppShadows.elevated)
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+
+            // Header
+
             Text(
                 text = SquadStrings.addMember,
-                style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                style = AppFont.ibmPlexSans(
+                    20,
+                    FontWeight.Bold
+                ),
                 color = AppColors.headerText,
                 modifier = Modifier.padding(top = 10.dp)
             )
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Member Name
+            // Member details
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+
                 SSTextField(
                     icon = Icons.Default.Person,
                     placeholder = SquadStrings.memberName,
@@ -1948,18 +2222,6 @@ fun AddMemberPopup(
                     error = memberNameError
                 )
 
-                LaunchedEffect(memberNameState.value) {
-                    handleMemberNameChange(
-                        newValue = memberNameState.value,
-                        setError = { memberNameError = it },
-                        squadMembers = squadViewModel.squadMembers.value,
-                        coroutineScope = coroutineScope,
-                        debounceJob = debounceJob,
-                        onUpdateDebounceJob = { debounceJob = it }
-                    )
-                }
-
-                // Phone Number
                 SSTextField(
                     icon = Icons.Default.Phone,
                     placeholder = SquadStrings.memberPhone,
@@ -1968,77 +2230,174 @@ fun AddMemberPopup(
                     error = phoneError
                 )
 
-                LaunchedEffect(phoneNumberState.value) {
-                    handlePhoneNameChange(
-                        newValue = phoneNumberState.value,
-                        setError = { phoneError = it },
-                        squadMembers = squadViewModel.squadMembers.value,
-                        coroutineScope = coroutineScope,
-                        debounceJob = debounceJob,
-                        onUpdateDebounceJob = { debounceJob = it }
-                    )
-                }
-
-                // Compact info: no-phone fallback
-                Row(
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = AppColors.secondaryText,
-                        modifier = Modifier.size(12.dp)
-                    )
+                if (sendOTPError.isNotBlank()) {
                     Text(
-                        text = SquadStrings.testPhoneHint,
-                        fontSize = 11.sp,
-                        color = AppColors.secondaryText
+                        text = sendOTPError,
+                        color = AppColors.errorAccent,
+                        fontSize = 12.sp
                     )
                 }
 
-                // OTP field
-                if (isOTPSent) {
-                    // Animated appearance like SwiftUI transition
-                    AnimatedVisibility(
-                        visible = isOTPSent,
-                        enter = fadeIn() + slideInVertically(initialOffsetY = { -40 }),
-                        exit = fadeOut() + slideOutVertically(targetOffsetY = { -40 })
+                // OTP
+
+                AnimatedVisibility(
+                    visible = isOTPSent,
+                    enter = fadeIn() +
+                            slideInVertically(initialOffsetY = { -40 }),
+                    exit = fadeOut() +
+                            slideOutVertically(targetOffsetY = { -40 })
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         SSTextField(
                             icon = Icons.Default.Numbers,
                             placeholder = SquadStrings.enterOTP,
                             textState = otpCodeState,
                             keyboardType = KeyboardType.Number,
-                            showDropdown =  otpVerified,
+                            showDropdown = otpVerified,
                             dropdownIcon = Icons.Default.CheckCircle,
                             dropdownColor = AppColors.primaryButton,
                             error = verifyOTPError,
                             onDropdownTap = null
                         )
 
-                        // Observe OTP changes like SwiftUI's .onChange
-                        LaunchedEffect(otpCodeState.value) {
-                            handleOTPChange(otpCodeState.value)
+                        if (isOTPVerificationInProgress) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }
+
+                // Initial financial details — only after squad start date
+
+                if (squadHasStarted) {
+
+                    HorizontalDivider()
+
+                    Text(
+                        text = SquadStrings.initialFinancialDetails,
+                        style = AppFont.ibmPlexSans(
+                            16,
+                            FontWeight.SemiBold
+                        ),
+                        color = AppColors.headerText
+                    )
+
+                    Text(
+                        text = SquadStrings.recordInitialAmountsReceived,
+                        style = AppFont.ibmPlexSans(
+                            12,
+                            FontWeight.Normal
+                        ),
+                        color = AppColors.secondaryText
+                    )
+
+                    SSTextField(
+                        icon = Icons.Default.AccountBalanceWallet,
+                        placeholder = SquadStrings.contributionReceived,
+                        textState = contributionReceivedState,
+                        keyboardType = KeyboardType.Number,
+                        error = ""
+                    )
+
+                    SSTextField(
+                        icon = Icons.Default.Payments,
+                        placeholder = SquadStrings.interestReceived,
+                        textState = interestReceivedState,
+                        keyboardType = KeyboardType.Number,
+                        error = ""
+                    )
+
+                    if (!financialAmountsValid) {
+                        Text(
+                            text = "Enter valid whole-number amounts.",
+                            color = AppColors.errorAccent,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    // Current month paid checkbox
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = markCurrentMonthPaid,
+                            onCheckedChange = {
+                                markCurrentMonthPaid = it
+                            }
+                        )
+
+                        Text(
+                            text = SquadStrings.markCurrentMonthAsPaid,
+                            color = AppColors.headerText,
+                            fontSize = 14.sp
+                        )
+                    }
+
+                    Text(
+                        text = SquadStrings.previousMonthsAutomaticallyPaid,
+                        style = AppFont.ibmPlexSans(
+                            12,
+                            FontWeight.Normal
+                        ),
+                        color = AppColors.secondaryText
+                    )
+
+                    // Initial amount preview
+
+                    val totalInitialAmount =
+                        contributionReceived.toLong() +
+                                interestReceived.toLong()
+
+                    Text(
+                        text = "${SquadStrings.contributionReceived}: " +
+                                "₹${contributionReceived}\n" +
+                                "${SquadStrings.interestReceived}: " +
+                                "₹${interestReceived}\n" +
+                                "Total: ₹$totalInitialAmount",
+                        style = AppFont.ibmPlexSans(
+                            13,
+                            FontWeight.Medium
+                        ),
+                        color = AppColors.headerText
+                    )
+                }
             }
 
-            // Button
+            // Add / Send OTP button
+
             SSButton(
-                title = if (otpVerified) SquadStrings.addMember else SquadStrings.sendOTP,
-                isDisabled = (otpProcessStarted) || phoneError.isNotEmpty() || memberNameError.isNotEmpty(),
-                action = { handleAddMember() }
+                title = when {
+                    otpVerified -> SquadStrings.addMember
+                    isOTPSent -> SquadStrings.sendOTP
+                    else -> SquadStrings.sendOTP
+                },
+                isDisabled =
+                    otpProcessStarted ||
+                            isOTPVerificationInProgress ||
+                            memberNameError.isNotEmpty() ||
+                            phoneError.isNotEmpty() ||
+                            !financialAmountsValid,
+                action = {
+                    handleAddMember()
+                }
             )
 
             // Cancel
+
             SSCancelButton(
                 title = SquadStrings.cancel,
                 isButtonLoading = false,
                 isDisabled = false,
-                action = { onDismiss() }
+                action = {
+                    nameValidationJob?.cancel()
+                    phoneValidationJob?.cancel()
+                    onDismiss()
+                }
             )
         }
     }

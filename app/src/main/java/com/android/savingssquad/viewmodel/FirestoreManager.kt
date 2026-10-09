@@ -4168,6 +4168,328 @@ class FirestoreManager private constructor() {
             .addOnFailureListener { e -> completion(false, "Error deleting member: ${e.localizedMessage}") }
     }
 
+    fun addMemberWithInitialFinancials(
+        squadID: String,
+        squad: Squad,
+        member: Member,
+        contributionReceived: Int,
+        interestReceived: Int,
+        markCurrentMonthPaid: Boolean,
+        completion: (Boolean, String?) -> Unit
+    ) {
+        // ---------------------------------------------------------
+        // 1. VALIDATION
+        // ---------------------------------------------------------
+
+        val memberID = member.id ?: ""
+
+        if (memberID.isBlank()) {
+            completion(false, "Invalid member ID.")
+            return
+        }
+
+        if (contributionReceived < 0 || interestReceived < 0) {
+            completion(false, "Amounts cannot be negative.")
+            return
+        }
+
+        val squadStartDate = squad.squadStartDate?.toDate()
+        val squadEndDate = squad.squadEndDate?.toDate()
+
+        if (squadStartDate == null || squadEndDate == null) {
+            completion(false, "Squad start or end date is missing.")
+            return
+        }
+
+        if (squadEndDate.before(squadStartDate)) {
+            completion(false, "Squad end date cannot be before start date.")
+            return
+        }
+
+        // ---------------------------------------------------------
+        // 2. REFERENCES
+        // ---------------------------------------------------------
+
+        val squadRef = db
+            .collection("squads")
+            .document(squadID)
+
+        val memberRef = squadRef
+            .collection("members")
+            .document(memberID)
+
+        val userRef = db
+            .collection("users")
+            .document(member.phoneNumber)
+
+        val loginRef = userRef
+            .collection("logins")
+            .document()
+
+        val contributionsRef = memberRef
+            .collection("contributions")
+
+        // ---------------------------------------------------------
+        // 3. BATCH
+        // ---------------------------------------------------------
+
+        val batch = db.batch()
+
+        // ---------------------------------------------------------
+        // 4. MEMBER DOCUMENT
+        // ---------------------------------------------------------
+
+        val memberData = hashMapOf<String, Any?>(
+            "id" to member.id,
+            "memberName" to member.memberName,
+            "memberNameHindi" to member.memberNameHindi,
+            "memberNameTamil" to member.memberNameTamil,
+            "memberNameEnglish" to member.memberNameEnglish,
+            "profileImage" to member.profileImage,
+            "mailID" to member.mailID,
+            "phoneNumber" to member.phoneNumber,
+            "password" to member.password,
+            "squadID" to member.squadID,
+            "role" to member.role,
+            "memberCreatedDate" to member.memberCreatedDate,
+            "recordStatus" to member.recordStatus,
+            "upiBeneId" to member.upiBeneId,
+            "bankBeneId" to member.bankBeneId,
+            "upiID" to member.upiID,
+            "fcmToken" to member.fcmToken,
+            "currentLoanApproveStatus" to member.currentLoanApproveStatus,
+            "verifyAmountCount" to member.verifyAmountCount,
+            "cashRequested" to member.cashRequested,
+            "totalContributionPaid" to contributionReceived,
+            "totalInterestPaid" to interestReceived
+        )
+
+        batch.set(memberRef, memberData)
+
+        // ---------------------------------------------------------
+        // 5. LOGIN DOCUMENT
+        // ---------------------------------------------------------
+
+        val login = Login(
+            squadID = squad.squadID,
+            squadName = squad.squadName,
+            squadNameHindi = squad.squadNameHindi,
+            squadNameEnglish = squad.squadNameEnglish,
+            squadNameTamil = squad.squadNameTamil,
+            memberName = member.memberName,
+            memberNameHindi = member.memberNameHindi,
+            memberNameTamil = member.memberNameTamil,
+            memberNameEnglish = member.memberNameEnglish,
+            squadUserId = memberID,
+            phoneNumber = member.phoneNumber,
+            role = SquadUserType.SQUAD_MEMBER,
+            squadCreatedDate = Date().asTimestamp,
+            userCreatedDate = Date().asTimestamp
+        )
+
+        val loginData = hashMapOf<String, Any?>(
+            "id" to loginRef.id,
+            "squadID" to login.squadID,
+            "squadName" to login.squadName,
+            "squadNameHindi" to login.squadNameHindi,
+            "squadNameEnglish" to login.squadNameEnglish,
+            "squadNameTamil" to login.squadNameTamil,
+            "memberName" to login.memberName,
+            "memberNameHindi" to login.memberNameHindi,
+            "memberNameTamil" to login.memberNameTamil,
+            "memberNameEnglish" to login.memberNameEnglish,
+            "squadUserId" to login.squadUserId,
+            "phoneNumber" to login.phoneNumber,
+            "role" to login.role,
+            "squadCreatedDate" to login.squadCreatedDate,
+            "userCreatedDate" to login.userCreatedDate
+        )
+
+        batch.set(loginRef, loginData)
+
+        // ---------------------------------------------------------
+        // 6. GENERATE MONTHLY CONTRIBUTIONS
+        // ---------------------------------------------------------
+
+        val calendar = Calendar.getInstance()
+
+        calendar.time = squadStartDate
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+
+        val firstMonth = calendar.time
+
+        calendar.time = squadEndDate
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+
+        val lastMonth = calendar.time
+
+        val currentCalendar = Calendar.getInstance()
+        currentCalendar.set(Calendar.DAY_OF_MONTH, 1)
+        currentCalendar.set(Calendar.HOUR_OF_DAY, 0)
+        currentCalendar.set(Calendar.MINUTE, 0)
+        currentCalendar.set(Calendar.SECOND, 0)
+        currentCalendar.set(Calendar.MILLISECOND, 0)
+
+        val currentMonth = currentCalendar.time
+
+        val monthFormatter = SimpleDateFormat(
+            "MMM yyyy",
+            Locale.ENGLISH
+        )
+
+        val paidOn = Date().asTimestamp
+
+        calendar.time = firstMonth
+
+        var contributionCount = 0
+
+        while (!calendar.time.after(lastMonth)) {
+
+            val monthDate = calendar.time
+            val monthYear = monthFormatter.format(monthDate)
+
+            val contributionID =
+                IDGenerator.generateContributionID(
+                    memberId = memberID,
+                    monthYear = monthYear
+                )
+
+            val isPreviousMonth =
+                monthDate.before(currentMonth)
+
+            val isCurrentMonth =
+                calendar.get(Calendar.YEAR) ==
+                        currentCalendar.get(Calendar.YEAR) &&
+                        calendar.get(Calendar.MONTH) ==
+                        currentCalendar.get(Calendar.MONTH)
+
+            val paidStatus: PaidStatus
+            val contributionPaidOn: Timestamp?
+
+            when {
+                isPreviousMonth -> {
+                    paidStatus = PaidStatus.PAID
+                    contributionPaidOn = paidOn
+                }
+
+                isCurrentMonth && markCurrentMonthPaid -> {
+                    paidStatus = PaidStatus.PAID
+                    contributionPaidOn = paidOn
+                }
+
+                else -> {
+                    paidStatus = PaidStatus.NOT_PAID
+                    contributionPaidOn = null
+                }
+            }
+
+            val dueDate = CommonFunctions
+                .getContributionDue(monthYear)
+                .asTimestamp
+
+            val contribution = ContributionDetail(
+                id = contributionID,
+                orderId = "",
+                memberID = memberID,
+                memberName = member.memberName,
+                memberNameHindi = member.memberNameHindi,
+                memberNameTamil = member.memberNameTamil,
+                memberNameEnglish = member.memberNameEnglish,
+                monthYear = monthYear,
+                amount = squad.monthlyContribution,
+                paidOn = contributionPaidOn,
+                paidStatus = paidStatus,
+                paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
+                dueDate = dueDate
+            )
+
+            val contributionData = hashMapOf<String, Any?>(
+                "id" to contribution.id,
+                "orderId" to contribution.orderId,
+                "memberID" to contribution.memberID,
+                "memberName" to contribution.memberName,
+                "memberNameHindi" to contribution.memberNameHindi,
+                "memberNameTamil" to contribution.memberNameTamil,
+                "memberNameEnglish" to contribution.memberNameEnglish,
+                "monthYear" to contribution.monthYear,
+                "amount" to contribution.amount,
+                "paidOn" to contribution.paidOn,
+                "paidStatus" to contribution.paidStatus,
+                "paymentEntryType" to contribution.paymentEntryType,
+                "dueDate" to contribution.dueDate
+            )
+
+            val contributionRef =
+                contributionsRef.document(contributionID)
+
+            batch.set(contributionRef, contributionData)
+
+            contributionCount++
+
+            // Member + login + squad + contribution documents.
+            if (contributionCount + 3 > 500) {
+                completion(
+                    false,
+                    "Too many contribution records for a single batch."
+                )
+                return
+            }
+
+            calendar.add(Calendar.MONTH, 1)
+        }
+
+        // ---------------------------------------------------------
+        // 7. SQUAD FINANCIAL TOTALS
+        // ---------------------------------------------------------
+
+        val totalReceived =
+            contributionReceived.toLong() + interestReceived.toLong()
+
+        batch.update(
+            squadRef,
+            mapOf(
+                "totalMembers" to FieldValue.increment(1L),
+
+                "totalContributionAmountReceived" to
+                        FieldValue.increment(contributionReceived.toLong()),
+
+                "totalInterestAmountReceived" to
+                        FieldValue.increment(interestReceived.toLong()),
+
+                "currentAvailableAmount" to
+                        FieldValue.increment(totalReceived),
+
+                "currentCreditAmount" to
+                        FieldValue.increment(totalReceived)
+            )
+        )
+
+        // ---------------------------------------------------------
+        // 8. COMMIT EVERYTHING ONCE
+        // ---------------------------------------------------------
+
+        batch.commit()
+            .addOnSuccessListener {
+                completion(true, null)
+            }
+            .addOnFailureListener { exception ->
+                completion(
+                    false,
+                    "Failed to add member: ${
+                        exception.localizedMessage ?: "Unknown error"
+                    }"
+                )
+            }
+    }
+
     // MARK: - 🔹 Create contributions when member is created
     fun createContributionWhenMemberCreate(
         squadID: String,

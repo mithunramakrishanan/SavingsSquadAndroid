@@ -637,7 +637,7 @@ fun MemberProfileStatsCard(
             )
         }
 
-        if (onEditClick != null) {
+        /*if (onEditClick != null) {
 
             IconButton(
                 onClick = onEditClick
@@ -667,7 +667,7 @@ fun MemberProfileStatsCard(
                     modifier = Modifier.size(16.dp)
                 )
             }
-        }
+        }*/
     }
 }
 @Composable
