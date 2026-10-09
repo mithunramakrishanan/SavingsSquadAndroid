@@ -174,10 +174,10 @@ data class Member(
 }
 
 data class MemberOtherPayments(
-
     var id: String? = null,
 
-    var memberOtherPaymentType: MemberPaymentSubType = MemberPaymentSubType.RE_PAYMENT,
+    var memberOtherPaymentType: MemberPaymentSubType =
+        MemberPaymentSubType.RE_PAYMENT,
 
     var amount: Int = 0,
 
@@ -185,11 +185,11 @@ data class MemberOtherPayments(
 
     var memberName: String = "",
 
-    var memberNameHindi: String,
+    var memberNameHindi: String = "",
 
-    var memberNameTamil: String,
+    var memberNameTamil: String = "",
 
-    var memberNameEnglish: String,
+    var memberNameEnglish: String = "",
 
     var memberId: String = "",
 
@@ -204,7 +204,6 @@ data class MemberOtherPayments(
     var descriptionTamil: String = "",
 
     var descriptionHindi: String = ""
-
 ) {
 
 

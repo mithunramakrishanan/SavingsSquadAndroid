@@ -1591,7 +1591,7 @@ class FirestoreManager private constructor() {
                                     "id" to otherPaymentID,
 
                                     "memberOtherPaymentType" to
-                                            "REPAYMENT",
+                                            "RE_PAYMENT",
 
                                     "amount" to
                                             payment.amount,
@@ -4284,7 +4284,9 @@ class FirestoreManager private constructor() {
             phoneNumber = member.phoneNumber,
             role = SquadUserType.SQUAD_MEMBER,
             squadCreatedDate = Date().asTimestamp,
-            userCreatedDate = Date().asTimestamp
+            userCreatedDate = Date().asTimestamp,
+            recordStatus = RecordStatus.ACTIVE,
+            recordDate = Date()
         )
 
         val loginData = hashMapOf<String, Any?>(
@@ -4302,7 +4304,9 @@ class FirestoreManager private constructor() {
             "phoneNumber" to login.phoneNumber,
             "role" to login.role,
             "squadCreatedDate" to login.squadCreatedDate,
-            "userCreatedDate" to login.userCreatedDate
+            "userCreatedDate" to login.userCreatedDate,
+            "recordStatus" to login.recordStatus,
+            "recordDate" to login.recordDate
         )
 
         batch.set(loginRef, loginData)
