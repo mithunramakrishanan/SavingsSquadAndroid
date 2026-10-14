@@ -3,6 +3,7 @@ package com.android.savingssquad.SquadSubscription
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.savingssquad.singleton.UserDefaultsManager
+import com.google.firebase.Timestamp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,7 +90,6 @@ class SubscriptionManager private constructor() : ViewModel() {
         squadID: String,
         completion: (Boolean, String?) -> Unit
     ) {
-
         _isSubscriptionLoaded.value = false
 
         SubscriptionFirebaseManager.shared.fetchRemoteConfig(squadID) { config, error ->
@@ -104,7 +104,7 @@ class SubscriptionManager private constructor() : ViewModel() {
             SubscriptionFirebaseManager.shared.fetchSubscription(squadID) { model, error ->
 
                 if (model == null) {
-                    completion(false, error)
+                    completion(false, error ?: "Subscription missing")
                     return@fetchSubscription
                 }
 
@@ -118,16 +118,56 @@ class SubscriptionManager private constructor() : ViewModel() {
                     )
                 )
 
-                // auto-trial deactivate
                 val now = System.currentTimeMillis()
-                val end = updated.trialEndDate.toDate().time
 
-                if (updated.isTrialActive && now >= end) {
-                    SubscriptionFirebaseManager.shared.deactivateTrial(squadID) { _, _ -> }
+                // MARK: - Check Trial Expiry
+
+                var finalSubscription = updated
+
+                val trialEndTime = updated.trialEndDate.toDate().time
+
+                if (updated.isTrialActive && now >= trialEndTime) {
+                    finalSubscription = finalSubscription.copy(
+                        isTrialActive = false
+                    )
+
+                    SubscriptionFirebaseManager.shared.deactivateTrial(squadID) { success, error ->
+                        if (!success) {
+                            println(
+                                "Failed to deactivate trial: ${error ?: "Unknown error"}"
+                            )
+                        }
+                    }
                 }
 
-                _subscription.value = updated
-                trialDaysTotal = updated.trialDays
+                // MARK: - Check Paid Subscription Expiry
+
+                val subscriptionEndTime =
+                    updated.subscriptionEndDate?.toDate()?.time
+
+                if (
+                    updated.plan != SubscriptionModel.Plan.FREE &&
+                    updated.subscriptionStatus == SubscriptionModel.SubscriptionStatus.ACTIVE &&
+                    subscriptionEndTime != null &&
+                    now >= subscriptionEndTime
+                ) {
+                    finalSubscription = finalSubscription.copy(
+                        subscriptionStatus = SubscriptionModel.SubscriptionStatus.EXPIRED
+                    )
+
+                    SubscriptionFirebaseManager.shared.expireSubscription(squadID) { success, error ->
+                        if (!success) {
+                            println(
+                                "Failed to expire subscription: ${error ?: "Unknown error"}"
+                            )
+                        }
+                    }
+                }
+
+                // MARK: - Update Local State
+
+                _subscription.value = finalSubscription
+                trialDaysTotal = finalSubscription.trialDays
                 _isSubscriptionLoaded.value = true
 
                 completion(true, null)
@@ -144,7 +184,11 @@ class SubscriptionManager private constructor() : ViewModel() {
 
             try {
 
-                val (activePlan, activePeriod) = withContext(Dispatchers.IO) {
+                loadSubscription(squadID) { ok, err ->
+                    completion(ok, err)
+                }
+
+               /* val (activePlan, activePeriod) = withContext(Dispatchers.IO) {
                     BillingHelper.getCurrentPlanAndPeriod()
                 }
 
@@ -170,7 +214,7 @@ class SubscriptionManager private constructor() : ViewModel() {
                     loadSubscription(squadID) { ok, err ->
                         completion(ok, err)
                     }
-                }
+                } */
 
             } catch (e: Exception) {
                 completion(false, e.localizedMessage ?: "Unexpected error")
@@ -203,23 +247,35 @@ class SubscriptionManager private constructor() : ViewModel() {
     fun shouldForceUpgrade(memberCount: Int): Boolean {
 
         val sub = _subscription.value ?: return false
-        val config = _remoteConfig.value
 
-        // Trial active → never force upgrade
+        val currentDate = Timestamp.now()
+
+        // MARK: - 1. Active trial → No forced upgrade
         if (isTrialActive()) {
             return false
         }
 
-        // Trial expired and still on FREE plan
-        // → user must choose a paid subscription
+        // MARK: - 2. FREE plan with expired trial → Force upgrade
         if (sub.plan == SubscriptionModel.Plan.FREE) {
             return true
         }
 
-        // Paid plan → check member limit
-        val maxMembers = config.maxMembers(sub.plan)
+        // MARK: - 3. Check paid subscription status
+        if (sub.subscriptionStatus != SubscriptionModel.SubscriptionStatus.ACTIVE) {
+            return true
+        }
 
-        // Force upgrade if member limit is exceeded
+        // MARK: - 4. Check subscription expiry
+        val subscriptionEndDate = sub.subscriptionEndDate
+            ?: return true
+
+        if (currentDate.seconds >= subscriptionEndDate.seconds) {
+            return true
+        }
+
+        // MARK: - 5. Check member limit
+        val maxMembers = sub.maxMembers
+
         return memberCount > maxMembers
     }
 }

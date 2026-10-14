@@ -1,6 +1,8 @@
 package com.android.savingssquad.SquadSubscription
 
 import android.app.Activity
+import android.util.Log
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,11 +19,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
@@ -29,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,6 +41,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
@@ -43,11 +50,26 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.viewmodel.CashfreePaymentManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.viewmodel.ToastManager
 import com.android.savingssquad.viewmodel.ToastType
+
+import com.google.firebase.functions.FirebaseFunctions
+
+import com.google.firebase.Timestamp
+
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
+
+import kotlin.coroutines.resume
+
+private const val UPGRADE_TAG = "UpgradePlanScreen"
+
+// MARK: - Upgrade Plan Screen
 
 @Composable
 fun UpgradePlanScreen(
@@ -56,18 +78,21 @@ fun UpgradePlanScreen(
     onDismiss: () -> Unit
 ) {
 
-    val activity = LocalContext.current as Activity
+    val context = LocalContext.current
+    val activity = context as? Activity
 
     val cfg by viewModel.remoteConfig.collectAsState()
     val sub by viewModel.subscription.collectAsState()
+    val squad by squadViewModel.squad.collectAsState()
 
     var selectedPlan by remember {
         mutableStateOf(SubscriptionModel.Plan.BASIC)
     }
 
-    // ⭐ NEW — mirrors iOS selectedPeriod
     var selectedPeriod by remember {
-        mutableStateOf(SubscriptionModel.BillingPeriod.MONTHLY)
+        mutableStateOf(
+            SubscriptionModel.BillingPeriod.MONTHLY
+        )
     }
 
     var expandedPlan by remember {
@@ -82,33 +107,120 @@ fun UpgradePlanScreen(
         mutableStateOf(false)
     }
 
-    val memberCount = squadViewModel.squad.value?.totalMembers ?: 0
-    val forceUpgrade = viewModel.shouldForceUpgrade(memberCount)
+    var disableUpgradeButton by remember {
+        mutableStateOf(false)
+    }
 
-    // ---------------------------
-    // FORCE UPGRADE HANDLING
-    // ---------------------------
+    val squadID = squad?.squadID
+    val memberCount = squad?.totalMembers ?: 0
+
+    val forceUpgrade =
+        viewModel.shouldForceUpgrade(memberCount)
+
+    // MARK: - Force Upgrade
+
     LaunchedEffect(forceUpgrade) {
         if (forceUpgrade) {
             selectedPlan = SubscriptionModel.Plan.BASIC
         }
-    }
 
-    // ---------------------------
-    // SYNC FROM SUBSCRIPTION
-    // ---------------------------
-    LaunchedEffect(sub) {
+        sub?.let { subscription ->
 
-        sub?.let {
-
-            if (!forceUpgrade) {
-                selectedPlan = it.plan
+            if (subscription.plan == SubscriptionModel.Plan.FREE) {
+                disableUpgradeButton = false
             }
-
-            selectedPeriod = it.billingPeriod   // ⭐ NEW
-            enableLoanAddon = it.loanAddon
+            else {
+                disableUpgradeButton = true
+            }
         }
     }
+
+    // MARK: - Synchronize Existing Subscription
+
+    LaunchedEffect(sub) {
+        sub?.let { subscription ->
+
+            if (!forceUpgrade) {
+                selectedPlan = subscription.plan
+            }
+
+            selectedPeriod = subscription.billingPeriod
+            enableLoanAddon = subscription.loanAddon
+        }
+    }
+
+    // MARK: - Cashfree Payment Events
+
+    LaunchedEffect(squadID) {
+
+        CashfreePaymentManager.paymentEvents.collect { event ->
+
+            when (event) {
+
+                is CashfreePaymentManager.PaymentEvent.VerificationRequested -> {
+
+                    Log.d(
+                        UPGRADE_TAG,
+                        "Payment verification requested: ${event.orderID}"
+                    )
+
+                    val currentSquadID = squadID
+
+                    if (currentSquadID.isNullOrBlank()) {
+
+                        isLoading = false
+
+                        showUpgradeFailure(
+                            SquadStrings.squadNotFound
+                        )
+
+                        CashfreePaymentManager
+                            .completePaymentVerification(
+                                success = false
+                            )
+
+                        return@collect
+                    }
+
+                    /*
+                     * The backend/webhook must verify the specific
+                     * Cashfree order and activate its subscription.
+                     *
+                     * This refresh checks that the resulting subscription
+                     * is active, unexpired, and matches the selected plan.
+                     */
+
+                    val verified = refreshSubscriptionAfterPayment(
+                        viewModel = viewModel,
+                        squadID = currentSquadID,
+                        expectedPlan = selectedPlan,
+                        expectedPeriod = selectedPeriod
+                    )
+
+                    CashfreePaymentManager
+                        .completePaymentVerification(
+                            success = verified
+                        )
+                }
+
+                is CashfreePaymentManager.PaymentEvent.PaymentFailed -> {
+
+                    Log.e(
+                        UPGRADE_TAG,
+                        "Cashfree payment failed: ${event.message}"
+                    )
+
+                    isLoading = false
+
+                    showUpgradeFailure(
+                        event.message
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Main UI
 
     Column(
         modifier = Modifier
@@ -116,7 +228,8 @@ fun UpgradePlanScreen(
             .background(AppColors.background)
     ) {
 
-        // ---------------- TOP BAR ----------------
+        // MARK: - Top Bar
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -125,10 +238,14 @@ fun UpgradePlanScreen(
         ) {
 
             if (!forceUpgrade) {
-                IconButton(onClick = onDismiss) {
+
+                IconButton(
+                    onClick = onDismiss
+                ) {
+
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = null,
+                        contentDescription = "Close upgrade screen",
                         tint = AppColors.headerText
                     )
                 }
@@ -137,102 +254,128 @@ fun UpgradePlanScreen(
 
         Column(
             modifier = Modifier
+                .weight(1f)
                 .padding(horizontal = 18.dp)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(
+                    rememberScrollState()
+                )
         ) {
 
-            // ---------------- HEADER ----------------
+            // MARK: - Header
+
             Text(
-                SquadStrings.upgradeYourSquad,
+                text = SquadStrings.upgradeYourSquad,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = AppColors.headerText
             )
 
+            Spacer(
+                modifier = Modifier.height(6.dp)
+            )
+
             Text(
-                SquadStrings.contributionsLoansScaling,
+                text = SquadStrings.contributionsLoansScaling,
                 fontSize = 13.sp,
                 color = AppColors.secondaryText
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(
+                modifier = Modifier.height(16.dp)
+            )
 
-            // ---------------- TRIAL BANNER ----------------
+            // MARK: - Trial Banner
+
             if (viewModel.isTrialActive()) {
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(AppColors.successAccent.copy(alpha = 0.08f))
-                        .padding(12.dp)
+                        .background(
+                            AppColors.successAccent.copy(
+                                alpha = 0.08f
+                            ),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
 
-                    Icon(Icons.Default.CardGiftcard, contentDescription = null)
+                    Icon(
+                        imageVector = Icons.Default.CardGiftcard,
+                        contentDescription = null,
+                        tint = AppColors.successAccent
+                    )
 
-                    Column(modifier = Modifier.padding(start = 8.dp)) {
+                    Column(
+                        modifier = Modifier.padding(
+                            start = 8.dp
+                        )
+                    ) {
 
                         Text(
-                            SquadStrings.freeTrialActive,
+                            text = SquadStrings.freeTrialActive,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = AppColors.successAccent
                         )
 
                         Text(
-                            SquadStrings.trialDaysRemaining(viewModel.trialDaysRemaining().toString()),
+                            text = SquadStrings.trialDaysRemaining(
+                                viewModel
+                                    .trialDaysRemaining()
+                                    .toString()
+                            ),
                             fontSize = 11.sp,
                             color = AppColors.secondaryText
                         )
                     }
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(
+                    modifier = Modifier.height(12.dp)
+                )
             }
 
-            // ---------------- BILLING PERIOD PICKER ⭐ NEW ----------------
-            // Only matters for paid plans, same rule as iOS
+            // MARK: - Billing Period Picker
+
             if (selectedPlan != SubscriptionModel.Plan.FREE) {
+
                 BillingPeriodPicker(
                     selectedPlan = selectedPlan,
                     selectedPeriod = selectedPeriod,
                     cfg = cfg,
-                    onSelect = { selectedPeriod = it }
+                    onSelect = {
+                        selectedPeriod = it
+
+                        if (selectedPlan == sub!!.plan && selectedPeriod == sub!!.billingPeriod) {
+                            disableUpgradeButton = true
+                        }
+                        else {
+                            disableUpgradeButton = false
+                        }
+
+                    }
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(
+                    modifier = Modifier.height(16.dp)
+                )
             }
 
-            // ---------------- FREE PLAN ----------------
-            /*PlanCard(
-                title = SquadStrings.freePlan,
-                subtitle = SquadStrings.freePlanDescription,
-                price = cfg.free_priceText,
-                isSelected = selectedPlan == SubscriptionModel.Plan.FREE,
-                isExpanded = expandedPlan == SubscriptionModel.Plan.FREE,
-                enabled = !forceUpgrade,
-                included = listOf(
-                    SquadStrings.upTo10Members,
-                    SquadStrings.contributionTracking,
-                    SquadStrings.paymentHistory,
-                    SquadStrings.activityLogs,
-                    SquadStrings.basicDashboard
-                ),
-                excluded = listOf(SquadStrings.loanManagement),
-                onClick = {
-                    selectedPlan = SubscriptionModel.Plan.FREE
-                    expandedPlan =
-                        if (expandedPlan == SubscriptionModel.Plan.FREE) null
-                        else SubscriptionModel.Plan.FREE
-                }
-            ) */
+            // MARK: - Basic Plan
 
-            // ---------------- BASIC PLAN ----------------
             PlanCard(
                 title = SquadStrings.basicPlan,
                 subtitle = SquadStrings.basicPlanDescription,
-                price = cfg.priceText(SubscriptionModel.Plan.BASIC, selectedPeriod),   // ⭐ CHANGED
-                isSelected = selectedPlan == SubscriptionModel.Plan.BASIC,
-                isExpanded = expandedPlan == SubscriptionModel.Plan.BASIC,
+                price = cfg.priceText(
+                    SubscriptionModel.Plan.BASIC,
+                    selectedPeriod
+                ),
+                isSelected =
+                    selectedPlan == SubscriptionModel.Plan.BASIC,
+                isExpanded =
+                    expandedPlan == SubscriptionModel.Plan.BASIC,
                 included = listOf(
                     SquadStrings.everythingInFree,
                     SquadStrings.upTo50Members,
@@ -240,22 +383,46 @@ fun UpgradePlanScreen(
                     SquadStrings.betterInsights,
                     SquadStrings.fasterManagement
                 ),
-                excluded = listOf(SquadStrings.loanManagement),
+                excluded = listOf(
+                    SquadStrings.loanManagement
+                ),
                 onClick = {
-                    selectedPlan = SubscriptionModel.Plan.BASIC
+
+                    selectedPlan =
+                        SubscriptionModel.Plan.BASIC
+
                     expandedPlan =
-                        if (expandedPlan == SubscriptionModel.Plan.BASIC) null
-                        else SubscriptionModel.Plan.BASIC
+                        if (
+                            expandedPlan ==
+                            SubscriptionModel.Plan.BASIC
+                        ) {
+                            null
+                        } else {
+                            SubscriptionModel.Plan.BASIC
+                        }
+
+                    if (selectedPlan == sub!!.plan && selectedPeriod == sub!!.billingPeriod) {
+                        disableUpgradeButton = true
+                    }
+                    else {
+                        disableUpgradeButton = false
+                    }
                 }
             )
 
-            // ---------------- BUSINESS PLAN ----------------
+            // MARK: - Business Plan
+
             PlanCard(
                 title = SquadStrings.businessPlan,
                 subtitle = SquadStrings.businessPlanDescription,
-                price = cfg.priceText(SubscriptionModel.Plan.BUSINESS, selectedPeriod),   // ⭐ CHANGED
-                isSelected = selectedPlan == SubscriptionModel.Plan.BUSINESS,
-                isExpanded = expandedPlan == SubscriptionModel.Plan.BUSINESS,
+                price = cfg.priceText(
+                    SubscriptionModel.Plan.BUSINESS,
+                    selectedPeriod
+                ),
+                isSelected =
+                    selectedPlan == SubscriptionModel.Plan.BUSINESS,
+                isExpanded =
+                    expandedPlan == SubscriptionModel.Plan.BUSINESS,
                 included = listOf(
                     SquadStrings.everythingInBasic,
                     SquadStrings.upTo200PlusMembers,
@@ -265,106 +432,385 @@ fun UpgradePlanScreen(
                 ),
                 excluded = emptyList(),
                 onClick = {
-                    selectedPlan = SubscriptionModel.Plan.BUSINESS
+
+                    selectedPlan =
+                        SubscriptionModel.Plan.BUSINESS
+
                     expandedPlan =
-                        if (expandedPlan == SubscriptionModel.Plan.BUSINESS) null
-                        else SubscriptionModel.Plan.BUSINESS
+                        if (
+                            expandedPlan ==
+                            SubscriptionModel.Plan.BUSINESS
+                        ) {
+                            null
+                        } else {
+                            SubscriptionModel.Plan.BUSINESS
+                        }
 
                     enableLoanAddon = true
+
+                    if (selectedPlan == sub!!.plan && selectedPeriod == sub!!.billingPeriod) {
+                        disableUpgradeButton = true
+                    }
+                    else {
+                        disableUpgradeButton = false
+                    }
                 }
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(
+                modifier = Modifier.height(12.dp)
+            )
 
-            // ---------------- LOAN ADDON ----------------
-            if (cfg.addon_loan_enabled &&
+            // MARK: - Loan Add-on
+
+            if (
+                cfg.addon_loan_enabled &&
                 selectedPlan != SubscriptionModel.Plan.BUSINESS
             ) {
 
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(AppColors.surface, RoundedCornerShape(16.dp))
+                        .background(
+                            AppColors.surface,
+                            RoundedCornerShape(16.dp)
+                        )
                         .padding(16.dp)
                 ) {
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement =
+                            Arrangement.SpaceBetween
                     ) {
-                        Text(SquadStrings.loanAddOn)
-                        Text(cfg.addon_loan_priceText)
+
+                        Text(
+                            text = SquadStrings.loanAddOn,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        Text(
+                            text = cfg.addon_loan_priceText,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
 
+                    Spacer(
+                        modifier = Modifier.height(6.dp)
+                    )
+
                     Text(
-                        cfg.addon_loan_tagline,
+                        text = cfg.addon_loan_tagline,
                         fontSize = 11.sp,
                         color = AppColors.secondaryText
                     )
 
                     Switch(
                         checked = enableLoanAddon,
-                        onCheckedChange = { enableLoanAddon = it },
-                        enabled = selectedPlan != SubscriptionModel.Plan.BUSINESS
+                        onCheckedChange = {
+                            enableLoanAddon = it
+                        },
+                        enabled =
+                            selectedPlan !=
+                                    SubscriptionModel.Plan.BUSINESS
                     )
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(
+                modifier = Modifier.height(20.dp)
+            )
+        }
 
-            // ---------------- ACTION BUTTON ----------------
-            Button(
-                onClick = {
+        // MARK: - Upgrade Button
 
-                    val squadID = squadViewModel.squad.value?.squadID ?: return@Button
+        Button(
+            onClick = {
 
-                    BillingHelper.startPurchaseFlow(
-                        activity = activity,
-                        selectedPlan = selectedPlan,
-                        selectedPeriod = selectedPeriod,   // ⭐ NEW
-                        enableLoanAddon = enableLoanAddon,
-                        squadID = squadID,
+                val currentSquadID = squadID
 
-                        onLoading = {
-                            isLoading = it
-                        },
+                if (currentSquadID.isNullOrBlank()) {
 
-                        onError = { error ->
-                            ToastManager.show(
-                                title = SquadStrings.savingsSquad,
-                                message = error,
-                                type = ToastType.ERROR
-                            )
-                        },
-
-                        onSuccess = {
-
-                            squadViewModel.setShowUpgradePlan(false)
-                            squadViewModel.setShowUpgradeSuccess(true)
-                        }
+                    showUpgradeFailure(
+                        SquadStrings.squadNotFound
                     )
-                },
-                enabled = !isLoading,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+
+                    return@Button
+                }
 
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = Color.White
-                    )
-                } else {
-                    Text(SquadStrings.upgradeNow)
+                    return@Button
                 }
-            }
 
-            Spacer(Modifier.height(24.dp))
+                val currentActivity = activity
+
+                if (currentActivity == null) {
+
+                    showUpgradeFailure(
+                        "Unable to open the payment screen."
+                    )
+
+                    return@Button
+                }
+
+                startCashfreePayment(
+                    activity = currentActivity,
+                    squadID = currentSquadID,
+                    selectedPlan = selectedPlan,
+                    selectedPeriod = selectedPeriod,
+                    enableLoanAddon = enableLoanAddon,
+                    onLoading = { loading ->
+                        isLoading = loading
+                    },
+                    onError = { message ->
+                        isLoading = false
+                        showUpgradeFailure(message)
+                    },
+                    onSuccess = {
+
+                        isLoading = false
+
+                        squadViewModel.setShowUpgradePlan(false)
+
+                        squadViewModel.setShowUpgradeSuccess(true)
+
+                        Log.d(
+                            UPGRADE_TAG,
+                            "Verified subscription. Showing success screen."
+                        )
+                    }
+                )
+            },
+            enabled = !isLoading && !disableUpgradeButton,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp)
+        ) {
+
+            if (isLoading) {
+
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = Color.White
+                )
+
+                Spacer(
+                    modifier = Modifier.width(8.dp)
+                )
+
+                Text("Processing payment...")
+
+            } else {
+
+                Text(
+                    text = SquadStrings.upgradeNow
+                )
+            }
         }
+
+        Spacer(
+            modifier = Modifier.height(24.dp)
+        )
     }
 }
 
-// ⭐ NEW — mirrors iOS billingPeriodPicker
+// MARK: - Create Cashfree Order and Start Checkout
+
+private fun startCashfreePayment(
+    activity: Activity,
+    squadID: String,
+    selectedPlan: SubscriptionModel.Plan,
+    selectedPeriod: SubscriptionModel.BillingPeriod,
+    enableLoanAddon: Boolean,
+    onLoading: (Boolean) -> Unit,
+    onError: (String) -> Unit,
+    onSuccess: () -> Unit
+) {
+
+    onLoading(true)
+
+    val payload = hashMapOf<String, Any>(
+        "squadID" to squadID,
+        "plan" to selectedPlan.name,
+        "billingPeriod" to selectedPeriod.name,
+        "loanAddon" to enableLoanAddon
+    )
+
+    Log.d(
+        UPGRADE_TAG,
+        "Creating Cashfree order for squad: $squadID"
+    )
+
+    FirebaseFunctions
+        .getInstance("asia-south1")
+        .getHttpsCallable("createSubscriptionPayment")
+        .call(payload)
+        .addOnSuccessListener { result ->
+
+            val response = result.data as? Map<*, *>
+
+            val orderID =
+                response?.get("orderId") as? String
+
+            val paymentSessionID =
+                response?.get("paymentSessionId") as? String
+
+            if (
+                orderID.isNullOrBlank() ||
+                paymentSessionID.isNullOrBlank()
+            ) {
+
+                Log.e(
+                    UPGRADE_TAG,
+                    "Missing orderId or paymentSessionId."
+                )
+
+                onLoading(false)
+
+                onError(
+                    "Unable to create the Cashfree payment session."
+                )
+
+                return@addOnSuccessListener
+            }
+
+            Log.d(
+                UPGRADE_TAG,
+                "Cashfree order created: $orderID"
+            )
+
+            CashfreePaymentManager.startCheckout(
+                activity = activity,
+                orderID = orderID,
+                paymentSessionID = paymentSessionID
+            ) { paymentSucceeded ->
+
+                activity.runOnUiThread {
+
+                    if (paymentSucceeded) {
+
+                        /*
+                         * The verification event handler calls this
+                         * completion only after the subscription refresh
+                         * has succeeded.
+                         */
+                        onSuccess()
+
+                    } else {
+
+                        /*
+                         * The payment-failure event listener handles
+                         * the error message.
+                         */
+                        onLoading(false)
+                    }
+                }
+            }
+        }
+        .addOnFailureListener { error ->
+
+            Log.e(
+                UPGRADE_TAG,
+                "Failed to create Cashfree order.",
+                error
+            )
+
+            onLoading(false)
+
+            onError(
+                error.localizedMessage
+                    ?: "Unable to initiate payment. Please try again."
+            )
+        }
+}
+
+// MARK: - Refresh Subscription After Payment
+
+private suspend fun refreshSubscriptionAfterPayment(
+    viewModel: SubscriptionManager,
+    squadID: String,
+    expectedPlan: SubscriptionModel.Plan,
+    expectedPeriod: SubscriptionModel.BillingPeriod
+): Boolean {
+
+    repeat(10) { index ->
+
+        val result: Pair<Boolean, String?> =
+            suspendCancellableCoroutine { continuation ->
+
+                viewModel.loadSubscription(
+                    squadID = squadID
+                ) { success, error ->
+
+                    if (continuation.isActive) {
+
+                        continuation.resume(
+                            Pair(success, error)
+                        )
+                    }
+                }
+            }
+
+        Log.d(
+            UPGRADE_TAG,
+            "Subscription refresh ${index + 1}: " +
+                    "success=${result.first}, error=${result.second}"
+        )
+
+        if (result.first) {
+
+            val subscription = viewModel.subscription.value
+
+            if (subscription != null) {
+
+                val isActive =
+                    subscription.subscriptionStatus ==
+                            SubscriptionModel.SubscriptionStatus.ACTIVE
+
+                val isNotExpired =
+                    subscription.subscriptionEndDate
+                        ?.toDate()
+                        ?.after(java.util.Date()) == true
+
+                val matchesSelectedPlan =
+                    subscription.plan == expectedPlan
+
+                val matchesSelectedPeriod =
+                    subscription.billingPeriod == expectedPeriod
+
+                if (
+                    isActive &&
+                    isNotExpired &&
+                    matchesSelectedPlan &&
+                    matchesSelectedPeriod
+                ) {
+
+                    Log.d(
+                        UPGRADE_TAG,
+                        "Subscription matches the selected plan and is active."
+                    )
+
+                    return true
+                }
+            }
+        }
+
+        if (index < 9) {
+            delay(1_000)
+        }
+    }
+
+    Log.w(
+        UPGRADE_TAG,
+        "Subscription was not confirmed active after 10 attempts."
+    )
+
+    return false
+}
+
+// MARK: - Billing Period Picker
+
 @Composable
 fun BillingPeriodPicker(
     selectedPlan: SubscriptionModel.Plan,
@@ -372,50 +818,78 @@ fun BillingPeriodPicker(
     cfg: RemoteConfig,
     onSelect: (SubscriptionModel.BillingPeriod) -> Unit
 ) {
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+
         SubscriptionModel.BillingPeriod.entries.forEach { period ->
 
             val isSelected = selectedPeriod == period
-            val savings = cfg.savingsText(selectedPlan, period)
+
+            val savings = cfg.savingsText(
+                selectedPlan,
+                period
+            )
 
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .background(
-                        if (isSelected) AppColors.primaryBrand else AppColors.surface,
+                        if (isSelected) {
+                            AppColors.primaryBrand
+                        } else {
+                            AppColors.surface
+                        },
                         RoundedCornerShape(12.dp)
                     )
                     .border(
-                        1.dp,
-                        if (isSelected) Color.Transparent else AppColors.border,
-                        RoundedCornerShape(12.dp)
+                        width = 1.dp,
+                        color = if (isSelected) {
+                            Color.Transparent
+                        } else {
+                            AppColors.border
+                        },
+                        shape = RoundedCornerShape(12.dp)
                     )
-                    .clickable { onSelect(period) }
+                    .clickable {
+                        onSelect(period)
+                    }
                     .padding(vertical = 10.dp),
-                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+
                 Text(
-                    period.localizedName,
+                    text = period.localizedName,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (isSelected) Color.White else AppColors.headerText
+                    color = if (isSelected) {
+                        Color.White
+                    } else {
+                        AppColors.headerText
+                    }
                 )
 
                 if (savings != null) {
+
                     Text(
-                        savings,
+                        text = savings,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (isSelected) Color.White.copy(alpha = 0.85f) else AppColors.successAccent
+                        color = if (isSelected) {
+                            Color.White.copy(alpha = 0.85f)
+                        } else {
+                            AppColors.successAccent
+                        }
                     )
                 }
             }
         }
     }
 }
+
+// MARK: - Plan Card
 
 @Composable
 fun PlanCard(
@@ -432,96 +906,160 @@ fun PlanCard(
 
     Column(
         modifier = Modifier
-
             .fillMaxWidth()
-
-            .alpha(if (enabled) 1f else 0.45f)
-
+            .alpha(
+                if (enabled) 1f else 0.45f
+            )
             .padding(vertical = 8.dp)
-
             .background(
-
-                if (isSelected) AppColors.primaryBackground else AppColors.surface,
-
+                if (isSelected) {
+                    AppColors.primaryBackground
+                } else {
+                    AppColors.surface
+                },
                 RoundedCornerShape(18.dp)
-
             )
-
             .border(
-
-                1.dp,
-
-                if (isSelected) AppColors.primaryBrand else AppColors.border,
-
-                RoundedCornerShape(18.dp)
-
+                width = 1.dp,
+                color = if (isSelected) {
+                    AppColors.primaryBrand
+                } else {
+                    AppColors.border
+                },
+                shape = RoundedCornerShape(18.dp)
             )
-
             .clickable(enabled = enabled) {
-
                 onClick()
-
             }
-
             .padding(14.dp)
     ) {
 
         Row {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.Bold)
-                Text(subtitle, fontSize = 12.sp, color = AppColors.secondaryText)
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.Bold,
+                    color = AppColors.headerText
+                )
+
+                Spacer(
+                    modifier = Modifier.height(4.dp)
+                )
+
+                Text(
+                    text = subtitle,
+                    fontSize = 12.sp,
+                    color = AppColors.secondaryText
+                )
             }
 
-            Text(price, color = AppColors.primaryBrand)
-        }
+            Spacer(
+                modifier = Modifier.width(8.dp)
+            )
 
-        Spacer(Modifier.height(6.dp))
-
-        Row {
             Text(
-                if (isExpanded) SquadStrings.hideDetails else SquadStrings.viewDetails,
-                fontSize = 12.sp,
-                color = AppColors.primaryBrand
+                text = price,
+                color = AppColors.primaryBrand,
+                fontWeight = FontWeight.Bold
             )
         }
 
+        Spacer(
+            modifier = Modifier.height(6.dp)
+        )
+
+        Text(
+            text = if (isExpanded) {
+                SquadStrings.hideDetails
+            } else {
+                SquadStrings.viewDetails
+            },
+            fontSize = 12.sp,
+            color = AppColors.primaryBrand
+        )
+
         if (isExpanded) {
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(
+                modifier = Modifier.height(10.dp)
+            )
 
             Divider()
 
-            Column(Modifier.padding(top = 8.dp)) {
+            Column(
+                modifier = Modifier.padding(top = 8.dp)
+            ) {
 
-                included.forEach {
-                    FeatureRow(it, true)
+                included.forEach { feature ->
+                    FeatureRow(
+                        text = feature,
+                        included = true
+                    )
                 }
 
-                excluded.forEach {
-                    FeatureRow(it, false)
+                excluded.forEach { feature ->
+                    FeatureRow(
+                        text = feature,
+                        included = false
+                    )
                 }
             }
         }
     }
 }
 
-@Composable
-fun FeatureRow(text: String, included: Boolean) {
+// MARK: - Feature Row
 
-    Row(modifier = Modifier.padding(vertical = 2.dp)) {
+@Composable
+fun FeatureRow(
+    text: String,
+    included: Boolean
+) {
+
+    Row(
+        modifier = Modifier.padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
 
         Icon(
-            imageVector = if (included) Icons.Default.CheckCircle else Icons.Default.Cancel,
+            imageVector = if (included) {
+                Icons.Default.CheckCircle
+            } else {
+                Icons.Default.Cancel
+            },
             contentDescription = null,
-            tint = if (included) AppColors.successAccent else AppColors.errorAccent
+            tint = if (included) {
+                AppColors.successAccent
+            } else {
+                AppColors.errorAccent
+            }
         )
 
-        Spacer(Modifier.width(6.dp))
+        Spacer(
+            modifier = Modifier.width(6.dp)
+        )
 
         Text(
-            text,
+            text = text,
             fontSize = 12.sp,
             color = AppColors.secondaryText
         )
     }
+}
+
+// MARK: - Failure Message
+
+private fun showUpgradeFailure(
+    message: String
+) {
+
+    ToastManager.show(
+        title = SquadStrings.savingsSquad,
+        message = message,
+        type = ToastType.ERROR
+    )
 }

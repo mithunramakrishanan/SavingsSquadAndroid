@@ -6,7 +6,7 @@ import com.google.firebase.Timestamp
 data class SubscriptionModel(
 
     var plan: Plan = Plan.FREE,
-    var billingPeriod: BillingPeriod = BillingPeriod.MONTHLY,   // ⭐ NEW
+    var billingPeriod: BillingPeriod = BillingPeriod.MONTHLY,
     var loanAddon: Boolean = false,
 
     @get:PropertyName("isTrialActive")
@@ -21,8 +21,19 @@ data class SubscriptionModel(
     var updatedAt: Timestamp = Timestamp.now(),
 
     var maxMembers: Int = 10,
-    var features: Features = Features()
+    var features: Features = Features(),
+
+    // MARK: - Subscription Lifecycle
+
+    var subscriptionStartedAt: Timestamp? = null,
+    var currentPeriodStartedAt: Timestamp? = null,
+    var subscriptionEndDate: Timestamp? = null,
+
+    var subscriptionStatus: SubscriptionStatus? = null,
+    var paymentProvider: PaymentProvider? = null
 ) {
+
+    // MARK: - Plan
 
     enum class Plan {
 
@@ -38,6 +49,8 @@ data class SubscriptionModel(
             }
     }
 
+    // MARK: - Billing Period
+
     enum class BillingPeriod {
 
         MONTHLY,
@@ -52,10 +65,29 @@ data class SubscriptionModel(
             }
     }
 
+    // MARK: - Features
+
     data class Features(
         var contribution: Boolean = true,
         var loan: Boolean = false
     )
+
+    // MARK: - Subscription Status
+
+    enum class SubscriptionStatus {
+        ACTIVE,
+        EXPIRED,
+        CANCELLED,
+        PENDING
+    }
+
+    // MARK: - Payment Provider
+
+    enum class PaymentProvider {
+        CASHFREE,
+        APPLE,
+        GOOGLE_PLAY
+    }
 }
 
 // ⭐ NEW — per-period pricing block, reused for BASIC and BUSINESS
@@ -141,7 +173,8 @@ data class RemoteConfig(
     var addon_loan_price: Int = 49,
     var addon_loan_priceText: String = "₹49/month",
     var addon_loan_tagline: String = "Add loan management to your FREE or BASIC plan"
-) {
+)
+{
 
     fun maxMembers(plan: SubscriptionModel.Plan): Int =
         when (plan) {

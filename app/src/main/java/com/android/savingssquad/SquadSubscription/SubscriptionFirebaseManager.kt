@@ -3,6 +3,7 @@ package com.android.savingssquad.SquadSubscription
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 
 class SubscriptionFirebaseManager private constructor() {
 
@@ -384,11 +385,12 @@ class SubscriptionFirebaseManager private constructor() {
     }
 
     // MARK: - DEACTIVATE TRIAL
+    // MARK: - Deactivate Trial
+
     fun deactivateTrial(
         squadID: String,
         completion: (Boolean, String?) -> Unit
     ) {
-
         val data = hashMapOf(
             "isTrialActive" to false,
             "updatedAt" to Timestamp.now()
@@ -398,7 +400,30 @@ class SubscriptionFirebaseManager private constructor() {
             .document(squadID)
             .collection("subscription")
             .document("current")
-            .set(data, com.google.firebase.firestore.SetOptions.merge())
+            .set(data, SetOptions.merge())
+            .addOnSuccessListener {
+                completion(true, null)
+            }
+            .addOnFailureListener {
+                completion(false, it.localizedMessage)
+            }
+    }
+
+// MARK: - Expire Paid Subscription
+    fun expireSubscription(
+        squadID: String,
+        completion: (Boolean, String?) -> Unit
+    ) {
+        val data = hashMapOf(
+            "subscriptionStatus" to "EXPIRED",
+            "updatedAt" to Timestamp.now()
+        )
+
+        db.collection("squads")
+            .document(squadID)
+            .collection("subscription")
+            .document("current")
+            .set(data, SetOptions.merge())
             .addOnSuccessListener {
                 completion(true, null)
             }

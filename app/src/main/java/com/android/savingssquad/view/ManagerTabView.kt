@@ -312,7 +312,8 @@ fun ManagerTabView(
 
             UpgradeSuccessScreen(
                 plan = plan,
-                viewModel = SubscriptionManager.shared
+                viewModel = SubscriptionManager.shared,
+                squadViewModel,
             ) {
                 squadViewModel.setShowUpgradeSuccess(false)
             }
