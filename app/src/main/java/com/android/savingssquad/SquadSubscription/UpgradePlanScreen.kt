@@ -126,12 +126,13 @@ fun UpgradePlanScreen(
 
         sub?.let { subscription ->
 
-            if (subscription.plan == SubscriptionModel.Plan.FREE) {
-                disableUpgradeButton = false
-            }
-            else {
-                disableUpgradeButton = true
-            }
+            disableUpgradeButton = shouldDisableUpgradeButton(
+                selectedPlan = selectedPlan,
+                selectedPeriod = selectedPeriod,
+                currentPlan = subscription.plan,
+                currentPeriod = subscription.billingPeriod,
+                subscriptionStatus = subscription.subscriptionStatus
+            )
         }
     }
 
@@ -348,11 +349,16 @@ fun UpgradePlanScreen(
                     onSelect = {
                         selectedPeriod = it
 
-                        if (selectedPlan == sub!!.plan && selectedPeriod == sub!!.billingPeriod) {
-                            disableUpgradeButton = true
-                        }
-                        else {
-                            disableUpgradeButton = false
+
+                        sub?.let { subscription ->
+
+                            disableUpgradeButton = shouldDisableUpgradeButton(
+                                selectedPlan = selectedPlan,
+                                selectedPeriod = selectedPeriod,
+                                currentPlan = subscription.plan,
+                                currentPeriod = subscription.billingPeriod,
+                                subscriptionStatus = subscription.subscriptionStatus
+                            )
                         }
 
                     }
@@ -401,11 +407,15 @@ fun UpgradePlanScreen(
                             SubscriptionModel.Plan.BASIC
                         }
 
-                    if (selectedPlan == sub!!.plan && selectedPeriod == sub!!.billingPeriod) {
-                        disableUpgradeButton = true
-                    }
-                    else {
-                        disableUpgradeButton = false
+                    sub?.let { subscription ->
+
+                        disableUpgradeButton = shouldDisableUpgradeButton(
+                            selectedPlan = selectedPlan,
+                            selectedPeriod = selectedPeriod,
+                            currentPlan = subscription.plan,
+                            currentPeriod = subscription.billingPeriod,
+                            subscriptionStatus = subscription.subscriptionStatus
+                        )
                     }
                 }
             )
@@ -448,11 +458,15 @@ fun UpgradePlanScreen(
 
                     enableLoanAddon = true
 
-                    if (selectedPlan == sub!!.plan && selectedPeriod == sub!!.billingPeriod) {
-                        disableUpgradeButton = true
-                    }
-                    else {
-                        disableUpgradeButton = false
+                    sub?.let { subscription ->
+
+                        disableUpgradeButton = shouldDisableUpgradeButton(
+                            selectedPlan = selectedPlan,
+                            selectedPeriod = selectedPeriod,
+                            currentPlan = subscription.plan,
+                            currentPeriod = subscription.billingPeriod,
+                            subscriptionStatus = subscription.subscriptionStatus
+                        )
                     }
                 }
             )
@@ -615,7 +629,75 @@ fun UpgradePlanScreen(
     }
 }
 
-// MARK: - Create Cashfree Order and Start Checkout
+
+
+private fun shouldDisableUpgradeButton(
+    selectedPlan: SubscriptionModel.Plan,
+    selectedPeriod: SubscriptionModel.BillingPeriod,
+    currentPlan: SubscriptionModel.Plan,
+    currentPeriod: SubscriptionModel.BillingPeriod,
+    subscriptionStatus: SubscriptionModel.SubscriptionStatus?
+): Boolean {
+
+    // 1. FREE plan: allow upgrading
+    if (currentPlan == SubscriptionModel.Plan.FREE) {
+        return false
+    }
+
+    // 2. Expired subscription: allow upgrading
+    if (subscriptionStatus == SubscriptionModel.SubscriptionStatus.EXPIRED) {
+        return false
+    }
+
+    // 3. Plan ranking
+    val planRank = mapOf(
+        SubscriptionModel.Plan.FREE to 0,
+        SubscriptionModel.Plan.BASIC to 1,
+        SubscriptionModel.Plan.BUSINESS to 2
+    )
+
+    val currentPlanRank = planRank[currentPlan] ?: 0
+    val selectedPlanRank = planRank[selectedPlan] ?: 0
+
+    // 4. Billing period ranking
+    val periodRank = mapOf(
+        SubscriptionModel.BillingPeriod.MONTHLY to 0,
+        SubscriptionModel.BillingPeriod.SIX_MONTH to 1,
+        SubscriptionModel.BillingPeriod.YEARLY to 2
+    )
+
+    val currentPeriodRank = periodRank[currentPeriod] ?: 0
+    val selectedPeriodRank = periodRank[selectedPeriod] ?: 0
+
+    // 5. Prevent plan downgrades when the billing period
+    //    is the same or shorter
+    if (
+        selectedPlanRank < currentPlanRank &&
+        selectedPeriodRank <= currentPeriodRank
+    ) {
+        return true
+    }
+
+    // 6. Prevent billing period downgrades when selecting
+    //    the same plan
+    if (
+        selectedPlanRank == currentPlanRank &&
+        selectedPeriodRank < currentPeriodRank
+    ) {
+        return true
+    }
+
+    // 7. Disable when the selected plan and period are unchanged
+    if (
+        selectedPlan == currentPlan &&
+        selectedPeriod == currentPeriod
+    ) {
+        return true
+    }
+
+    // 8. Allow upgrades and longer billing periods
+    return false
+}
 
 private fun startCashfreePayment(
     activity: Activity,
