@@ -15,6 +15,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CardGiftcard
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.savingssquad.SquadSubscription.SubscriptionModel.Plan
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.SquadStrings
 
@@ -34,47 +37,78 @@ fun TrialBadgeView(
     viewModel: SubscriptionManager = SubscriptionManager.shared,
     onClick: () -> Unit
 ) {
-
     val sub by viewModel.subscription.collectAsState()
 
-    val isActive = sub?.let {
-        viewModel.isTrialActive()
-    } ?: false
+    val subscription = sub ?: return
 
-    if (!isActive) return
+    val isFreePlan = subscription.plan == Plan.FREE
+    val isFreeTrialActive = isFreePlan && viewModel.isTrialActive()
 
     val daysLeft = viewModel.trialDaysRemaining()
+
+    val planName = when (subscription.plan) {
+        Plan.FREE -> SquadStrings.freePlan
+        Plan.BASIC -> SquadStrings.basicPlan
+        Plan.BUSINESS -> SquadStrings.businessPlan
+    }
+
+    val badgeTitle = when (subscription.plan) {
+        Plan.FREE -> if (isFreeTrialActive) "TRIAL" else "FREE"
+        Plan.BASIC,
+        Plan.BUSINESS -> "ACTIVE"
+    }
+
+    val subtitle = if (isFreeTrialActive) {
+        SquadStrings.trialDaysRemaining(daysLeft.toString())
+    } else {
+        when (subscription.plan) {
+            Plan.FREE -> "Free plan"
+
+            Plan.BASIC,
+            Plan.BUSINESS -> when (subscription.billingPeriod) {
+                SubscriptionModel.BillingPeriod.MONTHLY -> SquadStrings.monthly
+                SubscriptionModel.BillingPeriod.SIX_MONTH -> SquadStrings.sixMonths
+                SubscriptionModel.BillingPeriod.YEARLY -> SquadStrings.yearly
+            }
+        }
+    }
+
+    val icon = when (subscription.plan) {
+        Plan.FREE -> Icons.Default.CardGiftcard
+        Plan.BASIC -> Icons.Default.Star
+        Plan.BUSINESS -> Icons.Default.WorkspacePremium
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
             .background(
-                AppColors.surface,
-                RoundedCornerShape(14.dp)
+                color = AppColors.surface,
+                shape = RoundedCornerShape(14.dp)
             )
             .border(
-                1.dp,
-                AppColors.successAccent.copy(alpha = 0.25f),
-                RoundedCornerShape(14.dp)
+                width = 1.dp,
+                color = AppColors.successAccent.copy(alpha = 0.25f),
+                shape = RoundedCornerShape(14.dp)
             )
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
 
-        // ICON
+        // Plan Icon
         Box(
             modifier = Modifier
                 .size(34.dp)
                 .background(
-                    AppColors.successAccent.copy(alpha = 0.12f),
-                    CircleShape
+                    color = AppColors.successAccent.copy(alpha = 0.12f),
+                    shape = CircleShape
                 ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Default.CardGiftcard,
+                imageVector = icon,
                 contentDescription = null,
                 tint = AppColors.successAccent,
                 modifier = Modifier.size(16.dp)
@@ -83,34 +117,50 @@ fun TrialBadgeView(
 
         Spacer(modifier = Modifier.width(10.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
-
+        // Plan Details
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
             Text(
-                text = SquadStrings.freeTrialActive,
+                text = if (isFreeTrialActive) {
+                    SquadStrings.freeTrialActive
+                } else {
+                    planName
+                },
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = AppColors.headerText
             )
 
             Text(
-                text = SquadStrings.trialDaysRemaining(daysLeft.toString()),
+                text = subtitle,
                 fontSize = 10.sp,
                 color = AppColors.secondaryText,
                 maxLines = 1
             )
         }
 
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Trial Days / Plan Status
         Box(
             modifier = Modifier
                 .background(
-                    AppColors.successAccent,
-                    RoundedCornerShape(6.dp)
+                    color = AppColors.successAccent,
+                    shape = RoundedCornerShape(6.dp)
                 )
-                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .padding(
+                    horizontal = 8.dp,
+                    vertical = if (isFreeTrialActive) 3.dp else 4.dp
+                )
         ) {
             Text(
-                text = "${daysLeft}",
-                fontSize = 10.sp,
+                text = if (isFreeTrialActive) {
+                    daysLeft.toString()
+                } else {
+                    badgeTitle
+                },
+                fontSize = if (isFreeTrialActive) 10.sp else 9.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )

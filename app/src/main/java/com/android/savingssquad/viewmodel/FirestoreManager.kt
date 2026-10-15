@@ -34,9 +34,13 @@ import com.android.savingssquad.singleton.PaymentFilter
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
+import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.SessionManager
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.singleton.SquadStringsEnglish
+import com.android.savingssquad.singleton.SquadStringsHindi
+import com.android.savingssquad.singleton.SquadStringsTamil
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.asTimestamp
 import com.google.firebase.BuildConfig
@@ -4249,7 +4253,7 @@ class FirestoreManager private constructor() {
         // 1. VALIDATION
         // ---------------------------------------------------------
 
-        val memberID = member.id ?: ""
+        val memberID = member.id.orEmpty()
 
         if (memberID.isBlank()) {
             completion(false, "Invalid member ID.")
@@ -4297,14 +4301,30 @@ class FirestoreManager private constructor() {
         val contributionsRef = memberRef
             .collection("contributions")
 
+        val paymentsRef = squadRef
+            .collection("payments")
+
         // ---------------------------------------------------------
-        // 3. BATCH
+        // 3. CALCULATE INITIAL PAYMENT COUNT
+        // ---------------------------------------------------------
+
+        val initialPaymentCount =
+            (if (contributionReceived > 0) 1 else 0) +
+                    (if (interestReceived > 0) 1 else 0)
+
+        // Member + login + squad update + contributions + payments.
+        // Firestore supports at most 500 writes per batch.
+
+        val fixedWriteCount = 3
+
+        // ---------------------------------------------------------
+        // 4. CREATE BATCH
         // ---------------------------------------------------------
 
         val batch = db.batch()
 
         // ---------------------------------------------------------
-        // 4. MEMBER DOCUMENT
+        // 5. MEMBER DOCUMENT
         // ---------------------------------------------------------
 
         val memberData = hashMapOf<String, Any?>(
@@ -4335,7 +4355,7 @@ class FirestoreManager private constructor() {
         batch.set(memberRef, memberData)
 
         // ---------------------------------------------------------
-        // 5. LOGIN DOCUMENT
+        // 6. LOGIN DOCUMENT
         // ---------------------------------------------------------
 
         val login = Login(
@@ -4380,7 +4400,171 @@ class FirestoreManager private constructor() {
         batch.set(loginRef, loginData)
 
         // ---------------------------------------------------------
-        // 6. GENERATE MONTHLY CONTRIBUTIONS
+        // 7. INITIAL CONTRIBUTION PAYMENT
+        // ---------------------------------------------------------
+
+        if (contributionReceived > 0) {
+
+            val paymentID = paymentsRef.document().id
+            val paymentDate = Date().asTimestamp
+
+            val newPayment = PaymentsDetails(
+                id = paymentID,
+                paymentUpdatedDate = paymentDate,
+                memberId = memberID,
+                memberName = SquadStringsEnglish.squadManager,
+                memberNameHindi = SquadStringsHindi.squadManager,
+                memberNameTamil = SquadStringsTamil.squadManager,
+                memberNameEnglish = SquadStringsEnglish.squadManager,
+                paymentPhone = "",
+                paymentEmail = "",
+                userType = SquadUserType.SQUAD_MANAGER,
+                amount = contributionReceived,
+                intrestAmount = 0,
+                paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
+                paymentType = PaymentType.PAYMENT_CREDIT,
+                paymentSubType = PaymentSubType.CONTRIBUTION_AMOUNT,
+                paymentStatus = PaymentStatus.SUCCESS,
+                payoutStatus = PayoutStatus.PAYOUT_INPROGRESS,
+                paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
+                description =
+                    "Initial contribution received when adding member: ₹$contributionReceived",
+                squadId = squadID,
+                order_id = paymentID,
+                contributionId = "",
+                loanId = "",
+                installmentId = "",
+                paymentSuccess = true,
+                payoutSuccess = true,
+                transferReferenceId = "",
+                descriptionTamil =
+                    "உறுப்பினரைச் சேர்க்கும்போது பெறப்பட்ட ஆரம்ப பங்களிப்புத் தொகை: ₹$contributionReceived",
+                descriptionHindi =
+                    "सदस्य जोड़ते समय प्राप्त प्रारंभिक योगदान राशि: ₹$contributionReceived"
+            )
+
+            val paymentData = hashMapOf<String, Any?>(
+                "id" to newPayment.id,
+                "paymentUpdatedDate" to newPayment.paymentUpdatedDate,
+                "memberId" to newPayment.memberId,
+                "memberName" to newPayment.memberName,
+                "memberNameHindi" to newPayment.memberNameHindi,
+                "memberNameTamil" to newPayment.memberNameTamil,
+                "memberNameEnglish" to newPayment.memberNameEnglish,
+                "paymentPhone" to newPayment.paymentPhone,
+                "paymentEmail" to newPayment.paymentEmail,
+                "userType" to newPayment.userType,
+                "amount" to newPayment.amount,
+                "intrestAmount" to newPayment.intrestAmount,
+                "paymentEntryType" to newPayment.paymentEntryType,
+                "paymentType" to newPayment.paymentType,
+                "paymentSubType" to newPayment.paymentSubType,
+                "paymentStatus" to newPayment.paymentStatus,
+                "payoutStatus" to newPayment.payoutStatus,
+                "paymentApproveStatus" to newPayment.paymentApproveStatus,
+                "description" to newPayment.description,
+                "squadId" to newPayment.squadId,
+                "order_id" to newPayment.order_id,
+                "contributionId" to newPayment.contributionId,
+                "loanId" to newPayment.loanId,
+                "installmentId" to newPayment.installmentId,
+                "paymentSuccess" to newPayment.paymentSuccess,
+                "payoutSuccess" to newPayment.payoutSuccess,
+                "transferReferenceId" to newPayment.transferReferenceId,
+                "descriptionTamil" to newPayment.descriptionTamil,
+                "descriptionHindi" to newPayment.descriptionHindi
+            )
+
+            batch.set(
+                paymentsRef.document(paymentID),
+                paymentData
+            )
+        }
+
+        // ---------------------------------------------------------
+        // 8. INITIAL INTEREST PAYMENT
+        // ---------------------------------------------------------
+
+        if (interestReceived > 0) {
+
+            val paymentID = paymentsRef.document().id
+            val paymentDate = Date().asTimestamp
+
+            val newPayment = PaymentsDetails(
+                id = paymentID,
+                paymentUpdatedDate = paymentDate,
+                memberId = memberID,
+                memberName = SquadStringsEnglish.squadManager,
+                memberNameHindi = SquadStringsHindi.squadManager,
+                memberNameTamil = SquadStringsTamil.squadManager,
+                memberNameEnglish = SquadStringsEnglish.squadManager,
+                paymentPhone = "",
+                paymentEmail = "",
+                userType = SquadUserType.SQUAD_MANAGER,
+                amount = interestReceived,
+                intrestAmount = 0,
+                paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
+                paymentType = PaymentType.PAYMENT_CREDIT,
+                paymentSubType = PaymentSubType.INTEREST_AMOUNT,
+                paymentStatus = PaymentStatus.SUCCESS,
+                payoutStatus = PayoutStatus.PAYOUT_INPROGRESS,
+                paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
+                description =
+                    "Initial interest received when adding member: ₹$interestReceived",
+                squadId = squadID,
+                order_id = paymentID,
+                contributionId = "",
+                loanId = "",
+                installmentId = "",
+                paymentSuccess = true,
+                payoutSuccess = true,
+                transferReferenceId = "",
+                descriptionTamil =
+                    "உறுப்பினரைச் சேர்க்கும்போது பெறப்பட்ட ஆரம்ப வட்டித் தொகை: ₹$interestReceived",
+                descriptionHindi =
+                    "सदस्य जोड़ते समय प्राप्त प्रारंभिक ब्याज राशि: ₹$interestReceived"
+            )
+
+            val paymentData = hashMapOf<String, Any?>(
+                "id" to newPayment.id,
+                "paymentUpdatedDate" to newPayment.paymentUpdatedDate,
+                "memberId" to newPayment.memberId,
+                "memberName" to newPayment.memberName,
+                "memberNameHindi" to newPayment.memberNameHindi,
+                "memberNameTamil" to newPayment.memberNameTamil,
+                "memberNameEnglish" to newPayment.memberNameEnglish,
+                "paymentPhone" to newPayment.paymentPhone,
+                "paymentEmail" to newPayment.paymentEmail,
+                "userType" to newPayment.userType,
+                "amount" to newPayment.amount,
+                "intrestAmount" to newPayment.intrestAmount,
+                "paymentEntryType" to newPayment.paymentEntryType,
+                "paymentType" to newPayment.paymentType,
+                "paymentSubType" to newPayment.paymentSubType,
+                "paymentStatus" to newPayment.paymentStatus,
+                "payoutStatus" to newPayment.payoutStatus,
+                "paymentApproveStatus" to newPayment.paymentApproveStatus,
+                "description" to newPayment.description,
+                "squadId" to newPayment.squadId,
+                "order_id" to newPayment.order_id,
+                "contributionId" to newPayment.contributionId,
+                "loanId" to newPayment.loanId,
+                "installmentId" to newPayment.installmentId,
+                "paymentSuccess" to newPayment.paymentSuccess,
+                "payoutSuccess" to newPayment.payoutSuccess,
+                "transferReferenceId" to newPayment.transferReferenceId,
+                "descriptionTamil" to newPayment.descriptionTamil,
+                "descriptionHindi" to newPayment.descriptionHindi
+            )
+
+            batch.set(
+                paymentsRef.document(paymentID),
+                paymentData
+            )
+        }
+
+        // ---------------------------------------------------------
+        // 9. GENERATE MONTHLY CONTRIBUTIONS
         // ---------------------------------------------------------
 
         val calendar = Calendar.getInstance()
@@ -4425,6 +4609,23 @@ class FirestoreManager private constructor() {
 
         while (!calendar.time.after(lastMonth)) {
 
+            // Fixed writes: member + login + squad update.
+            // Each loop adds one contribution write.
+
+            val totalWrites =
+                fixedWriteCount +
+                        initialPaymentCount +
+                        contributionCount +
+                        1
+
+            if (totalWrites > 500) {
+                completion(
+                    false,
+                    "Too many contribution and payment records for a single batch."
+                )
+                return
+            }
+
             val monthDate = calendar.time
             val monthYear = monthFormatter.format(monthDate)
 
@@ -4434,8 +4635,7 @@ class FirestoreManager private constructor() {
                     monthYear = monthYear
                 )
 
-            val isPreviousMonth =
-                monthDate.before(currentMonth)
+            val isPreviousMonth = monthDate.before(currentMonth)
 
             val isCurrentMonth =
                 calendar.get(Calendar.YEAR) ==
@@ -4499,31 +4699,23 @@ class FirestoreManager private constructor() {
                 "dueDate" to contribution.dueDate
             )
 
-            val contributionRef =
-                contributionsRef.document(contributionID)
-
-            batch.set(contributionRef, contributionData)
+            batch.set(
+                contributionsRef.document(contributionID),
+                contributionData
+            )
 
             contributionCount++
-
-            // Member + login + squad + contribution documents.
-            if (contributionCount + 3 > 500) {
-                completion(
-                    false,
-                    "Too many contribution records for a single batch."
-                )
-                return
-            }
 
             calendar.add(Calendar.MONTH, 1)
         }
 
         // ---------------------------------------------------------
-        // 7. SQUAD FINANCIAL TOTALS
+        // 10. UPDATE SQUAD FINANCIAL TOTALS
         // ---------------------------------------------------------
 
         val totalReceived =
-            contributionReceived.toLong() + interestReceived.toLong()
+            contributionReceived.toLong() +
+                    interestReceived.toLong()
 
         batch.update(
             squadRef,
@@ -4545,7 +4737,7 @@ class FirestoreManager private constructor() {
         )
 
         // ---------------------------------------------------------
-        // 8. COMMIT EVERYTHING ONCE
+        // 11. COMMIT EVERYTHING ATOMICALLY
         // ---------------------------------------------------------
 
         batch.commit()
