@@ -5098,8 +5098,10 @@ class FirestoreManager private constructor() {
         squadID: String,
         completion: (List<EMIConfiguration>?, String?) -> Unit
     ) {
-        val emiRef = db.collection("squads").document(squadID)
+        val emiRef = db.collection("squads")
+            .document(squadID)
             .collection("emiConfiguration")
+            .whereEqualTo("recordStatus", "ACTIVE")
 
         emiRef.get()
             .addOnSuccessListener { snapshot ->

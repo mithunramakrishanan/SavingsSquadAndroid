@@ -1064,7 +1064,9 @@ class SquadViewModel : ViewModel() {
             fcmToken = "",
             currentLoanApproveStatus = EMIStatus.CREATED,
             verifyAmountCount = 0,
-            cashRequested = false
+            cashRequested = false,
+            memberCreatedContribuionAmount = contributionReceived,
+            memberCreatedIntrestAmount = interestReceived
         )
 
         // ---------------------------------------------------------

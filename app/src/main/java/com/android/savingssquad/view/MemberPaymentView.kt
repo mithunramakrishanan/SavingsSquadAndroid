@@ -836,8 +836,8 @@ private fun EMISection(
                     placeholder = SquadStrings.emiAmount,
                     textState = remember(selectedInstallment) {
                         mutableStateOf(
-                            ((selectedInstallment?.installmentAmount ?: 0) +
-                                    (selectedInstallment?.interestAmount ?: 0)).toString()
+                            "${(selectedInstallment?.installmentAmount ?: 0) +
+                                    (selectedInstallment?.interestAmount ?: 0)} (Including Interest)"
                         )
                     },
                     keyboardType = KeyboardType.Number,

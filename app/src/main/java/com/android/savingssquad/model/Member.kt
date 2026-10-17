@@ -121,6 +121,12 @@ data class Member(
     @get:PropertyName("cashRequested") @set:PropertyName("cashRequested")
     var cashRequested: Boolean? = null,
 
+    @get:PropertyName("memberCreatedContribuionAmount") @set:PropertyName("memberCreatedContribuionAmount")
+    var memberCreatedContribuionAmount: Int = 0,
+
+    @get:PropertyName("memberCreatedIntrestAmount") @set:PropertyName("memberCreatedIntrestAmount")
+    var memberCreatedIntrestAmount: Int = 0
+
 ) {
 
     val localizedMemberName: String
@@ -169,7 +175,9 @@ data class Member(
         lastActiveDate = null,
         null,
         verifyAmountCount = 0,
-        cashRequested = null
+        cashRequested = null,
+        memberCreatedContribuionAmount = 0,
+        memberCreatedIntrestAmount = 0
     )
 }
 
