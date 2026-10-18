@@ -4330,9 +4330,9 @@ class FirestoreManager private constructor() {
         val memberData = hashMapOf<String, Any?>(
             "id" to member.id,
             "memberName" to member.memberName,
-            "memberNameHindi" to member.memberNameHindi,
             "memberNameTamil" to member.memberNameTamil,
             "memberNameEnglish" to member.memberNameEnglish,
+            "memberNameHindi" to member.memberNameHindi,
             "profileImage" to member.profileImage,
             "mailID" to member.mailID,
             "phoneNumber" to member.phoneNumber,
@@ -4340,16 +4340,35 @@ class FirestoreManager private constructor() {
             "squadID" to member.squadID,
             "role" to member.role,
             "memberCreatedDate" to member.memberCreatedDate,
+
+            // Financial summary fields
+            "totalContributionPaid" to contributionReceived,
+            "totalLoanBorrowed" to member.totalLoanBorrowed,
+            "totalLoanPaid" to member.totalLoanPaid,
+            "totalInterestPaid" to interestReceived,
+            "totalSettlementReceived" to member.totalSettlementReceived,
+            "totalRepaymentReceived" to member.totalRepaymentReceived,
+            "totalRepaymentPaid" to member.totalRepaymentPaid,
+
+            // Record details
             "recordStatus" to member.recordStatus,
+            "recordDate" to member.recordDate,
+
+            // Beneficiary and payment details
             "upiBeneId" to member.upiBeneId,
             "bankBeneId" to member.bankBeneId,
             "upiID" to member.upiID,
             "fcmToken" to member.fcmToken,
+
+            // Activity and loan details
+            "lastActiveDate" to member.lastActiveDate,
             "currentLoanApproveStatus" to member.currentLoanApproveStatus,
             "verifyAmountCount" to member.verifyAmountCount,
             "cashRequested" to member.cashRequested,
-            "totalContributionPaid" to contributionReceived,
-            "totalInterestPaid" to interestReceived
+
+            // Initial contribution and interest amounts
+            "memberCreatedContribuionAmount" to member.memberCreatedContribuionAmount,
+            "memberCreatedIntrestAmount" to member.memberCreatedIntrestAmount
         )
 
         batch.set(memberRef, memberData)

@@ -378,48 +378,71 @@ fun ManagerPaymentView(
 
                                     subtitle = SquadStrings.alreadyTransferredOrHandedOverCashToTheMember,
 
-                                    disabled =  emiSelectedType == null
+                                    disabled =  emiSelectedType == null || loanSelectedMember == null
 
                                 )
                                 {
 
-                                    val member = loanSelectedMember
-                                    val emi = emiSelectedType
+                                    AlertManager.shared.showAlert(
+                                        title =
+                                            SquadStrings.savingsSquad,
 
-                                    if (member != null && emi != null) {
+                                        message =
+                                            SquadStrings.markAsCompletedMessage,
 
-                                        if (SubscriptionManager.shared.canUseLoan()) {
+                                        type = AlertType.INFO,
+
+                                        primaryButtonTitle =
+                                            SquadStrings.ok,
+
+                                        primaryAction = {
+
+                                            val member = loanSelectedMember
+                                            val emi = emiSelectedType
+
+                                            if (member != null && emi != null) {
+
+                                                if (SubscriptionManager.shared.canUseLoan()) {
 
 
-                                            makeLoanPayment(
-                                                squadViewModel = squadViewModel,
-                                                selectedMember = member,
-                                                selectedLoan = emi,
-                                                context = appContext,
-                                                activity = activity,
-                                                entryType = PaymentEntryType.MANUAL_ENTRY,
-                                                cashRequestHandler = {
+                                                    makeLoanPayment(
+                                                        squadViewModel = squadViewModel,
+                                                        selectedMember = member,
+                                                        selectedLoan = emi,
+                                                        context = appContext,
+                                                        activity = activity,
+                                                        entryType = PaymentEntryType.MANUAL_ENTRY,
+                                                        cashRequestHandler = {
 
-                                                    openCashRequestList = true
+                                                            openCashRequestList = true
 
-                                                },
-                                                handler = {
-                                                    loanSelectedMember = null
-                                                    emiSelectedType = null
+                                                        },
+                                                        handler = {
+                                                            loanSelectedMember = null
+                                                            emiSelectedType = null
 
-                                                    ToastManager.show(
-                                                        title = SquadStrings.savingsSquad,
-                                                        message = SquadStrings.paymentStatusUpdated,
-                                                        type = ToastType.SUCCESS
+                                                            ToastManager.show(
+                                                                title = SquadStrings.savingsSquad,
+                                                                message = SquadStrings.paymentStatusUpdated,
+                                                                type = ToastType.SUCCESS
+                                                            )
+
+                                                        }
                                                     )
-
+                                                } else {
+                                                    squadViewModel.setShowUpgradePlan(true)
                                                 }
-                                            )
-                                        } else {
-                                            squadViewModel.setShowUpgradePlan(true)
-                                        }
 
-                                    }
+                                            }
+
+                                        }, secondaryButtonTitle = SquadStrings.no, secondaryAction = {
+
+
+                                        }
+                                    )
+
+
+
 
                                 }
                             }
@@ -668,118 +691,142 @@ fun ManagerPaymentView(
                                 )
                                 {
 
-                                    if (validateMemberOtherPaymentFields()) {
-                                        val squad = squadViewModel.squad.value ?: return@ManagerPaymentSecondaryButton
-                                        val selectedMember = loanSelectedMember ?: return@ManagerPaymentSecondaryButton
+                                    AlertManager.shared.showAlert(
+                                        title =
+                                            SquadStrings.savingsSquad,
 
-                                        val paymentId = IDGenerator.generatePaymentID(squad.squadID)
+                                        message =
+                                            SquadStrings.markAsCompletedMessage,
 
-                                        val amount = memberPaymentAmount.value.toIntOrNull() ?: 0
+                                        type = AlertType.INFO,
 
-                                        val payment = PaymentsDetails(
-                                            id = paymentId,
-                                            paymentUpdatedDate = Timestamp.now(),
+                                        primaryButtonTitle =
+                                            SquadStrings.ok,
 
-                                            memberId = selectedMember.id ?: "",
-                                            memberName = selectedMember.memberName,
-                                            memberNameTamil = selectedMember.memberNameTamil,
-                                            memberNameEnglish = selectedMember.memberNameEnglish,
-                                            memberNameHindi = selectedMember.memberNameHindi,
-                                            paymentPhone = selectedMember.phoneNumber,
-                                            paymentEmail = selectedMember.mailID ?: "",
+                                        primaryAction = {
 
-                                            userType = SquadUserType.SQUAD_MANAGER,
+                                            if (validateMemberOtherPaymentFields()) {
+                                                val squad = squadViewModel.squad.value ?: return@showAlert
+                                                val selectedMember = loanSelectedMember ?: return@showAlert
 
-                                            amount = amount,
-                                            intrestAmount = 0,
+                                                val paymentId = IDGenerator.generatePaymentID(squad.squadID)
 
-                                            paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
-                                            paymentType = PaymentType.PAYMENT_DEBIT,
+                                                val amount = memberPaymentAmount.value.toIntOrNull() ?: 0
 
-                                            paymentSubType =
-                                                if (selectedMemberPaymentSubType == SquadStrings.repayment)
-                                                    PaymentSubType.RE_PAYMENT
-                                                else
-                                                    PaymentSubType.SETTLEMENT,
+                                                val payment = PaymentsDetails(
+                                                    id = paymentId,
+                                                    paymentUpdatedDate = Timestamp.now(),
 
-                                            paymentStatus = PaymentStatus.SUCCESS,
-                                            paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
-
-                                            description = if (selectedMemberPaymentSubType == SquadStrings.repayment)
-                                                "$memberPaymentNotes - ${selectedMember.memberNameEnglish}"
-                                            else
-                                                SquadStringsEnglish.settlementTo(selectedMember.memberNameEnglish),
-
-                                            squadId = squad.squadID,
-
-                                            order_id = paymentId,
-                                            contributionId = "",
-                                            loanId = "",
-                                            installmentId = "",
-
-                                            paymentResponseMessage = "Payment Updated",
-
-                                            transferReferenceId =
-                                                "",
-
-                                            upiID = selectedMember.upiID,
-                                            cashRequestId = "", descriptionTamil = if (selectedMemberPaymentSubType == SquadStrings.repayment)
-                                                "$memberPaymentNotes - ${selectedMember.memberNameTamil}"
-                                            else
-                                                SquadStringsTamil.settlementTo(selectedMember.memberNameTamil), descriptionHindi = if (selectedMemberPaymentSubType == SquadStrings.repayment)
-                                                "$memberPaymentNotes - ${selectedMember.memberNameHindi}"
-                                            else
-                                                SquadStringsHindi.settlementTo(selectedMember.memberNameHindi)
-                                        )
-
-                                        squadViewModel.savePayments(
-                                            activity = activity,
-                                            context = appContext,
-                                            squadID = squad.squadID,
-                                            payment = listOf(payment)
-                                        ) { success, error ->
-
-                                            if (success) {
-
-                                                Log.d("Payment", "✅ Payment added successfully!")
-
-                                                squadViewModel.createSquadActivity(
-                                                    activityType = SquadActivityType.AMOUNT_DEBIT,
-                                                    memberName =selectedMember.memberName,
-                                                    memberNameHindi = selectedMember.memberNameHindi,
+                                                    memberId = selectedMember.id ?: "",
+                                                    memberName = selectedMember.memberName,
                                                     memberNameTamil = selectedMember.memberNameTamil,
                                                     memberNameEnglish = selectedMember.memberNameEnglish,
-                                                    memberId = selectedMember.id ?: "",
-                                                    amount = amount,
-                                                    description = SquadStringsEnglishDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionTamil = SquadStringsTamilDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionHindi = SquadStringsHindiDesc.amountDebited(amount.toString(),memberPaymentNotes)
-                                                ) { _, _ ->
+                                                    memberNameHindi = selectedMember.memberNameHindi,
+                                                    paymentPhone = selectedMember.phoneNumber,
+                                                    paymentEmail = selectedMember.mailID ?: "",
 
-                                                    CoroutineScope(Dispatchers.Main).launch {
+                                                    userType = SquadUserType.SQUAD_MANAGER,
+
+                                                    amount = amount,
+                                                    intrestAmount = 0,
+
+                                                    paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
+                                                    paymentType = PaymentType.PAYMENT_DEBIT,
+
+                                                    paymentSubType =
+                                                        if (selectedMemberPaymentSubType == SquadStrings.repayment)
+                                                            PaymentSubType.RE_PAYMENT
+                                                        else
+                                                            PaymentSubType.SETTLEMENT,
+
+                                                    paymentStatus = PaymentStatus.SUCCESS,
+                                                    paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
+
+                                                    description = if (selectedMemberPaymentSubType == SquadStrings.repayment)
+                                                        "$memberPaymentNotes - ${selectedMember.memberNameEnglish}"
+                                                    else
+                                                        SquadStringsEnglish.settlementTo(selectedMember.memberNameEnglish),
+
+                                                    squadId = squad.squadID,
+
+                                                    order_id = paymentId,
+                                                    contributionId = "",
+                                                    loanId = "",
+                                                    installmentId = "",
+
+                                                    paymentResponseMessage = "Payment Updated",
+
+                                                    transferReferenceId =
+                                                        "",
+
+                                                    upiID = selectedMember.upiID,
+                                                    cashRequestId = "", descriptionTamil = if (selectedMemberPaymentSubType == SquadStrings.repayment)
+                                                        "$memberPaymentNotes - ${selectedMember.memberNameTamil}"
+                                                    else
+                                                        SquadStringsTamil.settlementTo(selectedMember.memberNameTamil), descriptionHindi = if (selectedMemberPaymentSubType == SquadStrings.repayment)
+                                                        "$memberPaymentNotes - ${selectedMember.memberNameHindi}"
+                                                    else
+                                                        SquadStringsHindi.settlementTo(selectedMember.memberNameHindi)
+                                                )
+
+                                                squadViewModel.savePayments(
+                                                    activity = activity,
+                                                    context = appContext,
+                                                    squadID = squad.squadID,
+                                                    payment = listOf(payment)
+                                                ) { success, error ->
+
+                                                    if (success) {
+
+                                                        Log.d("Payment", "✅ Payment added successfully!")
+
+                                                        squadViewModel.createSquadActivity(
+                                                            activityType = SquadActivityType.AMOUNT_DEBIT,
+                                                            memberName =selectedMember.memberName,
+                                                            memberNameHindi = selectedMember.memberNameHindi,
+                                                            memberNameTamil = selectedMember.memberNameTamil,
+                                                            memberNameEnglish = selectedMember.memberNameEnglish,
+                                                            memberId = selectedMember.id ?: "",
+                                                            amount = amount,
+                                                            description = SquadStringsEnglishDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionTamil = SquadStringsTamilDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionHindi = SquadStringsHindiDesc.amountDebited(amount.toString(),memberPaymentNotes)
+                                                        ) { _, _ ->
+
+                                                            CoroutineScope(Dispatchers.Main).launch {
+
+                                                                LoaderManager.shared.hideLoader()
+
+                                                                memberPaymentAmount.value = ""
+                                                                memberPaymentNotes = ""
+
+                                                                ToastManager.show(
+                                                                    title = SquadStrings.savingsSquad,
+                                                                    message = SquadStrings.paymentStatusUpdated,
+                                                                    type = ToastType.SUCCESS
+                                                                )
+                                                            }
+                                                        }
+
+                                                    } else {
 
                                                         LoaderManager.shared.hideLoader()
 
-                                                        memberPaymentAmount.value = ""
-                                                        memberPaymentNotes = ""
-
-                                                        ToastManager.show(
-                                                            title = SquadStrings.savingsSquad,
-                                                            message = SquadStrings.paymentStatusUpdated,
-                                                            type = ToastType.SUCCESS
+                                                        Log.e(
+                                                            "Payment",
+                                                            "❌ Error adding payment: ${error ?: "Unknown error"}"
                                                         )
                                                     }
                                                 }
-
-                                            } else {
-
-                                                LoaderManager.shared.hideLoader()
-
-                                                Log.e(
-                                                    "Payment",
-                                                    "❌ Error adding payment: ${error ?: "Unknown error"}"
-                                                )
                                             }
+
+                                        }, secondaryButtonTitle = SquadStrings.no, secondaryAction = {
+
+
                                         }
-                                    }
+                                    )
+
+
+
+
 
                                 }
 
