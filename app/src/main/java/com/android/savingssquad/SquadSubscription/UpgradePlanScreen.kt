@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.sp
 
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.SquadStrings
-import com.android.savingssquad.viewmodel.CashfreePaymentManager
+import com.android.savingssquad.viewmodel.RazorpayPaymentManager
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.viewmodel.ToastManager
 import com.android.savingssquad.viewmodel.ToastType
@@ -154,15 +154,15 @@ fun UpgradePlanScreen(
 
     LaunchedEffect(squadID) {
 
-        CashfreePaymentManager.paymentEvents.collect { event ->
+        RazorpayPaymentManager.paymentEvents.collect { event ->
 
             when (event) {
 
-                is CashfreePaymentManager.PaymentEvent.VerificationRequested -> {
+                is RazorpayPaymentManager.PaymentEvent.VerificationRequested -> {
 
                     Log.d(
                         UPGRADE_TAG,
-                        "Payment verification requested: ${event.orderID}"
+                        "Razorpay verification requested: ${event.orderID}"
                     )
 
                     val currentSquadID = squadID
@@ -175,21 +175,11 @@ fun UpgradePlanScreen(
                             SquadStrings.squadNotFound
                         )
 
-                        CashfreePaymentManager
-                            .completePaymentVerification(
-                                success = false
-                            )
+                        RazorpayPaymentManager
+                            .completePaymentVerification(false)
 
                         return@collect
                     }
-
-                    /*
-                     * The backend/webhook must verify the specific
-                     * Cashfree order and activate its subscription.
-                     *
-                     * This refresh checks that the resulting subscription
-                     * is active, unexpired, and matches the selected plan.
-                     */
 
                     val verified = refreshSubscriptionAfterPayment(
                         viewModel = viewModel,
@@ -198,17 +188,25 @@ fun UpgradePlanScreen(
                         expectedPeriod = selectedPeriod
                     )
 
-                    CashfreePaymentManager
-                        .completePaymentVerification(
-                            success = verified
+                    RazorpayPaymentManager
+                        .completePaymentVerification(verified)
+
+                    if (!verified) {
+
+                        isLoading = false
+
+                        showUpgradeFailure(
+                            "Payment verification is pending. " +
+                                    "Please check your subscription status shortly."
                         )
+                    }
                 }
 
-                is CashfreePaymentManager.PaymentEvent.PaymentFailed -> {
+                is RazorpayPaymentManager.PaymentEvent.PaymentFailed -> {
 
                     Log.e(
                         UPGRADE_TAG,
-                        "Cashfree payment failed: ${event.message}"
+                        "Razorpay payment failed: ${event.message}"
                     )
 
                     isLoading = false
@@ -567,7 +565,7 @@ fun UpgradePlanScreen(
                     return@Button
                 }
 
-                startCashfreePayment(
+                startRazorpayPayment(
                     activity = currentActivity,
                     squadID = currentSquadID,
                     selectedPlan = selectedPlan,
@@ -699,7 +697,7 @@ private fun shouldDisableUpgradeButton(
     return false
 }
 
-private fun startCashfreePayment(
+/*private fun startCashfreePayment(
     activity: Activity,
     squadID: String,
     selectedPlan: SubscriptionModel.Plan,
@@ -795,6 +793,116 @@ private fun startCashfreePayment(
             Log.e(
                 UPGRADE_TAG,
                 "Failed to create Cashfree order.",
+                error
+            )
+
+            onLoading(false)
+
+            onError(
+                error.localizedMessage
+                    ?: "Unable to initiate payment. Please try again."
+            )
+        }
+} */
+
+private fun startRazorpayPayment(
+    activity: Activity,
+    squadID: String,
+    selectedPlan: SubscriptionModel.Plan,
+    selectedPeriod: SubscriptionModel.BillingPeriod,
+    enableLoanAddon: Boolean,
+    onLoading: (Boolean) -> Unit,
+    onError: (String) -> Unit,
+    onSuccess: () -> Unit
+) {
+
+    onLoading(true)
+
+    val payload = hashMapOf<String, Any>(
+        "squadID" to squadID,
+        "plan" to selectedPlan.name,
+        "billingPeriod" to selectedPeriod.name,
+        "loanAddon" to enableLoanAddon
+    )
+
+    Log.d(
+        UPGRADE_TAG,
+        "Creating Razorpay order for squad: $squadID"
+    )
+
+    FirebaseFunctions
+        .getInstance("asia-south1")
+        .getHttpsCallable("createSubscriptionPayment")
+        .call(payload)
+        .addOnSuccessListener { result ->
+
+            val response = result.data as? Map<*, *>
+
+            val orderID =
+                response?.get("razorpayOrderId") as? String
+
+            val keyID =
+                response?.get("keyId") as? String
+
+            val amountInPaise =
+                (response?.get("amountInPaise") as? Number)
+                    ?.toInt()
+
+            val currency =
+                response?.get("currency") as? String ?: "INR"
+
+            if (
+                orderID.isNullOrBlank() ||
+                keyID.isNullOrBlank() ||
+                amountInPaise == null ||
+                amountInPaise <= 0
+            ) {
+
+                Log.e(
+                    UPGRADE_TAG,
+                    "Invalid Razorpay order response: $response"
+                )
+
+                onLoading(false)
+
+                onError(
+                    "Unable to create the Razorpay payment session."
+                )
+
+                return@addOnSuccessListener
+            }
+
+            Log.d(
+                UPGRADE_TAG,
+                "Razorpay order created: $orderID"
+            )
+
+            RazorpayPaymentManager.startCheckout(
+                activity = activity,
+                keyID = keyID,
+                orderID = orderID,
+                amountInPaise = amountInPaise,
+                currency = currency
+            ) { paymentSucceeded ->
+
+                activity.runOnUiThread {
+
+                    if (paymentSucceeded) {
+
+                        onSuccess()
+
+                    } else {
+
+                        onLoading(false)
+                    }
+                }
+            }
+        }
+        .addOnFailureListener { error ->
+
+            Log.e(
+                UPGRADE_TAG,
+                "Failed to create Razorpay order.",
                 error
             )
 

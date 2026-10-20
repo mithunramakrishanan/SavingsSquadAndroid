@@ -86,6 +86,7 @@ data class SubscriptionModel(
     enum class PaymentProvider {
         CASHFREE,
         APPLE,
+        RAZORPAY,
         GOOGLE_PLAY
     }
 }

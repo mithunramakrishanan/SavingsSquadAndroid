@@ -29,11 +29,18 @@ import com.android.savingssquad.viewmodel.AppNavHost
 import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.clearFocusOnTapOutside
 import com.android.savingssquad.viewmodel.AppDestination
+import com.android.savingssquad.viewmodel.RazorpayPaymentManager
 import com.android.savingssquad.viewmodel.SSToast
 import com.android.savingssquad.viewmodel.SquadViewModel
+import com.razorpay.PaymentData
+import com.razorpay.PaymentResultWithDataListener
 import com.google.gson.Gson
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(),PaymentResultWithDataListener {
+
+    companion object {
+        private const val TAG = "MainActivity"
+    }
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,6 +59,81 @@ class MainActivity : ComponentActivity() {
 
         setIntent(intent)
         handleNotification(intent)
+    }
+
+
+    /**
+
+     * Razorpay payment success callback.
+
+     *
+
+     * This callback confirms that the Razorpay Checkout SDK reported success.
+
+     * Your backend/webhook must still verify the payment before activating
+
+     * the subscription.
+
+     */
+
+    override fun onPaymentSuccess(
+
+        paymentId: String,
+
+        paymentData: PaymentData
+
+    ) {
+
+        Log.d(TAG, "Razorpay payment success callback received")
+
+        Log.d(TAG, "Payment ID: $paymentId")
+
+        Log.d(TAG, "Order ID: ${paymentData.orderId}")
+
+        RazorpayPaymentManager.onPaymentSuccess(
+
+            paymentId,
+
+            paymentData
+
+        )
+
+    }
+
+    /**
+
+     * Razorpay payment failure callback.
+
+     */
+
+    override fun onPaymentError(
+
+        code: Int,
+
+        message: String,
+
+        paymentData: PaymentData
+
+    ) {
+
+        Log.e(TAG, "Razorpay payment failed")
+
+        Log.e(TAG, "Error code: $code")
+
+        Log.e(TAG, "Error message: $message")
+
+        Log.e(TAG, "Order ID: ${paymentData.orderId}")
+
+        RazorpayPaymentManager.onPaymentError(
+
+            code,
+
+            message,
+
+            paymentData
+
+        )
+
     }
 
     private fun handleNotification(intent: Intent) {
