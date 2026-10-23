@@ -214,7 +214,7 @@ fun SquadSignUpView(
                         LaunchedEffect(s.value) { phoneNumber = s.value }
                     },
                     keyboardType = KeyboardType.Number,
-                    error = phoneError + if (sendOTPError.isNotEmpty()) "\n$sendOTPError" else ""
+                    error = phoneError + if (sendOTPError.isNotEmpty()) "\n$sendOTPError" else "", maxLength = 10
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))

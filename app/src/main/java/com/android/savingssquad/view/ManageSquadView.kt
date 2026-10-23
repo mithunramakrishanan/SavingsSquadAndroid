@@ -156,7 +156,8 @@ fun ManageSquadView(
                         placeholder = "Phone Number",
                         textState = squadPhoneNumber,
                         disabled = true,
-                        error = phoneError
+                        error = phoneError,
+                        maxLength = 10
                     )
 
                     // editable text

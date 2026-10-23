@@ -174,7 +174,8 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                         icon = Icons.Default.Phone,
                         placeholder = SquadStrings.enterPhoneNumber,
                         textState = phoneNumber,
-                        keyboardType = KeyboardType.Number
+                        keyboardType = KeyboardType.Number,
+                        maxLength = 10
                     )
 
                     if (isOTPSent) {

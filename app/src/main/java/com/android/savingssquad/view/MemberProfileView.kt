@@ -866,7 +866,8 @@ fun UpdateMemberPopup(
                     placeholder = "Mobile.No",
                     textState = phoneState,
                     keyboardType = KeyboardType.Number,
-                    error = phoneError
+                    error = phoneError,
+                    maxLength = 10
                 )
 
                 LaunchedEffect(phoneState.value) {

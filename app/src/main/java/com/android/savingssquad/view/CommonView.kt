@@ -338,7 +338,8 @@ fun SSTextField(
     dropdownIcon: ImageVector = Icons.Default.ArrowDropDown,
     dropdownColor: Color = AppColors.secondaryText,
     onDropdownTap: (() -> Unit)? = null,
-    error: String = ""
+    error: String = "",
+    maxLength: Int? = null
 ) {
 
     val focusRequester = remember { FocusRequester() }
@@ -364,7 +365,7 @@ fun SSTextField(
     }
 
     val iconTint by animateColorAsState(
-        when {
+        targetValue = when {
             disabled -> AppColors.secondaryText.copy(alpha = 0.45f)
             isFocused -> AppColors.primaryButton
             else -> AppColors.secondaryText
@@ -373,7 +374,15 @@ fun SSTextField(
     )
 
     Column(
-        modifier = Modifier.fillMaxWidth().clickable{ onDropdownTap?.invoke() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                if (showDropdown) {
+                    onDropdownTap?.invoke()
+                } else if (!disabled) {
+                    focusRequester.requestFocus()
+                }
+            },
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
 
@@ -381,7 +390,10 @@ fun SSTextField(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
-                .appShadow(AppShadows.card, RoundedCornerShape(16.dp))
+                .appShadow(
+                    AppShadows.card,
+                    RoundedCornerShape(16.dp)
+                )
                 .clip(RoundedCornerShape(16.dp))
                 .background(bgColor)
                 .border(
@@ -414,35 +426,60 @@ fun SSTextField(
                     contentAlignment = Alignment.CenterStart
                 ) {
 
-                    // ✅ PREMIUM PLACEHOLDER (always inside)
                     if (textState.value.isEmpty()) {
                         Text(
                             text = placeholder,
-                            style = AppFont.ibmPlexSans(15, FontWeight.Normal),
-                            color = if (disabled)
+                            style = AppFont.ibmPlexSans(
+                                15,
+                                FontWeight.Normal
+                            ),
+                            color = if (disabled) {
                                 AppColors.placeholderText.copy(alpha = 0.6f)
-                            else
+                            } else {
                                 AppColors.placeholderText
+                            }
                         )
                     }
 
                     BasicTextField(
                         value = textState.value,
-                        onValueChange = {
-                            if (!disabled) textState.value = it
+                        onValueChange = { newValue ->
+
+                            if (!disabled) {
+
+                                val filteredValue = when {
+                                    maxLength == null -> newValue
+
+                                    keyboardType == KeyboardType.Number ||
+                                            keyboardType == KeyboardType.Phone -> {
+                                        newValue
+                                            .filter { it.isDigit() }
+                                            .take(maxLength)
+                                    }
+
+                                    else -> newValue.take(maxLength)
+                                }
+
+                                textState.value = filteredValue
+                            }
                         },
                         singleLine = true,
-                        enabled = !disabled,
-                        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                        cursorBrush = SolidColor(AppColors.primaryButton),
+                        enabled = !disabled && !showDropdown,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = keyboardType
+                        ),
+                        cursorBrush = SolidColor(
+                            AppColors.primaryButton
+                        ),
                         textStyle = AppFont.ibmPlexSans(
                             15,
                             FontWeight.Medium
                         ).copy(
-                            color = if (disabled)
+                            color = if (disabled) {
                                 AppColors.secondaryText.copy(alpha = 0.7f)
-                            else
+                            } else {
                                 AppColors.headerText
+                            }
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -453,7 +490,6 @@ fun SSTextField(
                     )
                 }
 
-                // 🔽 Dropdown / Loader
                 if (showDropdown) {
 
                     if (isLoading) {
@@ -474,7 +510,9 @@ fun SSTextField(
                             tint = dropdownColor,
                             modifier = Modifier
                                 .size(34.dp)
-                                .clickable { onDropdownTap?.invoke() }
+                                .clickable {
+                                    onDropdownTap?.invoke()
+                                }
                         )
                     }
                 }
@@ -483,11 +521,13 @@ fun SSTextField(
             }
         }
 
-        // ❌ ERROR TEXT
         AnimatedVisibility(error.isNotEmpty()) {
             Text(
                 text = error,
-                style = AppFont.ibmPlexSans(12, FontWeight.Normal),
+                style = AppFont.ibmPlexSans(
+                    12,
+                    FontWeight.Normal
+                ),
                 color = AppColors.errorAccent,
                 modifier = Modifier.padding(start = 24.dp)
             )
@@ -2227,7 +2267,8 @@ fun AddMemberPopup(
                     placeholder = SquadStrings.memberPhone,
                     textState = phoneNumberState,
                     keyboardType = KeyboardType.Number,
-                    error = phoneError
+                    error = phoneError,
+                    maxLength = 10
                 )
 
                 if (sendOTPError.isNotBlank()) {

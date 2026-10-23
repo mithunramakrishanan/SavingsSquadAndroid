@@ -4524,9 +4524,9 @@ class FirestoreManager private constructor() {
                 intrestAmount = 0,
                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                 paymentType = PaymentType.PAYMENT_CREDIT,
-                paymentSubType = PaymentSubType.INTEREST_AMOUNT,
+                paymentSubType = PaymentSubType.EMI_AMOUNT,
                 paymentStatus = PaymentStatus.SUCCESS,
-                payoutStatus = PayoutStatus.PAYOUT_INPROGRESS,
+                payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
                 paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
                 description =
                     "Initial interest received when adding member: ₹$interestReceived",
