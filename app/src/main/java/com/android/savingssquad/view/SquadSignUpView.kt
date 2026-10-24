@@ -684,7 +684,7 @@ private fun saveSquadData(
         memberNameEnglish = "",
         memberNameHindi = "",
 
-        squadUserId = SquadStrings.squadManager,
+        squadUserId = "",
         phoneNumber = phoneNumber,
 
         role = SquadUserType.SQUAD_MANAGER,

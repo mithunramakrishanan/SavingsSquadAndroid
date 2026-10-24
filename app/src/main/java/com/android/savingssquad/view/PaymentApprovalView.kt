@@ -94,6 +94,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.model.ForceCloseSummary
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentSubType
@@ -285,6 +286,14 @@ fun PaymentApprovalView(
                             approval = payment,
                             onApprove = {
 
+                                if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT || payment.paymentSubType == PaymentSubType.EMI_AMOUNT) {
+
+                                    if (!SubscriptionManager.shared.canUseLoan()) {
+                                        squadViewModel.setShowUpgradePlan(true)
+                                        return@PaymentApprovalRow
+                                    }
+                                }
+
                                 squadViewModel.updatePaymentApproveStatus(
                                     squadID = payment.squadId,
                                     paymentID = payment.id ?: "",
@@ -326,6 +335,14 @@ fun PaymentApprovalView(
                                 }
                             },
                             onReject = {
+
+                                if (payment.paymentSubType == PaymentSubType.LOAN_AMOUNT || payment.paymentSubType == PaymentSubType.EMI_AMOUNT) {
+
+                                    if (!SubscriptionManager.shared.canUseLoan()) {
+                                        squadViewModel.setShowUpgradePlan(true)
+                                        return@PaymentApprovalRow
+                                    }
+                                }
 
                                 squadViewModel.updatePaymentApproveStatus(
                                     squadID = payment.squadId,

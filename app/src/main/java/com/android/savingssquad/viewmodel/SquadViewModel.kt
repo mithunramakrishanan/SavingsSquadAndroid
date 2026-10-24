@@ -153,16 +153,11 @@ class SquadViewModel : ViewModel() {
     val squadMembers: StateFlow<List<Member>> = _squadMembers
     fun setSquadMembers(list: List<Member>) {
         _squadMembers.value = list
-        _squadMembersCount.value = list.size
     }
 
     private val _squadMembersCount = MutableStateFlow(0)
     val squadMembersCount: StateFlow<Int> = _squadMembersCount
     fun setSquadMembersCount(value: Int) { _squadMembersCount.value = value }
-
-    private val _memberDetail = MutableStateFlow<Member?>(null)
-    val memberDetail: StateFlow<Member?> = _memberDetail
-    fun setMemberDetail(value: Member?) { _memberDetail.value = value }
 
     private val _currentMember = MutableStateFlow<Member?>(null)
     val currentMember: StateFlow<Member?> = _currentMember
@@ -427,7 +422,7 @@ class SquadViewModel : ViewModel() {
 
         // Start new listeners
         observeSquadChanges()
-        observeMembers()
+        observeMember()
     }
 
     fun stopObservers() {
@@ -480,6 +475,9 @@ class SquadViewModel : ViewModel() {
                     if (squad != null) {
 
                         setSquad(squad)
+                        setSquadMembersCount(
+                            squad.totalMembers
+                        )
                         setVerifySquadManagerAmountBadgeCount(squad.verifyAmountCount)
                         setVerifySquadCashRequestBadgeCount(squad.cashRequestedCount)
                         setRemainingMonths(CommonFunctions.getRemainingMonths(
@@ -499,64 +497,50 @@ class SquadViewModel : ViewModel() {
             }
     }
 
-    fun observeMembers() {
+    fun observeMember() {
 
         membersListener?.remove()
+
+        val memberId = loginMember?.squadUserId
+            ?.trim()
+            .orEmpty()
+
+        if (memberId.isEmpty()) {
+            Log.e("Firestore", "Invalid member ID")
+            return
+        }
 
         membersListener = FirebaseFirestore.getInstance()
             .collection("squads")
             .document(squadID)
             .collection("members")
+            .document(memberId)
             .addSnapshotListener { snapshot, error ->
 
                 if (error != null) {
-                    Log.e(
-                        "Firestore",
-                        "Members Listener",
-                        error
-                    )
+                    Log.e("Firestore", "Member Listener", error)
                     return@addSnapshotListener
                 }
 
-                if (snapshot == null) return@addSnapshotListener
+                if (snapshot == null || !snapshot.exists()) {
+                    Log.e("Firestore", "Member document not found")
+                    return@addSnapshotListener
+                }
 
                 try {
+                    val member = snapshot.toObject(Member::class.java)
 
-                    val fetchedMembers = snapshot.documents.mapNotNull {
-                        it.toObject(Member::class.java)
-                    }
+                    if (member != null) {
+                        setCurrentMember(member)
 
-                    setSquadMembers(fetchedMembers)
-                    setSquadMembersCount(fetchedMembers.size)
-                    setSquadMemberNames(fetchedMembers.map { it.localizedMemberName })
-
-                    currentMember.let { member ->
-                        setCurrentMember( fetchedMembers.find { it.id == member.value?.id })
-
-                        fetchedMembers.find { it.id == member.value?.id }?.verifyAmountCount.let { count ->
-                            setVerifySquadMemberAmountBadgeCount(count ?: 0)
-                        }
-                    }
-
-                    loginMember?.localizedMemberName?.let { username ->
-
-                        val member = CommonFunctions.getMemberByName(
-                            username,
-                            fetchedMembers
+                        // verifyAmountCount is an Int, not Int?
+                        setVerifySquadMemberAmountBadgeCount(
+                            member.verifyAmountCount
                         )
-
-                        if (member != null) {
-                            setMemberDetail(member)
-                        }
                     }
 
                 } catch (e: Exception) {
-
-                    Log.e(
-                        "Firestore",
-                        "Failed to decode members",
-                        e
-                    )
+                    Log.e("Firestore", "Failed to decode member", e)
                 }
             }
     }
@@ -940,7 +924,6 @@ class SquadViewModel : ViewModel() {
                         } else {
 
                             setSquadMembers(squadMembers.value + newMember)
-                            setSquadMembersCount(_squadMembersCount.value + 1)
                         }
 
                         addUserLogin(false, newMember)
@@ -1107,14 +1090,8 @@ class SquadViewModel : ViewModel() {
                         setSquadMembers(
                             _squadMembers.value + newMember
                         )
-
-                        setSquadMembersCount(
-                            _squadMembersCount.value + 1
-                        )
-
                         _squad.value?.let { latestSquad ->
                             _squad.value = latestSquad.copy(
-                                totalMembers = latestSquad.totalMembers + 1,
                                 totalContributionAmountReceived =
                                     latestSquad.totalContributionAmountReceived +
                                             contributionReceived,
@@ -1283,23 +1260,13 @@ class SquadViewModel : ViewModel() {
 
                     when {
                         error == "No members found." -> {
-                            setSquadMembersCount(0)
-
                             completion(false, null, error)
                         }
 
                         fetchedMembers != null -> {
 
                             setSquadMembers(fetchedMembers)
-                            setSquadMembersCount(fetchedMembers.size)
                             setSquadMemberNames(fetchedMembers.map { it.localizedMemberName }.toMutableList())
-
-                            loginMember?.localizedMemberName?.let { username ->
-                                CommonFunctions.getMemberByName(username, fetchedMembers)?.let {
-                                    setMemberDetail(it)
-
-                                }
-                            }
 
                             completion(true, fetchedMembers, null)
                         }
@@ -3425,7 +3392,6 @@ class SquadViewModel : ViewModel() {
                         }
                     }
 
-                    setSquadMembersCount(_squadMembers.value.size)
                     setSquadMemberNames(_squadMembers.value.map { it.memberName })
 
                     completion(true, null)

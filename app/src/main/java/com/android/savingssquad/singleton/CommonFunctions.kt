@@ -279,10 +279,6 @@ object CommonFunctions {
         return list
     }
 
-    fun getMemberByName(name: String, members: List<Member>): Member? {
-        return members.firstOrNull { it.localizedMemberName == name }
-    }
-
     fun getMember(by: String, from: List<Member>): Member? {
         return from.firstOrNull { it.localizedMemberName == by }
     }
