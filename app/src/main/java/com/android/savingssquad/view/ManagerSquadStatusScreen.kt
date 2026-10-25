@@ -238,7 +238,7 @@ fun applyStatus(
     login: Login
 ) {
 
-    squadViewModel.updateMemberLoginStatusForSquad(
+    squadViewModel.updateStatusForSquad(
         showLoader = true,
         phoneNumber = squadViewModel.squad.value?.phoneNumber ?: "",
         squadID = login.squadID,

@@ -4139,38 +4139,89 @@ class FirestoreManager private constructor() {
     // MARK: - 🔹 Fetch All Members
     fun fetchMembers(
         squadID: String,
-        completion: (List<Member>?, String?) -> Unit
+        searchText: String = "",
+        lastDocument: DocumentSnapshot? = null,
+        limit: Int = 20,
+        completion: (
+            List<Member>?,
+            DocumentSnapshot?,
+            String?
+        ) -> Unit
     ) {
         val membersRef = db.collection("squads")
             .document(squadID)
             .collection("members")
 
-        membersRef.get()
+        val search = searchText.trim()
+
+        // Fetch members in document ID order for consistent pagination.
+        var query: Query = membersRef
+            .orderBy(com.google.firebase.firestore.FieldPath.documentId())
+            .limit(limit.toLong())
+
+        if (lastDocument != null) {
+            query = query.startAfter(lastDocument)
+        }
+
+        query.get()
             .addOnSuccessListener { snapshot ->
-                // FIX #3: an empty squad is not an error.
-                if (snapshot == null || snapshot.isEmpty) {
-                    completion(emptyList(), null)
+
+                if (snapshot.isEmpty) {
+                    completion(emptyList(), null, null)
                     return@addOnSuccessListener
                 }
 
                 try {
                     val members = snapshot.documents.mapNotNull { doc ->
                         try {
-                            val member = doc.toObject(Member::class.java)
-                            member?.id = doc.id
-                            member
+                            doc.toObject(Member::class.java)?.apply {
+                                id = doc.id
+                            }
                         } catch (e: Exception) {
-                            FmLog.w("Error decoding member: ${e.localizedMessage}")
+                            FmLog.w(
+                                "Error decoding member ${doc.id}: ${e.localizedMessage}"
+                            )
                             null
                         }
                     }
-                    completion(members, null)
+
+                    // Filter using the localized member name.
+                    // Ignore capitalization differences.
+                    val filteredMembers = if (search.isEmpty()) {
+                        members
+                    } else {
+                        members.filter { member ->
+                            member.localizedMemberName.contains(
+                                other = search,
+                                ignoreCase = true
+                            )
+                        }
+                    }
+
+                    FmLog.d("Search text: '$search'")
+                    FmLog.d("Members fetched: ${members.size}")
+                    FmLog.d("Matching members: ${filteredMembers.size}")
+
+                    completion(
+                        filteredMembers,
+                        snapshot.documents.lastOrNull(),
+                        null
+                    )
+
                 } catch (e: Exception) {
-                    completion(null, "Decoding error: ${e.localizedMessage}")
+                    completion(
+                        null,
+                        null,
+                        "Decoding error: ${e.localizedMessage}"
+                    )
                 }
             }
             .addOnFailureListener { e ->
-                completion(null, "Error fetching members: ${e.localizedMessage}")
+                completion(
+                    null,
+                    null,
+                    "Error fetching members: ${e.localizedMessage}"
+                )
             }
     }
 

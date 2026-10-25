@@ -93,6 +93,7 @@ import kotlinx.coroutines.launch
 import java.util.Date
 import kotlin.text.toIntOrNull
 import kotlin.text.trim
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun ManagerPaymentView(
@@ -885,7 +886,7 @@ fun ManagerPaymentView(
             ) {
 
                 SingleSelectionPopupView(
-                    listValues = squadViewModel.squadMemberNames.collectAsState().value,
+                    listValues = squadViewModel.squadMembers.collectAsState().value.map { it.localizedMemberName },
                     title = SquadStrings.members,
                     onItemSelected = { selectedValue ->
                         squadViewModel.setShowLoanMembersPopupPopup(false)

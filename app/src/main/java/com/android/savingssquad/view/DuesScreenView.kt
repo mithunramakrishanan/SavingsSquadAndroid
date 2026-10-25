@@ -39,7 +39,6 @@ import com.android.savingssquad.model.Installment
 import com.android.savingssquad.model.NotificationRecipientType
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.PushNotificationRequest
-import com.android.savingssquad.model.ReminderRequest
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.NotificationService

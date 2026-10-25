@@ -155,6 +155,17 @@ class SquadViewModel : ViewModel() {
         _squadMembers.value = list
     }
 
+    private var membersLastDocument: DocumentSnapshot? = null
+
+    private var membersHasMoreData = true
+
+    private var membersIsLoadingMore = false
+
+    var isLoadingMoreMembers by mutableStateOf(false)
+        private set
+
+    private val membersPageSize = 20
+
     private val _squadMembersCount = MutableStateFlow(0)
     val squadMembersCount: StateFlow<Int> = _squadMembersCount
     fun setSquadMembersCount(value: Int) { _squadMembersCount.value = value }
@@ -754,7 +765,6 @@ class SquadViewModel : ViewModel() {
                     // to disappear early even though work was still in flight. All sub-calls
                     // below now pass showLoader = false.
                     val fetchEMI = async { fetchEMIConfigurations(false) { _, _ -> } }
-                    val fetchMembers = async { fetchMembers(false) { _, _, _ -> } }
                     val fetchPayments = async {
                         manager.fetchPayments(
 
@@ -780,7 +790,6 @@ class SquadViewModel : ViewModel() {
                     }
 
                     fetchEMI.await()
-                    fetchMembers.await()
                     fetchPayments.await()
 
                     if (showLoader) LoaderManager.shared.hideLoader()
@@ -1246,77 +1255,6 @@ class SquadViewModel : ViewModel() {
                 }
             }
         }
-
-        // ---------------------------------------------------------
-        // DUPLICATE NAME VALIDATION
-        // ---------------------------------------------------------
-
-        if (_squadMembersCount.value > 0) {
-
-            manager.fetchMembers(
-                squadID = currentSquad.squadID
-            ) { memberNames, error ->
-
-                viewModelScope.launch(Dispatchers.Main) {
-
-                    if (error != null) {
-                        if (showLoader) {
-                            LoaderManager.shared.hideLoader()
-                        }
-
-                        handleFetchError(error) {
-                            addMember(
-                                showLoader = showLoader,
-                                name = name,
-                                phone = phone,
-                                contributionReceived = contributionReceived,
-                                interestReceived = interestReceived,
-                                markCurrentMonthPaid = markCurrentMonthPaid,
-                                completion = completion
-                            )
-                        }
-
-                        completion(false, error)
-                        return@launch
-                    }
-
-                    val normalizedName = CommonFunctions
-                        .cleanUpName(name)
-                        .trim()
-                        .lowercase()
-
-                    val nameExists = memberNames?.any {
-                        it.localizedMemberName
-                            .trim()
-                            .lowercase() == normalizedName
-                    } ?: false
-
-                    if (nameExists) {
-                        if (showLoader) {
-                            LoaderManager.shared.hideLoader()
-                        }
-
-                        AlertManager.shared.showAlert(
-                            title = SquadStrings.savingsSquad,
-                            message = SquadStrings.nameAlreadyExists,
-                            primaryButtonTitle = SquadStrings.ok,
-                            primaryAction = {}
-                        )
-
-                        completion(
-                            false,
-                            SquadStrings.nameAlreadyExists
-                        )
-
-                        return@launch
-                    }
-
-                    addAndSave()
-                }
-            }
-        } else {
-            addAndSave()
-        }
     }
 
     // ✅ fetchMember
@@ -1364,45 +1302,82 @@ class SquadViewModel : ViewModel() {
     }
 
     // ✅ fetchMembers
-    fun fetchMembers(showLoader: Boolean, completion: (Boolean, List<Member>?, String?) -> Unit) {
+    fun fetchMembers(
+        showLoader: Boolean = true,
+        searchText: String = "",
+        completion: (Boolean, List<Member>?, String?) -> Unit
+    ) {
         if (!CommonFunctions.isInternetAvailable()) {
-            AlertManager.shared.showAlert(
-                title = SquadStrings.savingsSquad,
-                message = SquadStrings.networkError,
-                primaryButtonTitle = SquadStrings.ok,
-                primaryAction = {}
-            )
+            completion(false, null, SquadStrings.networkError)
             return
         }
 
-        if (showLoader) LoaderManager.shared.showLoader()
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
 
-        viewModelScope.launch(Dispatchers.IO) { // 🧵 Run Firebase fetch in background
-            manager.fetchMembers(squadID) { fetchedMembers, error ->
+        val search = searchText.trim()
+
+        // Reset pagination for the new search.
+        membersLastDocument = null
+        membersHasMoreData = true
+        membersIsLoadingMore = true
+        isLoadingMoreMembers = true
+
+        viewModelScope.launch(Dispatchers.IO) {
+
+            manager.fetchMembers(
+                squadID = squadID,
+                searchText = search,
+                lastDocument = null,
+                limit = membersPageSize
+            ) { fetchedMembers, lastDocument, error ->
+
                 viewModelScope.launch(Dispatchers.Main) {
-                    setIsFetchingMembers(false)
-                    if (showLoader) LoaderManager.shared.hideLoader()
+
+                    if (showLoader) {
+                        LoaderManager.shared.hideLoader()
+                    }
+
+                    membersIsLoadingMore = false
+                    isLoadingMoreMembers = false
 
                     when {
-                        error == "No members found." -> {
-                            completion(false, null, error)
-                        }
-
                         fetchedMembers != null -> {
 
                             setSquadMembers(fetchedMembers)
-                            setSquadMemberNames(fetchedMembers.map { it.localizedMemberName }.toMutableList())
+
+                            setSquadMemberNames(
+                                fetchedMembers
+                                    .map { it.localizedMemberName }
+                                    .toMutableList()
+                            )
+
+                            membersLastDocument = lastDocument
+
+                            membersHasMoreData =
+                                fetchedMembers.size == membersPageSize
 
                             completion(true, fetchedMembers, null)
                         }
 
-                        else -> {
-                            val errorMsg = error ?: "❌ Failed to fetch members"
-                            setErrorMessage(errorMsg)
+                        error == "No members found." -> {
 
-                            handleFetchError(errorMsg) {
-                                fetchMembers(showLoader, completion)
-                            }
+                            setSquadMembers(emptyList())
+                            setSquadMemberNames(mutableListOf())
+
+                            membersLastDocument = null
+                            membersHasMoreData = false
+
+                            completion(true, emptyList(), null)
+                        }
+
+                        else -> {
+
+                            val errorMsg =
+                                error ?: "Failed to fetch members"
+
+                            setErrorMessage(errorMsg)
 
                             completion(false, null, errorMsg)
                         }
@@ -1412,6 +1387,83 @@ class SquadViewModel : ViewModel() {
         }
     }
 
+    fun loadMoreMembers(
+        searchText: String = ""
+    ) {
+        if (!membersHasMoreData) return
+        if (membersIsLoadingMore) return
+
+        val lastDocument = membersLastDocument ?: return
+
+        if (!CommonFunctions.isInternetAvailable()) return
+
+        membersIsLoadingMore = true
+        isLoadingMoreMembers = true
+
+        viewModelScope.launch(Dispatchers.IO) {
+
+            manager.fetchMembers(
+                squadID = squadID,
+                searchText = searchText.trim(),
+                lastDocument = lastDocument,
+                limit = membersPageSize
+            ) { fetchedMembers, newLastDocument, error ->
+
+                viewModelScope.launch(Dispatchers.Main) {
+
+                    membersIsLoadingMore = false
+                    isLoadingMoreMembers = false
+
+                    if (fetchedMembers != null) {
+
+                        val updated =
+                            squadMembers.value.toMutableList()
+
+                        updated.addAll(fetchedMembers)
+
+                        setSquadMembers(updated)
+
+                        setSquadMemberNames(
+                            updated
+                                .map { it.localizedMemberName }
+                                .toMutableList()
+                        )
+
+                        membersLastDocument = newLastDocument
+
+                        membersHasMoreData =
+                            fetchedMembers.size == membersPageSize
+
+                    } else if (error != null) {
+                        setErrorMessage(error)
+                    }
+                }
+            }
+        }
+    }
+
+    fun loadMoreMembersIfNeeded(
+        currentMember: Member,
+        searchText: String = ""
+    ) {
+        val lastMember = squadMembers.value.lastOrNull() ?: return
+
+        if (currentMember.id != lastMember.id) return
+
+        loadMoreMembers(searchText)
+    }
+
+    fun resetMembersPagination() {
+
+        setSquadMembers(emptyList())
+        setSquadMemberNames(mutableListOf())
+
+        membersLastDocument = null
+        membersHasMoreData = true
+
+        membersIsLoadingMore = false
+        isLoadingMoreMembers = false
+    }
     // ✅ createContributionWhenMemberCreate
     private fun createContributionWhenMemberCreate(member: Member) {
         if (!CommonFunctions.isInternetAvailable()) {
@@ -5123,14 +5175,13 @@ class SquadViewModel : ViewModel() {
         }
     }
 
-    fun updateMemberLoginStatusForSquad(
+    fun updateStatusForSquad(
         showLoader: Boolean,
         phoneNumber: String,
         squadID: String,
         status: String,
         completion: (Boolean, String?) -> Unit
     ) {
-
         if (!CommonFunctions.isInternetAvailable()) {
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
@@ -5138,6 +5189,7 @@ class SquadViewModel : ViewModel() {
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
+
             completion(false, SquadStrings.networkError)
             return
         }
@@ -5146,100 +5198,32 @@ class SquadViewModel : ViewModel() {
             LoaderManager.shared.showLoader()
         }
 
-        val members = squadMembers.value
-        val latch = CountDownLatch(members.size)
+        val squadRef = FirebaseFirestore.getInstance()
+            .collection("squads")
+            .document(squadID)
 
-        var hasError = false
-        var errorMessage: String? = null
+        squadRef.update(
+            "recordStatus",
+            status
+        ).addOnSuccessListener {
 
-        members.forEach { member ->
-
-            manager.updateMemberLoginStatus(
-                phoneNumber = member.phoneNumber,
-                squadID = squadID,
-                recordStatus = status
-            ) { success, error ->
-
-                if (!success) {
-                    hasError = true
-                    errorMessage = error
-                }
-
-                latch.countDown()
+            if (showLoader) {
+                LoaderManager.shared.hideLoader()
             }
+
+            completion(true, null)
+
+        }.addOnFailureListener { error ->
+
+            if (showLoader) {
+                LoaderManager.shared.hideLoader()
+            }
+
+            completion(
+                false,
+                error.localizedMessage ?: "Failed to update squad status."
+            )
         }
-
-        Thread {
-
-            latch.await()
-
-            val db = FirebaseFirestore.getInstance()
-
-            db.collection("users")
-                .document(phoneNumber)
-                .collection("logins")
-                .whereEqualTo("squadID", squadID)
-                .whereEqualTo("role", SquadUserType.SQUAD_MANAGER.name)
-                .get()
-                .addOnSuccessListener { snapshot ->
-
-                    val batch = db.batch()
-
-                    snapshot.documents.forEach { document ->
-                        batch.update(
-                            document.reference,
-                            mapOf(
-                                "recordStatus" to status,
-                                "recordDate" to Timestamp.now()
-                            )
-                        )
-                    }
-
-                    val squadRef = db.collection("squads").document(squadID)
-                    batch.update(
-                        squadRef,
-                        mapOf(
-                            "recordStatus" to status
-                        )
-                    )
-
-                    batch.commit()
-                        .addOnSuccessListener {
-
-                            Handler(Looper.getMainLooper()).post {
-
-                                if (showLoader) {
-                                    LoaderManager.shared.hideLoader()
-                                }
-
-                                completion(!hasError, errorMessage)
-                            }
-                        }
-                        .addOnFailureListener { e ->
-
-                            Handler(Looper.getMainLooper()).post {
-
-                                if (showLoader) {
-                                    LoaderManager.shared.hideLoader()
-                                }
-
-                                completion(false, e.localizedMessage ?: "Failed to update squad.")
-                            }
-                        }
-                }
-                .addOnFailureListener { e ->
-
-                    Handler(Looper.getMainLooper()).post {
-
-                        if (showLoader) {
-                            LoaderManager.shared.hideLoader()
-                        }
-
-                        completion(false, e.localizedMessage ?: "Failed to fetch manager login.")
-                    }
-                }
-
-        }.start()
     }
 
     fun logoutUser(navController: NavController) {

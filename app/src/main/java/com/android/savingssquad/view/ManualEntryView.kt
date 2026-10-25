@@ -136,7 +136,6 @@ fun ManualEntryView(
     // ===== viewmodel state (collected safely) =====
     val squad by squadViewModel.squad.collectAsState() // nullable
     val squadMembers by squadViewModel.squadMembers.collectAsState(initial = emptyList())
-    val squadMemberNames by squadViewModel.squadMemberNames.collectAsState(initial = emptyList())
     val memberPendingLoans by squadViewModel.memberPendingLoans.collectAsState(initial = null)
     val selectedContributions by squadViewModel.selectedContributions.collectAsState(initial = emptyList())
 
@@ -930,7 +929,7 @@ fun ManualEntryView(
                 onDismiss = { squadViewModel.setShowContributionMemberPopup(false) }
             ) {
                 SingleSelectionPopupView(
-                    listValues = squadMemberNames,
+                    listValues = squadViewModel.squadMembers.value.map { it.localizedMemberName },
                     title = SquadStrings.members,
                     onItemSelected = { selectedValue ->
                         squadViewModel.setShowContributionMemberPopup(false)
@@ -984,7 +983,7 @@ fun ManualEntryView(
                 onDismiss = {  squadViewModel.setShowEMIMemberPopup(false) }
             ) {
                 SingleSelectionPopupView(
-                    listValues = squadMemberNames,
+                    listValues = squadViewModel.squadMembers.value.map { it.localizedMemberName },
                     title = SquadStrings.members,
                     onItemSelected = { selectedValue ->
                         squadViewModel.setShowEMIMemberPopup(false)

@@ -40,6 +40,7 @@ import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Date
 import com.android.savingssquad.model.Squad
@@ -79,15 +80,8 @@ fun MembersListView(
 
     var searchText by remember { mutableStateOf("") }
 
-    val filteredLogins = remember(members, searchText) {
-        if (searchText.isEmpty()) {
-            members
-        } else {
-            members.filter {
-                it. memberName.contains(searchText, ignoreCase = true)
-            }
-        }
-    }
+    // Search is performed by Firestore, not against only the loaded page.
+    val filteredMembers = members
 
     val screenType =
         if (UserDefaultsManager.getSquadManagerLogged())
@@ -132,13 +126,14 @@ fun MembersListView(
                 onTextChange = { searchText = it }
             )
 
-            if (filteredLogins.isEmpty()) {
+            if (filteredMembers.isEmpty()) {
                 EmptyMembersView()
             } else {
                 MembersListContent(
-                    members = filteredLogins,
+                    members = filteredMembers,
                     navController = navController,
-                    squadViewModel = squadViewModel
+                    squadViewModel = squadViewModel,
+                    searchText = searchText
                 )
             }
         }
@@ -157,15 +152,20 @@ fun MembersListView(
 
     }
 
-    LaunchedEffect(Unit) {
-        if (!didFetchMembers) {
-            didFetchMembers = true
-            squadViewModel.fetchMembers(showLoader = true) { success, _, error ->
-                if (success) {
-                    println("✅ Members fetched successfully!")
-                } else {
-                    println("❌ Fetch error: ${error ?: "Unknown error"}")
-                }
+    // Debounce search input and query Firestore with the current localized search text.
+    // This also performs the initial fetch (empty search) and reloads all members when cleared.
+    LaunchedEffect(searchText) {
+        delay(300)
+
+        squadViewModel.resetMembersPagination()
+        squadViewModel.fetchMembers(
+            showLoader = searchText.isBlank() && members.isEmpty(),
+            searchText = searchText.trim()
+        ) { success, _, error ->
+            if (success) {
+                println("✅ Members fetched/searched successfully: '$searchText'")
+            } else {
+                println("❌ Members search error: ${error ?: "Unknown error"}")
             }
         }
     }
@@ -198,7 +198,8 @@ fun EmptyMembersView() {
 fun MembersListContent(
     members: List<Member>,
     navController: NavController,
-    squadViewModel: SquadViewModel
+    squadViewModel: SquadViewModel,
+    searchText: String
 ) {
 
 
@@ -223,7 +224,11 @@ fun MembersListContent(
                     }
                 )
 
-                squadViewModel.fetchMembers(showLoader = false) { _, _, _ ->
+                squadViewModel.resetMembersPagination()
+                squadViewModel.fetchMembers(
+                    showLoader = false,
+                    searchText = searchText
+                ) { _, _, _ ->
                     // No-op
                 }
 
@@ -274,7 +279,7 @@ fun MembersListContent(
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
 
-        items(members, key = { it.phoneNumber }) { member ->
+        items(members, key = { it.id ?: it.phoneNumber }) { member ->
 
             if (UserDefaultsManager.getSquadManagerLogged()) {
                 Row(
@@ -293,6 +298,25 @@ fun MembersListContent(
                 }
             } else {
                 MembersListCellView(member) { }
+            }
+
+            // Load the next page when the last currently loaded member is displayed.
+            LaunchedEffect(member.id, members.size) {
+                squadViewModel.loadMoreMembersIfNeeded(
+                    currentMember = member,
+                    searchText = searchText
+                )
+            }
+        }
+
+        if (squadViewModel.isLoadingMoreMembers && members.isNotEmpty()) {
+            item {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp)
+                        .wrapContentWidth(Alignment.CenterHorizontally)
+                )
             }
         }
     }
@@ -326,7 +350,7 @@ fun MembersListCellView(member: Member,onSelectStatus: (RecordStatus) -> Unit) {
         )
         {
             Text(
-                text = member.localizedMemberName.first().toString(),
+                text = member.localizedMemberName.firstOrNull()?.toString() ?: "?",
                 style = AppFont.ibmPlexSans(20, FontWeight.Bold),
                 color = AppColors.primaryButton
             )
