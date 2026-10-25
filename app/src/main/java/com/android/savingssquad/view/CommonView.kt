@@ -1851,122 +1851,16 @@ fun AddMemberPopup(
     val nonPhoneMembersUsedCount = squadMembers.count {
         it.phoneNumber in NON_PHONE_NUMBERS
     }
-
-    // MARK: - Name validation
-
-    fun validateMemberName(): Boolean {
-        val cleanedName = CommonFunctions.cleanUpName(
-            memberNameState.value
-        )
-
-        if (cleanedName.isBlank()) {
-            memberNameError = SquadStrings.nameRequired
-            return false
-        }
-
-        val normalizedName = cleanedName.trim().lowercase()
-
-        val alreadyExists = squadMembers.any {
-            CommonFunctions.cleanUpName(it.localizedMemberName)
-                .trim()
-                .lowercase() == normalizedName
-        }
-
-        if (alreadyExists) {
-            memberNameError = SquadStrings.nameAlreadyExists
-            return false
-        }
-
-        memberNameError = ""
-        return true
-    }
-
-    // MARK: - Phone validation
-
-    fun validatePhoneNumber(): Boolean {
-        val cleanedPhone = CommonFunctions.cleanUpPhoneNumber(
-            phoneNumberState.value
-        )
-
-        if (!Regex("^[0-9]{10}$").matches(cleanedPhone)) {
-            phoneError = SquadStrings.enterValidPhoneNumber
-            return false
-        }
-
-        val alreadyExists = squadMembers.any {
-            CommonFunctions.cleanUpPhoneNumber(it.phoneNumber) == cleanedPhone
-        }
-
-        if (alreadyExists) {
-            phoneError = SquadStrings.mobileNumberAlreadyExists
-            return false
-        }
-
-        phoneError = ""
-        return true
-    }
-
     // MARK: - Debounced name validation
 
     LaunchedEffect(memberNameState.value, squadMembers) {
         memberNameError = ""
-
-        nameValidationJob?.cancel()
-
-        nameValidationJob = coroutineScope.launch {
-            delay(500)
-
-            val cleanedName = CommonFunctions.cleanUpName(
-                memberNameState.value
-            ).trim()
-
-            if (cleanedName.isBlank()) {
-                return@launch
-            }
-
-            val normalizedName = cleanedName.lowercase()
-
-            val exists = squadMembers.any {
-                CommonFunctions.cleanUpName(it.localizedMemberName)
-                    .trim()
-                    .lowercase() == normalizedName
-            }
-
-            if (exists) {
-                memberNameError = SquadStrings.nameAlreadyExists
-            }
-        }
     }
 
     // MARK: - Debounced phone validation
 
     LaunchedEffect(phoneNumberState.value, squadMembers) {
         phoneError = ""
-
-        phoneValidationJob?.cancel()
-
-        phoneValidationJob = coroutineScope.launch {
-            delay(500)
-
-            val cleanedPhone = CommonFunctions.cleanUpPhoneNumber(
-                phoneNumberState.value
-            )
-
-            if (cleanedPhone.length != 10 ||
-                !cleanedPhone.all { it in '0'..'9' }
-            ) {
-                return@launch
-            }
-
-            val exists = squadMembers.any {
-                CommonFunctions.cleanUpPhoneNumber(it.phoneNumber) ==
-                        cleanedPhone
-            }
-
-            if (exists) {
-                phoneError = SquadStrings.mobileNumberAlreadyExists
-            }
-        }
     }
 
     // MARK: - Financial amount sanitization
@@ -2054,9 +1948,6 @@ fun AddMemberPopup(
     // MARK: - Send OTP
 
     fun sendOTP() {
-        if (!validateMemberName() || !validatePhoneNumber()) {
-            return
-        }
 
         val activity = context as? Activity
 
@@ -2069,90 +1960,119 @@ fun AddMemberPopup(
             phoneNumberState.value
         )
 
-        val phoneWithCountryCode = "+91$phone"
+        val cleanedName = CommonFunctions.cleanUpName(
+            memberNameState.value
+        )
 
-        // Reset the previous verification state.
-        otpVerified = false
-        isOTPSent = false
-        otpCodeState.value = ""
-        verificationIDState.value = ""
-        otpAttemptedCode = ""
+        squadViewModel.validateMemberNameAndPhone(
+            showLoader = true,
+            memberName = cleanedName,
+            phoneNumber = phone
+        )
+        { nameExists, phoneExists, error ->
 
-        sendOTPError = ""
-        verifyOTPError = ""
+            when {
+                error != null -> {
+                    // Show validation/network error.
 
-        otpProcessStarted = true
-        squadViewModel.setIsSendingOTP(true)
-
-        val options = PhoneAuthOptions.newBuilder(auth)
-            .setPhoneNumber(phoneWithCountryCode)
-            .setTimeout(60L, TimeUnit.SECONDS)
-            .setActivity(activity)
-            .setCallbacks(
-                object :
-                    PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-
-                    override fun onVerificationCompleted(
-                        credential: PhoneAuthCredential
-                    ) {
-                        /*
-                         * Complete Firebase sign-in rather than marking
-                         * the phone verified before authentication succeeds.
-                         */
-                        signInWithPhoneCredential(credential)
-
-                        squadViewModel.setIsSendingOTP(false)
-                        otpProcessStarted = false
-                    }
-
-                    override fun onVerificationFailed(
-                        exception: FirebaseException
-                    ) {
-                        sendOTPError =
-                            exception.localizedMessage ?: "OTP verification failed"
-
-                        squadViewModel.setIsSendingOTP(false)
-                        otpProcessStarted = false
-
-                        Log.e(
-                            "AddMember",
-                            "Phone verification failed",
-                            exception
-                        )
-                    }
-
-                    override fun onCodeSent(
-                        verificationId: String,
-                        token: PhoneAuthProvider.ForceResendingToken
-                    ) {
-                        verificationIDState.value = verificationId
-
-                        isOTPSent = true
-                        otpProcessStarted = false
-
-                        squadViewModel.setIsSendingOTP(false)
-
-                        Log.d("AddMember", "OTP code sent")
-                    }
-
-                    override fun onCodeAutoRetrievalTimeOut(
-                        verificationId: String
-                    ) {
-                        verificationIDState.value = verificationId
-                    }
                 }
-            )
-            .build()
 
-        PhoneAuthProvider.verifyPhoneNumber(options)
+                nameExists -> {
+                    // Show duplicate member-name error.
+                    memberNameError = SquadStrings.nameAlreadyExists
+                }
+
+                phoneExists -> {
+                    // Show duplicate phone-number error.
+                    phoneError = SquadStrings.mobileNumberAlreadyExists
+                }
+
+                else -> {
+
+                    val phoneWithCountryCode = "+91$phone"
+
+                    // Reset the previous verification state.
+                    otpVerified = false
+                    isOTPSent = false
+                    otpCodeState.value = ""
+                    verificationIDState.value = ""
+                    otpAttemptedCode = ""
+
+                    sendOTPError = ""
+                    verifyOTPError = ""
+
+                    otpProcessStarted = true
+                    squadViewModel.setIsSendingOTP(true)
+
+                    val options = PhoneAuthOptions.newBuilder(auth)
+                        .setPhoneNumber(phoneWithCountryCode)
+                        .setTimeout(60L, TimeUnit.SECONDS)
+                        .setActivity(activity)
+                        .setCallbacks(
+                            object :
+                                PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+
+                                override fun onVerificationCompleted(
+                                    credential: PhoneAuthCredential
+                                ) {
+                                    /*
+                                     * Complete Firebase sign-in rather than marking
+                                     * the phone verified before authentication succeeds.
+                                     */
+                                    signInWithPhoneCredential(credential)
+
+                                    squadViewModel.setIsSendingOTP(false)
+                                    otpProcessStarted = false
+                                }
+
+                                override fun onVerificationFailed(
+                                    exception: FirebaseException
+                                ) {
+                                    sendOTPError =
+                                        exception.localizedMessage ?: "OTP verification failed"
+
+                                    squadViewModel.setIsSendingOTP(false)
+                                    otpProcessStarted = false
+
+                                    Log.e(
+                                        "AddMember",
+                                        "Phone verification failed",
+                                        exception
+                                    )
+                                }
+
+                                override fun onCodeSent(
+                                    verificationId: String,
+                                    token: PhoneAuthProvider.ForceResendingToken
+                                ) {
+                                    verificationIDState.value = verificationId
+
+                                    isOTPSent = true
+                                    otpProcessStarted = false
+
+                                    squadViewModel.setIsSendingOTP(false)
+
+                                    Log.d("AddMember", "OTP code sent")
+                                }
+
+                                override fun onCodeAutoRetrievalTimeOut(
+                                    verificationId: String
+                                ) {
+                                    verificationIDState.value = verificationId
+                                }
+                            }
+                        )
+                        .build()
+
+                    PhoneAuthProvider.verifyPhoneNumber(options)
+                }
+            }
+        }
     }
 
     // MARK: - Add member
 
     fun handleAddMember() {
-        if (!validateMemberName() || !validatePhoneNumber()) {
-            return
-        }
 
         if (!financialAmountsValid) {
             return

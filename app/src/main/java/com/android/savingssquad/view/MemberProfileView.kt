@@ -83,6 +83,7 @@ import com.android.savingssquad.viewmodel.SSToast
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
+import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -724,67 +725,63 @@ fun UpdateMemberPopup(
     }
 
     fun sendOTP() {
-        val phoneWithCode = "+91$phoneNumber"
-        squadViewModel.setIsSendingOTP(true)
-        otpProcessStarted = true
 
-        PhoneAuthProvider.getInstance().verifyPhoneNumber(
-            phoneWithCode,
-            60,
-            TimeUnit.SECONDS,
-            (context as Activity),
-            object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-
-                override fun onVerificationCompleted(credential: PhoneAuthCredential) {}
-
-                override fun onVerificationFailed(e: FirebaseException) {
-                    squadViewModel.setIsSendingOTP(false)
-                    otpProcessStarted = false
-                    sendOTPError = e.localizedMessage ?: "OTP failed"
-                }
-
-                override fun onCodeSent(id: String, token: PhoneAuthProvider.ForceResendingToken) {
-                    squadViewModel.setIsSendingOTP(false)
-                    otpProcessStarted = false
-                    verificationID = id
-                    isOTPSent = true
-                }
-            }
+        squadViewModel.validateMemberNameAndPhone(
+            showLoader = true,
+            memberName = "",
+            phoneNumber = phoneNumber
         )
-    }
+        { nameExists, phoneExists, error ->
 
-    fun handlePhoneNameChange(
-        newValue: String,
-        setError: (String) -> Unit,
-        squadMembers: List<Member>,   // list from ViewModel
-        coroutineScope: CoroutineScope,
-        debounceJob: Job?,
-        onUpdateDebounceJob: (Job?) -> Unit
-    )
-    {
-        // Clear error immediately (like Swift)
-        setError("")
+            when {
+                error != null -> {
+                    // Show validation/network error.
 
-        // Cancel previous debounce job
-        debounceJob?.cancel()
+                }
 
-        // Create new debounce job
-        val newJob = coroutineScope.launch {
-            delay(500)
+                nameExists -> {
+                    // Show duplicate member-name error.
+                }
 
-            val cleanedName = CommonFunctions.cleanUpPhoneNumber(newValue)
+                phoneExists -> {
+                    // Show duplicate phone-number error.
+                    phoneError = SquadStrings.mobileNumberAlreadyExists
+                }
 
-            val exists = squadMembers
-                .map { it.phoneNumber.trim().lowercase() }
-                .contains(cleanedName.trim().lowercase())
+                else -> {
 
-            if (exists) {
-                setError("Mobile name already exists")
+                    val phoneWithCode = "+91$phoneNumber"
+                    squadViewModel.setIsSendingOTP(true)
+                    otpProcessStarted = true
+
+                    PhoneAuthProvider.getInstance().verifyPhoneNumber(
+                        phoneWithCode,
+                        60,
+                        TimeUnit.SECONDS,
+                        (context as Activity),
+                        object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+
+                            override fun onVerificationCompleted(credential: PhoneAuthCredential) {}
+
+                            override fun onVerificationFailed(e: FirebaseException) {
+                                squadViewModel.setIsSendingOTP(false)
+                                otpProcessStarted = false
+                                sendOTPError = e.localizedMessage ?: "OTP failed"
+                            }
+
+                            override fun onCodeSent(id: String, token: PhoneAuthProvider.ForceResendingToken) {
+                                squadViewModel.setIsSendingOTP(false)
+                                otpProcessStarted = false
+                                verificationID = id
+                                isOTPSent = true
+                            }
+                        }
+                    )
+                }
             }
         }
 
-        // Update external reference
-        onUpdateDebounceJob(newJob)
+
     }
 
     fun handleUpdateClick(navController: NavController) {
@@ -872,14 +869,7 @@ fun UpdateMemberPopup(
 
                 LaunchedEffect(phoneState.value) {
                     phoneNumber = phoneState.value
-                    handlePhoneNameChange(
-                        newValue = phoneState.value,
-                        setError = { phoneError = it },
-                        squadMembers = squadViewModel.squadMembers.value,
-                        coroutineScope = coroutineScope,
-                        debounceJob = debounceJob,
-                        onUpdateDebounceJob = { debounceJob = it }
-                    )
+                    phoneError = ""
                 }
 
                 val otpState = remember { mutableStateOf("") }

@@ -1,7 +1,7 @@
 package com.android.savingssquad.singleton
 
-import com.android.savingssquad.model.ReminderRequest
-import com.android.savingssquad.model.ReminderResponse
+import com.android.savingssquad.model.PushNotificationRequest
+import com.android.savingssquad.model.PushNotificationResponse
 import com.google.firebase.functions.FirebaseFunctions
 
 class NotificationService private constructor() {
@@ -13,8 +13,8 @@ class NotificationService private constructor() {
     }
 
     fun sendMemberReminder(
-        request: ReminderRequest,
-        onSuccess: (ReminderResponse) -> Unit,
+        request: PushNotificationRequest,
+        onSuccess: (PushNotificationResponse) -> Unit,
         onError: (Exception) -> Unit
     ) {
 
@@ -34,7 +34,7 @@ class NotificationService private constructor() {
                 try {
                     val data = result.data as? Map<*, *>
 
-                    val response = ReminderResponse(
+                    val response = PushNotificationResponse(
                         success = data?.get("success") as? Boolean,
                         sentTo = (data?.get("sentTo") as? Number)?.toInt()
                     )

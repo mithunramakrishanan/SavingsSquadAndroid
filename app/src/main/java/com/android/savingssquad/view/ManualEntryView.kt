@@ -48,7 +48,6 @@ import com.android.savingssquad.model.LoanPaidType
 import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberOtherPayments
 import com.android.savingssquad.model.PaymentsDetails
-import com.android.savingssquad.model.ReminderRequest
 import com.android.savingssquad.model.unpaidMonths
 import com.android.savingssquad.singleton.AppShadows
 import com.android.savingssquad.singleton.EMIStatus
@@ -76,6 +75,8 @@ import kotlinx.coroutines.Dispatchers
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.graphicsLayer
+import com.android.savingssquad.model.NotificationRecipientType
+import com.android.savingssquad.model.PushNotificationRequest
 import com.android.savingssquad.model.Squad
 import com.android.savingssquad.singleton.MemberPaymentSubType
 import com.android.savingssquad.singleton.SquadStringsEnglish
@@ -386,32 +387,23 @@ fun ManualEntryView(
                                                     squadViewModel.squad?.let { squad ->
 
                                                         NotificationService.shared.sendMemberReminder(
-
-                                                            request = ReminderRequest(
-
-                                                                squadId = squad.value?.squadID
-                                                                    ?: "",
-
-                                                                memberIds = listOf(newPayment.memberId) ,
-
+                                                            request = PushNotificationRequest(
+                                                                squadId = squad.value?.squadID ?: "",
+                                                                memberIds = listOf(newPayment.memberId),
                                                                 title = "Contribution Updated",
-
                                                                 message = "Your contribution for $contributionSelectedMonthYear has been updated by the squad manager.",
-
                                                                 data = mapOf(
-
-                                                                    "screen" to "PAYMENT"
-
-                                                                )
-
+                                                                    "navigate" to "PAYMENT",
+                                                                    "notificationType" to "CONTRIBUTION_UPDATED"
+                                                                ),
+                                                                recipientType = NotificationRecipientType.SELECTED
                                                             ),
-
                                                             onSuccess = { response ->
+                                                                println("✅ Contribution notification sent: ${response.sentTo}")
                                                             },
-
                                                             onError = { error ->
+                                                                println("❌ Failed to send contribution notification: ${error.localizedMessage}")
                                                             }
-
                                                         )
                                                     }
 
@@ -592,34 +584,28 @@ fun ManualEntryView(
 
                                                         squadViewModel.squad?.let { squad ->
 
-                                                            NotificationService.shared.sendMemberReminder(
+                                                            selectedInstallment?.let { installment ->
 
-                                                                request = ReminderRequest(
-
-                                                                    squadId = squad.value?.squadID
-                                                                        ?: "",
-
-                                                                    memberIds = listOf(loanPayment.memberId) ,
-
-                                                                    title = "EMI Payment Updated",
-
-                                                                    message = "Your EMI payment for ${selectedInstallment!!.installmentNumber} has been updated by the squad manager.",
-
-                                                                    data = mapOf(
-
-                                                                        "screen" to "PAYMENT"
-
-                                                                    )
-
-                                                                ),
-
-                                                                onSuccess = { response ->
-                                                                },
-
-                                                                onError = { error ->
-                                                                }
-
-                                                            )
+                                                                NotificationService.shared.sendMemberReminder(
+                                                                    request = PushNotificationRequest(
+                                                                        squadId = squad.value?.squadID ?: "",
+                                                                        memberIds = listOf(loanPayment.memberId),
+                                                                        title = "EMI Payment Updated",
+                                                                        message = "Your EMI payment for ${installment.installmentNumber} has been updated by the squad manager.",
+                                                                        data = mapOf(
+                                                                            "navigate" to "PAYMENT",
+                                                                            "notificationType" to "EMI_PAYMENT_UPDATED"
+                                                                        ),
+                                                                        recipientType = NotificationRecipientType.SELECTED
+                                                                    ),
+                                                                    onSuccess = { response ->
+                                                                        println("✅ EMI notification sent: ${response.sentTo}")
+                                                                    },
+                                                                    onError = { error ->
+                                                                        println("❌ Failed to send EMI notification: ${error.localizedMessage}")
+                                                                    }
+                                                                )
+                                                            }
                                                         }
 
                                                         emiSelectedMemberName = ""
@@ -815,20 +801,23 @@ fun ManualEntryView(
                                                     )
 
                                                     NotificationService.shared.sendMemberReminder(
-                                                        request = ReminderRequest(
+                                                        request = PushNotificationRequest(
                                                             squadId = squad.value?.squadID ?: "",
-                                                            memberIds = squadViewModel.squadMembers.value.mapNotNull { it.id },
                                                             title = "New Payment Recorded",
-                                                            message = "Recorded payment of ${amountInt?.currencyFormattedWithCommas()}. Note: ${selectedMemberOtherPayment?.description}",
+                                                            message = "Recorded payment of ${
+                                                                amountInt?.currencyFormattedWithCommas() ?: "0"
+                                                            }. Note: ${selectedMemberOtherPayment?.description.orEmpty()}",
                                                             data = mapOf(
-                                                                "screen" to "PAYMENT"
-                                                            )
+                                                                "navigate" to "PAYMENT",
+                                                                "notificationType" to "PAYMENT"
+                                                            ),
+                                                            recipientType = NotificationRecipientType.ALL
                                                         ),
-                                                        onSuccess = {
-                                                            // Optional: Log.d("Notification", "Reminder sent")
+                                                        onSuccess = { response ->
+                                                            println("✅ Payment notification sent: ${response.success}")
                                                         },
                                                         onError = { error ->
-
+                                                            println("❌ Failed to send payment notification: ${error.localizedMessage}")
                                                         }
                                                     )
 
@@ -899,20 +888,21 @@ fun ManualEntryView(
                                         squadViewModel.squad?.let { squad ->
 
                                             NotificationService.shared.sendMemberReminder(
-                                                request = ReminderRequest(
+                                                request = PushNotificationRequest(
                                                     squadId = squad.value?.squadID ?: "",
-                                                    memberIds = squadViewModel.squadMembers.value.mapNotNull { it.id },
                                                     title = "New Payment Recorded",
                                                     message = "A payment of ${total.currencyFormattedWithCommas()} has been recorded by the squad manager. Note: $paymentNotes",
                                                     data = mapOf(
-                                                        "screen" to "PAYMENT"
-                                                    )
+                                                        "navigate" to "PAYMENT",
+                                                        "notificationType" to "PAYMENT"
+                                                    ),
+                                                    recipientType = NotificationRecipientType.ALL
                                                 ),
-                                                onSuccess = {
-                                                    // Optional: Log.d("Notification", "Reminder sent")
+                                                onSuccess = { response ->
+                                                    println("✅ Payment notification sent: ${response.success}")
                                                 },
                                                 onError = { error ->
-
+                                                    println("❌ Failed to send payment notification: ${error.localizedMessage}")
                                                 }
                                             )
                                         }
@@ -1099,32 +1089,23 @@ fun ManualEntryView(
                                         squadViewModel.squad?.let { squad ->
 
                                             NotificationService.shared.sendMemberReminder(
-
-                                                request = ReminderRequest(
-
-                                                    squadId = squad.value?.squadID
-                                                        ?: "",
-
+                                                request = PushNotificationRequest(
+                                                    squadId = squad.value?.squadID ?: "",
                                                     memberIds = listOf(loan.memberID),
-
                                                     title = "Loan Closed",
-
                                                     message = "Your loan #${loan.loanNumber} has been force closed by the squad manager.",
-
                                                     data = mapOf(
-
-                                                        "screen" to "PAYMENT"
-
-                                                    )
-
+                                                        "navigate" to "PAYMENT",
+                                                        "notificationType" to "LOAN_CLOSED"
+                                                    ),
+                                                    recipientType = NotificationRecipientType.SELECTED
                                                 ),
-
                                                 onSuccess = { response ->
+                                                    println("✅ Loan closure notification sent: ${response.sentTo}")
                                                 },
-
                                                 onError = { error ->
+                                                    println("❌ Failed to send loan closure notification: ${error.localizedMessage}")
                                                 }
-
                                             )
                                         }
                                     }

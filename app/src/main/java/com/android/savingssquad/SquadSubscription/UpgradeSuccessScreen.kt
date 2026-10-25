@@ -50,7 +50,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.savingssquad.model.NotificationRecipientType
 import com.android.savingssquad.model.PaymentsDetails
+import com.android.savingssquad.model.PushNotificationRequest
 import com.android.savingssquad.model.ReminderRequest
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.LoaderManager
@@ -608,11 +610,8 @@ fun UpgradeSuccessScreen(
                                     )
 
                                     NotificationService.shared.sendMemberReminder(
-                                        request = ReminderRequest(
+                                        request = PushNotificationRequest(
                                             squadId = squad.squadID,
-                                            memberIds = squadViewModel.squadMembers.value.map {
-                                                it.id ?: ""
-                                            },
                                             title = "New Payment Recorded",
                                             message = "A payment of ${
                                                 amountInt.currencyFormattedWithCommas()
@@ -620,14 +619,16 @@ fun UpgradeSuccessScreen(
                                                 SquadStringsEnglish.squadSubscriptionAmountDeducted
                                             }",
                                             data = mapOf(
-                                                "screen" to "PAYMENT"
-                                            )
+                                                "navigate" to "PAYMENT",
+                                                "notificationType" to "PAYMENT"
+                                            ),
+                                            recipientType = NotificationRecipientType.ALL
                                         ),
                                         onSuccess = { response ->
-                                            println(response.success ?: "")
+                                            println("✅ Notification response: ${response.success ?: false}")
                                         },
                                         onError = { error ->
-                                            println(error)
+                                            println("❌ Notification failed: $error")
                                         }
                                     )
 

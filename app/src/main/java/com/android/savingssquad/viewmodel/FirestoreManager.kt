@@ -37,11 +37,13 @@ import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.PayoutStatus
 import com.android.savingssquad.singleton.RecordStatus
 import com.android.savingssquad.singleton.SessionManager
+import com.android.savingssquad.singleton.SquadLanguages
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.SquadStringsEnglish
 import com.android.savingssquad.singleton.SquadStringsHindi
 import com.android.savingssquad.singleton.SquadStringsTamil
 import com.android.savingssquad.singleton.SquadUserType
+import com.android.savingssquad.singleton.UserDefaultsManager
 import com.android.savingssquad.singleton.asTimestamp
 import com.google.firebase.BuildConfig
 import com.google.firebase.Firebase
@@ -4238,6 +4240,95 @@ class FirestoreManager private constructor() {
         memberRef.delete()
             .addOnSuccessListener { completion(true, null) }
             .addOnFailureListener { e -> completion(false, "Error deleting member: ${e.localizedMessage}") }
+    }
+
+    fun validateMemberNameAndPhone(
+        squadID: String,
+        memberName: String,
+        phoneNumber: String,
+        completion: (
+            nameExists: Boolean,
+            phoneExists: Boolean,
+            error: String?
+        ) -> Unit
+    ) {
+        val trimmedName = memberName.trim()
+        val trimmedPhone = phoneNumber.trim()
+
+        val membersRef = FirebaseFirestore.getInstance()
+            .collection("squads")
+            .document(squadID)
+            .collection("members")
+
+        val nameField = when (UserDefaultsManager.getLanguage()) {
+            SquadLanguages.ENGLISH -> "memberNameEnglish"
+            SquadLanguages.TAMIL -> "memberNameTamil"
+            SquadLanguages.HINDI -> "memberNameHindi"
+        }
+
+        val executor = java.util.concurrent.Executors.newFixedThreadPool(2)
+
+        var nameExists = false
+        var phoneExists = false
+
+        val nameTask = if (trimmedName.isNotEmpty()) {
+            membersRef
+                .whereEqualTo(nameField, trimmedName)
+                .limit(1)
+                .get()
+                .continueWithTask(executor) { task ->
+                    if (!task.isSuccessful) {
+                        throw task.exception
+                            ?: Exception("Name validation failed")
+                    }
+
+                    nameExists = !task.result.isEmpty
+                    com.google.android.gms.tasks.Tasks.forResult(Unit)
+                }
+        } else {
+            com.google.android.gms.tasks.Tasks.forResult(Unit)
+        }
+
+        val phoneTask = if (trimmedPhone.isNotEmpty()) {
+            membersRef
+                .whereEqualTo("phoneNumber", trimmedPhone)
+                .limit(1)
+                .get()
+                .continueWithTask(executor) { task ->
+                    if (!task.isSuccessful) {
+                        throw task.exception
+                            ?: Exception("Phone validation failed")
+                    }
+
+                    phoneExists = !task.result.isEmpty
+                    com.google.android.gms.tasks.Tasks.forResult(Unit)
+                }
+        } else {
+            com.google.android.gms.tasks.Tasks.forResult(Unit)
+        }
+
+        com.google.android.gms.tasks.Tasks.whenAllComplete(
+            nameTask,
+            phoneTask
+        ).addOnCompleteListener { task ->
+
+            executor.shutdown()
+
+            val error = listOf(nameTask, phoneTask)
+                .firstOrNull { !it.isSuccessful }
+                ?.exception
+                ?.localizedMessage
+
+            if (error != null) {
+                completion(false, false, error)
+            } else {
+                completion(
+                    nameExists,
+                    phoneExists,
+                    null
+                )
+            }
+        }
     }
 
     fun addMemberWithInitialFinancials(

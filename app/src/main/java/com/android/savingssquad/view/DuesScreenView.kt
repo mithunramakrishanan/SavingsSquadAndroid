@@ -36,7 +36,9 @@ import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
 import kotlinx.coroutines.launch
 import com.android.savingssquad.model.Installment
+import com.android.savingssquad.model.NotificationRecipientType
 import com.android.savingssquad.model.PaymentsDetails
+import com.android.savingssquad.model.PushNotificationRequest
 import com.android.savingssquad.model.ReminderRequest
 import com.android.savingssquad.singleton.EMIStatus
 import com.android.savingssquad.singleton.LoaderManager
@@ -239,44 +241,38 @@ fun DuesScreenView(
                                         LoaderManager.shared.showLoader()
 
                                         NotificationService.shared.sendMemberReminder(
-
-                                            request = ReminderRequest(
-
-                                                squadId = squadViewModel.squad.value?.squadID
-                                                    ?: "",
-
+                                            request = PushNotificationRequest(
+                                                squadId = squadViewModel.squad.value?.squadID ?: "",
                                                 memberIds = contributionRemaindIds,
-
                                                 title = "Contribution Reminder",
-
                                                 message = "Please complete the Contribution Due(s)",
-
                                                 data = mapOf(
-
-                                                    "screen" to "PAYMENT"
-
-                                                )
-
+                                                    "navigate" to "PAYMENT",
+                                                    "notificationType" to "CONTRIBUTION_REMINDER"
+                                                ),
+                                                recipientType = NotificationRecipientType.SELECTED
                                             ),
-
                                             onSuccess = { response ->
                                                 LoaderManager.shared.hideLoader()
+
                                                 ToastManager.show(
                                                     title = SquadStrings.reminderSent,
-                                                    message = SquadStrings.notificationSentToMembers(response.sentTo.toString()),
+                                                    message = SquadStrings.notificationSentToMembers(
+                                                        response.sentTo.toString()
+                                                    ),
                                                     type = ToastType.SUCCESS
                                                 )
                                             },
-
                                             onError = { error ->
                                                 LoaderManager.shared.hideLoader()
+
                                                 ToastManager.show(
                                                     title = "Failed",
-                                                    message = error.localizedMessage ?: "Unable to send reminder.",
+                                                    message = error.localizedMessage
+                                                        ?: "Unable to send reminder.",
                                                     type = ToastType.ERROR
                                                 )
                                             }
-
                                         )
 
                                     }
@@ -313,44 +309,38 @@ fun DuesScreenView(
                                                 onRemind = {
                                                     LoaderManager.shared.showLoader()
                                                     NotificationService.shared.sendMemberReminder(
-
-                                                        request = ReminderRequest(
-
-                                                            squadId = squadViewModel.squad.value?.squadID
-                                                                ?: "",
-
+                                                        request = PushNotificationRequest(
+                                                            squadId = squadViewModel.squad.value?.squadID ?: "",
                                                             memberIds = listOf(contribution.memberID),
-
                                                             title = "Contribution Reminder",
-
                                                             message = "Please complete the contribution for ${contribution.monthYear}",
-
                                                             data = mapOf(
-
-                                                                "screen" to "PAYMENT"
-
-                                                            )
-
+                                                                "navigate" to "PAYMENT",
+                                                                "notificationType" to "CONTRIBUTION_REMINDER"
+                                                            ),
+                                                            recipientType = NotificationRecipientType.SELECTED
                                                         ),
-
                                                         onSuccess = { response ->
                                                             LoaderManager.shared.hideLoader()
+
                                                             ToastManager.show(
                                                                 title = SquadStrings.reminderSent,
-                                                                message = SquadStrings.notificationSentToMember(contribution.memberName),
+                                                                message = SquadStrings.notificationSentToMember(
+                                                                    contribution.memberName
+                                                                ),
                                                                 type = ToastType.SUCCESS
                                                             )
                                                         },
-
                                                         onError = { error ->
                                                             LoaderManager.shared.hideLoader()
+
                                                             ToastManager.show(
                                                                 title = "Failed",
-                                                                message = error.localizedMessage ?: "Unable to send reminder.",
+                                                                message = error.localizedMessage
+                                                                    ?: "Unable to send reminder.",
                                                                 type = ToastType.ERROR
                                                             )
                                                         }
-
                                                     )
 
                                                 }
@@ -387,44 +377,38 @@ fun DuesScreenView(
                                         LoaderManager.shared.showLoader()
 
                                         NotificationService.shared.sendMemberReminder(
-
-                                            request = ReminderRequest(
-
-                                                squadId = squadViewModel.squad.value?.squadID
-                                                    ?: "",
-
+                                            request = PushNotificationRequest(
+                                                squadId = squadViewModel.squad.value?.squadID ?: "",
                                                 memberIds = installmentRemaindIds,
-
                                                 title = "EMI Reminder",
-
                                                 message = "Please complete the EMI Due(s)",
-
                                                 data = mapOf(
-
-                                                    "screen" to "PAYMENT"
-
-                                                )
-
+                                                    "navigate" to "PAYMENT",
+                                                    "notificationType" to "EMI_REMINDER"
+                                                ),
+                                                recipientType = NotificationRecipientType.SELECTED
                                             ),
-
                                             onSuccess = { response ->
                                                 LoaderManager.shared.hideLoader()
+
                                                 ToastManager.show(
                                                     title = SquadStrings.reminderSent,
-                                                    message = SquadStrings.notificationSentToMembers(response.sentTo.toString()),
+                                                    message = SquadStrings.notificationSentToMembers(
+                                                        response.sentTo.toString()
+                                                    ),
                                                     type = ToastType.SUCCESS
                                                 )
                                             },
-
                                             onError = { error ->
                                                 LoaderManager.shared.hideLoader()
+
                                                 ToastManager.show(
                                                     title = "Failed",
-                                                    message = error.localizedMessage ?: "Unable to send reminder.",
+                                                    message = error.localizedMessage
+                                                        ?: "Unable to send reminder.",
                                                     type = ToastType.ERROR
                                                 )
                                             }
-
                                         )
                                     }
                                 }
@@ -461,36 +445,35 @@ fun DuesScreenView(
 
                                                     LoaderManager.shared.showLoader()
                                                     NotificationService.shared.sendMemberReminder(
-
-                                                        request = ReminderRequest(
-
+                                                        request = PushNotificationRequest(
                                                             squadId = squadViewModel.squad.value?.squadID ?: "",
-
                                                             memberIds = listOf(installment.memberID),
-
                                                             title = "EMI Reminder",
-
                                                             message = "Please complete the ${installment.installmentNumber} of ${installment.loanNumber}",
-
                                                             data = mapOf(
-                                                                "screen" to "PAYMENT"
-                                                            )
+                                                                "navigate" to "PAYMENT",
+                                                                "notificationType" to "EMI_REMINDER"
+                                                            ),
+                                                            recipientType = NotificationRecipientType.SELECTED
                                                         ),
-
                                                         onSuccess = { response ->
                                                             LoaderManager.shared.hideLoader()
+
                                                             ToastManager.show(
                                                                 title = SquadStrings.reminderSent,
-                                                                message = SquadStrings.notificationSentToMember(installment.memberName),
+                                                                message = SquadStrings.notificationSentToMember(
+                                                                    installment.memberName
+                                                                ),
                                                                 type = ToastType.SUCCESS
                                                             )
                                                         },
-
                                                         onError = { error ->
                                                             LoaderManager.shared.hideLoader()
+
                                                             ToastManager.show(
                                                                 title = "Failed",
-                                                                message = error.localizedMessage ?: "Unable to send reminder.",
+                                                                message = error.localizedMessage
+                                                                    ?: "Unable to send reminder.",
                                                                 type = ToastType.ERROR
                                                             )
                                                         }

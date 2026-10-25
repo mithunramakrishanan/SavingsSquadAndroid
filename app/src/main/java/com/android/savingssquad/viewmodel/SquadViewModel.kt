@@ -415,14 +415,30 @@ class SquadViewModel : ViewModel() {
 
     fun startObservers(squadID: String) {
 
-        this.squadID = squadID
+        if (squadID.isBlank()) {
+            Log.w("SquadViewModel", "Cannot start observers: squadID is empty")
+            return
+        }
 
-        // Stop previous listeners
+        val previousSquadID = this.squadID
+
+        // 1. Stop previous Firestore listeners
         stopObservers()
 
-        // Start new listeners
+        // 2. Unsubscribe from the previous squad if switching squads
+        if (previousSquadID.isNotBlank() && previousSquadID != squadID) {
+            SquadNotificationTopicManager.unsubscribe(previousSquadID)
+        }
+
+        // 3. Update current squad ID
+        this.squadID = squadID
+
+        // 4. Start Firestore listeners
         observeSquadChanges()
         observeMember()
+
+        // 5. Subscribe to the current squad's FCM topic
+        subscribeToSquadNotifications(squadID)
     }
 
     fun stopObservers() {
@@ -543,6 +559,26 @@ class SquadViewModel : ViewModel() {
                     Log.e("Firestore", "Failed to decode member", e)
                 }
             }
+    }
+
+    // MARK: - Stop Squad Notifications
+
+    fun stopSquadNotifications() {
+        if (squadID.isBlank()) {
+            return
+        }
+
+        SquadNotificationTopicManager.unsubscribe(squadID)
+    }
+
+// MARK: - Squad Notification Subscription
+
+    private fun subscribeToSquadNotifications(squadId: String) {
+        if (squadId.isBlank()) {
+            return
+        }
+
+        SquadNotificationTopicManager.subscribe(squadId)
     }
 
     fun addUserLogin(showLoader: Boolean = true, member: Member) {
@@ -966,6 +1002,95 @@ class SquadViewModel : ViewModel() {
             addAndSave()
         }
     } */
+
+
+    fun validateMemberNameAndPhone(
+        showLoader: Boolean = true,
+        memberName: String,
+        phoneNumber: String,
+        completion: (
+            nameExists: Boolean,
+            phoneExists: Boolean,
+            error: String?
+        ) -> Unit
+    ) {
+
+        // MARK: Internet Validation
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            AlertManager.shared.showAlert(
+                title = SquadStrings.savingsSquad,
+                message = SquadStrings.networkError,
+                primaryButtonTitle = SquadStrings.ok,
+                primaryAction = {}
+            )
+
+            completion(
+                false,
+                false,
+                SquadStrings.networkError
+            )
+            return
+        }
+
+        // MARK: Squad Validation
+
+        val currentSquadID = squadID
+
+        if (currentSquadID.isBlank()) {
+            completion(
+                false,
+                false,
+                "Squad not found"
+            )
+            return
+        }
+
+        // MARK: Show Loader
+
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        // MARK: Validate Member Name and Phone
+
+        manager.validateMemberNameAndPhone(
+            squadID = currentSquadID,
+            memberName = memberName,
+            phoneNumber = phoneNumber
+        ) { nameExists, phoneExists, error ->
+
+            // MARK: Hide Loader
+
+            if (showLoader) {
+                LoaderManager.shared.hideLoader()
+            }
+
+            // MARK: Handle Error
+
+            if (error != null) {
+                Log.e(
+                    "MemberValidation",
+                    "Validation failed: $error"
+                )
+
+                completion(
+                    false,
+                    false,
+                    error
+                )
+                return@validateMemberNameAndPhone
+            }
+
+            // MARK: Return Validation Results
+
+            completion(
+                nameExists,
+                phoneExists,
+                null
+            )
+        }
+    }
 
     fun addMember(
         showLoader: Boolean = true,
@@ -5118,24 +5243,51 @@ class SquadViewModel : ViewModel() {
     }
 
     fun logoutUser(navController: NavController) {
-        UserDefaultsManager.clearAll()
 
-        FirestoreManager.shared.clearFCMTokenForAllUsers(users.value) { success, error ->
+        Log.d("LOGOUT", "User logging out...")
 
-            if (success) {
-                Log.d("LOGOUT", "✅ FCM tokens cleared")
-                FirebaseAuth.getInstance().signOut()
-                SessionManager.logins.clear()
-            } else {
-                Log.e("LOGOUT", "❌ Error: $error")
-            }
+        // 1. Get the current squad ID before clearing local data.
+        val currentSquadID = UserDefaultsManager.getLogin()?.squadID.orEmpty()
 
-            // Guarantee the loader is fully cleared on logout no matter what state it was in.
-            LoaderManager.shared.forceReset()
+        // 2. Unsubscribe from the current squad's FCM topic.
+        SquadNotificationTopicManager.unsubscribe(currentSquadID) {
 
-            navController.navigate(AppDestination.SIGN_IN.route) {
-                popUpTo(0) { inclusive = true }
-                launchSingleTop = true
+            // 3. Stop Firestore listeners.
+            stopObservers()
+
+            // 4. Clear the current squad's notification state and local session data.
+            UserDefaultsManager.clearAll()
+
+            // 5. Clear FCM tokens using your existing implementation.
+            FirestoreManager.shared.clearFCMTokenForAllUsers(users.value) { success, error ->
+
+                // 6. Always complete logout, even if token cleanup fails.
+                try {
+                    FirebaseAuth.getInstance().signOut()
+                    SessionManager.logins.clear()
+
+                    if (success) {
+                        Log.d("LOGOUT", "✅ FCM tokens cleared")
+                    } else {
+                        Log.e("LOGOUT", "⚠️ FCM token cleanup failed: $error")
+                    }
+                } catch (exception: Exception) {
+                    Log.e("LOGOUT", "❌ Sign-out failed", exception)
+                } finally {
+
+                    // 7. Reset the loader.
+                    LoaderManager.shared.forceReset()
+
+                    // 8. Navigate to sign-in.
+                    navController.navigate(AppDestination.SIGN_IN.route) {
+                        popUpTo(0) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+
+                    Log.d("LOGOUT", "✅ Logout flow completed")
+                }
             }
         }
     }
