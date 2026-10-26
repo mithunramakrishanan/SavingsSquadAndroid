@@ -721,6 +721,93 @@ fun MemberHomeView(
     // 🔹 Initial Data Fetch
     // ------------------------------
     LaunchedEffect(Unit) {
+
+
+        if (squadViewModel.squad.value?.recordStatus != RecordStatus.ACTIVE){
+            AlertManager.shared.showAlert(
+                title = SquadStrings.savingsSquad,
+                message =
+                    SquadStrings.squadDeactivatedMessage,
+                type = AlertType.INFO,
+                primaryButtonTitle =
+                    SquadStrings.ok,
+                primaryAction = {
+
+                    if (UserDefaultsManager.getIsMultipleAccount()) {
+
+                        squadViewModel.fetchUserLogins(
+                            showLoader = true,
+                            phoneNumber = squadViewModel.loginMember?.phoneNumber ?: ""
+                        ) { success, loginList, error ->
+
+                            if (loginList != null) {
+
+                                squadViewModel.setShowPopup(
+                                    UserDefaultsManager.getIsMultipleAccount()
+                                )
+
+                                Log.d(
+                                    "MemberHomeView",
+                                    if (success)
+                                        "✅ User logins fetched: ${loginList.size}"
+                                    else
+                                        "❌ $error"
+                                )
+                            }
+                        }
+                    }
+                    else {
+                        squadViewModel.logoutUser(navController)
+                    }
+
+                }
+            )
+            return@LaunchedEffect
+        }
+
+        if (squadViewModel.currentMember.value?.recordStatus != RecordStatus.ACTIVE){
+            AlertManager.shared.showAlert(
+                title = SquadStrings.savingsSquad,
+                message =
+                    SquadStrings.memberDeactivatedMessage,
+                type = AlertType.INFO,
+                primaryButtonTitle =
+                    SquadStrings.ok,
+                primaryAction = {
+
+                    if (UserDefaultsManager.getIsMultipleAccount()) {
+
+                        squadViewModel.fetchUserLogins(
+                            showLoader = true,
+                            phoneNumber = squadViewModel.loginMember?.phoneNumber ?: ""
+                        ) { success, loginList, error ->
+
+                            if (loginList != null) {
+
+                                squadViewModel.setShowPopup(
+                                    UserDefaultsManager.getIsMultipleAccount()
+                                )
+
+                                Log.d(
+                                    "MemberHomeView",
+                                    if (success)
+                                        "✅ User logins fetched: ${loginList.size}"
+                                    else
+                                        "❌ $error"
+                                )
+                            }
+                        }
+                    }
+                    else {
+                        squadViewModel.logoutUser(navController)
+                    }
+
+                }
+            )
+            return@LaunchedEffect
+        }
+
+
         val member = UserDefaultsManager.getLogin() ?: return@LaunchedEffect
 
         squadViewModel.fetchMember(
