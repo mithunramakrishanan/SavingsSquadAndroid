@@ -125,7 +125,10 @@ data class Member(
     var memberCreatedContribuionAmount: Int = 0,
 
     @get:PropertyName("memberCreatedIntrestAmount") @set:PropertyName("memberCreatedIntrestAmount")
-    var memberCreatedIntrestAmount: Int = 0
+    var memberCreatedIntrestAmount: Int = 0,
+
+    @get:PropertyName("totalDuration") @set:PropertyName("totalDuration")
+    var totalDuration: Int = 0
 
 ) {
 
@@ -177,7 +180,8 @@ data class Member(
         verifyAmountCount = 0,
         cashRequested = null,
         memberCreatedContribuionAmount = 0,
-        memberCreatedIntrestAmount = 0
+        memberCreatedIntrestAmount = 0,
+        totalDuration = 0,
     )
 }
 

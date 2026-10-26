@@ -51,7 +51,9 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.firestore
 import com.google.firebase.messaging.FirebaseMessaging
+import com.yourapp.utils.CommonFunctions.getContributionDue
 import com.yourapp.utils.IDGenerator
+import kotlinx.coroutines.tasks.await
 import org.checkerframework.checker.units.qual.Force
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -4510,7 +4512,8 @@ class FirestoreManager private constructor() {
 
             // Initial contribution and interest amounts
             "memberCreatedContribuionAmount" to member.memberCreatedContribuionAmount,
-            "memberCreatedIntrestAmount" to member.memberCreatedIntrestAmount
+            "memberCreatedIntrestAmount" to member.memberCreatedIntrestAmount,
+            "totalDuration" to member.totalDuration
         )
 
         batch.set(memberRef, memberData)
@@ -5111,39 +5114,441 @@ class FirestoreManager private constructor() {
     }
 
     // MARK: - 🔹 Fetch Contributions for a Member
-    fun fetchContributionsForMember(
+    suspend fun fetchContributionsForMember(
+
+        squadID: String,
+
+        memberID: String
+
+    ): Result<List<ContributionDetail>> {
+
+        return try {
+
+            val squadRef = db.collection("squads").document(squadID)
+
+            val memberRef = squadRef
+
+                .collection("members")
+
+                .document(memberID)
+
+            val contributionsRef = memberRef.collection("contributions")
+
+            // 1. Fetch squad details.
+
+            val squadSnapshot = squadRef.get().await()
+
+            if (!squadSnapshot.exists()) {
+
+                return Result.failure(
+
+                    Exception("Squad not found.")
+
+                )
+
+            }
+
+            val squadDuration =
+
+                squadSnapshot.getLong("totalDuration")?.toInt()
+
+                    ?: return Result.failure(
+
+                        Exception("Squad duration is missing.")
+
+                    )
+
+            val squadStartDate =
+
+                squadSnapshot.getTimestamp("squadStartDate")?.toDate()
+
+                    ?: return Result.failure(
+
+                        Exception("Squad start date is missing.")
+
+                    )
+
+            val squadEndDate =
+
+                squadSnapshot.getTimestamp("squadEndDate")?.toDate()
+
+                    ?: return Result.failure(
+
+                        Exception("Squad end date is missing.")
+
+                    )
+
+            if (squadStartDate > squadEndDate) {
+
+                return Result.failure(
+
+                    Exception("Invalid squad date range.")
+
+                )
+
+            }
+
+            // 2. Fetch member details.
+
+            val memberSnapshot = memberRef.get().await()
+
+            if (!memberSnapshot.exists()) {
+
+                return Result.failure(
+
+                    Exception("Member not found.")
+
+                )
+
+            }
+
+            val memberDuration =
+
+                memberSnapshot.getLong("totalDuration")?.toInt() ?: 0
+
+            // 3. Fetch existing contributions.
+
+            val contributionSnapshot = contributionsRef.get().await()
+
+            val existingContributions = contributionSnapshot.documents.mapNotNull {
+
+                    document ->
+
+                document.toObject(ContributionDetail::class.java)?.copy(
+
+                    id = document.id
+
+                )
+
+            }
+
+            // 4. Read the previously synchronized date range.
+
+            val memberStartDate =
+
+                memberSnapshot.getTimestamp("contributionStartDate")?.toDate()
+
+            val memberEndDate =
+
+                memberSnapshot.getTimestamp("contributionEndDate")?.toDate()
+
+            val isSynchronized =
+
+                memberDuration == squadDuration &&
+
+                        sameMonth(memberStartDate, squadStartDate) &&
+
+                        sameMonth(memberEndDate, squadEndDate)
+
+            // If synchronized, return without writes.
+
+            if (isSynchronized) {
+
+                return Result.success(existingContributions)
+
+            }
+
+            // 5. Synchronize the member's contributions.
+
+            synchronizeMemberContributions(
+
+                squadID = squadID,
+
+                memberID = memberID,
+
+                squadStartDate = squadStartDate,
+
+                squadEndDate = squadEndDate,
+
+                memberData = memberSnapshot.data ?: emptyMap()
+
+            )
+
+            // 6. Fetch updated contributions.
+
+            val updatedSnapshot = contributionsRef.get().await()
+
+            val updatedContributions = updatedSnapshot.documents.mapNotNull {
+
+                    document ->
+
+                document.toObject(ContributionDetail::class.java)?.copy(
+
+                    id = document.id
+
+                )
+
+            }
+
+            Result.success(updatedContributions)
+
+        } catch (e: Exception) {
+
+            Result.failure(
+
+                Exception(
+
+                    "Failed to fetch or synchronize contributions: " +
+
+                            (e.localizedMessage ?: "Unknown error"),
+
+                    e
+
+                )
+
+            )
+
+        }
+
+    }
+
+    private fun sameMonth(
+
+        first: Date?,
+
+        second: Date
+
+    ): Boolean {
+
+        if (first == null) return false
+
+        val firstCalendar = Calendar.getInstance().apply {
+
+            time = first
+
+        }
+
+        val secondCalendar = Calendar.getInstance().apply {
+
+            time = second
+
+        }
+
+        return firstCalendar.get(Calendar.YEAR) ==
+
+                secondCalendar.get(Calendar.YEAR) &&
+
+                firstCalendar.get(Calendar.MONTH) ==
+
+                secondCalendar.get(Calendar.MONTH)
+
+    }
+
+    private suspend fun synchronizeMemberContributions(
         squadID: String,
         memberID: String,
-        completion: (List<ContributionDetail>?, String?) -> Unit
+        squadStartDate: Date,
+        squadEndDate: Date,
+        memberData: Map<String, Any>
     ) {
-        val contributionsRef = db.collection("squads")
-            .document(squadID)
+        val squadRef = db.collection("squads").document(squadID)
+
+        val memberRef = squadRef
             .collection("members")
             .document(memberID)
-            .collection("contributions")
 
-        contributionsRef.get()
-            .addOnSuccessListener { snapshot ->
-                val documents = snapshot.documents
-                if (documents.isEmpty()) {
-                    completion(emptyList(), null)
-                    return@addOnSuccessListener
-                }
+        val contributionsRef = memberRef.collection("contributions")
 
-                try {
-                    val contributions = documents.mapNotNull { doc ->
-                        val contribution = doc.toObject(ContributionDetail::class.java)
-                        contribution?.id = doc.id
-                        contribution
-                    }
-                    completion(contributions, null)
-                } catch (e: Exception) {
-                    completion(null, "Decoding error: ${e.localizedMessage}")
-                }
+        val calendar = Calendar.getInstance()
+
+        val startMonth = Calendar.getInstance().apply {
+            time = squadStartDate
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        val endMonth = Calendar.getInstance().apply {
+            time = squadEndDate
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        require(!startMonth.after(endMonth)) {
+            "Squad start month cannot be after end month."
+        }
+
+        val dateFormatter = SimpleDateFormat(
+            "MMM yyyy",
+            Locale.US
+        ).apply {
+            timeZone = calendar.timeZone
+        }
+
+        // 1. Generate valid contribution months.
+        val validMonths = mutableSetOf<String>()
+
+        val current = startMonth.clone() as Calendar
+
+        while (!current.after(endMonth)) {
+            validMonths.add(dateFormatter.format(current.time))
+            current.add(Calendar.MONTH, 1)
+        }
+
+        // 2. Read existing contribution records.
+        val contributionSnapshot = contributionsRef.get().await()
+        val documents = contributionSnapshot.documents
+
+        // 3. Fetch latest squad data.
+        val squadSnapshot = squadRef.get().await()
+
+        val squadDuration = squadSnapshot.getLong("totalDuration")?.toInt()
+            ?: throw Exception("Squad duration is missing.")
+
+        val latestStartDate =
+            squadSnapshot.getTimestamp("squadStartDate")?.toDate()
+                ?: throw Exception("Squad start date is missing.")
+
+        val latestEndDate =
+            squadSnapshot.getTimestamp("squadEndDate")?.toDate()
+                ?: throw Exception("Squad end date is missing.")
+
+        // Reject stale dates.
+        require(sameDay(latestStartDate, squadStartDate) &&
+                sameDay(latestEndDate, squadEndDate)) {
+            "Squad dates changed during synchronization. Please retry."
+        }
+
+        val oldDuration =
+            (memberData["totalDuration"] as? Number)?.toInt() ?: 0
+
+        // 4. Duration reduction rule.
+        val currentMonth = Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        require(!(squadDuration < oldDuration &&
+                !endMonth.after(currentMonth))) {
+            "Duration cannot be reduced to the current month or an earlier month."
+        }
+
+        // 5. Identify missing months.
+        val existingMonths = documents.mapNotNull {
+            it.getString("monthYear")
+        }.toSet()
+
+        val missingMonths = validMonths - existingMonths
+
+        // 6. Identify outdated unpaid automatic contributions.
+        // Preserve paid records, manual records, and unknown statuses.
+        val outdatedDocuments = documents.filter { document ->
+            val month = document.getString("monthYear")
+                ?: return@filter false
+
+            if (month in validMonths) {
+                return@filter false
             }
-            .addOnFailureListener { e ->
-                completion(null, "Error fetching contributions: ${e.localizedMessage}")
-            }
+
+            val paidStatus = document.getString("paidStatus")
+                ?.lowercase()
+                ?.replace(" ", "")
+                ?: ""
+
+            val entryType = document.getString("paymentEntryType")
+                ?.lowercase()
+                ?.replace(" ", "")
+                ?: ""
+
+            paidStatus == "notpaid" &&
+                    entryType == "automaticentry"
+        }
+
+        // 7. One batch includes every write for this member.
+        val totalWrites =
+            missingMonths.size + outdatedDocuments.size + 3
+
+        require(totalWrites <= 500) {
+            "Atomic synchronization requires more than 500 writes. " +
+                    "No changes were committed."
+        }
+
+        val batch = db.batch()
+
+        val memberName = memberData["memberName"] as? String ?: ""
+        val memberNameHindi = memberData["memberNameHindi"] as? String ?: ""
+        val memberNameTamil = memberData["memberNameTamil"] as? String ?: ""
+        val memberNameEnglish = memberData["memberNameEnglish"] as? String ?: ""
+
+        val monthlyContribution =
+            (squadSnapshot.get("monthlyContribution") as? Number)?.toInt() ?: 0
+
+        // 8. Create missing contribution records.
+        for (month in missingMonths) {
+            val contributionID = IDGenerator.generateContributionID(
+                memberId = memberID,
+                monthYear = month
+            )
+
+            val dueDate = getContributionDue(month)
+
+            val contribution = hashMapOf<String, Any?>(
+                "id" to contributionID,
+                "orderId" to "",
+                "memberID" to memberID,
+                "memberName" to memberName,
+                "memberNameHindi" to memberNameHindi,
+                "memberNameTamil" to memberNameTamil,
+                "memberNameEnglish" to memberNameEnglish,
+                "monthYear" to month,
+                "amount" to monthlyContribution,
+                "paidOn" to null,
+                "paidStatus" to "notPaid",
+                "paymentEntryType" to "automaticEntry",
+                "recordStatus" to "active",
+                "recordDate" to Timestamp.now(),
+                "dueDate" to dueDate
+            )
+
+            batch.set(
+                contributionsRef.document(contributionID),
+                contribution
+            )
+        }
+
+        // 9. Delete only eligible outdated records.
+        for (document in outdatedDocuments) {
+            batch.delete(document.reference)
+        }
+
+        // 10. Update member duration and synchronization metadata.
+        batch.update(
+            memberRef,
+            mapOf(
+                "totalDuration" to squadDuration,
+                "contributionStartDate" to Timestamp(startMonth.time),
+                "contributionEndDate" to Timestamp(endMonth.time)
+            )
+        )
+
+        // 11. Commit all writes atomically.
+        batch.commit().await()
+    }
+
+    private fun sameDay(
+        first: Date,
+        second: Date
+    ): Boolean {
+        val firstCalendar = Calendar.getInstance().apply {
+            time = first
+        }
+
+        val secondCalendar = Calendar.getInstance().apply {
+            time = second
+        }
+
+        return firstCalendar.get(Calendar.YEAR) ==
+                secondCalendar.get(Calendar.YEAR) &&
+                firstCalendar.get(Calendar.DAY_OF_YEAR) ==
+                secondCalendar.get(Calendar.DAY_OF_YEAR)
     }
 
     // MARK: - 🔹 Fetch Total Contribution

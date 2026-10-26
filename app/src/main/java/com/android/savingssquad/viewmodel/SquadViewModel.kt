@@ -161,8 +161,7 @@ class SquadViewModel : ViewModel() {
 
     private var membersIsLoadingMore = false
 
-    var isLoadingMoreMembers by mutableStateOf(false)
-        private set
+    var isLoadingMoreMembers: Boolean = false
 
     private val membersPageSize = 20
 
@@ -1183,7 +1182,8 @@ class SquadViewModel : ViewModel() {
             verifyAmountCount = 0,
             cashRequested = false,
             memberCreatedContribuionAmount = contributionReceived,
-            memberCreatedIntrestAmount = interestReceived
+            memberCreatedIntrestAmount = interestReceived,
+            totalDuration = squad.totalDuration
         )
 
         // ---------------------------------------------------------

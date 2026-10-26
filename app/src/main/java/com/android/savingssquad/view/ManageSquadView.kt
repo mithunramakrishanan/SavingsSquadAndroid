@@ -365,36 +365,23 @@ private fun saveChanges(
     }
 
     squadViewModel.updateSquad(true, updatedSquad) { success, updatedGF, error ->
-        if (success && updatedGF != null) {
-            squadViewModel.contibutionEditWhenMonthsChanged(
-                showLoader = true,
-                squad = updatedGF,
-                squadEndDate = endDate ?: Date(),
-                amount = updatedGF.monthlyContribution.toString()
-            ) { contSuccess, message ->
-                LoaderManager.shared.hideLoader()
-                if (contSuccess) {
+        LoaderManager.shared.hideLoader()
+        if (success) {
+            squadViewModel.createSquadActivity(
+                activityType = com.android.savingssquad.singleton.SquadActivityType.OTHER_ACTIVITY,
+                memberName = SquadStrings.squadManager,
+                memberNameHindi = SquadStringsHindi.squadManager,
+                memberNameTamil = SquadStringsTamil.squadManager,
+                memberNameEnglish = SquadStringsEnglish.squadManager,
+                memberId = "",
+                amount = 0,
+                description = getActivityDescriptionEnglish(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited), descriptionTamil = getActivityDescriptionTamil(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited), descriptionHindi = getActivityDescriptionHindi(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited)
+            )
 
-                    squadViewModel.createSquadActivity(
-                        activityType = com.android.savingssquad.singleton.SquadActivityType.OTHER_ACTIVITY,
-                        memberName = SquadStrings.squadManager,
-                        memberNameHindi = SquadStringsHindi.squadManager,
-                        memberNameTamil = SquadStringsTamil.squadManager,
-                        memberNameEnglish = SquadStringsEnglish.squadManager,
-                        memberId = "",
-                        amount = 0,
-                        description = getActivityDescriptionEnglish(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited), descriptionTamil = getActivityDescriptionTamil(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited), descriptionHindi = getActivityDescriptionHindi(originalDuration,currentDuration,originalAmount,currentAmount,squadAmountEdited,squadDurationEdited)
-                    )
+            onSuccess()
 
-                    onSuccess()
-
-                } else {
-                    println("❌ Error updating contributions: $message")
-                }
-            }
         } else {
-            LoaderManager.shared.hideLoader()
-            println("❌ Error: ${error ?: "Unknown error"}")
+            println("❌ Error updating squad")
         }
     }
 }

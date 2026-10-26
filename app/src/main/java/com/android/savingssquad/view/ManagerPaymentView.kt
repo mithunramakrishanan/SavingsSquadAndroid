@@ -885,26 +885,33 @@ fun ManagerPaymentView(
                 onDismiss = { squadViewModel.setShowLoanMembersPopupPopup(false) }
             ) {
 
-                SingleSelectionPopupView(
-                    listValues = squadViewModel.squadMembers.collectAsState().value.map { it.localizedMemberName },
-                    title = SquadStrings.members,
-                    onItemSelected = { selectedValue ->
+                MemberNameSelectionPopup(
+
+                    showPopup = true,
+
+                    squadId = squadViewModel.squad.value?.squadID ?: "",
+
+                    squadViewModel = squadViewModel,
+
+                    onDismiss = {
+
                         squadViewModel.setShowLoanMembersPopupPopup(false)
-                        val member = CommonFunctions.getMember(
-                            by = selectedValue,
-                            from = squadViewModel.squadMembers.value
-                        )
-                        loanSelectedMember = member
+
+                    },
+
+                    onSelect = { selectedMember ->
+
+                        squadViewModel.setShowLoanMembersPopupPopup(false)
+
+                        loanSelectedMember = selectedMember
                         loanSelectedMemberNameError = ""
                         squadViewModel.fetchMemberLoans(
                             showLoader = true,
-                            memberID = member?.id ?: ""
+                            memberID = selectedMember.id ?: ""
                         ) { _, _ -> }
-                    },
-                    onCancelClick = {
-                        squadViewModel.setShowLoanMembersPopupPopup(false)
 
                     }
+
                 )
             }
         }

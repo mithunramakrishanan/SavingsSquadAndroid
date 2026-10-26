@@ -928,13 +928,25 @@ fun ManualEntryView(
                 showPopup = remember { mutableStateOf(true) },
                 onDismiss = { squadViewModel.setShowContributionMemberPopup(false) }
             ) {
-                SingleSelectionPopupView(
-                    listValues = squadViewModel.squadMembers.value.map { it.localizedMemberName },
-                    title = SquadStrings.members,
-                    onItemSelected = { selectedValue ->
+
+                MemberNameSelectionPopup(
+
+                    showPopup = true,
+
+                    squadId = squadViewModel.squad.value?.squadID ?: "",
+
+                    squadViewModel = squadViewModel,
+
+                    onDismiss = {
+
                         squadViewModel.setShowContributionMemberPopup(false)
-                        contributionSelectedMemberName = selectedValue
-                        contributionSelectedMember = CommonFunctions.getMember(by = selectedValue, from = squadMembers)
+
+                    },
+
+                    onSelect =  { selectedValue ->
+                        squadViewModel.setShowContributionMemberPopup(false)
+                        contributionSelectedMemberName = selectedValue.localizedMemberName
+                        contributionSelectedMember = selectedValue
                         // fetch unpaid months for member
                         val member = contributionSelectedMember
                         val groupId = squad?.squadID
@@ -949,8 +961,8 @@ fun ManualEntryView(
                                 }
                             }
                         }
-                    },
-                    onCancelClick = {squadViewModel.setShowContributionMemberPopup(false)}
+                    }
+
                 )
             }
         }
@@ -982,28 +994,40 @@ fun ManualEntryView(
                 showPopup = remember { mutableStateOf(true) },
                 onDismiss = {  squadViewModel.setShowEMIMemberPopup(false) }
             ) {
-                SingleSelectionPopupView(
-                    listValues = squadViewModel.squadMembers.value.map { it.localizedMemberName },
-                    title = SquadStrings.members,
-                    onItemSelected = { selectedValue ->
+
+                MemberNameSelectionPopup(
+
+                    showPopup = true,
+
+                    squadId = squadViewModel.squad.value?.squadID ?: "",
+
+                    squadViewModel = squadViewModel,
+
+                    onDismiss = {
+
                         squadViewModel.setShowEMIMemberPopup(false)
-                        emiSelectedMemberName = selectedValue
-                        emiSelectedMember = CommonFunctions.getMember(by = selectedValue, from = squadMembers)
-                        if (emiSelectedMemberName.isEmpty()) {
 
-                            ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.pleaseSelectMember, type = ToastType.ERROR)
+                    },
 
-                        }
-                        else {
+                    onSelect = { selectedValue ->
+                            squadViewModel.setShowEMIMemberPopup(false)
+                            emiSelectedMemberName = selectedValue.localizedMemberName
+                            emiSelectedMember = selectedValue
+                            if (emiSelectedMemberName.isEmpty()) {
 
-                            LoaderManager.shared.showLoader()
-                            squadViewModel.fetchMemberLoans(showLoader = true, memberID = emiSelectedMember?.id ?: "") { success, error ->
-                                LoaderManager.shared.hideLoader()
-                                // memberPendingLoans will be updated via viewmodel state
+                                ToastManager.show(title = SquadStrings.savingsSquad, message = SquadStrings.pleaseSelectMember, type = ToastType.ERROR)
+
+                            }
+                            else {
+
+                                LoaderManager.shared.showLoader()
+                                squadViewModel.fetchMemberLoans(showLoader = true, memberID = emiSelectedMember?.id ?: "") { success, error ->
+                                    LoaderManager.shared.hideLoader()
+                                    // memberPendingLoans will be updated via viewmodel state
+                                }
                             }
                         }
-                    },
-                    onCancelClick = {squadViewModel.setShowEMIMemberPopup(false)}
+
                 )
             }
         }
