@@ -107,8 +107,7 @@ fun MemberHomeView(
     )
     {
         AppBackgroundGradient()
-        if (squad != null) {
-
+        squad?.let { it1 ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
@@ -321,46 +320,54 @@ fun MemberHomeView(
                     }
                 }
 
+                squad?.showTotalPaymentToMember.let { showTotalPaymentToMember ->
 
-                // ---------------------------------------------------------
-                // Current Available Fund
-                // ---------------------------------------------------------
-                item {
+                    if (showTotalPaymentToMember == true) {
 
-                    squad?.let { currentSquad ->
+                        // ---------------------------------------------------------
+                        // Current Available Fund
+                        // ---------------------------------------------------------
+                        item {
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                            squad?.let { currentSquad ->
 
-                            MemberDashBoardCard(
-                                title = SquadStrings.currentAvailableFund,
-                                value =
-                                    currentSquad.currentAvailableAmount
-                                        .currencyFormattedWithCommas(),
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
 
-                                subDetails = listOf(
-                                    "creditcard" to
-                                            SquadStrings.asOfDate(CommonFunctions.dateToString(
-                                                Date(),
-                                                "MMM yyyy"
-                                            ))
-                                ),
+                                    MemberDashBoardCard(
+                                        title = SquadStrings.currentAvailableFund,
+                                        value =
+                                            currentSquad.currentAvailableAmount
+                                                .currencyFormattedWithCommas(),
 
-                                onClick = {
-                                    navController.navigate(
-                                        AppDestination.ACCOUNT_SUMMARY.route
+                                        subDetails = listOf(
+                                            "creditcard" to
+                                                    SquadStrings.asOfDate(CommonFunctions.dateToString(
+                                                        Date(),
+                                                        "MMM yyyy"
+                                                    ))
+                                        ),
+
+                                        onClick = {
+                                            navController.navigate(
+                                                AppDestination.ACCOUNT_SUMMARY.route
+                                            )
+                                        }
                                     )
                                 }
-                            )
+
+
+                            }
                         }
-
-
                     }
+
                 }
+
+
 
 
                 // ---------------------------------------------------------
@@ -370,42 +377,42 @@ fun MemberHomeView(
 
                     item {
 
-                            SectionView(
-                                title = SquadStrings.remainders
-                            )
-                            {
+                        SectionView(
+                            title = SquadStrings.remainders
+                        )
+                        {
 
-                                LazyRow(
-                                    contentPadding =
-                                        PaddingValues(horizontal = 16.dp),
+                            LazyRow(
+                                contentPadding =
+                                    PaddingValues(horizontal = 16.dp),
 
-                                    horizontalArrangement =
-                                        Arrangement.spacedBy(15.dp)
-                                ) {
+                                horizontalArrangement =
+                                    Arrangement.spacedBy(15.dp)
+                            ) {
 
-                                    items(
-                                        items = remainders,
-                                        key = { it.id }
-                                    ) { reminder ->
+                                items(
+                                    items = remainders,
+                                    key = { it.id }
+                                ) { reminder ->
 
-                                        RemainderCardView(
-                                            title = reminder.remainderTitle,
-                                            subtitle = reminder.remainderSubTitle,
-                                            amount =
-                                                reminder.remainderAmount.toString(),
-                                            dueDate =
-                                                reminder.remainderDueDate.orNow
-                                        ) {
+                                    RemainderCardView(
+                                        title = reminder.remainderTitle,
+                                        subtitle = reminder.remainderSubTitle,
+                                        amount =
+                                            reminder.remainderAmount.toString(),
+                                        dueDate =
+                                            reminder.remainderDueDate.orNow
+                                    ) {
 
-                                            UserDefaultsManager.saveRemainder(
-                                                reminder
-                                            )
+                                        UserDefaultsManager.saveRemainder(
+                                            reminder
+                                        )
 
-                                            onChangeTab(1)
-                                        }
+                                        onChangeTab(1)
                                     }
                                 }
                             }
+                        }
                     }
 
                 } else {
@@ -721,92 +728,6 @@ fun MemberHomeView(
     // 🔹 Initial Data Fetch
     // ------------------------------
     LaunchedEffect(Unit) {
-
-
-        if (squadViewModel.squad.value?.recordStatus != RecordStatus.ACTIVE){
-            AlertManager.shared.showAlert(
-                title = SquadStrings.savingsSquad,
-                message =
-                    SquadStrings.squadDeactivatedMessage,
-                type = AlertType.INFO,
-                primaryButtonTitle =
-                    SquadStrings.ok,
-                primaryAction = {
-
-                    if (UserDefaultsManager.getIsMultipleAccount()) {
-
-                        squadViewModel.fetchUserLogins(
-                            showLoader = true,
-                            phoneNumber = squadViewModel.loginMember?.phoneNumber ?: ""
-                        ) { success, loginList, error ->
-
-                            if (loginList != null) {
-
-                                squadViewModel.setShowPopup(
-                                    UserDefaultsManager.getIsMultipleAccount()
-                                )
-
-                                Log.d(
-                                    "MemberHomeView",
-                                    if (success)
-                                        "✅ User logins fetched: ${loginList.size}"
-                                    else
-                                        "❌ $error"
-                                )
-                            }
-                        }
-                    }
-                    else {
-                        squadViewModel.logoutUser(navController)
-                    }
-
-                }
-            )
-            return@LaunchedEffect
-        }
-
-        if (squadViewModel.currentMember.value?.recordStatus != RecordStatus.ACTIVE){
-            AlertManager.shared.showAlert(
-                title = SquadStrings.savingsSquad,
-                message =
-                    SquadStrings.memberDeactivatedMessage,
-                type = AlertType.INFO,
-                primaryButtonTitle =
-                    SquadStrings.ok,
-                primaryAction = {
-
-                    if (UserDefaultsManager.getIsMultipleAccount()) {
-
-                        squadViewModel.fetchUserLogins(
-                            showLoader = true,
-                            phoneNumber = squadViewModel.loginMember?.phoneNumber ?: ""
-                        ) { success, loginList, error ->
-
-                            if (loginList != null) {
-
-                                squadViewModel.setShowPopup(
-                                    UserDefaultsManager.getIsMultipleAccount()
-                                )
-
-                                Log.d(
-                                    "MemberHomeView",
-                                    if (success)
-                                        "✅ User logins fetched: ${loginList.size}"
-                                    else
-                                        "❌ $error"
-                                )
-                            }
-                        }
-                    }
-                    else {
-                        squadViewModel.logoutUser(navController)
-                    }
-
-                }
-            )
-            return@LaunchedEffect
-        }
-
 
         val member = UserDefaultsManager.getLogin() ?: return@LaunchedEffect
 

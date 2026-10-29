@@ -898,7 +898,7 @@ fun ManagerPaymentView(
                         squadViewModel.setShowLoanMembersPopupPopup(false)
 
                     },
-
+                    showSelectAll = false,
                     onSelect = { selectedMember ->
 
                         squadViewModel.setShowLoanMembersPopupPopup(false)

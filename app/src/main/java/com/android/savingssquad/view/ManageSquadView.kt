@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -90,6 +91,12 @@ fun ManageSquadView(
     val durationFocusRequester = remember { FocusRequester() }
     val amountFocusRequester = remember { FocusRequester() }
 
+    var showTotalPaymentToMember by rememberSaveable {
+        mutableStateOf(
+            squadViewModel.squad.value?.showTotalPaymentToMember ?: false
+        )
+    }
+
     LaunchedEffect(squadState) {
         squadState?.let { gf ->
             squadName.value = gf.squadName
@@ -101,6 +108,7 @@ fun ManageSquadView(
             originalSquadDuration.value = gf.totalDuration
             originalSquadAmount.value = gf.monthlyContribution
             totalSquadAmount = gf.currentAvailableAmount
+            showTotalPaymentToMember = gf.showTotalPaymentToMember
         }
     }
 
@@ -270,6 +278,41 @@ fun ManageSquadView(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+
+
+            SquadToggleView(
+
+                title = SquadStrings.toggleTitlePaymentShowToMember,
+
+                subtitle = SquadStrings.toggleSubtitlePaymentShowToMember,
+
+                isOn = showTotalPaymentToMember,
+
+                onToggleChange = { newValue ->
+
+                    showTotalPaymentToMember = newValue
+
+                    val squad = squadViewModel.squad.value
+
+                    if (squad != null) {
+
+                        val updatedSquad = squad.copy(
+
+                            showTotalPaymentToMember = newValue
+
+                        )
+
+                        squadViewModel.updateSquad(
+
+                            showLoader = true,
+
+                            squad = updatedSquad
+
+                        ) { success, updatedSquad, error ->
+                        }
+                    }
+                }
+            )
 
             /*SquadAmountQuickEditView(
                 squadViewModel = squadViewModel,

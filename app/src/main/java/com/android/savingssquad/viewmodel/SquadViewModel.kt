@@ -62,7 +62,6 @@ import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.yourapp.utils.CommonFunctions
 import com.yourapp.utils.IDGenerator
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import java.util.Date
@@ -75,6 +74,9 @@ import java.util.Locale
 import java.util.Calendar
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SquadViewModel : ViewModel() {
 
@@ -298,6 +300,10 @@ class SquadViewModel : ViewModel() {
     val showLoanMembersPopup: StateFlow<Boolean> = _showLoanMembersPopup
     fun setShowLoanMembersPopupPopup(value: Boolean) { _showLoanMembersPopup.value = value }
 
+    private val _showMembersListPopup = MutableStateFlow(false)
+    val showMembersListPopup: StateFlow<Boolean> = _showMembersListPopup
+    fun setShowMembersListPopup(value: Boolean) { _showMembersListPopup.value = value }
+
     private val _showEMIConfigPopup = MutableStateFlow(false)
     val showEMIConfigPopup: StateFlow<Boolean> = _showEMIConfigPopup
     fun setShowEMIConfigPopup(value: Boolean) { _showEMIConfigPopup.value = value }
@@ -501,6 +507,51 @@ class SquadViewModel : ViewModel() {
                     if (squad != null) {
 
                         setSquad(squad)
+
+                        if (!UserDefaultsManager.getSquadManagerLogged()) {
+
+                            if (squad.recordStatus != RecordStatus.ACTIVE){
+                                AlertManager.shared.showAlert(
+                                    title = SquadStrings.savingsSquad,
+                                    message =
+                                        SquadStrings.squadDeactivatedMessage,
+                                    type = AlertType.INFO,
+                                    primaryButtonTitle =
+                                        SquadStrings.ok,
+                                    primaryAction = {
+
+                                        if (UserDefaultsManager.getIsMultipleAccount()) {
+
+                                            fetchUserLogins(
+                                                showLoader = true,
+                                                phoneNumber = loginMember?.phoneNumber ?: ""
+                                            ) { success, loginList, error ->
+
+                                                if (loginList != null) {
+
+                                                    setShowPopup(
+                                                        UserDefaultsManager.getIsMultipleAccount()
+                                                    )
+
+                                                    Log.d(
+                                                        "MemberHomeView",
+                                                        if (success)
+                                                            "✅ User logins fetched: ${loginList.size}"
+                                                        else
+                                                            "❌ $error"
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        else {
+//                                            logoutUser(navController)
+                                        }
+
+                                    }
+                                )
+                            }
+                        }
+
                         setSquadMembersCount(
                             squad.totalMembers
                         )
@@ -558,6 +609,50 @@ class SquadViewModel : ViewModel() {
 
                     if (member != null) {
                         setCurrentMember(member)
+
+                        if (!UserDefaultsManager.getSquadManagerLogged()) {
+                            if (member.recordStatus != RecordStatus.ACTIVE){
+                                LoaderManager.shared.hideLoader()
+                                AlertManager.shared.showAlert(
+                                    title = SquadStrings.savingsSquad,
+                                    message =
+                                        SquadStrings.memberDeactivatedMessage,
+                                    type = AlertType.INFO,
+                                    primaryButtonTitle =
+                                        SquadStrings.ok,
+                                    primaryAction = {
+
+                                        if (UserDefaultsManager.getIsMultipleAccount()) {
+
+                                            fetchUserLogins(
+                                                showLoader = true,
+                                                phoneNumber = loginMember?.phoneNumber ?: ""
+                                            ) { success, loginList, error ->
+
+                                                if (loginList != null) {
+
+                                                    setShowPopup(
+                                                        UserDefaultsManager.getIsMultipleAccount()
+                                                    )
+
+                                                    Log.d(
+                                                        "MemberHomeView",
+                                                        if (success)
+                                                            "✅ User logins fetched: ${loginList.size}"
+                                                        else
+                                                            "❌ $error"
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        else {
+//                                            logoutUser(navController)
+                                        }
+
+                                    }
+                                )
+                            }
+                        }
 
                         // verifyAmountCount is an Int, not Int?
                         setVerifySquadMemberAmountBadgeCount(
@@ -746,6 +841,52 @@ class SquadViewModel : ViewModel() {
                     }
 
                     setSquad(fetchedSquad)
+
+                    if (!UserDefaultsManager.getSquadManagerLogged()) {
+
+                        if (fetchedSquad.recordStatus != RecordStatus.ACTIVE){
+                            AlertManager.shared.showAlert(
+                                title = SquadStrings.savingsSquad,
+                                message =
+                                    SquadStrings.squadDeactivatedMessage,
+                                type = AlertType.INFO,
+                                primaryButtonTitle =
+                                    SquadStrings.ok,
+                                primaryAction = {
+
+                                    if (UserDefaultsManager.getIsMultipleAccount()) {
+
+                                        fetchUserLogins(
+                                            showLoader = true,
+                                            phoneNumber = loginMember?.phoneNumber ?: ""
+                                        ) { success, loginList, error ->
+
+                                            if (loginList != null) {
+
+                                                setShowPopup(
+                                                    UserDefaultsManager.getIsMultipleAccount()
+                                                )
+
+                                                Log.d(
+                                                    "MemberHomeView",
+                                                    if (success)
+                                                        "✅ User logins fetched: ${loginList.size}"
+                                                    else
+                                                        "❌ $error"
+                                                )
+                                            }
+                                        }
+                                    }
+                                    else {
+//                                            logoutUser(navController)
+                                    }
+
+                                }
+                            )
+                        }
+                    }
+
+
                     setVerifySquadManagerAmountBadgeCount(fetchedSquad.verifyAmountCount)
                     setVerifySquadCashRequestBadgeCount(fetchedSquad.cashRequestedCount)
 
@@ -830,6 +971,52 @@ class SquadViewModel : ViewModel() {
                 if (success && updatedSquad != null) {
                     println("✅ Squad updated successfully!")
                     setSquad(updatedSquad)
+
+                    if (!UserDefaultsManager.getSquadManagerLogged()) {
+
+                        if (updatedSquad.recordStatus != RecordStatus.ACTIVE){
+                            AlertManager.shared.showAlert(
+                                title = SquadStrings.savingsSquad,
+                                message =
+                                    SquadStrings.squadDeactivatedMessage,
+                                type = AlertType.INFO,
+                                primaryButtonTitle =
+                                    SquadStrings.ok,
+                                primaryAction = {
+
+                                    if (UserDefaultsManager.getIsMultipleAccount()) {
+
+                                        fetchUserLogins(
+                                            showLoader = true,
+                                            phoneNumber = loginMember?.phoneNumber ?: ""
+                                        ) { success, loginList, error ->
+
+                                            if (loginList != null) {
+
+                                                setShowPopup(
+                                                    UserDefaultsManager.getIsMultipleAccount()
+                                                )
+
+                                                Log.d(
+                                                    "MemberHomeView",
+                                                    if (success)
+                                                        "✅ User logins fetched: ${loginList.size}"
+                                                    else
+                                                        "❌ $error"
+                                                )
+                                            }
+                                        }
+                                    }
+                                    else {
+//                                            logoutUser(navController)
+                                    }
+
+                                }
+                            )
+                        }
+                    }
+
+
                     setRemainingMonths(CommonFunctions.getRemainingMonths(
                         startDate = Date(),
                         endDate = updatedSquad.squadEndDate?.orNow ?: Date()
@@ -1183,7 +1370,7 @@ class SquadViewModel : ViewModel() {
             cashRequested = false,
             memberCreatedContribuionAmount = contributionReceived,
             memberCreatedIntrestAmount = interestReceived,
-            totalDuration = squad.totalDuration
+            totalDuration = squad.value?.totalDuration ?: 0
         )
 
         // ---------------------------------------------------------
@@ -1283,6 +1470,51 @@ class SquadViewModel : ViewModel() {
 
                     if (fetchedMember != null) {
                         setCurrentMember(fetchedMember)
+
+                        if (!UserDefaultsManager.getSquadManagerLogged()) {
+                            if (fetchedMember.recordStatus != RecordStatus.ACTIVE){
+                                LoaderManager.shared.hideLoader()
+                                AlertManager.shared.showAlert(
+                                    title = SquadStrings.savingsSquad,
+                                    message =
+                                        SquadStrings.memberDeactivatedMessage,
+                                    type = AlertType.INFO,
+                                    primaryButtonTitle =
+                                        SquadStrings.ok,
+                                    primaryAction = {
+
+                                        if (UserDefaultsManager.getIsMultipleAccount()) {
+
+                                            fetchUserLogins(
+                                                showLoader = true,
+                                                phoneNumber = loginMember?.phoneNumber ?: ""
+                                            ) { success, loginList, error ->
+
+                                                if (loginList != null) {
+
+                                                    setShowPopup(
+                                                        UserDefaultsManager.getIsMultipleAccount()
+                                                    )
+
+                                                    Log.d(
+                                                        "MemberHomeView",
+                                                        if (success)
+                                                            "✅ User logins fetched: ${loginList.size}"
+                                                        else
+                                                            "❌ $error"
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        else {
+//                                            logoutUser(navController)
+                                        }
+
+                                    }
+                                )
+                            }
+                        }
+
                         setVerifySquadMemberAmountBadgeCount(fetchedMember.verifyAmountCount)
                         completion(true, fetchedMember, null)
                     } else {
@@ -1576,15 +1808,34 @@ class SquadViewModel : ViewModel() {
             return
         }
 
-        if (showLoader) LoaderManager.shared.showLoader()
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
 
-        viewModelScope.launch(Dispatchers.IO) {
-            manager.fetchContributionsForMember(squadID, memberID) { contributions, error ->
-                viewModelScope.launch(Dispatchers.Main) {
-                    if (showLoader) LoaderManager.shared.hideLoader()
+        viewModelScope.launch {
+            try {
+                // Call the suspend function directly.
+                val result = withContext(Dispatchers.IO) {
+                    manager.fetchContributionsForMember(
+                        squadID = squadID,
+                        memberID = memberID
+                    )
+                }
 
-                    if (error != null) {
-                        println(error)
+                result.fold(
+                    onSuccess = { contributions ->
+                        println("✅ Contributions fetched successfully")
+
+                        setSelectedContributions(contributions)
+
+                        completion(contributions, null)
+                    },
+                    onFailure = { exception ->
+                        val error = exception.localizedMessage
+                            ?: "Failed to fetch contributions."
+
+                        println("❌ Failed to fetch contributions: $error")
+
                         handleFetchError(error) {
                             fetchContributionsForMember(
                                 showLoader = showLoader,
@@ -1593,19 +1844,23 @@ class SquadViewModel : ViewModel() {
                                 completion = completion
                             )
                         }
-                        completion(null, error)
-                    } else {
-                        println("✅ Contributions fetched successfully")
-                        contributions?.let {
 
-                            setSelectedContributions(it)
-                        }
-                        completion(contributions, null)
+                        completion(null, error)
                     }
+                )
+            } catch (exception: Exception) {
+                val error = exception.localizedMessage
+                    ?: "Failed to fetch contributions."
+
+                println("❌ Error fetching contributions: $error")
+
+                completion(null, error)
+            } finally {
+                if (showLoader) {
+                    LoaderManager.shared.hideLoader()
                 }
             }
         }
-
     }
 
     // ✅ editContribution

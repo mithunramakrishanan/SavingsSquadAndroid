@@ -942,7 +942,7 @@ fun ManualEntryView(
                         squadViewModel.setShowContributionMemberPopup(false)
 
                     },
-
+                    showSelectAll = false,
                     onSelect =  { selectedValue ->
                         squadViewModel.setShowContributionMemberPopup(false)
                         contributionSelectedMemberName = selectedValue.localizedMemberName
@@ -1008,7 +1008,7 @@ fun ManualEntryView(
                         squadViewModel.setShowEMIMemberPopup(false)
 
                     },
-
+                    showSelectAll = false,
                     onSelect = { selectedValue ->
                             squadViewModel.setShowEMIMemberPopup(false)
                             emiSelectedMemberName = selectedValue.localizedMemberName
@@ -1147,6 +1147,61 @@ fun ManualEntryView(
 
                 }
                 
+            }
+        }
+
+
+        val isShowOtherPaymentMemberPopup = squadViewModel.showOtherPaymentMemberPopup.collectAsStateWithLifecycle()
+
+        if (isShowOtherPaymentMemberPopup.value) {
+            OverlayBackgroundView(
+                showPopup = remember { mutableStateOf(true) },
+                onDismiss = { squadViewModel.setOtherPaymentMemberPopup(false) }
+            ) {
+
+                MemberNameSelectionPopup(
+
+                    showPopup = true,
+
+                    squadId = squadViewModel.squad.value?.squadID ?: "",
+
+                    squadViewModel = squadViewModel,
+
+                    onDismiss = {
+
+                        squadViewModel.setOtherPaymentMemberPopup(false)
+
+                    },
+                    showSelectAll = false,
+                    onSelect =  { selectedValue ->
+                        squadViewModel.setOtherPaymentMemberPopup(false)
+                        otherMemberPaymentSelectedMemberName = selectedValue.localizedMemberName
+                        otherMemberPaymentSelectedMember = selectedValue
+
+                        val selectedMember = otherMemberPaymentSelectedMember
+
+                        if (selectedMember != null) {
+                            if (memberSubType == SquadStrings.repayment) {
+
+                                squadViewModel.fetchMemberOtherPayments(
+                                    showLoader = true,
+                                    memberID = selectedMember.id.orEmpty(),
+                                    paidStatus = PaidStatus.NOT_PAID,
+                                    type = MemberPaymentSubType.RE_PAYMENT
+                                ) { success, error ->
+                                    LoaderManager.shared.hideLoader()
+                                }
+                            }
+                        } else {
+                            ToastManager.show(
+                                title = SquadStrings.savingsSquad,
+                                message = SquadStrings.selectMember,
+                                type = ToastType.ERROR
+                            )
+                        }
+                    }
+
+                )
             }
         }
     }

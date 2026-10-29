@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Group
@@ -57,6 +58,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dialpad
@@ -65,6 +67,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
@@ -107,6 +110,8 @@ fun MemberProfileView(
     var selectedEditAmount by remember { mutableStateOf(0) }
     var openLoanDetailsView by remember { mutableStateOf(false) }
 
+    var navigateToOtherPayments by remember { mutableStateOf(false) }
+
     var openContributionDetails by remember { mutableStateOf(false) }
     val screenType = if (UserDefaultsManager.getSquadManagerLogged()) {
         SquadUserType.SQUAD_MANAGER
@@ -136,6 +141,13 @@ fun MemberProfileView(
         }
     }
 
+    LaunchedEffect(navigateToOtherPayments) {
+        if (navigateToOtherPayments) {
+            navController.navigate(AppDestination.MEMBER_OTHER_PAYMENT.route)
+            navigateToOtherPayments = false
+        }
+    }
+
     Box(
         modifier = Modifier
 
@@ -161,88 +173,46 @@ fun MemberProfileView(
 
             member?.let { safeMember ->
 
-                val stats: List<MemberStatItem> =
-                    if (screenType == SquadUserType.SQUAD_MANAGER) {
-                        listOf(
-                            MemberStatItem(
-                                title = SquadStrings.contributionReceived,
-                                value = safeMember.totalContributionPaid.currencyFormattedWithCommas(),
-                                icon = Icons.Default.ArrowDownward,
-                                color = Color.Green,
-                                onClick = { openContributionDetails = true },
-                                onEditClick = {
-                                    squadViewModel.setShowEditAmountPopup(true)
-                                    selectedEditAmount = safeMember.totalContributionPaid
-                                    squadViewModel.setEditAmountType(AmountEditType.contribution)
-                                }
-                            ),
-                            MemberStatItem(
-                                title = SquadStrings.totalLoanBorrowed,
-                                value = safeMember.totalLoanBorrowed.currencyFormattedWithCommas(),
-                                icon = Icons.Default.ArrowUpward,
-                                color = Color.Red,
-                                onClick = { openLoanDetailsView = true },
-                                onEditClick = {
-                                    squadViewModel.setShowEditAmountPopup(true)
-                                    selectedEditAmount = safeMember.totalLoanBorrowed
-                                    squadViewModel.setEditAmountType(AmountEditType.loanBorrowed)
-                                }
-                            ),
-                            MemberStatItem(
-                                title = SquadStrings.paidLoanAmount,
-                                value = safeMember.totalLoanPaid.currencyFormattedWithCommas(),
-                                icon = Icons.Default.CheckCircle,
-                                color = Color.Blue,
-                                onClick = { openLoanDetailsView = true },
-                                onEditClick = {
-                                    squadViewModel.setShowEditAmountPopup(true)
-                                    selectedEditAmount = safeMember.totalLoanPaid
-                                    squadViewModel.setEditAmountType(AmountEditType.paidLoadAmount)
-                                }
-                            ),
-                            MemberStatItem(
-                                title = SquadStrings.interestReceived,
-                                value = safeMember.totalInterestPaid.currencyFormattedWithCommas(),
-                                icon = Icons.Default.Percent,
-                                color = Color(0xFF7B61FF),
-                                onEditClick = {
-                                    squadViewModel.setShowEditAmountPopup(true)
-                                    selectedEditAmount = safeMember.totalInterestPaid
-                                    squadViewModel.setEditAmountType(AmountEditType.intrestAmount)
-                                }
-                            )
-                        )
-                    } else {
-                        listOf(
-                            MemberStatItem(
-                                title = SquadStrings.contributionSent,
-                                value = safeMember.totalContributionPaid.currencyFormattedWithCommas(),
-                                icon = Icons.Default.ArrowDownward,
-                                color = Color.Green,
-                                onClick = { openContributionDetails = true }
-                            ),
-                            MemberStatItem(
-                                title = SquadStrings.totalLoanBorrowed,
-                                value = safeMember.totalLoanBorrowed.currencyFormattedWithCommas(),
-                                icon = Icons.Default.ArrowUpward,
-                                color = Color.Red,
-                                onClick = { openLoanDetailsView = true }
-                            ),
-                            MemberStatItem(
-                                title = SquadStrings.paidLoanAmount,
-                                value = safeMember.totalLoanPaid.currencyFormattedWithCommas(),
-                                icon = Icons.Default.CheckCircle,
-                                color = Color.Blue,
-                                onClick = { openLoanDetailsView = true }
-                            ),
-                            MemberStatItem(
-                                title = SquadStrings.interestSent,
-                                value = safeMember.totalInterestPaid.currencyFormattedWithCommas(),
-                                icon = Icons.Default.Percent,
-                                color = Color(0xFF7B61FF)
-                            )
-                        )
-                    }
+                val stats: List<MemberStatItem> = listOf(
+                    MemberStatItem(
+                        title = if (screenType == SquadUserType.SQUAD_MANAGER)
+                            SquadStrings.contributionReceived
+                        else
+                            SquadStrings.contributionSent,
+                        value = safeMember.totalContributionPaid.currencyFormattedWithCommas(),
+                        icon = Icons.Default.ArrowDownward,
+                        color = Color.Green,
+                        onClick = { openContributionDetails = true },
+                        onEditClick = if (screenType == SquadUserType.SQUAD_MANAGER) {
+                            {
+                                squadViewModel.setShowEditAmountPopup(true)
+                                selectedEditAmount = safeMember.totalContributionPaid
+                                squadViewModel.setEditAmountType(AmountEditType.contribution)
+                            }
+                        } else null
+                    ),
+                    MemberStatItem(
+                        title = "Settlement Received",
+                        value = safeMember.totalSettlementReceived.currencyFormattedWithCommas(),
+                        icon = Icons.Default.AccountBalanceWallet,
+                        color = Color(0xFFFF9800),
+                        onClick = { navigateToOtherPayments = true },
+                    ),
+                    MemberStatItem(
+                        title = "Repayment Received",
+                        value = safeMember.totalRepaymentReceived.currencyFormattedWithCommas(),
+                        icon = Icons.Default.ArrowDownward,
+                        color = Color.Green,
+                        onClick = { navigateToOtherPayments = true },
+                    ),
+                    MemberStatItem(
+                        title = "Repayment Paid",
+                        value = safeMember.totalRepaymentPaid.currencyFormattedWithCommas(),
+                        icon = Icons.Default.ArrowUpward,
+                        color = Color.Red,
+                        onClick = { navigateToOtherPayments = true },
+                    )
+                )
 
                 LazyColumn(
                     modifier = Modifier.weight(1f),
@@ -264,7 +234,45 @@ fun MemberProfileView(
                         )
                     }
 
-                    items(stats) { item ->
+                    item {
+                        MemberProfileStatsCard(
+                            title = stats[0].title,
+                            value = stats[0].value,
+                            icon = stats[0].icon,
+                            color = stats[0].color,
+                            onClick = stats[0].onClick,
+                            onEditClick = stats[0].onEditClick
+                        )
+                    }
+
+                    item {
+                        MemberProfileStatsCard(
+                            title = stats[1].title,
+                            value = stats[1].value,
+                            icon = stats[1].icon,
+                            color = stats[1].color,
+                            onClick = stats[1].onClick,
+                            onEditClick = stats[1].onEditClick
+                        )
+                    }
+
+                    item {
+                        MemberProfileLoanSummaryCard(
+                            totalSent = safeMember.totalLoanBorrowed.currencyFormattedWithCommas(),
+                            totalReceived = safeMember.totalLoanPaid.currencyFormattedWithCommas(),
+                            pending = maxOf(
+                                0,
+                                safeMember.totalLoanBorrowed - safeMember.totalLoanPaid
+                            ).currencyFormattedWithCommas(),
+                            interestEarned = safeMember.totalInterestPaid.currencyFormattedWithCommas(),
+                            sentTitle = SquadStrings.totalLoanBorrowed,
+                            receivedTitle = SquadStrings.paidLoanAmount,
+                            interestTitle = SquadStrings.interestReceived,
+                            onClick = { openLoanDetailsView = true }
+                        )
+                    }
+
+                    items(stats.drop(2)) { item ->
                         MemberProfileStatsCard(
                             title = item.title,
                             value = item.value,
@@ -341,6 +349,148 @@ fun MemberProfileView(
                 }
             }
         }
+    }
+}
+
+// ---------------------------
+// MemberProfileLoanSummaryCard
+// ---------------------------
+@Composable
+fun MemberProfileLoanSummaryCard(
+    totalSent: String,
+    totalReceived: String,
+    pending: String,
+    interestEarned: String,
+    sentTitle: String,
+    receivedTitle: String,
+    interestTitle: String,
+    onClick: () -> Unit = {}
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .shadow(8.dp, RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(20.dp))
+            .background(AppColors.surface)
+            .border(1.dp, AppColors.border.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AppColors.primaryButton.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.BarChart,
+                    contentDescription = null,
+                    tint = AppColors.primaryButton,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            Text(
+                text = SquadStrings.loanSummary,
+                style = AppFont.ibmPlexSans(size = 16, weight = FontWeight.SemiBold),
+                color = AppColors.headerText
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            MemberProfileLoanStatItem(
+                title = sentTitle,
+                value = totalSent,
+                icon = Icons.Default.ArrowUpward,
+                color = Color(0xFFE05252),
+                modifier = Modifier.weight(1f)
+            )
+            MemberProfileLoanStatItem(
+                title = receivedTitle,
+                value = totalReceived,
+                icon = Icons.Default.CheckCircle,
+                color = Color(0xFF22A06B),
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            MemberProfileLoanStatItem(
+                title = SquadStrings.pending,
+                value = pending,
+                icon = Icons.Default.Schedule,
+                color = Color(0xFFE09B20),
+                modifier = Modifier.weight(1f)
+            )
+            MemberProfileLoanStatItem(
+                title = interestTitle,
+                value = interestEarned,
+                icon = Icons.Default.Percent,
+                color = Color(0xFF7B61FF),
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MemberProfileLoanStatItem(
+    title: String,
+    value: String,
+    icon: ImageVector,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .defaultMinSize(minHeight = 66.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(color.copy(alpha = 0.07f))
+            .border(1.dp, color.copy(alpha = 0.12f), RoundedCornerShape(14.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(14.dp)
+            )
+            Text(
+                text = title,
+                style = AppFont.ibmPlexSans(size = 12, weight = FontWeight.Medium),
+                color = AppColors.secondaryText,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Text(
+            text = value,
+            style = AppFont.ibmPlexSans(size = 17, weight = FontWeight.Bold),
+            color = AppColors.headerText,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

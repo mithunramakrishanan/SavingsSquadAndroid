@@ -82,6 +82,7 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Verified
@@ -96,6 +97,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.model.ForceCloseSummary
+import com.android.savingssquad.model.Member
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.viewmodel.SSToast
@@ -121,9 +123,8 @@ fun PaymentApprovalView(
     val squadMembers by squadViewModel.squadMembers.collectAsStateWithLifecycle()
     val pendingPayments by squadViewModel.pendingApprovalPayments.collectAsStateWithLifecycle()
 
-    val userList = remember(squadMembers) {
-        listOf(SquadStrings.all) + squadMembers.map { it.localizedMemberName }.distinct()
-    }
+    var selectedMember by remember { mutableStateOf<Member?>(null) }
+
 
     // ❌ NO FILTERING HERE (Firestore already does it)
     val pendingApprovals = pendingPayments
@@ -215,28 +216,17 @@ fun PaymentApprovalView(
                         .padding(horizontal = 16.dp) // 🔥 LEFT + RIGHT SPACE ADDED
                 ) {
 
-                    DropdownMenuPicker(
-                        selected = selectedUser,
-                        items = userList,
-                        icon = Icons.Default.People,
-                    ) { selected ->
 
-                        selectedUser = selected
-
-                        val memberId = if (selected == SquadStrings.all) null else {
-                            squadMembers.firstOrNull { m -> m.localizedMemberName == selected }?.id
-                        }
-
-                        squadViewModel.fetchPendingApprovalPayments(
-                            showLoader = true,
-                            screenType = screenType,
-                            memberId = memberId
-                        ) { success, error ->
-                            if (!success) {
-                                println("Error: $error")
-                            }
-                        }
-                    }
+                    SSTextField(
+                        icon = Icons.Default.Person,
+                        placeholder = selectedMember?.localizedMemberName ?: SquadStrings.selectSquadMember,
+                        textState = remember { mutableStateOf(selectedMember?.localizedMemberName ?: "") },
+                        keyboardType = KeyboardType.Text,
+                        showDropdown = true,
+                        error = "",
+                        onDropdownTap = { squadViewModel.setShowMembersListPopup(true) },
+                        disabled = true
+                    )
 
                     Spacer(modifier = Modifier.height(12.dp))
                 }
@@ -388,6 +378,64 @@ fun PaymentApprovalView(
                         )
                     }
                 }
+            }
+        }
+
+
+        val isShowMemberList = squadViewModel.showMembersListPopup.collectAsStateWithLifecycle()
+        if (isShowMemberList.value) {
+            OverlayBackgroundView(
+                showPopup = isShowMemberList,
+                onDismiss = { squadViewModel.setShowMembersListPopup(false) }
+            ) {
+
+                MemberNameSelectionPopup(
+
+                    showPopup = true,
+
+                    squadId = squadViewModel.squad.value?.squadID ?: "",
+
+                    squadViewModel = squadViewModel,
+
+                    onDismiss = {
+
+                        squadViewModel.setShowMembersListPopup(false)
+
+                    },
+                    showSelectAll = true,
+                    onSelectAll = {
+
+                        selectedUser = SquadStrings.all
+                        selectedMember = null
+                        squadViewModel.fetchPendingApprovalPayments(
+                            showLoader = true,
+                            screenType = screenType,
+                            memberId = null
+                        ) { success, error ->
+                            if (!success) {
+                                println("Error: $error")
+                            }
+                        }
+
+                    },
+                    onSelect = { member ->
+
+                        selectedUser = member.localizedMemberName
+                        selectedMember = member
+
+                        squadViewModel.fetchPendingApprovalPayments(
+                            showLoader = true,
+                            screenType = screenType,
+                            memberId = member.id
+                        ) { success, error ->
+                            if (!success) {
+                                println("Error: $error")
+                            }
+                        }
+
+                    }
+
+                )
             }
         }
     }

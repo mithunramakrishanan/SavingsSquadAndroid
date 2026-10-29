@@ -670,7 +670,8 @@ private fun saveSquadData(
 
         recordStatus = RecordStatus.ACTIVE,
         recordDate = Date(),
-        password = null
+        password = null,
+        showTotalPaymentToMember = true
     )
 
     // MARK: 2. Prepare Login Model

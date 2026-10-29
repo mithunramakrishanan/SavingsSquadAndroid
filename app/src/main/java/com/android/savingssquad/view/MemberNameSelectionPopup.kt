@@ -24,6 +24,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.PersonSearch
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -54,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.android.savingssquad.model.Member
+import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.viewmodel.SquadViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -62,11 +64,11 @@ import kotlinx.coroutines.launch
 private val MemberPickerGreen = Color(0xFF16856B)
 
 /**
- * Member picker that follows MembersListView's search and pagination flow.
+ * Member picker with optional ALL selection.
  *
- * Pagination is delegated to SquadViewModel.loadMoreMembersIfNeeded(member, searchText).
- * That method should only load another page when the displayed member is the last
- * member currently loaded, and should use the active search query for the next page.
+ * ALL is a separate action and is not represented as a Member object.
+ *
+ * Search and pagination remain handled by SquadViewModel.
  */
 @Composable
 fun MemberNameSelectionPopup(
@@ -76,43 +78,63 @@ fun MemberNameSelectionPopup(
     onDismiss: () -> Unit,
     onSelect: (Member) -> Unit,
     modifier: Modifier = Modifier,
-    title: String = "Select Member",
-    searchPlaceholder: String = "Search member name"
+    title: String = SquadStrings.selectMember,
+    searchPlaceholder: String = SquadStrings.memberName,
+    showSelectAll: Boolean = false,
+    onSelectAll: (() -> Unit)? = null
 ) {
     if (!showPopup) return
 
-    var searchText by rememberSaveable(squadId) { mutableStateOf("") }
-    var searchJob by remember { mutableStateOf<Job?>(null) }
-    var isSearchRequestRunning by remember { mutableStateOf(false) }
-    var requestError by remember { mutableStateOf<String?>(null) }
+    var searchText by rememberSaveable(squadId) {
+        mutableStateOf("")
+    }
+
+    var searchJob by remember {
+        mutableStateOf<Job?>(null)
+    }
+
+    var isSearchRequestRunning by remember {
+        mutableStateOf(false)
+    }
+
+    var requestError by remember {
+        mutableStateOf<String?>(null)
+    }
+
     val scope = rememberCoroutineScope()
 
     val members by squadViewModel.squadMembers.collectAsState()
     val isFetchingMembers by squadViewModel.isFetchingMembers.collectAsState()
+    val squad by squadViewModel.squad.collectAsState()
 
     fun fetchMembers(query: String) {
         isSearchRequestRunning = true
         requestError = null
 
-        // Same sequence as MembersListView when the search changes.
         squadViewModel.resetMembersPagination()
+
         squadViewModel.fetchMembers(
             showLoader = false,
             searchText = query.trim()
         ) { success, _, error ->
             isSearchRequestRunning = false
-            requestError = if (success) null else (error ?: "Failed to fetch members")
+            requestError = if (success) {
+                null
+            } else {
+                error ?: "Failed to fetch members"
+            }
         }
     }
 
-    // Initial fetch for this squad. The debounce effect below handles subsequent edits.
+    // Initial fetch for this squad.
     LaunchedEffect(squadId) {
         fetchMembers(searchText)
     }
 
-    // Match MembersListView: debounce search for 300 ms, reset cursor, fetch first page.
+    // Debounced search.
     LaunchedEffect(searchText, squadId) {
         searchJob?.cancel()
+
         searchJob = scope.launch {
             delay(300)
             fetchMembers(searchText)
@@ -120,7 +142,9 @@ fun MemberNameSelectionPopup(
     }
 
     DisposableEffect(Unit) {
-        onDispose { searchJob?.cancel() }
+        onDispose {
+            searchJob?.cancel()
+        }
     }
 
     Dialog(
@@ -141,17 +165,26 @@ fun MemberNameSelectionPopup(
             shadowElevation = 16.dp
         ) {
             Column {
+                // MARK: Header
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 18.dp, end = 12.dp, top = 15.dp, bottom = 14.dp),
+                        .padding(
+                            start = 18.dp,
+                            end = 12.dp,
+                            top = 15.dp,
+                            bottom = 14.dp
+                        ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(MemberPickerGreen.copy(alpha = 0.11f)),
+                            .background(
+                                MemberPickerGreen.copy(alpha = 0.11f)
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -163,48 +196,77 @@ fun MemberNameSelectionPopup(
 
                     Spacer(Modifier.width(11.dp))
 
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Text(
                             text = title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
+
                         Spacer(Modifier.height(3.dp))
+
                         Text(
-                            text = "Search and select a squad member",
+                            text = SquadStrings.searchMembers,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close member selection")
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close member selection"
+                        )
                     }
                 }
 
+                // MARK: Search
+
                 OutlinedTextField(
                     value = searchText,
-                    onValueChange = { searchText = it },
+                    onValueChange = {
+                        searchText = it
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 18.dp),
-                    placeholder = { Text(searchPlaceholder) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    placeholder = {
+                        Text(searchPlaceholder)
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null
+                        )
+                    },
                     trailingIcon = {
                         if (searchText.isNotEmpty()) {
-                            IconButton(onClick = { searchText = "" }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear search")
+                            IconButton(
+                                onClick = {
+                                    searchText = ""
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear search"
+                                )
                             }
                         }
                     },
                     singleLine = true,
                     shape = RoundedCornerShape(11.dp),
                     keyboardOptions = KeyboardOptions.Default,
-                    keyboardActions = KeyboardActions(onDone = {})
+                    keyboardActions = KeyboardActions(
+                        onDone = {}
+                    )
                 )
 
                 Spacer(Modifier.height(12.dp))
+
+                // MARK: List heading
 
                 Row(
                     modifier = Modifier
@@ -213,14 +275,16 @@ fun MemberNameSelectionPopup(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "MEMBERS",
+                        text = SquadStrings.members,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
                     Spacer(Modifier.weight(1f))
+
                     Text(
-                        text = squadViewModel.squad.collectAsState().value?.totalMembers.toString(),
+                        text = (squad?.totalMembers ?: 0).toString(),
                         color = MemberPickerGreen,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold
@@ -228,6 +292,8 @@ fun MemberNameSelectionPopup(
                 }
 
                 Spacer(Modifier.height(8.dp))
+
+                // MARK: Members and ALL
 
                 LazyColumn(
                     modifier = Modifier
@@ -241,7 +307,9 @@ fun MemberNameSelectionPopup(
                     verticalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
                     when {
-                        (isSearchRequestRunning || isFetchingMembers) && members.isEmpty() -> {
+                        (isSearchRequestRunning || isFetchingMembers) &&
+                                members.isEmpty() -> {
+
                             item(key = "initial_loading") {
                                 Box(
                                     modifier = Modifier
@@ -249,7 +317,9 @@ fun MemberNameSelectionPopup(
                                         .padding(vertical = 38.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator(color = MemberPickerGreen)
+                                    CircularProgressIndicator(
+                                        color = MemberPickerGreen
+                                    )
                                 }
                             }
                         }
@@ -266,16 +336,38 @@ fun MemberNameSelectionPopup(
                                         text = requestError.orEmpty(),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+
                                     TextButton(
-                                        onClick = { fetchMembers(searchText) }
+                                        onClick = {
+                                            fetchMembers(searchText)
+                                        }
                                     ) {
-                                        Text("Try Again", color = MemberPickerGreen)
+                                        Text(
+                                            text = "Try Again",
+                                            color = MemberPickerGreen
+                                        )
                                     }
                                 }
                             }
                         }
 
                         members.isEmpty() -> {
+                            // Keep ALL available even if the current result
+                            // list is empty, provided there is no search.
+                            if (
+                                showSelectAll &&
+                                searchText.isBlank()
+                            ) {
+                                item(key = "select_all") {
+                                    SelectAllMembersRow(
+                                        onClick = {
+                                            onSelectAll?.invoke()
+                                            onDismiss()
+                                        }
+                                    )
+                                }
+                            }
+
                             item(key = "empty_state") {
                                 Column(
                                     modifier = Modifier
@@ -289,7 +381,9 @@ fun MemberNameSelectionPopup(
                                         modifier = Modifier.size(30.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+
                                     Spacer(Modifier.height(9.dp))
+
                                     Text(
                                         text = if (searchText.isBlank()) {
                                             "No members found"
@@ -299,6 +393,7 @@ fun MemberNameSelectionPopup(
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
+
                                     Text(
                                         text = "Try searching with another name.",
                                         style = MaterialTheme.typography.bodySmall,
@@ -309,9 +404,26 @@ fun MemberNameSelectionPopup(
                         }
 
                         else -> {
+                            // Show ALL before individual members.
+                            if (
+                                showSelectAll &&
+                                searchText.isBlank()
+                            ) {
+                                item(key = "select_all") {
+                                    SelectAllMembersRow(
+                                        onClick = {
+                                            onSelectAll?.invoke()
+                                            onDismiss()
+                                        }
+                                    )
+                                }
+                            }
+
                             items(
                                 items = members,
-                                key = { member -> member.id ?: member.phoneNumber }
+                                key = { member ->
+                                    member.id ?: member.phoneNumber
+                                }
                             ) { member ->
                                 MemberSelectionRow(
                                     member = member,
@@ -321,8 +433,8 @@ fun MemberNameSelectionPopup(
                                     }
                                 )
 
-                                // Exact same trigger and search-aware paging call as MembersListView.
-                                androidx.compose.runtime.LaunchedEffect(member.id, members.size) {
+                                // Search-aware pagination trigger.
+                                LaunchedEffect(member.id, members.size) {
                                     squadViewModel.loadMoreMembersIfNeeded(
                                         currentMember = member,
                                         searchText = searchText
@@ -350,13 +462,20 @@ fun MemberNameSelectionPopup(
                     }
                 }
 
+                // MARK: Footer
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            MaterialTheme.colorScheme.surfaceVariant.copy(
+                                alpha = 0.35f
+                            )
                         )
-                        .padding(horizontal = 18.dp, vertical = 12.dp),
+                        .padding(
+                            horizontal = 18.dp,
+                            vertical = 12.dp
+                        ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
@@ -365,21 +484,94 @@ fun MemberNameSelectionPopup(
                             .clip(CircleShape)
                             .background(MemberPickerGreen)
                     )
+
                     Spacer(Modifier.width(7.dp))
+
                     Text(
                         text = "Select a member to continue",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
                     Spacer(Modifier.weight(1f))
+
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel", color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            text = "Cancel",
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
             }
         }
     }
 }
+
+// MARK: ALL row
+
+@Composable
+private fun SelectAllMembersRow(
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                MemberPickerGreen.copy(alpha = 0.06f)
+            )
+            .clickable(onClick = onClick)
+            .border(
+                width = 1.dp,
+                color = MemberPickerGreen.copy(alpha = 0.30f),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(
+                horizontal = 10.dp,
+                vertical = 8.dp
+            ),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(11.dp))
+                .background(
+                    MemberPickerGreen.copy(alpha = 0.12f)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Groups,
+                contentDescription = null,
+                tint = MemberPickerGreen
+            )
+        }
+
+        Spacer(Modifier.width(11.dp))
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = SquadStrings.all,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(Modifier.height(3.dp))
+        }
+
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = MemberPickerGreen
+        )
+    }
+}
+
+// MARK: Individual member row
 
 @Composable
 private fun MemberSelectionRow(
@@ -395,15 +587,24 @@ private fun MemberSelectionRow(
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
-            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .border(
+                width = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(
+                horizontal = 10.dp,
+                vertical = 8.dp
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(38.dp)
                 .clip(RoundedCornerShape(11.dp))
-                .background(MemberPickerGreen.copy(alpha = 0.12f)),
+                .background(
+                    MemberPickerGreen.copy(alpha = 0.12f)
+                ),
             contentAlignment = Alignment.Center
         ) {
             Text(

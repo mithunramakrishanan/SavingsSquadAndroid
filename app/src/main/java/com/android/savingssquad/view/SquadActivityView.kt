@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -19,9 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.android.savingssquad.model.Member
 import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
@@ -64,11 +67,8 @@ fun SquadActivityView(
         else
             SquadUserType.SQUAD_MEMBER
 
-    val userList = remember(squadMembers) {
-        listOf(SquadStrings.all) + squadMembers
-            .map { it.memberName }
-            .distinct()
-    }
+    var selectedMember by remember { mutableStateOf<Member?>(null) }
+
 
     // Initial Load
     LaunchedEffect(Unit) {
@@ -124,34 +124,16 @@ fun SquadActivityView(
             // User Filter
             if (screenType != SquadUserType.SQUAD_MEMBER) {
 
-                DropdownMenuPicker(
-                    selected = selectedUser,
-                    items = userList,
-                    icon = Icons.Default.People,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .fillMaxWidth()
-                ) { selected ->
-
-                    selectedUser = selected
-
-                    selectedMemberId =
-                        if (selected == SquadStrings.all) {
-                            null
-                        } else {
-                            squadMembers.firstOrNull {
-                                it.memberName == selected
-                            }?.id
-                        }
-
-                    squadViewModel.resetActivitiesPagination()
-
-                    squadViewModel.fetchSquadActivities(
-                        squadID = squadViewModel.squad.value?.squadID ?: return@DropdownMenuPicker,
-                        memberId = selectedMemberId,
-                        showLoader = true
-                    ) { _, _ -> }
-                }
+                SSTextField(
+                    icon = Icons.Default.Person,
+                    placeholder = selectedMember?.localizedMemberName ?: SquadStrings.selectSquadMember,
+                    textState = remember { mutableStateOf(selectedMember?.localizedMemberName ?: "") },
+                    keyboardType = KeyboardType.Text,
+                    showDropdown = true,
+                    error = "",
+                    onDropdownTap = { squadViewModel.setShowMembersListPopup(true) },
+                    disabled = true
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -232,6 +214,63 @@ fun SquadActivityView(
                         }
                     }
                 }
+            }
+        }
+
+
+        val isShowMemberList = squadViewModel.showMembersListPopup.collectAsStateWithLifecycle()
+        if (isShowMemberList.value) {
+            OverlayBackgroundView(
+                showPopup = isShowMemberList,
+                onDismiss = { squadViewModel.setShowMembersListPopup(false) }
+            ) {
+
+                MemberNameSelectionPopup(
+
+                    showPopup = true,
+
+                    squadId = squadViewModel.squad.value?.squadID ?: "",
+
+                    squadViewModel = squadViewModel,
+
+                    onDismiss = {
+
+                        squadViewModel.setShowMembersListPopup(false)
+
+                    },
+                    showSelectAll = true,
+                    onSelectAll = {
+
+                        selectedMemberId = null
+                        selectedUser = SquadStrings.all
+                        selectedMember = null
+
+                        squadViewModel.resetActivitiesPagination()
+
+                        squadViewModel.fetchSquadActivities(
+                            squadID = squadViewModel.squad.value?.squadID ?: return@MemberNameSelectionPopup,
+                            memberId = selectedMemberId,
+                            showLoader = true
+                        ) { _, _ -> }
+
+                    },
+                    onSelect = { member ->
+
+                        selectedMemberId = member.id
+                        selectedUser = member.localizedMemberName
+                        selectedMember = member
+
+                        squadViewModel.resetActivitiesPagination()
+
+                        squadViewModel.fetchSquadActivities(
+                            squadID = squadViewModel.squad.value?.squadID ?: return@MemberNameSelectionPopup,
+                            memberId = selectedMemberId,
+                            showLoader = true
+                        ) { _, _ -> }
+
+                    }
+
+                )
             }
         }
 

@@ -28,11 +28,13 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.android.savingssquad.model.Installment
+import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.MemberLoan
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
@@ -76,10 +78,8 @@ fun LoanListView(
     var selectedUser by remember { mutableStateOf(SquadStrings.all) }
     var selectedMemberId by remember { mutableStateOf<String?>(null) }
 
-    // MARK: - User List (iOS style)
-    val userList = remember(members.value) {
-        listOf(SquadStrings.all) + members.value.map { it.memberName }.distinct()
-    }
+    var selectedMember by remember { mutableStateOf<Member?>(null) }
+
 
     // MARK: - INIT LOAD GUARD (iOS equivalent)
     var hasLoaded by remember { mutableStateOf(false) }
@@ -153,14 +153,16 @@ fun LoanListView(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (screenType != SquadUserType.SQUAD_MEMBER) {
-                        DropdownMenuPicker(
-                            selected = selectedUser,
-                            items = userList,
-                            icon = Icons.Default.People,
-                            modifier = Modifier.weight(1f)
-                        ) { selectedUser = it
-                            reloadLoans()
-                        }
+                        SSTextField(
+                            icon = Icons.Default.Person,
+                            placeholder = selectedMember?.localizedMemberName ?: SquadStrings.selectSquadMember,
+                            textState = remember { mutableStateOf(selectedMember?.localizedMemberName ?: "") },
+                            keyboardType = KeyboardType.Text,
+                            showDropdown = true,
+                            error = "",
+                            onDropdownTap = { squadViewModel.setShowMembersListPopup(true) },
+                            disabled = true
+                        )
                     }
 
                     DropdownMenuPicker(
@@ -263,6 +265,49 @@ fun LoanListView(
                 onBack = { openedLoan = null }
             )
         }
+
+        val isShowMemberList = squadViewModel.showMembersListPopup.collectAsStateWithLifecycle()
+        if (isShowMemberList.value) {
+            OverlayBackgroundView(
+                showPopup = isShowMemberList,
+                onDismiss = { squadViewModel.setShowMembersListPopup(false) }
+            ) {
+
+                MemberNameSelectionPopup(
+
+                    showPopup = true,
+
+                    squadId = squadViewModel.squad.value?.squadID ?: "",
+
+                    squadViewModel = squadViewModel,
+
+                    onDismiss = {
+
+                        squadViewModel.setShowMembersListPopup(false)
+
+                    },
+                    showSelectAll = true,
+                    onSelectAll = {
+
+                        selectedMemberId = null
+                        selectedUser = SquadStrings.all
+                        selectedMember = null
+                        reloadLoans()
+
+                    },
+                    onSelect = { member ->
+
+                        selectedMemberId = member.id
+                        selectedUser = member.localizedMemberName
+                        selectedMember = member
+                        reloadLoans()
+
+                    }
+
+                )
+            }
+        }
+
     }
 }
 

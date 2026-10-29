@@ -97,6 +97,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.savingssquad.R
 import com.android.savingssquad.SquadSubscription.SubscriptionManager
 import com.android.savingssquad.model.CashRequest
@@ -130,6 +131,8 @@ fun CashRequestHistoryScreen(
     var selectedMemberId by remember { mutableStateOf<String?>(null) }
     val showWaitingForPayment by squadViewModel.showWaitingForPayment.collectAsState()
 
+    var selectedMember by remember { mutableStateOf<Member?>(null) }
+
     val screenType =
         if (UserDefaultsManager.getSquadManagerLogged())
             SquadUserType.SQUAD_MANAGER
@@ -142,13 +145,6 @@ fun CashRequestHistoryScreen(
 
     val cashRequests by squadViewModel.squadCashRequests
     val members by squadViewModel.squadMembers.collectAsState()
-
-    val userList = remember(members) {
-        buildList {
-            add(SquadStrings.all)
-            addAll(members.map { it.memberName }.distinct())
-        }
-    }
 
     var hasLoaded by rememberSaveable { mutableStateOf(false) }
 
@@ -227,29 +223,16 @@ fun CashRequestHistoryScreen(
 
 //                if (screenType != SquadUserType.SQUAD_MEMBER) {
 
-                    DropdownMenuPicker(
-                        selected = selectedUser,
-                        items = userList,
-                        icon = Icons.Default.People,
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp)
-                            .fillMaxWidth()
-                    )
-                    { newUser ->
-
-                            selectedUser = newUser
-
-                            selectedMemberId =
-                                if (newUser == SquadStrings.all) {
-                                    null
-                                } else {
-                                    members.firstOrNull {
-                                        it.memberName == newUser
-                                    }?.id
-                                }
-
-                            reloadCashRequests()
-                        }
+            SSTextField(
+                icon = Icons.Default.Person,
+                placeholder = selectedMember?.localizedMemberName ?: SquadStrings.selectSquadMember,
+                textState = remember { mutableStateOf(selectedMember?.localizedMemberName ?: "") },
+                keyboardType = KeyboardType.Text,
+                showDropdown = true,
+                error = "",
+                onDropdownTap = { squadViewModel.setShowMembersListPopup(true) },
+                disabled = true
+            )
 
 //                }
 
@@ -434,6 +417,49 @@ fun CashRequestHistoryScreen(
 
                 )
 
+            }
+        }
+
+
+        val isShowMemberList = squadViewModel.showMembersListPopup.collectAsStateWithLifecycle()
+        if (isShowMemberList.value) {
+            OverlayBackgroundView(
+                showPopup = isShowMemberList,
+                onDismiss = { squadViewModel.setShowMembersListPopup(false) }
+            ) {
+
+                MemberNameSelectionPopup(
+
+                    showPopup = true,
+
+                    squadId = squadViewModel.squad.value?.squadID ?: "",
+
+                    squadViewModel = squadViewModel,
+
+                    onDismiss = {
+
+                        squadViewModel.setShowMembersListPopup(false)
+
+                    },
+                    showSelectAll = true,
+                    onSelectAll = {
+
+                        selectedMemberId = null
+                        selectedUser = SquadStrings.all
+                        selectedMember = null
+                        reloadCashRequests()
+
+                    },
+                    onSelect = { member ->
+
+                        selectedMemberId = member.id
+                        selectedUser = member.localizedMemberName
+                        selectedMember = member
+                        reloadCashRequests()
+
+                    }
+
+                )
             }
         }
     }

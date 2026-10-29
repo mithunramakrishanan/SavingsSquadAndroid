@@ -1659,107 +1659,6 @@ fun AllCaughUPView(
     }
 }
 
-@Composable
-fun UserPicker(
-    selectedUser: MutableState<String>,
-    userList: List<String>
-) {
-    var isExpanded by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        // Picker Button
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(AppColors.surface)
-                .border(1.dp, AppColors.border, RoundedCornerShape(10.dp))
-                .appShadow(AppShadows.card)
-                .clickable {
-                    isExpanded = !isExpanded
-                }
-                .padding(horizontal = 12.dp, vertical = 9.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = selectedUser.value,
-                    style = AppFont.ibmPlexSans(14, FontWeight.Medium),
-                    color = AppColors.headerText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Icon(
-                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
-                    tint = AppColors.secondaryText,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-
-        // Expanded Dropdown
-        AnimatedVisibility(
-            visible = isExpanded,
-            enter = expandVertically(animationSpec = spring(stiffness = Spring.StiffnessMedium)) + fadeIn(),
-            exit = shrinkVertically(animationSpec = spring(stiffness = Spring.StiffnessMedium)) + fadeOut()
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(AppColors.surface)
-                    .appShadow(ShadowStyle(color = Color.Black.copy(alpha = 0.06f), radius = 4.dp, x = 0.dp, y = 2.dp))
-            ) {
-                userList.forEach { user ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                selectedUser.value = user
-                                isExpanded = false
-                            }
-                            .background(
-                                if (selectedUser.value == user)
-                                    AppColors.primaryButton.copy(alpha = 0.1f)
-                                else
-                                    AppColors.surface
-                            )
-                            .padding(vertical = 8.dp, horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = user,
-                            style = AppFont.ibmPlexSans(14, FontWeight.Normal),
-                            color = AppColors.headerText,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        if (selectedUser.value == user) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = AppColors.primaryButton,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 private val NON_PHONE_NUMBERS = listOf(
     "1111111111",
     "2222222222",
@@ -4053,4 +3952,127 @@ fun LanguageDropDownView(
             }
         }
     }
+}
+
+private val SquadToggleGreen = Color(0xFF16856B)
+
+@Composable
+fun SquadToggleView(
+
+    title: String,
+
+    subtitle: String,
+
+    isOn: Boolean,
+
+    onToggleChange: (Boolean) -> Unit,
+
+    modifier: Modifier = Modifier
+
+) {
+
+    val shape = RoundedCornerShape(14.dp)
+
+    Row(
+
+        modifier = modifier
+
+            .fillMaxWidth()
+
+            .background(
+
+                color = MaterialTheme.colorScheme.surface,
+
+                shape = shape
+
+            )
+
+            .border(
+
+                width = 1.dp,
+
+                color = MaterialTheme.colorScheme.outlineVariant.copy(
+
+                    alpha = 0.7f
+
+                ),
+
+                shape = shape
+
+            )
+
+            .padding(16.dp),
+
+        horizontalArrangement = Arrangement.SpaceBetween,
+
+        verticalAlignment = Alignment.CenterVertically
+
+    ) {
+
+        // Title and subtitle
+
+        Column(
+
+            modifier = Modifier.weight(1f),
+
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+
+        ) {
+
+            Text(
+
+                text = title,
+
+                style = MaterialTheme.typography.bodyMedium.copy(
+
+                    fontSize = 14.sp,
+
+                    fontWeight = FontWeight.SemiBold
+
+                ),
+
+                color = MaterialTheme.colorScheme.onSurface
+
+            )
+
+            Text(
+
+                text = subtitle,
+
+                style = MaterialTheme.typography.bodySmall.copy(
+
+                    fontSize = 12.sp
+
+                ),
+
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+
+            )
+
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Toggle switch
+
+        Switch(
+
+            checked = isOn,
+
+            onCheckedChange = onToggleChange,
+
+            colors = SwitchDefaults.colors(
+
+                checkedThumbColor = Color.White,
+
+                checkedTrackColor = SquadToggleGreen,
+
+                checkedBorderColor = SquadToggleGreen
+
+            )
+
+        )
+
+    }
+
 }
