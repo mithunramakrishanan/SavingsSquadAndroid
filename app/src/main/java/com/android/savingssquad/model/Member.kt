@@ -34,155 +34,160 @@ data class BeneficiaryResult(
 @Keep
 data class Member(
 
-    @get:PropertyName("id") @set:PropertyName("id")
+    @get:PropertyName("id")
+    @set:PropertyName("id")
     var id: String? = null,
 
-    @get:PropertyName("memberName") @set:PropertyName("memberName")
+    // MARK: - Firebase UID
+    @get:PropertyName("firebaseUID")
+    @set:PropertyName("firebaseUID")
+    var firebaseUID: String? = null,
+
+    @get:PropertyName("memberName")
+    @set:PropertyName("memberName")
     var memberName: String = "",
 
-    @get:PropertyName("memberNameHindi") @set:PropertyName("memberNameHindi")
+    @get:PropertyName("memberNameHindi")
+    @set:PropertyName("memberNameHindi")
     var memberNameHindi: String = "",
 
-    @get:PropertyName("memberNameTamil") @set:PropertyName("memberNameTamil")
+    @get:PropertyName("memberNameTamil")
+    @set:PropertyName("memberNameTamil")
     var memberNameTamil: String = "",
 
-    @get:PropertyName("memberNameEnglish") @set:PropertyName("memberNameEnglish")
+    @get:PropertyName("memberNameEnglish")
+    @set:PropertyName("memberNameEnglish")
     var memberNameEnglish: String = "",
 
-    @get:PropertyName("profileImage") @set:PropertyName("profileImage")
+    @get:PropertyName("profileImage")
+    @set:PropertyName("profileImage")
     var profileImage: String = "",
 
-    @get:PropertyName("mailID") @set:PropertyName("mailID")
+    @get:PropertyName("mailID")
+    @set:PropertyName("mailID")
     var mailID: String? = null,
 
-    @get:PropertyName("phoneNumber") @set:PropertyName("phoneNumber")
+    @get:PropertyName("phoneNumber")
+    @set:PropertyName("phoneNumber")
     var phoneNumber: String = "",
 
-    @get:PropertyName("password") @set:PropertyName("password")
+    @get:PropertyName("password")
+    @set:PropertyName("password")
     var password: String = "",
 
-    @get:PropertyName("squadID") @set:PropertyName("squadID")
+    @get:PropertyName("squadID")
+    @set:PropertyName("squadID")
     var squadID: String = "",
 
-    @get:PropertyName("role") @set:PropertyName("role")
+    @get:PropertyName("role")
+    @set:PropertyName("role")
     var role: SquadUserType = SquadUserType.SQUAD_MEMBER,
 
-    @get:PropertyName("memberCreatedDate") @set:PropertyName("memberCreatedDate")
+    @get:PropertyName("memberCreatedDate")
+    @set:PropertyName("memberCreatedDate")
     var memberCreatedDate: Timestamp? = null,
 
-    @get:PropertyName("totalContributionPaid") @set:PropertyName("totalContributionPaid")
+    // MARK: - Contribution & Loan Tracking
+
+    @get:PropertyName("totalContributionPaid")
+    @set:PropertyName("totalContributionPaid")
     var totalContributionPaid: Int = 0,
 
-    @get:PropertyName("totalLoanBorrowed") @set:PropertyName("totalLoanBorrowed")
+    @get:PropertyName("totalLoanBorrowed")
+    @set:PropertyName("totalLoanBorrowed")
     var totalLoanBorrowed: Int = 0,
 
-    @get:PropertyName("totalLoanPaid") @set:PropertyName("totalLoanPaid")
+    @get:PropertyName("totalLoanPaid")
+    @set:PropertyName("totalLoanPaid")
     var totalLoanPaid: Int = 0,
 
-    @get:PropertyName("totalInterestPaid") @set:PropertyName("totalInterestPaid")
+    @get:PropertyName("totalInterestPaid")
+    @set:PropertyName("totalInterestPaid")
     var totalInterestPaid: Int = 0,
 
-    @get:PropertyName("totalSettlementReceived") @set:PropertyName("totalSettlementReceived")
+    @get:PropertyName("totalSettlementReceived")
+    @set:PropertyName("totalSettlementReceived")
     var totalSettlementReceived: Int = 0,
 
-    @get:PropertyName("totalRepaymentReceived") @set:PropertyName("totalRepaymentReceived")
+    @get:PropertyName("totalRepaymentReceived")
+    @set:PropertyName("totalRepaymentReceived")
     var totalRepaymentReceived: Int = 0,
 
-    @get:PropertyName("totalRepaymentPaid") @set:PropertyName("totalRepaymentPaid")
+    @get:PropertyName("totalRepaymentPaid")
+    @set:PropertyName("totalRepaymentPaid")
     var totalRepaymentPaid: Int = 0,
 
-    @get:PropertyName("recordStatus") @set:PropertyName("recordStatus")
+    @get:PropertyName("totalDuration")
+    @set:PropertyName("totalDuration")
+    var totalDuration: Int = 0,
+
+    // MARK: - Metadata
+
+    @get:PropertyName("recordStatus")
+    @set:PropertyName("recordStatus")
     var recordStatus: RecordStatus = RecordStatus.ACTIVE,
 
-    @get:PropertyName("recordDate") @set:PropertyName("recordDate")
+    @get:PropertyName("recordDate")
+    @set:PropertyName("recordDate")
     var recordDate: Date = Date(),
 
-    @get:PropertyName("upiBeneId") @set:PropertyName("upiBeneId")
+    @get:PropertyName("upiBeneId")
+    @set:PropertyName("upiBeneId")
     var upiBeneId: String = "",
 
-    @get:PropertyName("bankBeneId") @set:PropertyName("bankBeneId")
+    @get:PropertyName("bankBeneId")
+    @set:PropertyName("bankBeneId")
     var bankBeneId: String = "",
 
-    @get:PropertyName("upiID") @set:PropertyName("upiID")
+    @get:PropertyName("upiID")
+    @set:PropertyName("upiID")
     var upiID: String = "",
 
-    @get:PropertyName("fcmToken") @set:PropertyName("fcmToken")
+    @get:PropertyName("fcmToken")
+    @set:PropertyName("fcmToken")
     var fcmToken: String = "",
 
-    @get:PropertyName("lastActiveDate") @set:PropertyName("lastActiveDate")
+    @get:PropertyName("lastActiveDate")
+    @set:PropertyName("lastActiveDate")
     var lastActiveDate: Timestamp? = null,
 
-    @get:PropertyName("currentLoanApproveStatus") @set:PropertyName("currentLoanApproveStatus")
+    @get:PropertyName("currentLoanApproveStatus")
+    @set:PropertyName("currentLoanApproveStatus")
     var currentLoanApproveStatus: EMIStatus? = null,
 
-    @get:PropertyName("verifyAmountCount") @set:PropertyName("verifyAmountCount")
+    @get:PropertyName("verifyAmountCount")
+    @set:PropertyName("verifyAmountCount")
     var verifyAmountCount: Int = 0,
 
-    @get:PropertyName("cashRequested") @set:PropertyName("cashRequested")
+    @get:PropertyName("cashRequested")
+    @set:PropertyName("cashRequested")
     var cashRequested: Boolean? = null,
 
-    @get:PropertyName("memberCreatedContribuionAmount") @set:PropertyName("memberCreatedContribuionAmount")
+    @get:PropertyName("memberCreatedContribuionAmount")
+    @set:PropertyName("memberCreatedContribuionAmount")
     var memberCreatedContribuionAmount: Int = 0,
 
-    @get:PropertyName("memberCreatedIntrestAmount") @set:PropertyName("memberCreatedIntrestAmount")
-    var memberCreatedIntrestAmount: Int = 0,
-
-    @get:PropertyName("totalDuration") @set:PropertyName("totalDuration")
-    var totalDuration: Int = 0
+    @get:PropertyName("memberCreatedIntrestAmount")
+    @set:PropertyName("memberCreatedIntrestAmount")
+    var memberCreatedIntrestAmount: Int = 0
 
 ) {
 
-    val localizedMemberName: String
+    // MARK: - Localized Member Name
 
+    val localizedMemberName: String
         get() = when (SquadStrings.currentLanguage) {
 
             SquadLanguages.TAMIL ->
-
                 memberNameTamil.ifBlank { memberName }
 
             SquadLanguages.HINDI ->
-
                 memberNameHindi.ifBlank { memberName }
 
             SquadLanguages.ENGLISH ->
-
                 memberNameEnglish.ifBlank { memberName }
-
         }
 
-    // 🔹 Firestore needs a no-arg constructor
-    constructor() : this(
-        id = null,
-        memberName = "",
-        memberNameHindi = "",
-        memberNameTamil = "",
-        memberNameEnglish = "",
-        profileImage = "",
-        mailID = null,
-        phoneNumber = "",
-        password = "",
-        squadID = "",
-        role = SquadUserType.SQUAD_MEMBER,
-        memberCreatedDate = null,
-        totalContributionPaid = 0,
-        totalLoanBorrowed = 0,
-        totalLoanPaid = 0,
-        totalInterestPaid = 0,
-        totalSettlementReceived = 0, totalRepaymentReceived = 0, totalRepaymentPaid = 0,
-        recordStatus = RecordStatus.ACTIVE,
-        recordDate = Date(),
-        upiBeneId = "",
-        bankBeneId = "",
-        upiID = "",
-        fcmToken = "",
-        lastActiveDate = null,
-        null,
-        verifyAmountCount = 0,
-        cashRequested = null,
-        memberCreatedContribuionAmount = 0,
-        memberCreatedIntrestAmount = 0,
-        totalDuration = 0,
-    )
 }
 
 data class MemberOtherPayments(

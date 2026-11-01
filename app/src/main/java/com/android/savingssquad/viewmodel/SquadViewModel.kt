@@ -75,6 +75,8 @@ import java.util.Calendar
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -375,6 +377,10 @@ class SquadViewModel : ViewModel() {
     private var squadListener: ListenerRegistration? = null
     private var membersListener: ListenerRegistration? = null
 
+
+    private val _logoutEvent = MutableSharedFlow<Unit>()
+    val logoutEvent = _logoutEvent.asSharedFlow()
+
     private val _language = MutableStateFlow(
         UserDefaultsManager.getLanguage()
     )
@@ -474,6 +480,7 @@ class SquadViewModel : ViewModel() {
             return
         }
 
+        // Remove previous listener
         squadListener?.remove()
 
         squadListener = FirebaseFirestore.getInstance()
@@ -482,11 +489,7 @@ class SquadViewModel : ViewModel() {
             .addSnapshotListener { snapshot, error ->
 
                 if (error != null) {
-                    Log.e(
-                        "Firestore",
-                        "Failed to observe squad",
-                        error
-                    )
+                    Log.e("Firestore", "Failed to observe squad", error)
                     return@addSnapshotListener
                 }
 
@@ -501,7 +504,6 @@ class SquadViewModel : ViewModel() {
                 }
 
                 try {
-
                     val squad = snapshot.toObject(Squad::class.java)
 
                     if (squad != null) {
@@ -510,22 +512,44 @@ class SquadViewModel : ViewModel() {
 
                         if (!UserDefaultsManager.getSquadManagerLogged()) {
 
-                            if (squad.recordStatus != RecordStatus.ACTIVE){
+                            if (squad.recordStatus != RecordStatus.ACTIVE) {
+
+                                LoaderManager.shared.hideLoader()
+
                                 AlertManager.shared.showAlert(
                                     title = SquadStrings.savingsSquad,
-                                    message =
-                                        SquadStrings.squadDeactivatedMessage,
+                                    message = SquadStrings.squadDeactivatedMessage,
                                     type = AlertType.INFO,
-                                    primaryButtonTitle =
-                                        SquadStrings.ok,
+                                    primaryButtonTitle = SquadStrings.ok,
                                     primaryAction = {
 
                                         if (UserDefaultsManager.getIsMultipleAccount()) {
 
+                                            val firebaseUser =
+                                                FirebaseAuth.getInstance().currentUser
+
+                                            if (firebaseUser == null) {
+                                                Log.e(
+                                                    "Firestore",
+                                                    "Firebase user is not authenticated"
+                                                )
+
+                                                // Call your existing logout implementation here.
+                                                requestLogout()
+                                                return@showAlert
+                                            }
+
+                                            val firebaseUID = firebaseUser.uid
+
+                                            val phoneNumber = firebaseUser.phoneNumber
+                                                ?: loginMember?.phoneNumber
+                                                ?: ""
+
                                             fetchUserLogins(
-                                                showLoader = true,
-                                                phoneNumber = loginMember?.phoneNumber ?: ""
-                                            ) { success, loginList, error ->
+                                                showLoader = false,
+                                                firebaseUID = firebaseUID,
+                                                phoneNumber = phoneNumber
+                                            ) { success, loginList, fetchError ->
 
                                                 if (loginList != null) {
 
@@ -535,41 +559,46 @@ class SquadViewModel : ViewModel() {
 
                                                     Log.d(
                                                         "MemberHomeView",
-                                                        if (success)
-                                                            "✅ User logins fetched: ${loginList.size}"
-                                                        else
-                                                            "❌ $error"
+                                                        "✅ User logins fetched: ${loginList.size}"
+                                                    )
+
+                                                } else {
+                                                    Log.e(
+                                                        "MemberHomeView",
+                                                        "❌ Failed to fetch user logins: ${fetchError ?: "Unknown error"}"
                                                     )
                                                 }
                                             }
-                                        }
-                                        else {
-//                                            logoutUser(navController)
-                                        }
 
+                                        } else {
+                                            // Call your existing logout implementation here.
+                                            requestLogout()
+                                        }
                                     }
                                 )
                             }
                         }
 
-                        setSquadMembersCount(
-                            squad.totalMembers
+                        setSquadMembersCount(squad.totalMembers)
+
+                        setVerifySquadManagerAmountBadgeCount(
+                            squad.verifyAmountCount
                         )
-                        setVerifySquadManagerAmountBadgeCount(squad.verifyAmountCount)
-                        setVerifySquadCashRequestBadgeCount(squad.cashRequestedCount)
-                        setRemainingMonths(CommonFunctions.getRemainingMonths(
-                            Date(),
-                            squad.squadEndDate?.toDate() ?: Date()
-                        ))
+
+                        setVerifySquadCashRequestBadgeCount(
+                            squad.cashRequestedCount
+                        )
+
+                        setRemainingMonths(
+                            CommonFunctions.getRemainingMonths(
+                                Date(),
+                                squad.squadEndDate?.toDate() ?: Date()
+                            )
+                        )
                     }
 
                 } catch (e: Exception) {
-
-                    Log.e(
-                        "Firestore",
-                        "Failed to decode Squad",
-                        e
-                    )
+                    Log.e("Firestore", "Failed to decode Squad", e)
                 }
             }
     }
@@ -600,7 +629,7 @@ class SquadViewModel : ViewModel() {
                 }
 
                 if (snapshot == null || !snapshot.exists()) {
-                    Log.e("Firestore", "Member document not found")
+                    Log.w("Firestore", "Member document not found")
                     return@addSnapshotListener
                 }
 
@@ -608,26 +637,49 @@ class SquadViewModel : ViewModel() {
                     val member = snapshot.toObject(Member::class.java)
 
                     if (member != null) {
+
                         setCurrentMember(member)
 
                         if (!UserDefaultsManager.getSquadManagerLogged()) {
-                            if (member.recordStatus != RecordStatus.ACTIVE){
+
+                            if (member.recordStatus != RecordStatus.ACTIVE) {
+
                                 LoaderManager.shared.hideLoader()
+
                                 AlertManager.shared.showAlert(
                                     title = SquadStrings.savingsSquad,
-                                    message =
-                                        SquadStrings.memberDeactivatedMessage,
+                                    message = SquadStrings.memberDeactivatedMessage,
                                     type = AlertType.INFO,
-                                    primaryButtonTitle =
-                                        SquadStrings.ok,
+                                    primaryButtonTitle = SquadStrings.ok,
                                     primaryAction = {
 
                                         if (UserDefaultsManager.getIsMultipleAccount()) {
 
+                                            val firebaseUser =
+                                                FirebaseAuth.getInstance().currentUser
+
+                                            if (firebaseUser == null) {
+                                                Log.e(
+                                                    "Firestore",
+                                                    "Firebase user is not authenticated"
+                                                )
+
+                                                // Call your existing logout implementation here.
+                                                requestLogout()
+                                                return@showAlert
+                                            }
+
+                                            val firebaseUID = firebaseUser.uid
+
+                                            val phoneNumber = firebaseUser.phoneNumber
+                                                ?: loginMember?.phoneNumber
+                                                ?: ""
+
                                             fetchUserLogins(
-                                                showLoader = true,
-                                                phoneNumber = loginMember?.phoneNumber ?: ""
-                                            ) { success, loginList, error ->
+                                                showLoader = false,
+                                                firebaseUID = firebaseUID,
+                                                phoneNumber = phoneNumber
+                                            ) { success, loginList, fetchError ->
 
                                                 if (loginList != null) {
 
@@ -637,31 +689,33 @@ class SquadViewModel : ViewModel() {
 
                                                     Log.d(
                                                         "MemberHomeView",
-                                                        if (success)
-                                                            "✅ User logins fetched: ${loginList.size}"
-                                                        else
-                                                            "❌ $error"
+                                                        "✅ User logins fetched: ${loginList.size}"
+                                                    )
+
+                                                } else {
+                                                    Log.e(
+                                                        "MemberHomeView",
+                                                        "❌ Failed to fetch user logins: ${fetchError ?: "Unknown error"}"
                                                     )
                                                 }
                                             }
-                                        }
-                                        else {
-//                                            logoutUser(navController)
-                                        }
 
+                                        } else {
+                                            // Call your existing logout implementation here.
+                                            requestLogout()
+                                        }
                                     }
                                 )
                             }
                         }
 
-                        // verifyAmountCount is an Int, not Int?
                         setVerifySquadMemberAmountBadgeCount(
                             member.verifyAmountCount
                         )
                     }
 
                 } catch (e: Exception) {
-                    Log.e("Firestore", "Failed to decode member", e)
+                    Log.e("Firestore", "Failed to decode Member", e)
                 }
             }
     }
@@ -735,17 +789,28 @@ class SquadViewModel : ViewModel() {
 
     fun fetchUserLogins(
         showLoader: Boolean,
+        firebaseUID: String,
         phoneNumber: String,
-        completion: (Boolean, List<Login>?,String?) -> Unit
+        completion: (Boolean, List<Login>?, String?) -> Unit
     ) {
-        // ✅ Check Internet
+
+        // Check Internet
         if (!CommonFunctions.isInternetAvailable()) {
+
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
+
+            completion(false, null, SquadStrings.networkError)
+            return
+        }
+
+        // Validate Firebase UID
+        if (firebaseUID.isBlank()) {
+            completion(false, null, "Firebase UID is missing.")
             return
         }
 
@@ -753,51 +818,82 @@ class SquadViewModel : ViewModel() {
             LoaderManager.shared.showLoader()
         }
 
-        manager.fetchUserLogins(phoneNumber) { loginList, error ->
+        manager.fetchUserLogins(
+            firebaseUID = firebaseUID,
+            phoneNumber = phoneNumber
+        ) { loginList, error ->
 
-            // DispatchQueue.main.async → main-safe via viewModelScope
             viewModelScope.launch(Dispatchers.Main) {
 
                 try {
+
                     if (showLoader) {
                         LoaderManager.shared.hideLoader()
                     }
 
                     if (loginList != null && loginList.isNotEmpty()) {
-                        var multipleAccount = false
+
+                        // Save fetched profiles
                         UserDefaultsManager.saveSquadLogins(loginList)
+
                         SessionManager.logins = loginList.toMutableList()
+
                         FirestoreManager.shared.updateFCMTokenForAllUser()
 
-                        if (loginList.size > 1) {
-                            multipleAccount = true
-                        }
-                        else {
-
-                            if (loginList.first().role == SquadUserType.SQUAD_MEMBER) {
-                                UserDefaultsManager.saveSquadManagerLogged(false)
-                            }
-                            else {
-                                UserDefaultsManager.saveSquadManagerLogged(true)
-                            }
-
-                        }
+                        // Update users
                         setUsers(loginList)
 
-                        UserDefaultsManager.saveIsMultipleAccount(multipleAccount)
-                        completion(true,loginList, null)
+                        // Update multiple account status
+                        val multipleAccount = loginList.size > 1
+
+                        UserDefaultsManager.saveIsMultipleAccount(
+                            multipleAccount
+                        )
+
+                        // Automatically select profile if only one exists
+                        if (loginList.size == 1) {
+
+                            val selectedUser = loginList.first()
+
+                            UserDefaultsManager.saveLogin(selectedUser)
+
+                            UserDefaultsManager.saveIsLoggedIn(true)
+
+                            if (selectedUser.role == SquadUserType.SQUAD_MANAGER) {
+
+                                UserDefaultsManager.saveSquadManagerLogged(true)
+
+                            } else {
+
+                                UserDefaultsManager.saveSquadManagerLogged(false)
+                            }
+                        }
+
+                        completion(true, loginList, null)
 
                     } else {
-                        val errorMessage = error ?: "No squads found for this user"
+
+                        val errorMessage =
+                            error ?: "No squads found for this user."
+
                         handleFetchError(errorMessage) { }
+
                         completion(false, emptyList(), errorMessage)
                     }
 
                 } catch (e: Exception) {
-                    if (showLoader) {
-                        LoaderManager.shared.hideLoader()
-                    }
-                    completion(false,emptyList(), e.localizedMessage)
+
+                    Log.e(
+                        "FetchUserLogins",
+                        "Failed to fetch user logins",
+                        e
+                    )
+
+                    completion(
+                        false,
+                        emptyList(),
+                        e.localizedMessage ?: "Unexpected error."
+                    )
                 }
             }
         }
@@ -807,14 +903,18 @@ class SquadViewModel : ViewModel() {
         showLoader: Boolean,
         completion: (Boolean, Squad?, String?) -> Unit
     ) {
-        // ✅ Internet check
+
+        // Internet check
         if (!CommonFunctions.isInternetAvailable()) {
+
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
+
+            completion(false, null, SquadStrings.networkError)
             return
         }
 
@@ -822,123 +922,301 @@ class SquadViewModel : ViewModel() {
             LoaderManager.shared.showLoader()
         }
 
+        // Restore selected login
         UserDefaultsManager.getLogin()?.let { login ->
-            this.squadID = login.squadID.toString()
-            this.loginMember = login
+
+            squadID = login.squadID
+            loginMember = login
+
             setSelectedUser(login)
         }
 
         manager.fetchSquadByID(squadID) { fetchedSquad, error ->
+
             viewModelScope.launch(Dispatchers.Main) {
+
                 try {
+
                     if (fetchedSquad == null) {
-                        if (showLoader) LoaderManager.shared.hideLoader()
-                        handleFetchError(error ?: "Failed to fetch squad details") {
+
+                        if (showLoader) {
+                            LoaderManager.shared.hideLoader()
+                        }
+
+                        val errorMessage =
+                            error ?: "Failed to fetch squad details"
+
+                        handleFetchError(errorMessage) {
                             fetchSquadByID(showLoader, completion)
                         }
-                        completion(false, null, error ?: "Failed to fetch squad details")
+
+                        completion(false, null, errorMessage)
                         return@launch
                     }
 
                     setSquad(fetchedSquad)
 
+                    // MARK: - Squad Deactivation
+
                     if (!UserDefaultsManager.getSquadManagerLogged()) {
 
-                        if (fetchedSquad.recordStatus != RecordStatus.ACTIVE){
+                        if (fetchedSquad.recordStatus != RecordStatus.ACTIVE) {
+
+                            if (showLoader) {
+                                LoaderManager.shared.hideLoader()
+                            }
+
                             AlertManager.shared.showAlert(
                                 title = SquadStrings.savingsSquad,
-                                message =
-                                    SquadStrings.squadDeactivatedMessage,
+                                message = SquadStrings.squadDeactivatedMessage,
                                 type = AlertType.INFO,
-                                primaryButtonTitle =
-                                    SquadStrings.ok,
+                                primaryButtonTitle = SquadStrings.ok,
                                 primaryAction = {
 
                                     if (UserDefaultsManager.getIsMultipleAccount()) {
 
+                                        val firebaseUser =
+                                            FirebaseAuth.getInstance().currentUser
+
+                                        if (firebaseUser == null) {
+
+                                            Log.e(
+                                                "FetchSquad",
+                                                "Firebase user is not authenticated"
+                                            )
+
+                                            // Call your existing logout implementation.
+                                            requestLogout()
+                                            return@showAlert
+                                        }
+
                                         fetchUserLogins(
                                             showLoader = true,
-                                            phoneNumber = loginMember?.phoneNumber ?: ""
-                                        ) { success, loginList, error ->
+                                            firebaseUID = firebaseUser.uid,
+                                            phoneNumber = firebaseUser.phoneNumber
+                                                ?: loginMember?.phoneNumber
+                                                ?: ""
+                                        ) { success, loginList, fetchError ->
 
-                                            if (loginList != null) {
+                                            if (success && loginList != null) {
 
                                                 setShowPopup(
                                                     UserDefaultsManager.getIsMultipleAccount()
                                                 )
 
                                                 Log.d(
-                                                    "MemberHomeView",
-                                                    if (success)
-                                                        "✅ User logins fetched: ${loginList.size}"
-                                                    else
-                                                        "❌ $error"
+                                                    "FetchSquad",
+                                                    "✅ User logins fetched: ${loginList.size}"
+                                                )
+
+                                            } else {
+
+                                                Log.e(
+                                                    "FetchSquad",
+                                                    "❌ ${fetchError ?: "Failed to fetch user logins"}"
                                                 )
                                             }
                                         }
-                                    }
-                                    else {
-//                                            logoutUser(navController)
-                                    }
 
+                                    } else {
+
+                                        // Call your existing logout implementation.
+                                        requestLogout()
+                                    }
                                 }
                             )
                         }
                     }
 
+                    // MARK: - Squad Summary
 
-                    setVerifySquadManagerAmountBadgeCount(fetchedSquad.verifyAmountCount)
-                    setVerifySquadCashRequestBadgeCount(fetchedSquad.cashRequestedCount)
+                    setVerifySquadManagerAmountBadgeCount(
+                        fetchedSquad.verifyAmountCount
+                    )
 
-                    setRemainingMonths(CommonFunctions.getRemainingMonths(
-                        startDate = Date(),
-                        endDate = fetchedSquad.squadEndDate?.toDate() ?: Date()
-                    ))
+                    setVerifySquadCashRequestBadgeCount(
+                        fetchedSquad.cashRequestedCount
+                    )
+
+                    setRemainingMonths(
+                        CommonFunctions.getRemainingMonths(
+                            startDate = Date(),
+                            endDate = fetchedSquad.squadEndDate?.toDate() ?: Date()
+                        )
+                    )
 
                     setIsFetchingTotalAmountCollected(true)
 
-                    // FIX: these are sub-tasks of ONE larger group operation — this outer
-                    // function alone owns show/hide of the loader. Previously
-                    // fetchEMIConfigurations(true) passed showLoader=true, which meant that
-                    // sub-call would show *and hide* its own loader the instant IT finished,
-                    // well before fetchMembers/fetchPayments completed — causing the spinner
-                    // to disappear early even though work was still in flight. All sub-calls
-                    // below now pass showLoader = false.
-                    val fetchEMI = async { fetchEMIConfigurations(false) { _, _ -> } }
-                    val fetchPayments = async {
-                        manager.fetchPayments(
+                    // MARK: - Fetch EMI Configurations
 
-                            squadID = squadID,
+                    fetchEMIConfigurations(false) { _, _ ->
 
-                            memberId = null,
+                        Log.d(
+                            "FetchSquad",
+                            "EMI configurations fetch completed"
+                        )
+                    }
 
-                            lastDocument = null,
+                    // MARK: - Fetch Payments
 
-                            limit = paymentsPageSize
+                    manager.fetchPayments(
+                        squadID = squadID,
+                        memberId = null,
+                        lastDocument = null,
+                        limit = paymentsPageSize
+                    ) { fetchedPayments, lastDoc, paymentError ->
 
-                        ) { fetchedPayments, lastDoc, error ->
+                        viewModelScope.launch(Dispatchers.Main) {
+
+                            if (fetchedPayments != null) {
+
+                                setSquadPayments(fetchedPayments)
+
+                                setIsFetchingTotalAmountCollected(false)
+
+                            } else {
+
+                                val errorMessage =
+                                    paymentError ?: "Failed to fetch payments"
+
+                                Log.e("FetchSquad", errorMessage)
+
+                            }
+                        }
+                    }
+
+                    // MARK: - Load Subscription
+
+                    SubscriptionManager.shared.loadSubscription(
+                        squadID = fetchedSquad.squadID
+                    ) { success, subscriptionError ->
+
+                        if (success) {
+
+                            Log.d(
+                                "FetchSquad",
+                                "Subscription loaded successfully"
+                            )
+
+                        } else {
+
+                            Log.e(
+                                "FetchSquad",
+                                subscriptionError ?: "Subscription loading failed"
+                            )
+                        }
+                    }
+
+                    // MARK: - Fetch Member
+
+                    val memberId = loginMember?.squadUserId
+                        ?.trim()
+                        .orEmpty()
+
+                    if (memberId.isNotEmpty()) {
+
+                        fetchMember(
+                            showLoader = false,
+                            squadID = fetchedSquad.squadID,
+                            memberID = memberId
+                        ) { _, member, memberError ->
+
                             viewModelScope.launch(Dispatchers.Main) {
-                                if (fetchedPayments != null) {
-                                    setSquadPayments(fetchedPayments)
-                                    setIsFetchingTotalAmountCollected(false)
-                                } else {
-                                    val errorMsg = error ?: "❌ Failed to fetch payments"
-                                    println(errorMsg)
+
+                                setCurrentMember(member)
+
+                                if (
+                                    !UserDefaultsManager.getSquadManagerLogged() &&
+                                    member?.recordStatus != RecordStatus.ACTIVE
+                                ) {
+
+                                    AlertManager.shared.showAlert(
+                                        title = SquadStrings.savingsSquad,
+                                        message = SquadStrings.memberDeactivatedMessage,
+                                        type = AlertType.INFO,
+                                        primaryButtonTitle = SquadStrings.ok,
+                                        primaryAction = {
+
+                                            if (UserDefaultsManager.getIsMultipleAccount()) {
+
+                                                val firebaseUser =
+                                                    FirebaseAuth.getInstance().currentUser
+
+                                                if (firebaseUser == null) {
+
+                                                    Log.e(
+                                                        "FetchSquad",
+                                                        "Firebase user is not authenticated"
+                                                    )
+
+                                                    // Call your existing logout implementation.
+                                                    requestLogout()
+                                                    return@showAlert
+                                                }
+
+                                                fetchUserLogins(
+                                                    showLoader = true,
+                                                    firebaseUID = firebaseUser.uid,
+                                                    phoneNumber = firebaseUser.phoneNumber
+                                                        ?: loginMember?.phoneNumber
+                                                        ?: ""
+                                                ) { success, loginList, fetchError ->
+
+                                                    if (success && loginList != null) {
+
+                                                        setShowPopup(
+                                                            UserDefaultsManager.getIsMultipleAccount()
+                                                        )
+
+                                                        Log.d(
+                                                            "FetchSquad",
+                                                            "✅ User logins fetched: ${loginList.size}"
+                                                        )
+
+                                                    } else {
+
+                                                        Log.e(
+                                                            "FetchSquad",
+                                                            "❌ ${fetchError ?: "Failed to fetch user logins"}"
+                                                        )
+                                                    }
+                                                }
+
+                                            } else {
+
+                                                // Call your existing logout implementation.
+                                                requestLogout()
+                                            }
+                                        }
+                                    )
                                 }
                             }
                         }
                     }
 
-                    fetchEMI.await()
-                    fetchPayments.await()
-
-                    if (showLoader) LoaderManager.shared.hideLoader()
-                    println("✅ All background tasks completed")
+                    if (showLoader) {
+                        LoaderManager.shared.hideLoader()
+                    }
 
                     completion(true, fetchedSquad, null)
+
                 } catch (e: Exception) {
-                    if (showLoader) LoaderManager.shared.hideLoader()
-                    completion(false, null, e.localizedMessage)
+
+                    if (showLoader) {
+                        LoaderManager.shared.hideLoader()
+                    }
+
+                    Log.e(
+                        "FetchSquad",
+                        "Failed to fetch squad details",
+                        e
+                    )
+
+                    completion(
+                        false,
+                        null,
+                        e.localizedMessage ?: "Unexpected error"
+                    )
                 }
             }
         }
@@ -950,13 +1228,18 @@ class SquadViewModel : ViewModel() {
         squad: Squad,
         completion: (Boolean, Squad?, String?) -> Unit
     ) {
+
+        // Internet check
         if (!CommonFunctions.isInternetAvailable()) {
+
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
+
+            completion(false, null, SquadStrings.networkError)
             return
         }
 
@@ -965,71 +1248,135 @@ class SquadViewModel : ViewModel() {
         }
 
         manager.updateSquad(squad) { success, updatedSquad, errorMessage ->
+
             viewModelScope.launch(Dispatchers.Main) {
-                if (showLoader) LoaderManager.shared.hideLoader()
 
-                if (success && updatedSquad != null) {
-                    println("✅ Squad updated successfully!")
-                    setSquad(updatedSquad)
+                try {
 
-                    if (!UserDefaultsManager.getSquadManagerLogged()) {
+                    if (showLoader) {
+                        LoaderManager.shared.hideLoader()
+                    }
 
-                        if (updatedSquad.recordStatus != RecordStatus.ACTIVE){
-                            AlertManager.shared.showAlert(
-                                title = SquadStrings.savingsSquad,
-                                message =
-                                    SquadStrings.squadDeactivatedMessage,
-                                type = AlertType.INFO,
-                                primaryButtonTitle =
-                                    SquadStrings.ok,
-                                primaryAction = {
+                    if (success && updatedSquad != null) {
 
-                                    if (UserDefaultsManager.getIsMultipleAccount()) {
+                        Log.d(
+                            "UpdateSquad",
+                            "✅ Squad updated successfully!"
+                        )
 
-                                        fetchUserLogins(
-                                            showLoader = true,
-                                            phoneNumber = loginMember?.phoneNumber ?: ""
-                                        ) { success, loginList, error ->
+                        setSquad(updatedSquad)
 
-                                            if (loginList != null) {
+                        // MARK: - Squad Deactivation
 
-                                                setShowPopup(
-                                                    UserDefaultsManager.getIsMultipleAccount()
+                        if (!UserDefaultsManager.getSquadManagerLogged()) {
+
+                            if (updatedSquad.recordStatus != RecordStatus.ACTIVE) {
+
+                                AlertManager.shared.showAlert(
+                                    title = SquadStrings.savingsSquad,
+                                    message = SquadStrings.squadDeactivatedMessage,
+                                    type = AlertType.INFO,
+                                    primaryButtonTitle = SquadStrings.ok,
+                                    primaryAction = {
+
+                                        if (UserDefaultsManager.getIsMultipleAccount()) {
+
+                                            val firebaseUser =
+                                                FirebaseAuth.getInstance().currentUser
+
+                                            if (firebaseUser == null) {
+
+                                                Log.e(
+                                                    "UpdateSquad",
+                                                    "Firebase user is not authenticated"
                                                 )
 
-                                                Log.d(
-                                                    "MemberHomeView",
-                                                    if (success)
-                                                        "✅ User logins fetched: ${loginList.size}"
-                                                    else
-                                                        "❌ $error"
-                                                )
+                                                // Call your existing logout implementation.
+                                                requestLogout()
+                                                return@showAlert
                                             }
+
+                                            fetchUserLogins(
+                                                showLoader = true,
+                                                firebaseUID = firebaseUser.uid,
+                                                phoneNumber = firebaseUser.phoneNumber
+                                                    ?: loginMember?.phoneNumber
+                                                    ?: ""
+                                            ) { fetchSuccess, loginList, fetchError ->
+
+                                                if (fetchSuccess && loginList != null) {
+
+                                                    setShowPopup(
+                                                        UserDefaultsManager.getIsMultipleAccount()
+                                                    )
+
+                                                    Log.d(
+                                                        "UpdateSquad",
+                                                        "✅ User logins fetched: ${loginList.size}"
+                                                    )
+
+                                                } else {
+
+                                                    Log.e(
+                                                        "UpdateSquad",
+                                                        "❌ ${fetchError ?: "Failed to fetch user logins"}"
+                                                    )
+                                                }
+                                            }
+
+                                        } else {
+
+                                            // Call your existing logout implementation.
+                                            requestLogout()
                                         }
                                     }
-                                    else {
-//                                            logoutUser(navController)
-                                    }
+                                )
+                            }
+                        }
 
-                                }
+                        // MARK: - Remaining Months
+
+                        setRemainingMonths(
+                            CommonFunctions.getRemainingMonths(
+                                startDate = Date(),
+                                endDate = updatedSquad.squadEndDate?.toDate() ?: Date()
+                            )
+                        )
+
+                        completion(true, updatedSquad, null)
+
+                    } else {
+
+                        val errorMsg =
+                            errorMessage ?: "Unknown error while updating squad"
+
+                        Log.e("UpdateSquad", "❌ $errorMsg")
+
+                        handleFetchError(errorMsg) {
+
+                            updateSquad(
+                                showLoader = showLoader,
+                                squad = squad,
+                                completion = completion
                             )
                         }
+
+                        completion(false, null, errorMsg)
                     }
 
+                } catch (e: Exception) {
 
-                    setRemainingMonths(CommonFunctions.getRemainingMonths(
-                        startDate = Date(),
-                        endDate = updatedSquad.squadEndDate?.orNow ?: Date()
-                    ))
+                    Log.e(
+                        "UpdateSquad",
+                        "Failed to update squad",
+                        e
+                    )
 
-                    completion(true, updatedSquad, null)
-                } else {
-                    val errorMsg = errorMessage ?: "Unknown error while updating squad"
-                    println("❌ $errorMsg")
-                    handleFetchError(errorMsg) {
-                        updateSquad(showLoader, squad, completion)
-                    }
-                    completion(false, null, errorMsg)
+                    completion(
+                        false,
+                        null,
+                        e.localizedMessage ?: "Unexpected error"
+                    )
                 }
             }
         }
@@ -1291,16 +1638,17 @@ class SquadViewModel : ViewModel() {
         showLoader: Boolean = true,
         name: String,
         phone: String,
+        firebaseUID: String,
         contributionReceived: Int = 0,
         interestReceived: Int = 0,
         markCurrentMonthPaid: Boolean = false,
         completion: (Boolean, String?) -> Unit
     ) {
-        // ---------------------------------------------------------
-        // INTERNET VALIDATION
-        // ---------------------------------------------------------
+
+        // MARK: Internet Validation
 
         if (!CommonFunctions.isInternetAvailable()) {
+
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
@@ -1312,9 +1660,17 @@ class SquadViewModel : ViewModel() {
             return
         }
 
-        // ---------------------------------------------------------
-        // SQUAD VALIDATION
-        // ---------------------------------------------------------
+        // MARK: Firebase UID Validation
+
+        if (firebaseUID.isBlank()) {
+            completion(
+                false,
+                "Invalid Firebase user ID. Please verify the member's phone number."
+            )
+            return
+        }
+
+        // MARK: Squad Validation
 
         val currentSquad = _squad.value
 
@@ -1323,32 +1679,29 @@ class SquadViewModel : ViewModel() {
             return
         }
 
-        // ---------------------------------------------------------
-        // FINANCIAL VALIDATION
-        // ---------------------------------------------------------
+        // MARK: Financial Validation
 
         if (contributionReceived < 0 || interestReceived < 0) {
+
             completion(
                 false,
                 "Contribution and interest amounts cannot be negative."
             )
+
             return
         }
 
-        // ---------------------------------------------------------
-        // LOADER
-        // ---------------------------------------------------------
+        // MARK: Show Loader
 
         if (showLoader) {
             LoaderManager.shared.showLoader()
         }
 
-        // ---------------------------------------------------------
-        // CREATE MEMBER
-        // ---------------------------------------------------------
+        // MARK: Create Member
 
         val newMember = Member(
             id = IDGenerator.generateMemberID(),
+            firebaseUID = firebaseUID,
             memberName = name,
             memberNameHindi = "",
             memberNameTamil = "",
@@ -1356,7 +1709,7 @@ class SquadViewModel : ViewModel() {
             profileImage = "",
             mailID = "",
             phoneNumber = phone,
-            password = phone,
+            password = "",
             squadID = currentSquad.squadID,
             role = SquadUserType.SQUAD_MEMBER,
             memberCreatedDate = Date().asTimestamp,
@@ -1370,75 +1723,83 @@ class SquadViewModel : ViewModel() {
             cashRequested = false,
             memberCreatedContribuionAmount = contributionReceived,
             memberCreatedIntrestAmount = interestReceived,
-            totalDuration = squad.value?.totalDuration ?: 0
+            totalDuration = currentSquad.totalDuration
         )
 
-        // ---------------------------------------------------------
-        // SAVE MEMBER + LOGIN + CONTRIBUTIONS + FINANCIALS
-        // ---------------------------------------------------------
+        // MARK: Save Member + Login + Financial Records
 
-        fun addAndSave() {
-            manager.addMemberWithInitialFinancials(
-                squadID = currentSquad.squadID,
-                squad = currentSquad,
-                member = newMember,
-                contributionReceived = contributionReceived,
-                interestReceived = interestReceived,
-                markCurrentMonthPaid = markCurrentMonthPaid
-            ) { success, message ->
+        manager.addMemberWithInitialFinancials(
+            squadID = currentSquad.squadID,
+            squad = currentSquad,
+            member = newMember,
+            firebaseUID = firebaseUID,
+            contributionReceived = contributionReceived,
+            interestReceived = interestReceived,
+            markCurrentMonthPaid = markCurrentMonthPaid
+        ) { success, message ->
 
-                viewModelScope.launch(Dispatchers.Main) {
+            viewModelScope.launch(Dispatchers.Main) {
+
+                try {
 
                     if (showLoader) {
                         LoaderManager.shared.hideLoader()
                     }
 
+                    // MARK: Handle Failure
+
                     if (!success) {
+
                         val errorMessage =
                             message ?: "Failed to add member."
 
                         handleFetchError(errorMessage) {}
+
                         completion(false, errorMessage)
                         return@launch
                     }
 
-                    // Update local members only after the batch succeeds.
+                    // MARK: Update Local Member List
+
                     val alreadyExists = _squadMembers.value.any {
                         it.id == newMember.id
                     }
 
                     if (!alreadyExists) {
+
                         setSquadMembers(
                             _squadMembers.value + newMember
                         )
-                        _squad.value?.let { latestSquad ->
-                            _squad.value = latestSquad.copy(
-                                totalContributionAmountReceived =
-                                    latestSquad.totalContributionAmountReceived +
-                                            contributionReceived,
-                                totalInterestAmountReceived =
-                                    latestSquad.totalInterestAmountReceived +
-                                            interestReceived,
-                                currentAvailableAmount =
-                                    latestSquad.currentAvailableAmount +
-                                            contributionReceived +
-                                            interestReceived,
-                                currentCreditAmount =
-                                    latestSquad.currentCreditAmount +
-                                            contributionReceived +
-                                            interestReceived
-                            )
-                        }
                     }
+
+                    // MARK: Update Popup State
 
                     setShowAddMemberPopup(false)
 
                     // IMPORTANT:
-                    // Do not call addUserLogin().
-                    // The manager batch already creates the login and
-                    // monthly contribution records.
+                    // addMemberWithInitialFinancials() already creates:
+                    // 1. Member document
+                    // 2. Login document
+                    // 3. Initial payment records
+                    // 4. Monthly contribution records
+                    // 5. Squad financial summary updates
+                    //
+                    // Do not call addUserLogin() separately.
 
                     completion(true, null)
+
+                } catch (e: Exception) {
+
+                    Log.e(
+                        "AddMember",
+                        "Error processing member creation",
+                        e
+                    )
+
+                    completion(
+                        false,
+                        e.localizedMessage ?: "Failed to add member."
+                    )
                 }
             }
         }
@@ -1451,86 +1812,168 @@ class SquadViewModel : ViewModel() {
         memberID: String,
         completion: (Boolean, Member?, String?) -> Unit
     ) {
+
+        // MARK: Internet Validation
+
         if (!CommonFunctions.isInternetAvailable()) {
+
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
+
+            completion(false, null, SquadStrings.networkError)
             return
         }
 
-        if (showLoader) LoaderManager.shared.showLoader()
+        // MARK: Show Loader
 
-        viewModelScope.launch(Dispatchers.IO) { // 🧵 Run on background thread
-            manager.fetchMember(squadID, memberID) { fetchedMember, error ->
-                viewModelScope.launch(Dispatchers.Main) { // 🧭 Switch back to Main thread
-                    if (showLoader) LoaderManager.shared.hideLoader()
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        // MARK: Fetch Member
+
+        manager.fetchMember(
+            squadID,
+            memberID
+        ) { fetchedMember, error ->
+
+            viewModelScope.launch(Dispatchers.Main) {
+
+                try {
+
+                    if (showLoader) {
+                        LoaderManager.shared.hideLoader()
+                    }
+
+                    // MARK: Member Found
 
                     if (fetchedMember != null) {
+
                         setCurrentMember(fetchedMember)
 
+                        // MARK: Member Deactivation Validation
+
                         if (!UserDefaultsManager.getSquadManagerLogged()) {
-                            if (fetchedMember.recordStatus != RecordStatus.ACTIVE){
-                                LoaderManager.shared.hideLoader()
+
+                            if (fetchedMember.recordStatus != RecordStatus.ACTIVE) {
+
                                 AlertManager.shared.showAlert(
                                     title = SquadStrings.savingsSquad,
-                                    message =
-                                        SquadStrings.memberDeactivatedMessage,
+                                    message = SquadStrings.memberDeactivatedMessage,
                                     type = AlertType.INFO,
-                                    primaryButtonTitle =
-                                        SquadStrings.ok,
+                                    primaryButtonTitle = SquadStrings.ok,
                                     primaryAction = {
 
                                         if (UserDefaultsManager.getIsMultipleAccount()) {
 
+                                            val firebaseUser =
+                                                FirebaseAuth.getInstance().currentUser
+
+                                            if (firebaseUser == null) {
+
+                                                Log.e(
+                                                    "FetchMember",
+                                                    "Firebase user is not authenticated"
+                                                )
+
+                                                // Call your existing logout implementation.
+                                                requestLogout()
+
+                                                return@showAlert
+                                            }
+
+                                            val firebaseUID = firebaseUser.uid
+
+                                            val phoneNumber = firebaseUser.phoneNumber
+                                                ?: loginMember?.phoneNumber
+                                                ?: ""
+
                                             fetchUserLogins(
                                                 showLoader = true,
-                                                phoneNumber = loginMember?.phoneNumber ?: ""
-                                            ) { success, loginList, error ->
+                                                firebaseUID = firebaseUID,
+                                                phoneNumber = phoneNumber
+                                            ) { success, loginList, fetchError ->
 
-                                                if (loginList != null) {
+                                                if (success && loginList != null) {
 
                                                     setShowPopup(
                                                         UserDefaultsManager.getIsMultipleAccount()
                                                     )
 
                                                     Log.d(
-                                                        "MemberHomeView",
-                                                        if (success)
-                                                            "✅ User logins fetched: ${loginList.size}"
-                                                        else
-                                                            "❌ $error"
+                                                        "FetchMember",
+                                                        "✅ User logins fetched: ${loginList.size}"
+                                                    )
+
+                                                } else {
+
+                                                    Log.e(
+                                                        "FetchMember",
+                                                        "❌ ${fetchError ?: "Failed to fetch user logins"}"
                                                     )
                                                 }
                                             }
-                                        }
-                                        else {
-//                                            logoutUser(navController)
-                                        }
 
+                                        } else {
+
+                                            // Call your existing logout implementation.
+                                            requestLogout()
+                                        }
                                     }
                                 )
                             }
                         }
 
-                        setVerifySquadMemberAmountBadgeCount(fetchedMember.verifyAmountCount)
-                        completion(true, fetchedMember, null)
-                    } else {
-                        val errorMsg = error ?: "❌ Failed to fetch member"
-                        setErrorMessage(errorMsg)
+                        // MARK: Update Badge Count
 
-                        handleFetchError(errorMsg) {
-                            fetchMember(showLoader, squadID, memberID, completion)
+                        setVerifySquadMemberAmountBadgeCount(
+                            fetchedMember.verifyAmountCount
+                        )
+
+                        completion(true, fetchedMember, null)
+
+                    } else {
+
+                        // MARK: Handle Fetch Failure
+
+                        val errorMessage =
+                            error ?: "Failed to fetch member."
+
+                        setErrorMessage(errorMessage)
+
+                        handleFetchError(errorMessage) {
+
+                            fetchMember(
+                                showLoader = showLoader,
+                                squadID = squadID,
+                                memberID = memberID,
+                                completion = completion
+                            )
                         }
 
-                        completion(false, null, errorMsg)
+                        completion(false, null, errorMessage)
                     }
+
+                } catch (e: Exception) {
+
+                    Log.e(
+                        "FetchMember",
+                        "Failed to process member",
+                        e
+                    )
+
+                    completion(
+                        false,
+                        null,
+                        e.localizedMessage ?: "Unexpected error."
+                    )
                 }
             }
         }
-
     }
 
     // ✅ fetchMembers
@@ -3844,37 +4287,112 @@ class SquadViewModel : ViewModel() {
         squadID: String,
         memberID: String,
         mobileNumber: String,
+        firebaseUID: String,
         completion: (Boolean, String?) -> Unit
     ) {
+
+        // MARK: Internet Validation
+
         if (!CommonFunctions.isInternetAvailable()) {
+
             AlertManager.shared.showAlert(
                 title = SquadStrings.savingsSquad,
                 message = SquadStrings.networkError,
                 primaryButtonTitle = SquadStrings.ok,
                 primaryAction = {}
             )
+
+            completion(false, SquadStrings.networkError)
             return
         }
 
-        if (showLoader) LoaderManager.shared.showLoader()
+        // MARK: Firebase UID Validation
 
-        val selectedUser = selectedUser.value ?: run {
-            if (showLoader) LoaderManager.shared.hideLoader()
+        if (firebaseUID.isBlank()) {
+            completion(false, "Firebase UID is missing.")
             return
         }
-        manager.updateMemberMobileNumber(squadID, memberID, mobileNumber,selectedUser) { success, error ->
+
+        // MARK: Selected User Validation
+
+        val selectedLogin = selectedUser.value
+
+        if (selectedLogin == null) {
+            completion(false, "No selected user.")
+            return
+        }
+
+        // MARK: Show Loader
+
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        // MARK: Update Member Mobile Number
+
+        manager.updateMemberMobileNumber(
+            squadID = squadID,
+            memberID = memberID,
+            mobileNumber = mobileNumber,
+            firebaseUID = firebaseUID,
+            login = selectedLogin
+        ) { success, error ->
+
             viewModelScope.launch(Dispatchers.Main) {
-                if (showLoader) LoaderManager.shared.hideLoader()
 
-                if (success) {
-                    completion(true, null)
-                } else {
-                    val errorMsg = error ?: "❌ Failed to updateMemberMobileNumber"
-                    println(errorMsg)
-                    handleFetchError(errorMsg) {
-                        updateMemberMobileNumber(showLoader, squadID, memberID, mobileNumber, completion)
+                try {
+
+                    if (showLoader) {
+                        LoaderManager.shared.hideLoader()
                     }
-                    completion(false, errorMsg)
+
+                    if (success) {
+
+                        Log.d(
+                            "UpdateMemberMobile",
+                            "✅ Member mobile number updated successfully"
+                        )
+
+                        completion(true, null)
+
+                    } else {
+
+                        val errorMessage =
+                            error ?: "Failed to update member mobile number."
+
+                        Log.e(
+                            "UpdateMemberMobile",
+                            errorMessage
+                        )
+
+                        handleFetchError(errorMessage) {
+
+                            updateMemberMobileNumber(
+                                showLoader = showLoader,
+                                squadID = squadID,
+                                memberID = memberID,
+                                mobileNumber = mobileNumber,
+                                firebaseUID = firebaseUID,
+                                completion = completion
+                            )
+                        }
+
+                        completion(false, errorMessage)
+                    }
+
+                } catch (e: Exception) {
+
+                    Log.e(
+                        "UpdateMemberMobile",
+                        "Unexpected error",
+                        e
+                    )
+
+                    completion(
+                        false,
+                        e.localizedMessage
+                            ?: "Unexpected error while updating mobile number."
+                    )
                 }
             }
         }
@@ -5481,7 +5999,15 @@ class SquadViewModel : ViewModel() {
         }
     }
 
+    private fun requestLogout() {
+        viewModelScope.launch {
+            _logoutEvent.emit(Unit)
+        }
+    }
+
     fun logoutUser(navController: NavController) {
+
+        LoaderManager.shared.showLoader()
 
         Log.d("LOGOUT", "User logging out...")
 
@@ -5524,6 +6050,8 @@ class SquadViewModel : ViewModel() {
                         }
                         launchSingleTop = true
                     }
+
+                    LoaderManager.shared.hideLoader()
 
                     Log.d("LOGOUT", "✅ Logout flow completed")
                 }

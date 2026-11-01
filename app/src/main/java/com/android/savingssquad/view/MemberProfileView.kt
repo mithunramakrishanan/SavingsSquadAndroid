@@ -80,6 +80,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.android.savingssquad.singleton.AmountEditType
+import com.android.savingssquad.singleton.SecondaryFirebaseAuthManager
 import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.SSToast
@@ -828,6 +829,11 @@ fun UpdateMemberPopup(
     onCancel: () -> Unit
 ) {
     val context = LocalContext.current
+    val activity = context as? Activity
+
+    val secondaryAuthManager = remember {
+        SecondaryFirebaseAuthManager.getInstance(context)
+    }
 
     var phoneNumber by remember { mutableStateOf("") }
     var otpCode by remember { mutableStateOf("") }
@@ -837,122 +843,235 @@ fun UpdateMemberPopup(
     var otpVerified by remember { mutableStateOf(false) }
     var otpProcessStarted by remember { mutableStateOf(false) }
 
+    var memberFirebaseUID by remember { mutableStateOf("") }
+
     var phoneError by remember { mutableStateOf("") }
     var sendOTPError by remember { mutableStateOf("") }
     var verifyOTPError by remember { mutableStateOf("") }
 
-    val focusManager = LocalFocusManager.current
-
     val coroutineScope = rememberCoroutineScope()
     var debounceJob by remember { mutableStateOf<Job?>(null) }
 
+    val phoneState = remember { mutableStateOf("") }
+    val otpState = remember { mutableStateOf("") }
+
+    // MARK: - Validate Fields
+
     fun validateFields(): Boolean {
         phoneError =
-            if (Regex("^[0-9]{10}$").matches(phoneNumber)) "" else SquadStrings.enterValidPhoneNumber
+            if (Regex("^[0-9]{10}$").matches(phoneNumber)) {
+                ""
+            } else {
+                SquadStrings.enterValidPhoneNumber
+            }
+
         return phoneError.isEmpty()
     }
 
-    fun verifyOTP() {
-        val credential = PhoneAuthProvider.getCredential(verificationID, otpCode)
+    // MARK: - Verify OTP
 
+    fun verifyOTP() {
+
+        if (otpCode.length != 6) return
+
+        if (verificationID.isEmpty()) {
+            verifyOTPError = "Please request OTP again."
+            return
+        }
+
+        if (otpProcessStarted) return
+
+        otpProcessStarted = true
         squadViewModel.setIsVerifyingOTP(true)
-        FirebaseAuth.getInstance().signInWithCredential(credential)
-            .addOnCompleteListener { task ->
+
+        secondaryAuthManager.verifyOTP(
+            verificationId = verificationID,
+            otp = otpCode,
+            expectedPhoneNumber = "+91$phoneNumber"
+        ) { result ->
+
+            activity?.runOnUiThread {
+
+                otpProcessStarted = false
                 squadViewModel.setIsVerifyingOTP(false)
-                if (task.isSuccessful) {
+
+                result.onSuccess { firebaseUID ->
+
+                    memberFirebaseUID = firebaseUID
                     otpVerified = true
-                } else {
-                    verifyOTPError = task.exception?.message ?: SquadStrings.invalidOTP
+                    verifyOTPError = ""
+
+                    // Sign out only from secondary Firebase Auth.
+                    secondaryAuthManager.signOut()
+
+                }.onFailure { error ->
+
+                    memberFirebaseUID = ""
+                    otpVerified = false
+                    verifyOTPError =
+                        error.localizedMessage ?: SquadStrings.invalidOTP
                 }
             }
-    }
-
-    fun handleOTPChange(value: String) {
-        verifyOTPError = ""
-        if (value.length == 6) {
-            verifyOTP()
         }
     }
 
+    // MARK: - OTP Change
+
+    fun handleOTPChange(value: String) {
+
+        verifyOTPError = ""
+
+        debounceJob?.cancel()
+
+        if (value.length == 6) {
+
+            debounceJob = coroutineScope.launch {
+                delay(500)
+
+                if (otpCode.length == 6 && !otpVerified) {
+                    verifyOTP()
+                }
+            }
+        }
+    }
+
+    // MARK: - Send OTP
+
     fun sendOTP() {
+
+        if (!validateFields()) return
+
+        if (activity == null) {
+            sendOTPError = "Unable to start phone verification."
+            return
+        }
+
+        if (otpProcessStarted) return
+
+        sendOTPError = ""
+        verifyOTPError = ""
 
         squadViewModel.validateMemberNameAndPhone(
             showLoader = true,
             memberName = "",
             phoneNumber = phoneNumber
-        )
-        { nameExists, phoneExists, error ->
+        ) { _, phoneExists, error ->
 
-            when {
-                error != null -> {
-                    // Show validation/network error.
+            activity.runOnUiThread {
 
-                }
+                when {
 
-                nameExists -> {
-                    // Show duplicate member-name error.
-                }
+                    error != null -> {
+                        sendOTPError = error
+                    }
 
-                phoneExists -> {
-                    // Show duplicate phone-number error.
-                    phoneError = SquadStrings.mobileNumberAlreadyExists
-                }
+                    phoneExists -> {
+                        phoneError = SquadStrings.mobileNumberAlreadyExists
+                    }
 
-                else -> {
+                    else -> {
 
-                    val phoneWithCode = "+91$phoneNumber"
-                    squadViewModel.setIsSendingOTP(true)
-                    otpProcessStarted = true
+                        val phoneWithCode = "+91$phoneNumber"
 
-                    PhoneAuthProvider.getInstance().verifyPhoneNumber(
-                        phoneWithCode,
-                        60,
-                        TimeUnit.SECONDS,
-                        (context as Activity),
-                        object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                        otpProcessStarted = true
+                        squadViewModel.setIsSendingOTP(true)
 
-                            override fun onVerificationCompleted(credential: PhoneAuthCredential) {}
+                        secondaryAuthManager.sendOTP(
+                            activity = activity,
+                            phoneNumber = phoneWithCode,
+                            callback = object :
+                                SecondaryFirebaseAuthManager.SendOTPCallback {
 
-                            override fun onVerificationFailed(e: FirebaseException) {
-                                squadViewModel.setIsSendingOTP(false)
-                                otpProcessStarted = false
-                                sendOTPError = e.localizedMessage ?: "OTP failed"
+                                override fun onCodeSent(
+                                    verificationId: String
+                                ) {
+                                    verificationID = verificationId
+
+                                    isOTPSent = true
+                                    otpCode = ""
+                                    otpState.value = ""
+
+                                    otpVerified = false
+                                    memberFirebaseUID = ""
+
+                                    verifyOTPError = ""
+                                    sendOTPError = ""
+
+                                    otpProcessStarted = false
+                                    squadViewModel.setIsSendingOTP(false)
+                                }
+
+                                override fun onAutoVerified(
+                                    firebaseUID: String
+                                ) {
+                                    memberFirebaseUID = firebaseUID
+                                    otpVerified = true
+                                    isOTPSent = true
+
+                                    verifyOTPError = ""
+                                    sendOTPError = ""
+
+                                    otpProcessStarted = false
+                                    squadViewModel.setIsSendingOTP(false)
+
+                                    // Keep the manager's default Auth session intact.
+                                    secondaryAuthManager.signOut()
+                                }
+
+                                override fun onFailure(error: String) {
+
+                                    otpProcessStarted = false
+                                    squadViewModel.setIsSendingOTP(false)
+
+                                    sendOTPError = error
+                                }
                             }
-
-                            override fun onCodeSent(id: String, token: PhoneAuthProvider.ForceResendingToken) {
-                                squadViewModel.setIsSendingOTP(false)
-                                otpProcessStarted = false
-                                verificationID = id
-                                isOTPSent = true
-                            }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
-
-
     }
 
-    fun handleUpdateClick(navController: NavController) {
+    // MARK: - Update Mobile Number
+
+    fun handleUpdateClick() {
+
         if (!validateFields()) return
 
         if (otpVerified) {
+
+            if (memberFirebaseUID.isEmpty()) {
+                verifyOTPError = "Please verify the mobile number again."
+                return
+            }
+
             val phone = CommonFunctions.cleanUpPhoneNumber(phoneNumber)
+
             val squad = squadViewModel.squad.value
             val memberId = squadViewModel.currentMember.value?.id
 
-            if (squad != null && memberId != null) {
-                LoaderManager.shared.showLoader()
+            if (squad == null || memberId == null) {
+                verifyOTPError = "Unable to find member details."
+                return
+            }
 
-                squadViewModel.updateMemberMobileNumber(
-                    showLoader = true,
-                    squadID = squad.squadID,
-                    memberID = memberId,
-                    mobileNumber = phone
-                ) { success, error ->
+            LoaderManager.shared.showLoader()
+
+            squadViewModel.updateMemberMobileNumber(
+                showLoader = false,
+                squadID = squad.squadID,
+                memberID = memberId,
+                mobileNumber = phone,
+                firebaseUID = memberFirebaseUID
+            ) { success, error ->
+
+                activity?.runOnUiThread {
+
                     LoaderManager.shared.hideLoader()
+
                     if (success) {
+
                         squadViewModel.setShowUpdateMemberPopup(false)
 
                         AlertManager.shared.showAlert(
@@ -960,24 +1079,27 @@ fun UpdateMemberPopup(
                             message = SquadStrings.mobileNumberUpdatedMessage,
                             primaryButtonTitle = SquadStrings.ok,
                             primaryAction = {
-                                squadViewModel.logoutUser(navController = navController)
+                                squadViewModel.logoutUser(
+                                    navController = navController
+                                )
                             }
                         )
 
-
                     } else {
-                        println(error ?: "Unknown error")
+
+                        verifyOTPError =
+                            error ?: "Unable to update mobile number."
                     }
                 }
             }
+
         } else {
+
             sendOTP()
         }
     }
 
-    // ----------------------------------------------------
-    //  UI
-    // ----------------------------------------------------
+    // MARK: - UI
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -987,15 +1109,25 @@ fun UpdateMemberPopup(
         Column(
             modifier = Modifier
                 .padding(horizontal = 20.dp)
-                .background(AppColors.background, RoundedCornerShape(20.dp))
-                .appShadow(AppShadows.elevated, RoundedCornerShape(20.dp))
+                .background(
+                    AppColors.background,
+                    RoundedCornerShape(20.dp)
+                )
+                .appShadow(
+                    AppShadows.elevated,
+                    RoundedCornerShape(20.dp)
+                )
                 .padding(20.dp)
         ) {
 
             // Title
+
             Text(
                 text = SquadStrings.update,
-                style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                style = AppFont.ibmPlexSans(
+                    20,
+                    FontWeight.Bold
+                ),
                 color = AppColors.headerText,
                 modifier = Modifier.padding(top = 10.dp)
             )
@@ -1003,10 +1135,10 @@ fun UpdateMemberPopup(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Input Fields
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
-                // Phone Field
-                val phoneState = remember { mutableStateOf("") }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
 
                 SSTextField(
                     icon = Icons.Default.Phone,
@@ -1018,46 +1150,85 @@ fun UpdateMemberPopup(
                 )
 
                 LaunchedEffect(phoneState.value) {
+
                     phoneNumber = phoneState.value
+
                     phoneError = ""
+                    sendOTPError = ""
+
+                    // Changing the number invalidates previous verification.
+                    if (otpVerified) {
+                        otpVerified = false
+                        memberFirebaseUID = ""
+                        verificationID = ""
+                        isOTPSent = false
+                        otpCode = ""
+                        otpState.value = ""
+                    }
                 }
 
-                val otpState = remember { mutableStateOf("") }
-
                 if (isOTPSent) {
+
                     SSTextField(
                         icon = Icons.Default.Pin,
                         placeholder = SquadStrings.enterOTP,
                         textState = otpState,
                         keyboardType = KeyboardType.Number,
-                        showDropdown =  otpVerified,
+                        showDropdown = otpVerified,
                         dropdownIcon = Icons.Default.CheckCircle,
                         dropdownColor = AppColors.primaryButton,
                         error = verifyOTPError
                     )
 
                     LaunchedEffect(otpState.value) {
+
                         otpCode = otpState.value
-                        if (otpCode.length == 6) handleOTPChange(otpCode)
+
+                        if (otpCode.length == 6 && !otpVerified) {
+                            handleOTPChange(otpCode)
+                        }
                     }
+                }
+
+                if (sendOTPError.isNotEmpty()) {
+                    Text(
+                        text = sendOTPError,
+                        color = Color.Red,
+                        style = AppFont.ibmPlexSans(
+                            12,
+                            FontWeight.Normal
+                        )
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
             // Main Button
+
             SSButton(
-                title = if (otpVerified) "Update Mobile" else SquadStrings.sendOTP,
-                isDisabled = otpProcessStarted,
-                action = { handleUpdateClick(navController = navController) }
+                title = if (otpVerified) {
+                    "Update Mobile"
+                } else {
+                    SquadStrings.sendOTP
+                },
+                isDisabled = otpProcessStarted ||
+                        phoneError.isNotEmpty(),
+                action = {
+                    handleUpdateClick()
+                }
             )
 
             Spacer(modifier = Modifier.height(10.dp))
 
             // Cancel Button
+
             SSCancelButton(
                 title = SquadStrings.cancel,
-                action = { squadViewModel.setShowUpdateMemberPopup(false) }
+                action = {
+                    secondaryAuthManager.signOut()
+                    onCancel()
+                }
             )
         }
     }

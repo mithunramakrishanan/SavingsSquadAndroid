@@ -48,6 +48,7 @@ import com.android.savingssquad.singleton.asTimestamp
 import com.google.firebase.BuildConfig
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.firestore
 import com.google.firebase.messaging.FirebaseMessaging
@@ -104,51 +105,146 @@ class FirestoreManager private constructor() {
 
     // MARK: - 🔹 Fetch User Logins
     fun fetchUserLogins(
+        firebaseUID: String,
         phoneNumber: String,
         completion: (List<Login>?, String?) -> Unit
     ) {
 
-        if (phoneNumber.isEmpty()) {
-            // FIX: previously returned without ever calling completion, leaving callers
-            // hanging (e.g. a loading spinner that never dismisses).
+        // MARK: 1. Validate Firebase UID
+
+        if (firebaseUID.isBlank()) {
+            completion(null, "Invalid Firebase UID.")
+            return
+        }
+
+        if (phoneNumber.isBlank()) {
             completion(null, "Invalid phone number.")
             return
         }
 
-        val userRef = db.collection("users")
-            .document(phoneNumber)
-            .collection("logins")
+        // MARK: 2. Fetch profiles using Firebase UID
 
-        userRef.get()
-            .addOnSuccessListener { snapshot ->
-
-                if (snapshot == null || snapshot.isEmpty) {
-                    completion(emptyList(), null)
-                    return@addOnSuccessListener
-                }
+        db.collectionGroup("logins")
+            .whereEqualTo("firebaseUID", firebaseUID)
+            .get()
+            .addOnSuccessListener { uidSnapshot ->
 
                 try {
 
-                    var logins = snapshot.documents.mapNotNull { doc ->
-                        doc.toObject(Login::class.java)?.copy(id = doc.id)
+                    val allLogins = mutableListOf<Login>()
+
+                    // Decode UID-based profiles
+                    val uidLogins = uidSnapshot.documents.mapNotNull { document ->
+
+                        document.toObject(Login::class.java)?.copy(
+                            id = document.id
+                        )
                     }
 
-                    logins = logins.filter { login ->
-                        when (login.role) {
-                            SquadUserType.SQUAD_MANAGER -> true
-                            SquadUserType.SQUAD_MEMBER -> login.recordStatus == RecordStatus.ACTIVE
-                            else -> false
+                    allLogins.addAll(uidLogins)
+
+                    // MARK: 3. Fetch legacy phone-based profiles
+
+                    val loginRef = db.collection("users")
+                        .document(phoneNumber)
+                        .collection("logins")
+
+                    loginRef.get()
+                        .addOnSuccessListener { phoneSnapshot ->
+
+                            try {
+
+                                val phoneLogins = phoneSnapshot.documents.mapNotNull { document ->
+
+                                    document.toObject(Login::class.java)?.copy(
+                                        id = document.id
+                                    )
+                                }
+
+                                // Include legacy profiles only.
+                                // Never include profiles belonging to another Firebase UID.
+
+                                val legacyLogins = phoneLogins.filter { login ->
+
+                                    val existingUID = login.firebaseUID
+
+                                    existingUID.isNullOrBlank() ||
+                                            existingUID == firebaseUID
+                                }
+
+                                allLogins.addAll(legacyLogins)
+
+                                // MARK: 4. Remove duplicate Login documents
+
+                                val uniqueLogins = mutableListOf<Login>()
+                                val processedIDs = mutableSetOf<String>()
+
+                                for (login in allLogins) {
+
+                                    val loginID = login.id ?: continue
+
+                                    // Avoid duplicate profiles
+                                    // using Squad ID + Login document ID.
+
+                                    val uniqueKey = "${login.squadID}_$loginID"
+
+                                    if (!processedIDs.add(uniqueKey)) {
+                                        continue
+                                    }
+
+                                    // MARK: 5. Apply existing role filtering
+
+                                    when (login.role) {
+
+                                        SquadUserType.SQUAD_MANAGER -> {
+                                            uniqueLogins.add(login)
+                                        }
+
+                                        SquadUserType.SQUAD_MEMBER -> {
+
+                                            if (login.recordStatus == RecordStatus.ACTIVE) {
+                                                uniqueLogins.add(login)
+                                            }
+                                        }
+
+                                        else -> {
+                                            // Ignore unsupported roles
+                                        }
+                                    }
+                                }
+
+                                completion(uniqueLogins, null)
+
+                            } catch (e: Exception) {
+
+                                completion(
+                                    null,
+                                    "Decoding error: ${e.localizedMessage}"
+                                )
+                            }
                         }
-                    }
+                        .addOnFailureListener { error ->
 
-                    completion(logins, null)
+                            completion(
+                                null,
+                                "Failed to fetch phone-based logins: ${error.localizedMessage}"
+                            )
+                        }
 
                 } catch (e: Exception) {
-                    completion(null, "Decoding error: ${e.localizedMessage}")
+
+                    completion(
+                        null,
+                        "UID login decoding error: ${e.localizedMessage}"
+                    )
                 }
             }
             .addOnFailureListener { error ->
-                completion(null, "Failed to fetch logins: ${error.localizedMessage}")
+
+                completion(
+                    null,
+                    "Failed to fetch UID-based logins: ${error.localizedMessage}"
+                )
             }
     }
 
@@ -159,62 +255,149 @@ class FirestoreManager private constructor() {
         subscription: SubscriptionModel,
         completion: (Boolean, String?) -> Unit
     ) {
+
+        // ---------------------------------------------------------
+        // 1. VALIDATE FIREBASE UID
+        // ---------------------------------------------------------
+
+        val firebaseUID = login.firebaseUID
+
+        if (firebaseUID.isNullOrBlank()) {
+            completion(false, "Firebase UID is missing.")
+            return
+        }
+
+        // ---------------------------------------------------------
+        // 2. VALIDATE AUTHENTICATED USER
+        // ---------------------------------------------------------
+
+        val currentFirebaseUID = FirebaseAuth.getInstance()
+            .currentUser?.uid
+
+        if (currentFirebaseUID == null) {
+            completion(false, "Firebase user is not authenticated.")
+            return
+        }
+
+        if (currentFirebaseUID != firebaseUID) {
+            completion(
+                false,
+                "Authenticated Firebase user does not match manager."
+            )
+            return
+        }
+
+        // ---------------------------------------------------------
+        // 3. CREATE BATCH
+        // ---------------------------------------------------------
+
         val batch = db.batch()
 
-        // 1. Squad document
+        // ---------------------------------------------------------
+        // 4. SQUAD DOCUMENT REFERENCE
+        // ---------------------------------------------------------
+
         val squadRef = db.collection("squads")
             .document(squad.squadID)
 
-        // 2. Manager login document
+        // ---------------------------------------------------------
+        // 5. MANAGER LOGIN DOCUMENT REFERENCE
+        // ---------------------------------------------------------
+
         val loginRef = db.collection("users")
             .document(login.phoneNumber)
             .collection("logins")
             .document()
 
-        // 3. Initial activity document
+        // ---------------------------------------------------------
+        // 6. INITIAL ACTIVITY DOCUMENT REFERENCE
+        // ---------------------------------------------------------
+
         val activityRef = squadRef
             .collection("activities")
             .document()
 
-        // 4. Subscription document
+        // ---------------------------------------------------------
+        // 7. SUBSCRIPTION DOCUMENT REFERENCE
+        // ---------------------------------------------------------
+
         val subscriptionRef = squadRef
             .collection("subscription")
             .document("current")
 
         try {
-            // Assign generated document IDs.
+
+            // -----------------------------------------------------
+            // 8. PREPARE LOGIN
+            // -----------------------------------------------------
+
             val newLogin = login.copy(
-                id = loginRef.id
+                id = loginRef.id,
+                firebaseUID = firebaseUID
             )
+
+            // -----------------------------------------------------
+            // 9. PREPARE ACTIVITY
+            // -----------------------------------------------------
 
             val newActivity = activity.copy(
                 id = activityRef.id
             )
 
-            // Add all four documents to the same batch.
-            batch.set(squadRef, squad)
-            batch.set(loginRef, newLogin)
-            batch.set(activityRef, newActivity)
-            batch.set(subscriptionRef, subscription)
+            // -----------------------------------------------------
+            // 10. ADD ALL DOCUMENTS TO BATCH
+            // -----------------------------------------------------
 
-            // Commit all documents atomically.
+            // Squad
+            batch.set(
+                squadRef,
+                squad
+            )
+
+            // Manager Login (includes Firebase UID)
+            batch.set(
+                loginRef,
+                newLogin
+            )
+
+            // Initial Activity
+            batch.set(
+                activityRef,
+                newActivity
+            )
+
+            // Subscription
+            batch.set(
+                subscriptionRef,
+                subscription
+            )
+
+            // -----------------------------------------------------
+            // 11. COMMIT ATOMICALLY
+            // -----------------------------------------------------
+
             batch.commit()
                 .addOnSuccessListener {
+
                     completion(true, null)
                 }
                 .addOnFailureListener { exception ->
+
                     completion(
                         false,
-                        exception.localizedMessage
-                            ?: "Failed to create squad."
+                        "Failed to create squad: ${
+                            exception.localizedMessage ?: "Unknown error"
+                        }"
                     )
                 }
 
         } catch (exception: Exception) {
+
             completion(
                 false,
-                exception.localizedMessage
-                    ?: "Failed to prepare squad data."
+                "Failed to prepare squad data: ${
+                    exception.localizedMessage ?: "Unknown error"
+                }"
             )
         }
     }
@@ -496,58 +679,95 @@ class FirestoreManager private constructor() {
         squadID: String,
         memberID: String,
         mobileNumber: String,
+        firebaseUID: String,
         login: Login,
         completion: (Boolean, String?) -> Unit
     ) {
+
+        // MARK: 1. Validate Firebase UID
+
+        if (firebaseUID.isBlank()) {
+            completion(false, "Firebase UID is missing.")
+            return
+        }
 
         val memberRef = db.collection("squads")
             .document(squadID)
             .collection("members")
             .document(memberID)
 
-        memberRef.update("phoneNumber", mobileNumber)
+        // MARK: 2. Update Member document
+
+        val memberUpdates = mapOf(
+            "phoneNumber" to mobileNumber,
+            "firebaseUID" to firebaseUID
+        )
+
+        memberRef.update(memberUpdates)
             .addOnSuccessListener {
+
+                // MARK: 3. Remove old Login document
 
                 removeUserLogin(
                     squadID = login.squadID,
                     squadUserId = login.squadUserId,
                     role = login.role,
                     phoneNumber = login.phoneNumber
-                ) { removed, error ->
+                ) { removed, removeError ->
 
                     if (!removed) {
-                        completion(false, error ?: "Failed to remove existing login.")
+                        completion(
+                            false,
+                            removeError ?: "Failed to remove existing login."
+                        )
                         return@removeUserLogin
                     }
 
+                    // MARK: 4. Create new Login document
+
                     val newLogin = Login(
+                        firebaseUID = firebaseUID,
                         squadID = login.squadID,
                         squadName = login.squadName,
                         squadNameHindi = login.squadNameHindi,
                         squadNameTamil = login.squadNameTamil,
                         squadNameEnglish = login.squadNameEnglish,
+
                         memberName = login.memberName,
                         memberNameTamil = login.memberNameTamil,
                         memberNameEnglish = login.memberNameEnglish,
                         memberNameHindi = login.memberNameHindi,
+
                         squadUserId = memberID,
                         phoneNumber = mobileNumber,
                         role = login.role,
+
                         squadCreatedDate = login.squadCreatedDate,
                         userCreatedDate = login.userCreatedDate
                     )
 
+                    // MARK: 5. Save new Login document
+
                     addUserLogin(newLogin) { added, addError ->
+
                         if (!added) {
-                            completion(false, addError ?: "Failed to create new login.")
+                            completion(
+                                false,
+                                addError ?: "Failed to create new login."
+                            )
                             return@addUserLogin
                         }
+
                         completion(true, null)
                     }
                 }
             }
-            .addOnFailureListener { e ->
-                completion(false, "Failed to update mobile number: ${e.localizedMessage}")
+            .addOnFailureListener { error ->
+
+                completion(
+                    false,
+                    "Failed to update member: ${error.localizedMessage}"
+                )
             }
     }
 
@@ -4388,14 +4608,26 @@ class FirestoreManager private constructor() {
         squadID: String,
         squad: Squad,
         member: Member,
+        firebaseUID: String,
         contributionReceived: Int,
         interestReceived: Int,
         markCurrentMonthPaid: Boolean,
         completion: (Boolean, String?) -> Unit
     ) {
+
         // ---------------------------------------------------------
         // 1. VALIDATION
         // ---------------------------------------------------------
+
+        if (firebaseUID.isBlank()) {
+            completion(false, "Member Firebase UID is missing.")
+            return
+        }
+
+        if (member.phoneNumber.isBlank()) {
+            completion(false, "Member phone number is missing.")
+            return
+        }
 
         val memberID = member.id.orEmpty()
 
@@ -4456,8 +4688,8 @@ class FirestoreManager private constructor() {
             (if (contributionReceived > 0) 1 else 0) +
                     (if (interestReceived > 0) 1 else 0)
 
-        // Member + login + squad update + contributions + payments.
-        // Firestore supports at most 500 writes per batch.
+        // Member + Login + Squad update
+        // Additional writes: Contributions + Initial payments
 
         val fixedWriteCount = 3
 
@@ -4480,6 +4712,10 @@ class FirestoreManager private constructor() {
             "profileImage" to member.profileImage,
             "mailID" to member.mailID,
             "phoneNumber" to member.phoneNumber,
+
+            // Firebase identity
+            "firebaseUID" to firebaseUID,
+
             "password" to member.password,
             "squadID" to member.squadID,
             "role" to member.role,
@@ -4523,18 +4759,23 @@ class FirestoreManager private constructor() {
         // ---------------------------------------------------------
 
         val login = Login(
+            firebaseUID = firebaseUID,
+
             squadID = squad.squadID,
             squadName = squad.squadName,
             squadNameHindi = squad.squadNameHindi,
             squadNameEnglish = squad.squadNameEnglish,
             squadNameTamil = squad.squadNameTamil,
+
             memberName = member.memberName,
             memberNameHindi = member.memberNameHindi,
             memberNameTamil = member.memberNameTamil,
             memberNameEnglish = member.memberNameEnglish,
+
             squadUserId = memberID,
             phoneNumber = member.phoneNumber,
             role = SquadUserType.SQUAD_MEMBER,
+
             squadCreatedDate = Date().asTimestamp,
             userCreatedDate = Date().asTimestamp,
             recordStatus = RecordStatus.ACTIVE,
@@ -4543,18 +4784,25 @@ class FirestoreManager private constructor() {
 
         val loginData = hashMapOf<String, Any?>(
             "id" to loginRef.id,
+
+            // Firebase identity
+            "firebaseUID" to firebaseUID,
+
             "squadID" to login.squadID,
             "squadName" to login.squadName,
             "squadNameHindi" to login.squadNameHindi,
             "squadNameEnglish" to login.squadNameEnglish,
             "squadNameTamil" to login.squadNameTamil,
+
             "memberName" to login.memberName,
             "memberNameHindi" to login.memberNameHindi,
             "memberNameTamil" to login.memberNameTamil,
             "memberNameEnglish" to login.memberNameEnglish,
+
             "squadUserId" to login.squadUserId,
             "phoneNumber" to login.phoneNumber,
             "role" to login.role,
+
             "squadCreatedDate" to login.squadCreatedDate,
             "userCreatedDate" to login.userCreatedDate,
             "recordStatus" to login.recordStatus,
@@ -4575,34 +4823,47 @@ class FirestoreManager private constructor() {
             val newPayment = PaymentsDetails(
                 id = paymentID,
                 paymentUpdatedDate = paymentDate,
+
                 memberId = memberID,
+
                 memberName = SquadStringsEnglish.squadManager,
                 memberNameHindi = SquadStringsHindi.squadManager,
                 memberNameTamil = SquadStringsTamil.squadManager,
                 memberNameEnglish = SquadStringsEnglish.squadManager,
+
                 paymentPhone = "",
                 paymentEmail = "",
+
                 userType = SquadUserType.SQUAD_MANAGER,
+
                 amount = contributionReceived,
                 intrestAmount = 0,
+
                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                 paymentType = PaymentType.PAYMENT_CREDIT,
                 paymentSubType = PaymentSubType.CONTRIBUTION_AMOUNT,
+
                 paymentStatus = PaymentStatus.SUCCESS,
-                payoutStatus = PayoutStatus.PAYOUT_INPROGRESS,
+                payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
                 paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
+
                 description =
                     "Initial contribution received when adding member: ₹$contributionReceived",
+
                 squadId = squadID,
                 order_id = paymentID,
+
                 contributionId = "",
                 loanId = "",
                 installmentId = "",
+
                 paymentSuccess = true,
                 payoutSuccess = true,
                 transferReferenceId = "",
+
                 descriptionTamil =
                     "உறுப்பினரைச் சேர்க்கும்போது பெறப்பட்ட ஆரம்ப பங்களிப்புத் தொகை: ₹$contributionReceived",
+
                 descriptionHindi =
                     "सदस्य जोड़ते समय प्राप्त प्रारंभिक योगदान राशि: ₹$contributionReceived"
             )
@@ -4610,31 +4871,44 @@ class FirestoreManager private constructor() {
             val paymentData = hashMapOf<String, Any?>(
                 "id" to newPayment.id,
                 "paymentUpdatedDate" to newPayment.paymentUpdatedDate,
+
                 "memberId" to newPayment.memberId,
+
                 "memberName" to newPayment.memberName,
                 "memberNameHindi" to newPayment.memberNameHindi,
                 "memberNameTamil" to newPayment.memberNameTamil,
                 "memberNameEnglish" to newPayment.memberNameEnglish,
+
                 "paymentPhone" to newPayment.paymentPhone,
                 "paymentEmail" to newPayment.paymentEmail,
+
                 "userType" to newPayment.userType,
+
                 "amount" to newPayment.amount,
+                "amountWithGST" to contributionReceived,
                 "intrestAmount" to newPayment.intrestAmount,
+
                 "paymentEntryType" to newPayment.paymentEntryType,
                 "paymentType" to newPayment.paymentType,
                 "paymentSubType" to newPayment.paymentSubType,
+
                 "paymentStatus" to newPayment.paymentStatus,
                 "payoutStatus" to newPayment.payoutStatus,
                 "paymentApproveStatus" to newPayment.paymentApproveStatus,
+
                 "description" to newPayment.description,
+
                 "squadId" to newPayment.squadId,
                 "order_id" to newPayment.order_id,
+
                 "contributionId" to newPayment.contributionId,
                 "loanId" to newPayment.loanId,
                 "installmentId" to newPayment.installmentId,
+
                 "paymentSuccess" to newPayment.paymentSuccess,
                 "payoutSuccess" to newPayment.payoutSuccess,
                 "transferReferenceId" to newPayment.transferReferenceId,
+
                 "descriptionTamil" to newPayment.descriptionTamil,
                 "descriptionHindi" to newPayment.descriptionHindi
             )
@@ -4657,34 +4931,47 @@ class FirestoreManager private constructor() {
             val newPayment = PaymentsDetails(
                 id = paymentID,
                 paymentUpdatedDate = paymentDate,
+
                 memberId = memberID,
+
                 memberName = SquadStringsEnglish.squadManager,
                 memberNameHindi = SquadStringsHindi.squadManager,
                 memberNameTamil = SquadStringsTamil.squadManager,
                 memberNameEnglish = SquadStringsEnglish.squadManager,
+
                 paymentPhone = "",
                 paymentEmail = "",
+
                 userType = SquadUserType.SQUAD_MANAGER,
+
                 amount = interestReceived,
                 intrestAmount = 0,
+
                 paymentEntryType = PaymentEntryType.MANUAL_ENTRY,
                 paymentType = PaymentType.PAYMENT_CREDIT,
                 paymentSubType = PaymentSubType.EMI_AMOUNT,
+
                 paymentStatus = PaymentStatus.SUCCESS,
                 payoutStatus = PayoutStatus.PAYOUT_SUCCESS,
                 paymentApproveStatus = PaymentApproveStatus.ACCEPTED,
+
                 description =
                     "Initial interest received when adding member: ₹$interestReceived",
+
                 squadId = squadID,
                 order_id = paymentID,
+
                 contributionId = "",
                 loanId = "",
                 installmentId = "",
+
                 paymentSuccess = true,
                 payoutSuccess = true,
                 transferReferenceId = "",
+
                 descriptionTamil =
                     "உறுப்பினரைச் சேர்க்கும்போது பெறப்பட்ட ஆரம்ப வட்டித் தொகை: ₹$interestReceived",
+
                 descriptionHindi =
                     "सदस्य जोड़ते समय प्राप्त प्रारंभिक ब्याज राशि: ₹$interestReceived"
             )
@@ -4692,31 +4979,44 @@ class FirestoreManager private constructor() {
             val paymentData = hashMapOf<String, Any?>(
                 "id" to newPayment.id,
                 "paymentUpdatedDate" to newPayment.paymentUpdatedDate,
+
                 "memberId" to newPayment.memberId,
+
                 "memberName" to newPayment.memberName,
                 "memberNameHindi" to newPayment.memberNameHindi,
                 "memberNameTamil" to newPayment.memberNameTamil,
                 "memberNameEnglish" to newPayment.memberNameEnglish,
+
                 "paymentPhone" to newPayment.paymentPhone,
                 "paymentEmail" to newPayment.paymentEmail,
+
                 "userType" to newPayment.userType,
+
                 "amount" to newPayment.amount,
+                "amountWithGST" to interestReceived,
                 "intrestAmount" to newPayment.intrestAmount,
+
                 "paymentEntryType" to newPayment.paymentEntryType,
                 "paymentType" to newPayment.paymentType,
                 "paymentSubType" to newPayment.paymentSubType,
+
                 "paymentStatus" to newPayment.paymentStatus,
                 "payoutStatus" to newPayment.payoutStatus,
                 "paymentApproveStatus" to newPayment.paymentApproveStatus,
+
                 "description" to newPayment.description,
+
                 "squadId" to newPayment.squadId,
                 "order_id" to newPayment.order_id,
+
                 "contributionId" to newPayment.contributionId,
                 "loanId" to newPayment.loanId,
                 "installmentId" to newPayment.installmentId,
+
                 "paymentSuccess" to newPayment.paymentSuccess,
                 "payoutSuccess" to newPayment.payoutSuccess,
                 "transferReferenceId" to newPayment.transferReferenceId,
+
                 "descriptionTamil" to newPayment.descriptionTamil,
                 "descriptionHindi" to newPayment.descriptionHindi
             )
@@ -4752,6 +5052,7 @@ class FirestoreManager private constructor() {
         val lastMonth = calendar.time
 
         val currentCalendar = Calendar.getInstance()
+
         currentCalendar.set(Calendar.DAY_OF_MONTH, 1)
         currentCalendar.set(Calendar.HOUR_OF_DAY, 0)
         currentCalendar.set(Calendar.MINUTE, 0)
@@ -4773,8 +5074,7 @@ class FirestoreManager private constructor() {
 
         while (!calendar.time.after(lastMonth)) {
 
-            // Fixed writes: member + login + squad update.
-            // Each loop adds one contribution write.
+            // Validate batch write limit.
 
             val totalWrites =
                 fixedWriteCount +
@@ -4811,6 +5111,7 @@ class FirestoreManager private constructor() {
             val contributionPaidOn: Timestamp?
 
             when {
+
                 isPreviousMonth -> {
                     paidStatus = PaidStatus.PAID
                     contributionPaidOn = paidOn
@@ -4835,14 +5136,18 @@ class FirestoreManager private constructor() {
                 id = contributionID,
                 orderId = "",
                 memberID = memberID,
+
                 memberName = member.memberName,
                 memberNameHindi = member.memberNameHindi,
                 memberNameTamil = member.memberNameTamil,
                 memberNameEnglish = member.memberNameEnglish,
+
                 monthYear = monthYear,
                 amount = squad.monthlyContribution,
+
                 paidOn = contributionPaidOn,
                 paidStatus = paidStatus,
+
                 paymentEntryType = PaymentEntryType.AUTOMATIC_ENTRY,
                 dueDate = dueDate
             )
@@ -4851,14 +5156,18 @@ class FirestoreManager private constructor() {
                 "id" to contribution.id,
                 "orderId" to contribution.orderId,
                 "memberID" to contribution.memberID,
+
                 "memberName" to contribution.memberName,
                 "memberNameHindi" to contribution.memberNameHindi,
                 "memberNameTamil" to contribution.memberNameTamil,
                 "memberNameEnglish" to contribution.memberNameEnglish,
+
                 "monthYear" to contribution.monthYear,
                 "amount" to contribution.amount,
+
                 "paidOn" to contribution.paidOn,
                 "paidStatus" to contribution.paidStatus,
+
                 "paymentEntryType" to contribution.paymentEntryType,
                 "dueDate" to contribution.dueDate
             )
@@ -4906,9 +5215,12 @@ class FirestoreManager private constructor() {
 
         batch.commit()
             .addOnSuccessListener {
+
                 completion(true, null)
+
             }
             .addOnFailureListener { exception ->
+
                 completion(
                     false,
                     "Failed to add member: ${

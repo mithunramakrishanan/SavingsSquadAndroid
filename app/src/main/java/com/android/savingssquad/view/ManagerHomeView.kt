@@ -50,6 +50,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.singleton.SquadLanguages
 import com.android.savingssquad.singleton.SquadStrings
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun ManagerHomeView(
@@ -198,13 +199,48 @@ fun ManagerHomeView(
                         R.drawable.switch_account
                     else null
                 ) {
+                    val firebaseUser = FirebaseAuth.getInstance().currentUser
+
+                    if (firebaseUser == null) {
+
+                        Log.e("ManagerHomeView", "❌ Firebase user is not authenticated")
+
+                        return@SSNavigationBar
+
+                    }
+
+                    val firebaseUID = firebaseUser.uid
+
+                    val phoneNumber = firebaseUser.phoneNumber
+                        ?: squadViewModel.loginMember?.phoneNumber.orEmpty()
+
                     squadViewModel.fetchUserLogins(
                         showLoader = true,
-                        phoneNumber = squadViewModel.loginMember?.phoneNumber.orEmpty()
-                    ) { success, loginList,error ->
+                        firebaseUID = firebaseUID,
+                        phoneNumber = phoneNumber
+                    ) { success, loginList, error ->
+
                         if (loginList != null) {
-                            squadViewModel.setShowPopup(UserDefaultsManager.getIsMultipleAccount())
-                            Log.d("ManagerHomeView", if (success) "✅ Logins fetched: ${loginList.size}" else "❌ $error")
+
+                            squadViewModel.setShowPopup(
+                                UserDefaultsManager.getIsMultipleAccount()
+                            )
+
+                            Log.d(
+                                "ManagerHomeView",
+                                if (success) {
+                                    "✅ User profiles fetched successfully: ${loginList.size}"
+                                } else {
+                                    "❌ ${error ?: "Unknown error"}"
+                                }
+                            )
+
+                        } else {
+
+                            Log.e(
+                                "ManagerHomeView",
+                                "❌ Failed to fetch user profiles: ${error ?: "Unknown error"}"
+                            )
                         }
                     }
                 }

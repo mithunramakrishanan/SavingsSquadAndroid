@@ -48,6 +48,7 @@ import androidx.compose.runtime.collectAsState
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.ToastManager
 import com.android.savingssquad.viewmodel.ToastType
+import com.google.firebase.auth.FirebaseAuth
 import com.yourapp.utils.IDGenerator
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -133,9 +134,25 @@ fun MemberHomeView(
                                 null,
                         rightButtonAction = {
 
+                            val firebaseUser = FirebaseAuth.getInstance().currentUser
+
+                            if (firebaseUser == null) {
+
+                                Log.e("MemberHomeView", "❌ Firebase user is not authenticated")
+
+                                return@SSNavigationBar
+                            }
+
+                            val firebaseUID = firebaseUser.uid
+
+                            val phoneNumber = firebaseUser.phoneNumber
+                                ?: squadViewModel.loginMember?.phoneNumber
+                                ?: ""
+
                             squadViewModel.fetchUserLogins(
                                 showLoader = true,
-                                phoneNumber = squadViewModel.loginMember?.phoneNumber ?: ""
+                                firebaseUID = firebaseUID,
+                                phoneNumber = phoneNumber
                             ) { success, loginList, error ->
 
                                 if (loginList != null) {
@@ -146,10 +163,18 @@ fun MemberHomeView(
 
                                     Log.d(
                                         "MemberHomeView",
-                                        if (success)
-                                            "✅ User logins fetched: ${loginList.size}"
-                                        else
-                                            "❌ $error"
+                                        if (success) {
+                                            "✅ User profiles fetched successfully: ${loginList.size}"
+                                        } else {
+                                            "❌ ${error ?: "Unknown error"}"
+                                        }
+                                    )
+
+                                } else {
+
+                                    Log.e(
+                                        "MemberHomeView",
+                                        "❌ Failed to fetch user profiles: ${error ?: "Unknown error"}"
                                     )
                                 }
                             }

@@ -32,6 +32,7 @@ import com.android.savingssquad.viewmodel.AppDestination
 import com.android.savingssquad.viewmodel.RazorpayPaymentManager
 import com.android.savingssquad.viewmodel.SSToast
 import com.android.savingssquad.viewmodel.SquadViewModel
+import com.google.firebase.auth.FirebaseAuth
 import com.razorpay.PaymentData
 import com.razorpay.PaymentResultWithDataListener
 import com.google.gson.Gson
@@ -206,47 +207,172 @@ class MainActivity : ComponentActivity(),PaymentResultWithDataListener {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun SavingsSquadRoot() {
+
     val context = LocalContext.current
-    val loaderManager = remember { LoaderManager.shared }
+
+    val loaderManager = remember {
+        LoaderManager.shared
+    }
+
     val squadViewModel: SquadViewModel = viewModel()
+
     val navController = rememberNavController()
 
-    // Splash / launch delay state
-    var showLaunchView by remember { mutableStateOf(true) }
+    // MARK: Launch Screen
 
-    // ✅ Determine start destination dynamically (like AppNavigator.setRoot)
+    var showLaunchView by remember {
+        mutableStateOf(true)
+    }
+
+    // MARK: Initial Navigation
+
+    val initialLogin = remember {
+        UserDefaultsManager.getLogin()
+    }
+
+    val isLoggedIn = remember {
+        UserDefaultsManager.getIsLoggedIn()
+    }
+
     val startDestination = remember {
-        val user = UserDefaultsManager.getLogin()
-        val isLoggedIn = UserDefaultsManager.getIsLoggedIn()
 
-        if (isLoggedIn && user != null) {
-            when (user.role) {
-                SquadUserType.SQUAD_MANAGER -> "manager_home"
-                SquadUserType.SQUAD_MEMBER -> "member_home"
-                else -> "sign_in"
+        if (isLoggedIn && initialLogin != null) {
+
+            when (initialLogin.role) {
+
+                SquadUserType.SQUAD_MANAGER ->
+                    AppDestination.MANAGER_HOME.route
+
+                SquadUserType.SQUAD_MEMBER ->
+                    AppDestination.MEMBER_HOME.route
+
+                else ->
+                    AppDestination.SIGN_IN.route
             }
+
         } else {
-            "sign_in"
+
+            AppDestination.SIGN_IN.route
         }
     }
 
+
+    LaunchedEffect(squadViewModel) {
+        squadViewModel.logoutEvent.collect {
+            squadViewModel.logoutUser(navController)
+        }
+    }
+
+    // MARK: Restore Firebase Session
 
     LaunchedEffect(Unit) {
 
         if (UserDefaultsManager.getIsLoggedIn()) {
 
+            val firebaseUser =
+                FirebaseAuth.getInstance().currentUser
+
+            if (firebaseUser == null) {
+
+                Log.e(
+                    "MainActivity",
+                    "❌ No active Firebase Auth session found."
+                )
+
+                // Local session exists, but Firebase authentication is missing.
+                // Use your existing logout implementation here.
+
+                return@LaunchedEffect
+            }
+
+            val firebaseUID = firebaseUser.uid
+
+            val phoneNumber = firebaseUser.phoneNumber
+                ?: UserDefaultsManager.getLogin()?.phoneNumber
+                ?: ""
+
+            Log.d(
+                "MainActivity",
+                "✅ Restoring Firebase session"
+            )
+
+            Log.d(
+                "MainActivity",
+                "Firebase UID: $firebaseUID"
+            )
+
+            Log.d(
+                "MainActivity",
+                "Phone: $phoneNumber"
+            )
+
             squadViewModel.fetchUserLogins(
                 showLoader = false,
-                phoneNumber = squadViewModel.loginMember?.phoneNumber.orEmpty()
-            ) { success, loginList,error ->
-                if (loginList != null) {
-                    Log.d("FCMUPATED", if (success) "✅ Logins fetched: ${loginList.size}" else "❌ $error")
+                firebaseUID = firebaseUID,
+                phoneNumber = phoneNumber
+            ) { success, loginList, error ->
+
+                if (success && loginList != null) {
+
+                    Log.d(
+                        "MainActivity",
+                        "✅ User profiles restored: ${loginList.size}"
+                    )
+
+                    // Automatically navigate when only one profile exists.
+                    if (loginList.size == 1) {
+
+                        val selectedLogin = loginList.first()
+
+                        val destination = when (selectedLogin.role) {
+
+                            SquadUserType.SQUAD_MANAGER ->
+                                AppDestination.MANAGER_HOME.route
+
+                            SquadUserType.SQUAD_MEMBER ->
+                                AppDestination.MEMBER_HOME.route
+
+                            else ->
+                                AppDestination.SIGN_IN.route
+                        }
+
+                        navController.navigate(destination) {
+
+                            popUpTo(
+                                navController.graph.startDestinationId
+                            ) {
+                                inclusive = true
+                            }
+
+                            launchSingleTop = true
+                        }
+
+                    } else {
+
+                        // Multiple profiles exist.
+                        // Keep the existing selected profile and let your
+                        // existing account-selection UI handle switching.
+
+                        Log.d(
+                            "MainActivity",
+                            "Multiple profiles available: ${loginList.size}"
+                        )
+                    }
+
+                } else {
+
+                    Log.e(
+                        "MainActivity",
+                        "❌ Failed to restore user profiles: ${
+                            error ?: "Unknown error"
+                        }"
+                    )
                 }
             }
         }
-
-
     }
+
+    // MARK: Main UI
 
     Box(
         modifier = Modifier
@@ -255,29 +381,48 @@ fun SavingsSquadRoot() {
             .background(AppColors.background),
         contentAlignment = Alignment.Center
     ) {
-        // ✅ Launch the main navigation host
+
+        // Notification Permission
+
         RequestNotificationPermission()
-        ObserveAppResume(navController, squadViewModel, context)
+
+        // App Resume Observer
+
+        ObserveAppResume(
+            navController,
+            squadViewModel,
+            context
+        )
+
+        // Main Navigation
+
         AppNavHost(
             navController = navController,
             squadViewModel = squadViewModel,
             startDestination = startDestination
         )
 
-        // SHOW LAUNCH / SPLASH VIEW OVERLAY
+        // Launch Screen Overlay
+
         if (showLaunchView) {
+
             LaunchView(
                 showLaunchView = showLaunchView,
                 onFinish = {
+
                     UserDefaultsManager.saveIsFromnotification(false)
+
                     showLaunchView = false
                 }
             )
         }
 
+        // Global Components
+
         SSAlert()
+
         SSLoaderView()
+
         SSToast()
     }
-
 }

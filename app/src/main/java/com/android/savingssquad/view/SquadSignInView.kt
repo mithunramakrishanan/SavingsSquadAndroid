@@ -31,6 +31,7 @@ import com.google.firebase.auth.PhoneAuthProvider
 // ✅ Android + Kotlin
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material3.Icon
@@ -206,57 +207,90 @@ fun SquadSignInView( navController: NavController, squadViewModel: SquadViewMode
                             verifyOTP(
                                 verificationID = verificationID.value,
                                 otpCode = otpCode.value,
-                                onStart = { squadViewModel.setIsVerifyingOTP(true) },
-                                onSuccess = {
-                                    squadViewModel.setIsVerifyingOTP(false)
+                                phoneNumber = phoneNumber.value,
 
-                                    // 🔥 Call ViewModel function
+                                onStart = {
+                                    squadViewModel.setIsVerifyingOTP(true)
+                                },
+
+                                onSuccess = { firebaseUID, verifiedPhoneNumber ->
+
+                                    println("✅ User signed in")
+                                    println("Firebase UID: $firebaseUID")
+                                    println("Phone: $verifiedPhoneNumber")
+
+                                    // Fetch all profiles using Firebase UID.
                                     squadViewModel.fetchUserLogins(
                                         showLoader = true,
-                                        phoneNumber = phoneNumber.value
+                                        firebaseUID = firebaseUID,
+                                        phoneNumber = verifiedPhoneNumber
                                     ) { success, loginList, message ->
 
-                                        if (success) {
-                                            // 🔥 ALWAYS switch to MAIN THREAD for state updates
-                                            coroutineScope.launch(Dispatchers.Main) {
+                                        // Always switch to main thread for UI updates.
+                                        coroutineScope.launch(Dispatchers.Main) {
 
-                                                println("✅ User logins fetched successfully $loginList")
+                                            squadViewModel.setIsVerifyingOTP(false)
+
+                                            if (success) {
+
+                                                println("✅ User logins fetched successfully: $loginList")
 
                                                 loginList?.let {
                                                     squadViewModel.setUsers(it)
                                                     squadViewModel.setShowPopup(it.size > 1)
                                                 }
 
+                                                // MARK: - Single Profile
+
                                                 if (loginList?.size == 1) {
+
                                                     val selectedUser = loginList.first()
 
                                                     squadViewModel.setSelectedUser(selectedUser)
+
                                                     UserDefaultsManager.saveLogin(selectedUser)
                                                     UserDefaultsManager.saveIsLoggedIn(true)
 
                                                     if (selectedUser.role == SquadUserType.SQUAD_MANAGER) {
+
                                                         UserDefaultsManager.saveSquadManagerLogged(true)
-                                                        navController.navigate(AppDestination.MANAGER_HOME.route) {
-                                                            popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
+
+                                                        navController.navigate(
+                                                            AppDestination.MANAGER_HOME.route
+                                                        ) {
+                                                            popUpTo(AppDestination.SIGN_IN.route) {
+                                                                inclusive = true
+                                                            }
                                                             launchSingleTop = true
                                                         }
+
                                                     } else {
+
                                                         UserDefaultsManager.saveSquadManagerLogged(false)
-                                                        navController.navigate(AppDestination.MEMBER_HOME.route) {
-                                                            popUpTo(AppDestination.SIGN_IN.route) { inclusive = true }
+
+                                                        navController.navigate(
+                                                            AppDestination.MEMBER_HOME.route
+                                                        ) {
+                                                            popUpTo(AppDestination.SIGN_IN.route) {
+                                                                inclusive = true
+                                                            }
                                                             launchSingleTop = true
                                                         }
                                                     }
                                                 }
+
+                                            } else {
+
+                                                println("❌ Failed to fetch profiles: $message")
                                             }
-                                        } else {
-                                            println("❌ $message")
                                         }
                                     }
                                 },
-                                onError = {
+
+                                onError = { error ->
+
                                     squadViewModel.setIsVerifyingOTP(false)
-                                    errorMessage = it
+                                    errorMessage = error
                                 }
                             )
 
@@ -435,10 +469,12 @@ fun sendOTP(
 fun verifyOTP(
     verificationID: String,
     otpCode: String,
+    phoneNumber: String,
     onStart: () -> Unit,
-    onSuccess: () -> Unit,
+    onSuccess: (firebaseUID: String, phoneNumber: String) -> Unit,
     onError: (String) -> Unit
 ) {
+
     if (verificationID.isEmpty() || verificationID == "AUTO_VERIFIED") {
         onError("Invalid verification ID. Please request OTP again.")
         return
@@ -446,10 +482,45 @@ fun verifyOTP(
 
     onStart()
 
-    val credential = PhoneAuthProvider.getCredential(verificationID, otpCode)
-    FirebaseAuth.getInstance().signInWithCredential(credential)
+    val credential = PhoneAuthProvider.getCredential(
+        verificationID,
+        otpCode
+    )
+
+    // Default Firebase Auth - Manager Sign In
+    FirebaseAuth.getInstance()
+        .signInWithCredential(credential)
         .addOnCompleteListener { task ->
-            if (task.isSuccessful) onSuccess()
-            else onError(task.exception?.localizedMessage ?: "Verification failed")
+
+            if (!task.isSuccessful) {
+
+                onError(
+                    task.exception?.localizedMessage
+                        ?: "Verification failed"
+                )
+
+                return@addOnCompleteListener
+            }
+
+            val firebaseUser = task.result?.user
+
+            if (firebaseUser == null) {
+
+                onError("Unable to retrieve Firebase user.")
+                return@addOnCompleteListener
+            }
+
+            val firebaseUID = firebaseUser.uid
+            val verifiedPhoneNumber = firebaseUser.phoneNumber ?: phoneNumber
+
+            Log.d("AUTH", "User signed in successfully")
+            Log.d("AUTH", "Firebase UID: $firebaseUID")
+            Log.d("AUTH", "Phone: $verifiedPhoneNumber")
+
+            // Return Firebase UID and verified phone number.
+            onSuccess(
+                firebaseUID,
+                verifiedPhoneNumber
+            )
         }
 }
