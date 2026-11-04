@@ -17,10 +17,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Pending
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Send
@@ -29,6 +31,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -126,6 +129,8 @@ fun ManagerPaymentView(
 
     var openCashRequestList by remember { mutableStateOf(false) }
 
+    var showCreateLoanConfig by remember { mutableStateOf(false) }
+
     val activity = LocalContext.current as Activity
     val appContext = LocalContext.current.applicationContext
 
@@ -159,6 +164,13 @@ fun ManagerPaymentView(
         if (openCashRequestList) {
             navController.navigate(AppDestination.CASH_REQUEST_LIST.route)
             openCashRequestList = false
+        }
+    }
+
+    LaunchedEffect(showCreateLoanConfig) {
+        if (showCreateLoanConfig) {
+            navController.navigate(AppDestination.OPEN_MANAGE_LOAN.route)
+            showCreateLoanConfig = false
         }
     }
 
@@ -302,28 +314,78 @@ fun ManagerPaymentView(
                         else -> {
 
                             // EMI list
+                            val emiConfigurations = squadViewModel.emiConfigurations.value
+                            val canCreateLoanConfig = emiConfigurations.size < 3
+
                             items(
-                                items = if (showAllEMIs) squadViewModel.emiConfigurations.value
-                                else squadViewModel.emiConfigurations.value.take(2),
+                                items = if (showAllEMIs) emiConfigurations
+                                else emiConfigurations.take(2),
                                 key = { it.id!! }
                             ) { emi ->
                                 PaymentEMIListRow(
                                     emi = emi,
                                     isSelected = emiSelectedType?.id == emi.id,
                                     onClick = {
-                                        emiSelectedType = if (emiSelectedType?.id == emi.id) null else emi
+                                        emiSelectedType =
+                                            if (emiSelectedType?.id == emi.id) null else emi
                                     }
                                 )
                             }
 
-                            // Show More / Show Less
-                            if (squadViewModel.emiConfigurations.value.size > 2) {
+// Show More / Show Less
+                            if (emiConfigurations.size > 2) {
                                 item {
-                                    TextButton(onClick = { showAllEMIs = !showAllEMIs }) {
+                                    TextButton(
+                                        onClick = { showAllEMIs = !showAllEMIs }
+                                    ) {
                                         Text(
                                             text = if (showAllEMIs) "Show Less" else "Show More",
                                             style = AppFont.ibmPlexSans(14, FontWeight.SemiBold),
                                             color = AppColors.infoAccent
+                                        )
+                                    }
+                                }
+                            }
+
+// Create Loan Configuration
+                            if (canCreateLoanConfig) {
+                                item {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 20.dp)
+                                            .clickable {
+                                                showCreateLoanConfig = true
+                                            },
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+
+                                            Text(
+                                                text = SquadStrings.setUpNewLoan,
+                                                style = AppFont.ibmPlexSans(15, FontWeight.SemiBold),
+                                                color = AppColors.successAccent
+                                            )
+
+                                            Icon(
+                                                imageVector = Icons.Default.Add,
+                                                contentDescription = null,
+                                                tint = AppColors.successAccent.copy(alpha = 0.8f),
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        Box(
+                                            modifier = Modifier
+                                                .width(150.dp)
+                                                .height(1.dp)
+                                                .background(AppColors.successAccent.copy(alpha = 0.25f))
                                         )
                                     }
                                 }
@@ -638,30 +700,9 @@ fun ManagerPaymentView(
 
                                                 Log.d("Payment", "✅ Payment added successfully!")
 
-                                                squadViewModel.createSquadActivity(
-                                                    activityType = SquadActivityType.AMOUNT_DEBIT,
-                                                    memberName =selectedMember.memberName,
-                                                    memberNameHindi = selectedMember.memberNameHindi,
-                                                    memberNameTamil = selectedMember.memberNameTamil,
-                                                    memberNameEnglish = selectedMember.memberNameEnglish,
-                                                    memberId = selectedMember.id ?: "",
-                                                    amount = amount,
-                                                    description = SquadStringsEnglishDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionTamil = SquadStringsTamilDesc.amountDebited(amount.toString(),memberPaymentNotes), descriptionHindi = SquadStringsEnglishDesc.amountDebited(amount.toString(),memberPaymentNotes)
-                                                ) { _, _ ->
+                                                CoroutineScope(Dispatchers.Main).launch {
 
-                                                    CoroutineScope(Dispatchers.Main).launch {
-
-                                                        LoaderManager.shared.hideLoader()
-
-                                                        memberPaymentAmount.value = ""
-                                                        memberPaymentNotes = ""
-
-                                                        ToastManager.show(
-                                                            title = SquadStrings.savingsSquad,
-                                                            message = SquadStrings.paymentStatusUpdated,
-                                                            type = ToastType.SUCCESS
-                                                        )
-                                                    }
+                                                    LoaderManager.shared.hideLoader()
                                                 }
 
                                             } else {

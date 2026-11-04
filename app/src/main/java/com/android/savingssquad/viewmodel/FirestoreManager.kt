@@ -3117,7 +3117,7 @@ class FirestoreManager private constructor() {
                                                     otherPaymentID,
 
                                             "memberOtherPaymentType" to
-                                                    "REPAYMENT",
+                                                    "RE_PAYMENT",
 
                                             "amount" to
                                                     currentPayment.amount,
