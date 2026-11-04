@@ -460,7 +460,8 @@ fun ManagerHomeView(
                     onDismiss = { squadViewModel.setShowPopup(false) },
                     selectedUser = selectedUser.value,
                     onUserSelected = { user -> squadViewModel.setSelectedUser(user) },
-                    users = squadViewModel.users.collectAsState().value
+                    users = squadViewModel.users.collectAsState().value,
+                    squadViewModel = squadViewModel
                 )
             }
         }

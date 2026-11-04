@@ -1172,117 +1172,405 @@ fun LoginListPopup(
     onDismiss: () -> Unit,
     selectedUser: Login?,
     onUserSelected: (Login) -> Unit,
-    users: List<Login>
+    users: List<Login>,
+    squadViewModel: SquadViewModel
 ) {
+
     if (!isVisible) return
 
     val inPreview = LocalInspectionMode.current
 
     var selectedRole by remember {
-        mutableStateOf(SquadUserType.SQUAD_MANAGER.localizedName)
+        mutableStateOf(
+            SquadUserType.SQUAD_MANAGER.localizedName
+        )
     }
 
-    val managers = remember(users) {
-        users.filter { it.role == SquadUserType.SQUAD_MANAGER }
+    var selectedTab by remember {
+        mutableStateOf("Current")
     }
 
-    val members = remember(users) {
-        users.filter { it.role == SquadUserType.SQUAD_MEMBER }
+    var searchText by remember {
+        mutableStateOf("")
     }
 
-    val filteredUsers =
-        if (selectedRole == SquadUserType.SQUAD_MANAGER.localizedName)
-            managers else members
+    var isUpdating by remember {
+        mutableStateOf(false)
+    }
 
-    // 🔹 BACKDROP (iOS style)
+    // --------------------------------
+    // ROLE FILTER
+    // --------------------------------
+
+    val roleFilteredUsers = remember(users, selectedRole) {
+
+        if (selectedRole == SquadUserType.SQUAD_MANAGER.localizedName) {
+
+            users.filter {
+                it.role == SquadUserType.SQUAD_MANAGER
+            }
+
+        } else {
+
+            users.filter {
+                it.role == SquadUserType.SQUAD_MEMBER
+            }
+        }
+    }
+
+    // --------------------------------
+    // CURRENT / ARCHIVE FILTER
+    // --------------------------------
+
+    val statusFilteredUsers = remember(
+        roleFilteredUsers,
+        selectedTab
+    ) {
+
+        if (selectedTab == "Current") {
+
+            roleFilteredUsers.filter {
+                !it.isArchived
+            }
+
+        } else {
+
+            roleFilteredUsers.filter {
+                it.isArchived
+            }
+        }
+    }
+
+    // --------------------------------
+    // SEARCH FILTER
+    // --------------------------------
+
+    val filteredUsers = remember(
+        statusFilteredUsers,
+        searchText
+    ) {
+
+        val query = searchText.trim()
+
+        if (query.isBlank()) {
+
+            statusFilteredUsers
+
+        } else {
+
+            statusFilteredUsers.filter { user ->
+
+                user.localizedSquadName.contains(
+                    query,
+                    ignoreCase = true
+                ) ||
+                        user.localizedMemberName.contains(
+                            query,
+                            ignoreCase = true
+                        ) ||
+                        user.phoneNumber.contains(
+                            query,
+                            ignoreCase = true
+                        ) ||
+                        user.squadName.contains(
+                            query,
+                            ignoreCase = true
+                        ) ||
+                        user.memberName.contains(
+                            query,
+                            ignoreCase = true
+                        )
+            }
+        }
+    }
+
+    // --------------------------------
+    // ARCHIVE / RESTORE ACTION
+    // --------------------------------
+
+    fun updateArchiveStatus(
+        user: Login,
+        isArchived: Boolean
+    ) {
+
+        if (isUpdating) return
+
+        isUpdating = true
+
+        squadViewModel.updateLoginArchiveStatus(
+            showLoader = true,
+            login = user,
+            isArchived = isArchived
+        ) { success, error ->
+
+            isUpdating = false
+
+            if (!success) {
+
+                AlertManager.shared.showAlert(
+                    title = SquadStrings.savingsSquad,
+                    message = error ?: "Unable to update profile.",
+                    primaryButtonTitle = SquadStrings.ok,
+                    primaryAction = {}
+                )
+            }
+
+            // On success:
+            // ViewModel updates users locally.
+            // Compose receives the updated list.
+            // Current / Archive automatically refreshes.
+        }
+    }
+
+    // --------------------------------
+    // BACKDROP
+    // --------------------------------
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.35f))
-            .clickable { onDismiss() }
+            .clickable(enabled = !isUpdating) {
+                onDismiss()
+            },
+        contentAlignment = Alignment.Center
     ) {
 
-        // 🔹 MODAL CARD
+        // --------------------------------
+        // MODAL CARD
+        // --------------------------------
+
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .align(Alignment.Center)
-                .width(340.dp)
+                .width(360.dp)
                 .clip(RoundedCornerShape(24.dp))
                 .background(AppColors.background)
-                .appShadow(AppShadows.elevated, RoundedCornerShape(24.dp))
+                .appShadow(
+                    AppShadows.elevated,
+                    RoundedCornerShape(24.dp)
+                )
                 .padding(20.dp)
         ) {
 
-            // 🔹 TITLE
+            // TITLE
+
             Text(
                 text = SquadStrings.selectSquad,
-                style = AppFont.ibmPlexSans(20, FontWeight.Bold),
+                style = AppFont.ibmPlexSans(
+                    20,
+                    FontWeight.Bold
+                ),
                 color = AppColors.headerText
             )
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // --------------------------------
+            // CURRENT / ARCHIVE TABS
+            // --------------------------------
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+
+                LoginStatusTab(
+                    title = "Current",
+                    count = roleFilteredUsers.count {
+                        !it.isArchived
+                    },
+                    selected = selectedTab == "Current",
+                    modifier = Modifier.weight(1f)
+                ) {
+                    selectedTab = "Current"
+                    searchText = ""
+                }
+
+                LoginStatusTab(
+                    title = "Archive",
+                    count = roleFilteredUsers.count {
+                        it.isArchived
+                    },
+                    selected = selectedTab == "Archive",
+                    modifier = Modifier.weight(1f)
+                ) {
+                    selectedTab = "Archive"
+                    searchText = ""
+                }
+            }
+
             Spacer(modifier = Modifier.height(14.dp))
 
-            // 🔹 SEGMENTED CONTROL
+            // --------------------------------
+            // MANAGER / MEMBER PICKER
+            // --------------------------------
+
             ModernSegmentedPickerView(
                 segments = listOf(
                     SquadUserType.SQUAD_MANAGER.localizedName,
                     SquadUserType.SQUAD_MEMBER.localizedName
                 ),
                 selectedSegment = selectedRole,
-                onSegmentSelected = { selectedRole = it }
+                onSegmentSelected = {
+                    selectedRole = it
+                    searchText = ""
+                }
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // 🔹 USERS
+            // --------------------------------
+            // SEARCH BAR
+            // --------------------------------
+
+            OutlinedTextField(
+                value = searchText,
+                onValueChange = {
+                    searchText = it
+                },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = {
+                    Text(
+                        "Search squad, member or phone",
+                        style = AppFont.ibmPlexSans(13)
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search"
+                    )
+                },
+                trailingIcon = {
+
+                    if (searchText.isNotEmpty()) {
+
+                        IconButton(
+                            onClick = {
+                                searchText = ""
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear search"
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // --------------------------------
+            // USER LIST
+            // --------------------------------
+
             if (filteredUsers.isEmpty()) {
 
-                Text(
-                    text = "No ${selectedRole}s available",
-                    style = AppFont.ibmPlexSans(14, FontWeight.Medium),
-                    color = AppColors.secondaryText,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 30.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+
+                    Icon(
+                        imageVector = Icons.Default.Archive,
+                        contentDescription = null,
+                        tint = AppColors.secondaryText,
+                        modifier = Modifier.size(32.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = if (searchText.isNotEmpty()) {
+                            "No matching profiles found"
+                        } else if (selectedTab == "Archive") {
+                            "No archived profiles"
+                        } else {
+                            "No current profiles found"
+                        },
+                        style = AppFont.ibmPlexSans(
+                            14,
+                            FontWeight.Medium
+                        ),
+                        color = AppColors.secondaryText
+                    )
+                }
 
             } else {
 
                 LazyColumn(
-                    modifier = Modifier.heightIn(max = 260.dp),
+                    modifier = Modifier.heightIn(max = 300.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
 
-                    items(filteredUsers) { user ->
+                    items(
+                        items = filteredUsers,
+                        key = { it.id ?: it.squadID + it.squadUserId }
+                    ) { user ->
 
                         UserSelectionCard(
                             user = user,
+                            isUpdating = isUpdating,
                             onSelect = {
+
+                                if (user.isArchived || isUpdating) {
+                                    return@UserSelectionCard
+                                }
 
                                 onUserSelected(user)
 
                                 if (!inPreview) {
 
                                     UserDefaultsManager.saveLogin(user)
+
                                     UserDefaultsManager.saveIsLoggedIn(true)
 
                                     val isManager =
                                         user.role == SquadUserType.SQUAD_MANAGER
 
-                                    UserDefaultsManager.saveSquadManagerLogged(isManager)
-                                    val route = if (isManager)
+                                    UserDefaultsManager.saveSquadManagerLogged(
+                                        isManager
+                                    )
+
+                                    val route = if (isManager) {
                                         AppDestination.MANAGER_HOME.route
-                                    else
+                                    } else {
                                         AppDestination.MEMBER_HOME.route
+                                    }
 
                                     navController.navigate(route) {
-                                        popUpTo(AppDestination.SIGN_IN.route) {
+
+                                        popUpTo(
+                                            AppDestination.SIGN_IN.route
+                                        ) {
                                             inclusive = true
                                         }
+
                                         launchSingleTop = true
                                     }
                                 }
 
                                 onDismiss()
+                            },
+                            onArchive = {
+
+                                updateArchiveStatus(
+                                    user = user,
+                                    isArchived = true
+                                )
+                            },
+                            onRestore = {
+
+                                updateArchiveStatus(
+                                    user = user,
+                                    isArchived = false
+                                )
                             }
                         )
                     }
@@ -1291,11 +1579,12 @@ fun LoginListPopup(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // 🔹 CANCEL
+            // CANCEL
+
             SSCancelButton(
                 title = SquadStrings.cancel,
                 isButtonLoading = false,
-                isDisabled = false
+                isDisabled = isUpdating
             ) {
                 onDismiss()
             }
@@ -1307,57 +1596,271 @@ fun LoginListPopup(
 @Composable
 fun UserSelectionCard(
     user: Login,
-    onSelect: () -> Unit
+    isUpdating: Boolean,
+    onSelect: () -> Unit,
+    onArchive: () -> Unit,
+    onRestore: () -> Unit
 ) {
+
+    var menuExpanded by remember {
+        mutableStateOf(false)
+    }
 
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = AppColors.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onSelect() }
+        colors = CardDefaults.cardColors(
+            containerColor = AppColors.surface
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 2.dp
+        ),
+        modifier = Modifier.fillMaxWidth()
     ) {
 
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
 
+            // --------------------------------
+            // USER DETAILS
+            // --------------------------------
+
             Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(
+                        enabled = !user.isArchived && !isUpdating
+                    ) {
+                        onSelect()
+                    },
+                verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
 
                 Text(
-                    text = user.localizedSquadName ?: "",
-                    style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+                    text = user.localizedSquadName,
+                    style = AppFont.ibmPlexSans(
+                        16,
+                        FontWeight.SemiBold
+                    ),
                     color = AppColors.headerText
                 )
 
                 Text(
-                    text =
-                        if (user.role == SquadUserType.SQUAD_MANAGER)
-                            SquadStrings.localizedMonthInText(SquadStrings.managerSince(CommonFunctions.dateToString(
-                                user.userCreatedDate?.toDate() ?: Date()
-                            )))
-                        else
-                            SquadStrings.localizedMonthInText(SquadStrings.memberSince(CommonFunctions.dateToString(
-                                user.userCreatedDate?.toDate() ?: Date()
-                            ))),
-                    style = AppFont.ibmPlexSans(13),
+                    text = user.localizedMemberName,
+                    style = AppFont.ibmPlexSans(12),
+                    color = AppColors.secondaryText
+                )
+
+                val createdDate =
+                    user.userCreatedDate?.toDate() ?: Date()
+
+                val dateText = CommonFunctions.dateToString(
+                    createdDate
+                )
+
+                val subtitle = if (
+                    user.role == SquadUserType.SQUAD_MANAGER
+                ) {
+
+                    SquadStrings.managerSince(
+                        SquadStrings.localizedMonthInText(dateText)
+                    )
+
+                } else {
+
+                    SquadStrings.memberSince(
+                        SquadStrings.localizedMonthInText(dateText)
+                    )
+                }
+
+                Text(
+                    text = subtitle,
+                    style = AppFont.ibmPlexSans(11),
                     color = AppColors.secondaryText
                 )
             }
 
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = AppColors.secondaryText.copy(alpha = 0.6f)
-            )
+            // --------------------------------
+            // ARCHIVE / RESTORE MENU
+            // --------------------------------
+
+            Box {
+
+                IconButton(
+                    onClick = {
+                        menuExpanded = true
+                    },
+                    enabled = !isUpdating
+                ) {
+
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More options",
+                        tint = AppColors.secondaryText
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = {
+                        menuExpanded = false
+                    }
+                ) {
+
+                    if (user.isArchived) {
+
+                        DropdownMenuItem(
+
+                            text = {
+                                Text("Move to Current")
+                            },
+
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Unarchive,
+                                    contentDescription = null
+                                )
+                            },
+
+                            onClick = {
+
+                                menuExpanded = false
+                                onRestore()
+                            }
+                        )
+
+                    } else {
+
+                        DropdownMenuItem(
+
+                            text = {
+                                Text("Archive")
+                            },
+
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Archive,
+                                    contentDescription = null
+                                )
+                            },
+
+                            onClick = {
+
+                                menuExpanded = false
+                                onArchive()
+                            }
+                        )
+                    }
+                }
+            }
+
+            // --------------------------------
+            // NAVIGATION INDICATOR
+            // --------------------------------
+
+            if (!user.isArchived) {
+
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = AppColors.secondaryText.copy(
+                        alpha = 0.6f
+                    )
+                )
+            }
         }
     }
 }
+
+
+@Composable
+fun LoginStatusTab(
+    title: String,
+    count: Int,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                if (selected) {
+                    AppColors.headerText
+                } else {
+                    AppColors.surface
+                }
+            )
+            .clickable {
+                onClick()
+            }
+            .padding(vertical = 12.dp, horizontal = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+
+        Icon(
+            imageVector = if (title == "Current") {
+                Icons.Default.People
+            } else {
+                Icons.Default.Archive
+            },
+            contentDescription = null,
+            modifier = Modifier.size(15.dp),
+            tint = if (selected) {
+                Color.White
+            } else {
+                AppColors.secondaryText
+            }
+        )
+
+        Spacer(modifier = Modifier.width(6.dp))
+
+        Text(
+            text = title,
+            style = AppFont.ibmPlexSans(
+                13,
+                FontWeight.SemiBold
+            ),
+            color = if (selected) {
+                Color.White
+            } else {
+                AppColors.secondaryText
+            }
+        )
+
+        Spacer(modifier = Modifier.width(6.dp))
+
+        Text(
+            text = count.toString(),
+            style = AppFont.ibmPlexSans(
+                11,
+                FontWeight.Medium
+            ),
+            color = if (selected) {
+                Color.White
+            } else {
+                AppColors.secondaryText
+            },
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(
+                    if (selected) {
+                        Color.White.copy(alpha = 0.2f)
+                    } else {
+                        AppColors.secondaryText.copy(alpha = 0.1f)
+                    }
+                )
+                .padding(
+                    horizontal = 7.dp,
+                    vertical = 3.dp
+                )
+        )
+    }
+}
+
 @Composable
 fun SectionView(
     title: String,

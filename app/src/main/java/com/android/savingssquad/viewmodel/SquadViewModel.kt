@@ -787,6 +787,124 @@ class SquadViewModel : ViewModel() {
         }
     }
 
+
+    fun updateLoginArchiveStatus(
+        showLoader: Boolean,
+        login: Login,
+        isArchived: Boolean,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (login.id.isNullOrBlank()) {
+            completion(false, "Invalid login ID.")
+            return
+        }
+
+        if (login.phoneNumber.isBlank()) {
+            completion(false, "Phone number is missing.")
+            return
+        }
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            completion(false, SquadStrings.networkError)
+            return
+        }
+
+        if (showLoader) {
+            LoaderManager.shared.showLoader()
+        }
+
+        manager.updateLoginArchiveStatus(
+            phoneNumber = login.phoneNumber,
+            loginID = login.id!!,
+            isArchived = isArchived
+        ) { success, error ->
+
+            viewModelScope.launch(Dispatchers.Main) {
+
+                try {
+
+                    if (showLoader) {
+                        LoaderManager.shared.hideLoader()
+                    }
+
+                    if (!success) {
+
+                        completion(
+                            false,
+                            error ?: "Unable to update profile."
+                        )
+
+                        return@launch
+                    }
+
+                    // --------------------------------
+                    // 1. UPDATE LOCAL VIEWMODEL USERS
+                    // --------------------------------
+
+                    setUsers(users.value.map { existingLogin ->
+
+                        if (existingLogin.id == login.id) {
+
+                            existingLogin.copy(
+                                isArchived = isArchived
+                            )
+
+                        } else {
+                            existingLogin
+                        }
+                    })
+
+                    // --------------------------------
+                    // 2. UPDATE SESSION MANAGER
+                    // --------------------------------
+
+                    SessionManager.logins =
+                        SessionManager.logins.map { existingLogin ->
+
+                            if (existingLogin.id == login.id) {
+
+                                existingLogin.copy(
+                                    isArchived = isArchived
+                                )
+
+                            } else {
+                                existingLogin
+                            }
+
+                        }.toMutableList()
+
+                    // --------------------------------
+                    // 3. UPDATE LOCAL STORAGE
+                    // --------------------------------
+
+                    UserDefaultsManager.saveSquadLogins(
+                        SessionManager.logins
+                    )
+
+                    // --------------------------------
+                    // 4. SUCCESS
+                    // --------------------------------
+
+                    completion(true, null)
+
+                } catch (e: Exception) {
+
+                    Log.e(
+                        "LoginArchive",
+                        "Failed to update local login profile",
+                        e
+                    )
+
+                    completion(
+                        false,
+                        e.localizedMessage ?: "Unable to update profile."
+                    )
+                }
+            }
+        }
+    }
+
     fun fetchUserLogins(
         showLoader: Boolean,
         firebaseUID: String,

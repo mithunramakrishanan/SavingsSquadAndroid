@@ -83,9 +83,17 @@ data class Login(
 
     @get:PropertyName("recordDate")
     @set:PropertyName("recordDate")
-    var recordDate: Date = Date()
+    var recordDate: Date = Date(),
+
+    @get:PropertyName("isArchived")
+    @set:PropertyName("isArchived")
+    var isArchived: Boolean = false
 
 ) {
+
+    val isLoginArchived: Boolean
+
+        get() = isArchived
 
     // MARK: - Localized Member Name
 

@@ -679,7 +679,8 @@ fun MemberHomeView(
                     onDismiss = { squadViewModel.setShowPopup(false) },
                     selectedUser = selectedUser,
                     onUserSelected = { user -> squadViewModel.setSelectedUser(user) },
-                    users = users
+                    users = users,
+                    squadViewModel = squadViewModel
                 )
             }
         }
@@ -1261,7 +1262,7 @@ fun MemberDashBoardCard(
                 if (onClick != null) {
                     Modifier.clickable(
                         interactionSource = interactionSource,
-                        indication = androidx.compose.material3.ripple()
+                        indication = ripple()
                     ) {
                         onClick()
                     }

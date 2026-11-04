@@ -103,6 +103,47 @@ class FirestoreManager private constructor() {
         }
     }
 
+    fun updateLoginArchiveStatus(
+        phoneNumber: String,
+        loginID: String,
+        isArchived: Boolean,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (phoneNumber.isBlank()) {
+            completion(false, "Phone number is missing.")
+            return
+        }
+
+        if (loginID.isBlank()) {
+            completion(false, "Login ID is missing.")
+            return
+        }
+
+        val loginRef = FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(phoneNumber)
+            .collection("logins")
+            .document(loginID)
+
+        val updates = hashMapOf<String, Any>(
+            "isArchived" to isArchived,
+            "recordDate" to FieldValue.serverTimestamp()
+        )
+
+        loginRef.update(updates)
+            .addOnSuccessListener {
+                completion(true, null)
+            }
+            .addOnFailureListener { exception ->
+
+                completion(
+                    false,
+                    exception.localizedMessage ?: "Unable to update login profile."
+                )
+            }
+    }
+
     // MARK: - 🔹 Fetch User Logins
     fun fetchUserLogins(
         firebaseUID: String,
