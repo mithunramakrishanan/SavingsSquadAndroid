@@ -125,6 +125,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.android.savingssquad.singleton.SecondaryFirebaseAuthManager
 
 
@@ -340,7 +341,8 @@ fun SSTextField(
     dropdownColor: Color = AppColors.secondaryText,
     onDropdownTap: (() -> Unit)? = null,
     error: String = "",
-    maxLength: Int? = null
+    maxLength: Int? = null,
+    modifier: Modifier = Modifier
 ) {
 
     val focusRequester = remember { FocusRequester() }
@@ -428,6 +430,7 @@ fun SSTextField(
                 ) {
 
                     if (textState.value.isEmpty()) {
+
                         Text(
                             text = placeholder,
                             style = AppFont.ibmPlexSans(
@@ -444,15 +447,18 @@ fun SSTextField(
 
                     BasicTextField(
                         value = textState.value,
+
                         onValueChange = { newValue ->
 
                             if (!disabled) {
 
                                 val filteredValue = when {
+
                                     maxLength == null -> newValue
 
                                     keyboardType == KeyboardType.Number ||
                                             keyboardType == KeyboardType.Phone -> {
+
                                         newValue
                                             .filter { it.isDigit() }
                                             .take(maxLength)
@@ -464,14 +470,19 @@ fun SSTextField(
                                 textState.value = filteredValue
                             }
                         },
+
                         singleLine = true,
+
                         enabled = !disabled && !showDropdown,
+
                         keyboardOptions = KeyboardOptions(
                             keyboardType = keyboardType
                         ),
+
                         cursorBrush = SolidColor(
                             AppColors.primaryButton
                         ),
+
                         textStyle = AppFont.ibmPlexSans(
                             15,
                             FontWeight.Medium
@@ -482,7 +493,8 @@ fun SSTextField(
                                 AppColors.headerText
                             }
                         ),
-                        modifier = Modifier
+
+                        modifier = modifier
                             .fillMaxWidth()
                             .focusRequester(focusRequester)
                             .onFocusChanged {
@@ -528,6 +540,7 @@ fun SSTextField(
         AnimatedVisibility(
             visible = error.isNotEmpty()
         ) {
+
             Text(
                 text = error,
                 style = AppFont.ibmPlexSans(
@@ -2186,114 +2199,63 @@ fun AddMemberPopup(
     val coroutineScope = rememberCoroutineScope()
 
     // ---------------------------------------------------------
+    // OTP FIELD FOCUS
+    // ---------------------------------------------------------
+
+    val otpFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    // ---------------------------------------------------------
     // MEMBER DETAILS
     // ---------------------------------------------------------
 
-    var memberName by remember {
-        mutableStateOf("")
-    }
-
-    var phoneNumber by remember {
-        mutableStateOf("")
-    }
-
+    var memberName by remember { mutableStateOf("") }
+    var phoneNumber by remember { mutableStateOf("") }
 
     // ---------------------------------------------------------
     // OTP DETAILS
     // ---------------------------------------------------------
 
-    var otpCode by remember {
-        mutableStateOf("")
-    }
+    var otpCode by remember { mutableStateOf("") }
+    var verificationID by remember { mutableStateOf("") }
+    var memberFirebaseUID by remember { mutableStateOf("") }
 
-    var verificationID by remember {
-        mutableStateOf("")
-    }
+    var isOTPSent by remember { mutableStateOf(false) }
+    var OTPVerified by remember { mutableStateOf(false) }
+    var OTPProcessStarted by remember { mutableStateOf(false) }
+    var isOTPVerificationInProgress by remember { mutableStateOf(false) }
 
-    var memberFirebaseUID by remember {
-        mutableStateOf("")
-    }
-
-    var isOTPSent by remember {
-        mutableStateOf(false)
-    }
-
-    var OTPVerified by remember {
-        mutableStateOf(false)
-    }
-
-    var OTPProcessStarted by remember {
-        mutableStateOf(false)
-    }
-
-    var isOTPVerificationInProgress by remember {
-        mutableStateOf(false)
-    }
-
-    var lastAttemptedOTP by remember {
-        mutableStateOf("")
-    }
-
+    var lastAttemptedOTP by remember { mutableStateOf("") }
 
     // ---------------------------------------------------------
     // ERRORS
     // ---------------------------------------------------------
 
-    var memberNameError by remember {
-        mutableStateOf("")
-    }
-
-    var phoneError by remember {
-        mutableStateOf("")
-    }
-
-    var sendOTPError by remember {
-        mutableStateOf("")
-    }
-
-    var verifyOTPError by remember {
-        mutableStateOf("")
-    }
-
+    var memberNameError by remember { mutableStateOf("") }
+    var phoneError by remember { mutableStateOf("") }
+    var sendOTPError by remember { mutableStateOf("") }
+    var verifyOTPError by remember { mutableStateOf("") }
 
     // ---------------------------------------------------------
     // FINANCIAL DETAILS
     // ---------------------------------------------------------
 
-    var contributionReceived by remember {
-        mutableStateOf("")
-    }
-
-    var interestReceived by remember {
-        mutableStateOf("")
-    }
-
-    var markCurrentMonthPaid by remember {
-        mutableStateOf(false)
-    }
-
+    var contributionReceived by remember { mutableStateOf("") }
+    var interestReceived by remember { mutableStateOf("") }
+    var markCurrentMonthPaid by remember { mutableStateOf(false) }
 
     // ---------------------------------------------------------
     // UI STATES
     // ---------------------------------------------------------
 
-    var isSavingMember by remember {
-        mutableStateOf(false)
-    }
-
-    var isValidatingMember by remember {
-        mutableStateOf(false)
-    }
-
+    var isSavingMember by remember { mutableStateOf(false) }
 
     // ---------------------------------------------------------
     // VIEWMODEL DATA
     // ---------------------------------------------------------
 
     val squadMembers by squadViewModel.squadMembers.collectAsState()
-
     val squad = squadViewModel.squad.collectAsState().value
-
 
     // ---------------------------------------------------------
     // SQUAD STATUS
@@ -2305,7 +2267,6 @@ fun AddMemberPopup(
 
         startDate != null && !startDate.after(Date())
     }
-
 
     // ---------------------------------------------------------
     // FINANCIAL AMOUNTS
@@ -2320,7 +2281,6 @@ fun AddMemberPopup(
     val totalReceived =
         contributionAmount + interestAmount
 
-
     val contributionValid =
         contributionReceived.isEmpty() ||
                 contributionReceived.toIntOrNull() != null
@@ -2331,7 +2291,6 @@ fun AddMemberPopup(
 
     val areFinancialAmountsValid =
         contributionValid && interestValid
-
 
     // ---------------------------------------------------------
     // NAME VALIDATION
@@ -2350,7 +2309,6 @@ fun AddMemberPopup(
         delay(350)
 
         val nameExists = squadMembers.any {
-
             it.localizedMemberName
                 .trim()
                 .equals(cleanedName, ignoreCase = true)
@@ -2360,7 +2318,6 @@ fun AddMemberPopup(
             memberNameError = SquadStrings.nameAlreadyExists
         }
     }
-
 
     // ---------------------------------------------------------
     // PHONE VALIDATION
@@ -2380,18 +2337,15 @@ fun AddMemberPopup(
         delay(350)
 
         val phoneExists = squadMembers.any {
-
             CommonFunctions.cleanUpPhoneNumber(
                 it.phoneNumber
             ) == cleanedPhone
         }
 
         if (phoneExists) {
-            phoneError =
-                SquadStrings.mobileNumberAlreadyExists
+            phoneError = SquadStrings.mobileNumberAlreadyExists
         }
     }
-
 
     // ---------------------------------------------------------
     // RESET OTP WHEN PHONE NUMBER CHANGES
@@ -2408,7 +2362,6 @@ fun AddMemberPopup(
             otpCode = ""
 
             memberFirebaseUID = ""
-
             lastAttemptedOTP = ""
 
             verifyOTPError = ""
@@ -2417,11 +2370,12 @@ fun AddMemberPopup(
             OTPProcessStarted = false
             isOTPVerificationInProgress = false
 
+            keyboardController?.hide()
+
             SecondaryFirebaseAuthManager.getInstance(context)
                 .signOut()
         }
     }
-
 
     // ---------------------------------------------------------
     // OTP VERIFICATION
@@ -2429,7 +2383,8 @@ fun AddMemberPopup(
 
     fun verifyMemberOTP() {
 
-        if (OTPProcessStarted ||
+        if (
+            OTPProcessStarted ||
             isOTPVerificationInProgress ||
             OTPVerified
         ) {
@@ -2455,6 +2410,8 @@ fun AddMemberPopup(
         isOTPVerificationInProgress = true
 
         verifyOTPError = ""
+
+        keyboardController?.hide()
 
         squadViewModel.setIsVerifyingOTP(true)
 
@@ -2486,7 +2443,6 @@ fun AddMemberPopup(
                         } else {
 
                             memberFirebaseUID = verifiedUID
-
                             OTPVerified = true
 
                             verifyOTPError = ""
@@ -2501,7 +2457,6 @@ fun AddMemberPopup(
                                 "Member Firebase UID: $verifiedUID"
                             )
 
-                            // Release secondary authentication session.
                             SecondaryFirebaseAuthManager
                                 .getInstance(context)
                                 .signOut()
@@ -2530,7 +2485,6 @@ fun AddMemberPopup(
             }
     }
 
-
     // ---------------------------------------------------------
     // AUTOMATIC OTP VERIFICATION
     // ---------------------------------------------------------
@@ -2553,6 +2507,21 @@ fun AddMemberPopup(
         }
     }
 
+    // ---------------------------------------------------------
+    // AUTOMATIC OTP FIELD FOCUS
+    // ---------------------------------------------------------
+
+    LaunchedEffect(isOTPSent, OTPVerified) {
+
+        if (isOTPSent && !OTPVerified) {
+
+            delay(400)
+
+            otpFocusRequester.requestFocus()
+
+            keyboardController?.show()
+        }
+    }
 
     // ---------------------------------------------------------
     // VALIDATE MEMBER DETAILS
@@ -2578,22 +2547,19 @@ fun AddMemberPopup(
 
         if (!Regex("^[0-9]{10}$").matches(cleanedPhone)) {
 
-            phoneError =
-                SquadStrings.enterValidPhoneNumber
+            phoneError = SquadStrings.enterValidPhoneNumber
 
             return false
         }
 
         if (!areFinancialAmountsValid) {
 
-            sendOTPError =
-                "Enter valid whole-number amounts."
+            sendOTPError = "Enter valid whole-number amounts."
 
             return false
         }
 
         val nameExists = squadMembers.any {
-
             it.localizedMemberName
                 .trim()
                 .equals(cleanedName, ignoreCase = true)
@@ -2601,14 +2567,12 @@ fun AddMemberPopup(
 
         if (nameExists) {
 
-            memberNameError =
-                SquadStrings.nameAlreadyExists
+            memberNameError = SquadStrings.nameAlreadyExists
 
             return false
         }
 
         val phoneExists = squadMembers.any {
-
             CommonFunctions.cleanUpPhoneNumber(
                 it.phoneNumber
             ) == cleanedPhone
@@ -2616,15 +2580,13 @@ fun AddMemberPopup(
 
         if (phoneExists) {
 
-            phoneError =
-                SquadStrings.mobileNumberAlreadyExists
+            phoneError = SquadStrings.mobileNumberAlreadyExists
 
             return false
         }
 
         return true
     }
-
 
     // ---------------------------------------------------------
     // SEND OTP
@@ -2698,7 +2660,6 @@ fun AddMemberPopup(
                         memberFirebaseUID = firebaseUID
 
                         OTPVerified = true
-
                         isOTPSent = true
 
                         OTPProcessStarted = false
@@ -2740,7 +2701,6 @@ fun AddMemberPopup(
             )
     }
 
-
     // ---------------------------------------------------------
     // ADD MEMBER
     // ---------------------------------------------------------
@@ -2755,7 +2715,6 @@ fun AddMemberPopup(
             return
         }
 
-        // First action: Send OTP.
         if (!isOTPSent) {
 
             sendMemberOTP()
@@ -2763,7 +2722,6 @@ fun AddMemberPopup(
             return
         }
 
-        // OTP must be verified before adding member.
         if (!OTPVerified) {
 
             if (otpCode.length != 6) {
@@ -2778,7 +2736,6 @@ fun AddMemberPopup(
             return
         }
 
-        // UID must be available.
         if (memberFirebaseUID.isBlank()) {
 
             verifyOTPError =
@@ -2796,7 +2753,6 @@ fun AddMemberPopup(
             return
         }
 
-        // Subscription validation.
         if (
             !SubscriptionManager.shared.canAddMember(
                 currentCount = currentSquad.totalMembers
@@ -2825,6 +2781,8 @@ fun AddMemberPopup(
 
         isSavingMember = true
 
+        keyboardController?.hide()
+
         squadViewModel.addMember(
 
             showLoader = true,
@@ -2846,10 +2804,13 @@ fun AddMemberPopup(
             isSavingMember = false
 
             if (success) {
+
                 LoaderManager.shared.hideLoader()
+
                 SecondaryFirebaseAuthManager
                     .getInstance(context)
                     .signOut()
+
                 onDismiss()
 
             } else {
@@ -2859,7 +2820,6 @@ fun AddMemberPopup(
             }
         }
     }
-
 
     // ---------------------------------------------------------
     // POPUP UI
@@ -2877,6 +2837,9 @@ fun AddMemberPopup(
                         .MutableInteractionSource()
                 }
             ) {
+
+                keyboardController?.hide()
+
                 SecondaryFirebaseAuthManager
                     .getInstance(context)
                     .signOut()
@@ -2947,6 +2910,8 @@ fun AddMemberPopup(
 
                         if (!OTPProcessStarted && !isSavingMember) {
 
+                            keyboardController?.hide()
+
                             SecondaryFirebaseAuthManager
                                 .getInstance(context)
                                 .signOut()
@@ -2964,11 +2929,9 @@ fun AddMemberPopup(
                 }
             }
 
-
             HorizontalDivider(
                 color = AppColors.secondaryText.copy(alpha = 0.15f)
             )
-
 
             // -------------------------------------------------
             // SCROLLABLE CONTENT
@@ -3044,7 +3007,6 @@ fun AddMemberPopup(
                     )
                 }
 
-
                 // NON-PHONE MEMBER HINT
 
                 Row(
@@ -3068,7 +3030,6 @@ fun AddMemberPopup(
                         color = AppColors.secondaryText
                     )
                 }
-
 
                 // FINANCIAL DETAILS
 
@@ -3113,7 +3074,6 @@ fun AddMemberPopup(
                             )
                         }
 
-
                         // CONTRIBUTION
 
                         SSTextField(
@@ -3131,7 +3091,6 @@ fun AddMemberPopup(
                             error = ""
                         )
 
-
                         // INTEREST
 
                         SSTextField(
@@ -3148,7 +3107,6 @@ fun AddMemberPopup(
                             keyboardType = KeyboardType.Number,
                             error = ""
                         )
-
 
                         // CURRENT MONTH PAID
 
@@ -3198,7 +3156,6 @@ fun AddMemberPopup(
                             }
                         }
 
-
                         // FINANCIAL SUMMARY
 
                         Column(
@@ -3233,8 +3190,9 @@ fun AddMemberPopup(
                     }
                 }
 
-
+                // -------------------------------------------------
                 // OTP SECTION
+                // -------------------------------------------------
 
                 AnimatedVisibility(
                     visible = isOTPSent,
@@ -3279,6 +3237,7 @@ fun AddMemberPopup(
                         SSTextField(
                             icon = Icons.Default.Numbers,
                             placeholder = SquadStrings.enterOTP,
+
                             textState = remember {
                                 mutableStateOf(otpCode)
                             }.also { state ->
@@ -3296,16 +3255,22 @@ fun AddMemberPopup(
                                     }
                                 }
                             },
+
                             keyboardType = KeyboardType.Number,
+
                             dropdownIcon = if (OTPVerified) {
                                 Icons.Default.CheckCircle
                             } else {
                                 null
                             },
-                            dropdownColor = AppColors.primaryButton,
-                            error = verifyOTPError
-                        )
 
+                            dropdownColor = AppColors.primaryButton,
+                            error = verifyOTPError,
+
+                            modifier = Modifier.focusRequester(
+                                otpFocusRequester
+                            )
+                        )
 
                         if (OTPVerified) {
 
@@ -3337,7 +3302,6 @@ fun AddMemberPopup(
                     }
                 }
 
-
                 // SEND OTP ERROR
 
                 if (sendOTPError.isNotBlank()) {
@@ -3352,7 +3316,6 @@ fun AddMemberPopup(
                     )
                 }
 
-
                 // FINANCIAL VALIDATION ERROR
 
                 if (!areFinancialAmountsValid) {
@@ -3365,11 +3328,9 @@ fun AddMemberPopup(
                 }
             }
 
-
             HorizontalDivider(
                 color = AppColors.secondaryText.copy(alpha = 0.15f)
             )
-
 
             // -------------------------------------------------
             // FOOTER
@@ -3397,7 +3358,9 @@ fun AddMemberPopup(
                         else ->
                             SquadStrings.sendOTP
                     },
+
                     isButtonLoading = isSavingMember,
+
                     isDisabled =
                         OTPProcessStarted ||
                                 isOTPVerificationInProgress ||
@@ -3410,12 +3373,13 @@ fun AddMemberPopup(
                     handleAddMember()
                 }
 
-
                 SSCancelButton(
                     title = SquadStrings.cancel,
                     action = {
 
                         if (!OTPProcessStarted && !isSavingMember) {
+
+                            keyboardController?.hide()
 
                             SecondaryFirebaseAuthManager
                                 .getInstance(context)
@@ -3428,7 +3392,6 @@ fun AddMemberPopup(
             }
         }
     }
-
 
     // ---------------------------------------------------------
     // OTP OVERLAY

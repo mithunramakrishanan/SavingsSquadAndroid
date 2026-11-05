@@ -4853,24 +4853,26 @@ class FirestoreManager private constructor() {
         batch.set(loginRef, loginData)
 
         // ---------------------------------------------------------
-        // 7. INITIAL CONTRIBUTION PAYMENT
-        // ---------------------------------------------------------
+// 7. INITIAL CONTRIBUTION PAYMENT
+// ---------------------------------------------------------
 
         if (contributionReceived > 0) {
 
-            val paymentID = paymentsRef.document().id
+            val paymentID = IDGenerator.generatePaymentID(squadId = squadID)
             val paymentDate = Date().asTimestamp
 
             val newPayment = PaymentsDetails(
                 id = paymentID,
+
                 paymentUpdatedDate = paymentDate,
+                payoutUpdatedDate = null,
 
                 memberId = memberID,
 
-                memberName = SquadStringsEnglish.squadManager,
-                memberNameHindi = SquadStringsHindi.squadManager,
-                memberNameTamil = SquadStringsTamil.squadManager,
-                memberNameEnglish = SquadStringsEnglish.squadManager,
+                memberName = member.memberName,
+                memberNameHindi = member.memberNameHindi,
+                memberNameTamil = member.memberNameTamil,
+                memberNameEnglish = member.memberNameEnglish,
 
                 paymentPhone = "",
                 paymentEmail = "",
@@ -4898,9 +4900,29 @@ class FirestoreManager private constructor() {
                 loanId = "",
                 installmentId = "",
 
+                transferMode = "",
+                beneId = "",
+
                 paymentSuccess = true,
+                paymentResponseMessage =
+                    "Initial contribution manually recorded successfully.",
+
                 payoutSuccess = true,
+                payoutResponseMessage = "",
+
                 transferReferenceId = "",
+                upiID = "",
+
+                recordStatus = RecordStatus.ACTIVE,
+                recordDate = paymentDate,
+
+                selectedEMIConfig = null,
+
+                cashRequestId = "",
+                isLoanForceClosed = false,
+                forceCloseSummary = ForceCloseSummary(),
+
+                memberOtherPaymentId = "",
 
                 descriptionTamil =
                     "உறுப்பினரைச் சேர்க்கும்போது பெறப்பட்ட ஆரம்ப பங்களிப்புத் தொகை: ₹$contributionReceived",
@@ -4911,7 +4933,9 @@ class FirestoreManager private constructor() {
 
             val paymentData = hashMapOf<String, Any?>(
                 "id" to newPayment.id,
+
                 "paymentUpdatedDate" to newPayment.paymentUpdatedDate,
+                "payoutUpdatedDate" to newPayment.payoutUpdatedDate,
 
                 "memberId" to newPayment.memberId,
 
@@ -4938,6 +4962,8 @@ class FirestoreManager private constructor() {
                 "paymentApproveStatus" to newPayment.paymentApproveStatus,
 
                 "description" to newPayment.description,
+                "descriptionTamil" to newPayment.descriptionTamil,
+                "descriptionHindi" to newPayment.descriptionHindi,
 
                 "squadId" to newPayment.squadId,
                 "order_id" to newPayment.order_id,
@@ -4946,12 +4972,28 @@ class FirestoreManager private constructor() {
                 "loanId" to newPayment.loanId,
                 "installmentId" to newPayment.installmentId,
 
-                "paymentSuccess" to newPayment.paymentSuccess,
-                "payoutSuccess" to newPayment.payoutSuccess,
-                "transferReferenceId" to newPayment.transferReferenceId,
+                "transferMode" to newPayment.transferMode,
+                "beneId" to newPayment.beneId,
 
-                "descriptionTamil" to newPayment.descriptionTamil,
-                "descriptionHindi" to newPayment.descriptionHindi
+                "paymentSuccess" to newPayment.paymentSuccess,
+                "paymentResponseMessage" to newPayment.paymentResponseMessage,
+
+                "payoutSuccess" to newPayment.payoutSuccess,
+                "payoutResponseMessage" to newPayment.payoutResponseMessage,
+
+                "transferReferenceId" to newPayment.transferReferenceId,
+                "upiID" to newPayment.upiID,
+
+                "recordStatus" to newPayment.recordStatus,
+                "recordDate" to newPayment.recordDate,
+
+                "selectedEMIConfig" to newPayment.selectedEMIConfig,
+
+                "cashRequestId" to newPayment.cashRequestId,
+                "isLoanForceClosed" to newPayment.isLoanForceClosed,
+                "forceCloseSummary" to newPayment.forceCloseSummary,
+
+                "memberOtherPaymentId" to newPayment.memberOtherPaymentId
             )
 
             batch.set(
@@ -4961,24 +5003,26 @@ class FirestoreManager private constructor() {
         }
 
         // ---------------------------------------------------------
-        // 8. INITIAL INTEREST PAYMENT
-        // ---------------------------------------------------------
+// 8. INITIAL INTEREST PAYMENT
+// ---------------------------------------------------------
 
         if (interestReceived > 0) {
 
-            val paymentID = paymentsRef.document().id
+            val paymentID = IDGenerator.generatePaymentID(squadId = squadID)
             val paymentDate = Date().asTimestamp
 
             val newPayment = PaymentsDetails(
                 id = paymentID,
+
                 paymentUpdatedDate = paymentDate,
+                payoutUpdatedDate = null,
 
                 memberId = memberID,
 
-                memberName = SquadStringsEnglish.squadManager,
-                memberNameHindi = SquadStringsHindi.squadManager,
-                memberNameTamil = SquadStringsTamil.squadManager,
-                memberNameEnglish = SquadStringsEnglish.squadManager,
+                memberName = member.memberName,
+                memberNameHindi = member.memberNameHindi,
+                memberNameTamil = member.memberNameTamil,
+                memberNameEnglish = member.memberNameEnglish,
 
                 paymentPhone = "",
                 paymentEmail = "",
@@ -5006,9 +5050,29 @@ class FirestoreManager private constructor() {
                 loanId = "",
                 installmentId = "",
 
+                transferMode = "",
+                beneId = "",
+
                 paymentSuccess = true,
+                paymentResponseMessage =
+                    "Initial interest manually recorded successfully.",
+
                 payoutSuccess = true,
+                payoutResponseMessage = "",
+
                 transferReferenceId = "",
+                upiID = "",
+
+                recordStatus = RecordStatus.ACTIVE,
+                recordDate = paymentDate,
+
+                selectedEMIConfig = null,
+
+                cashRequestId = "",
+                isLoanForceClosed = false,
+                forceCloseSummary = ForceCloseSummary(),
+
+                memberOtherPaymentId = "",
 
                 descriptionTamil =
                     "உறுப்பினரைச் சேர்க்கும்போது பெறப்பட்ட ஆரம்ப வட்டித் தொகை: ₹$interestReceived",
@@ -5019,7 +5083,9 @@ class FirestoreManager private constructor() {
 
             val paymentData = hashMapOf<String, Any?>(
                 "id" to newPayment.id,
+
                 "paymentUpdatedDate" to newPayment.paymentUpdatedDate,
+                "payoutUpdatedDate" to newPayment.payoutUpdatedDate,
 
                 "memberId" to newPayment.memberId,
 
@@ -5046,6 +5112,8 @@ class FirestoreManager private constructor() {
                 "paymentApproveStatus" to newPayment.paymentApproveStatus,
 
                 "description" to newPayment.description,
+                "descriptionTamil" to newPayment.descriptionTamil,
+                "descriptionHindi" to newPayment.descriptionHindi,
 
                 "squadId" to newPayment.squadId,
                 "order_id" to newPayment.order_id,
@@ -5054,12 +5122,28 @@ class FirestoreManager private constructor() {
                 "loanId" to newPayment.loanId,
                 "installmentId" to newPayment.installmentId,
 
-                "paymentSuccess" to newPayment.paymentSuccess,
-                "payoutSuccess" to newPayment.payoutSuccess,
-                "transferReferenceId" to newPayment.transferReferenceId,
+                "transferMode" to newPayment.transferMode,
+                "beneId" to newPayment.beneId,
 
-                "descriptionTamil" to newPayment.descriptionTamil,
-                "descriptionHindi" to newPayment.descriptionHindi
+                "paymentSuccess" to newPayment.paymentSuccess,
+                "paymentResponseMessage" to newPayment.paymentResponseMessage,
+
+                "payoutSuccess" to newPayment.payoutSuccess,
+                "payoutResponseMessage" to newPayment.payoutResponseMessage,
+
+                "transferReferenceId" to newPayment.transferReferenceId,
+                "upiID" to newPayment.upiID,
+
+                "recordStatus" to newPayment.recordStatus,
+                "recordDate" to newPayment.recordDate,
+
+                "selectedEMIConfig" to newPayment.selectedEMIConfig,
+
+                "cashRequestId" to newPayment.cashRequestId,
+                "isLoanForceClosed" to newPayment.isLoanForceClosed,
+                "forceCloseSummary" to newPayment.forceCloseSummary,
+
+                "memberOtherPaymentId" to newPayment.memberOtherPaymentId
             )
 
             batch.set(
