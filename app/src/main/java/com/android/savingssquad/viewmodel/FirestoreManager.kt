@@ -650,7 +650,11 @@ class FirestoreManager private constructor() {
                 }
             }
             .let {
-                if (memberId != null) it.whereEqualTo("memberId", memberId) else it
+                if (!memberId.isNullOrBlank()) {
+                    it.whereEqualTo("memberId", memberId)
+                } else {
+                    it
+                }
             }
             .orderBy("recordDate", Query.Direction.DESCENDING)
 
