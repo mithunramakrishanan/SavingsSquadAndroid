@@ -261,6 +261,7 @@ object CommonFunctions {
             loanStatus = EMIStatus.PENDING,
             loanClosedDate = null,
             installments = installments,
+            emiConfiguration = emiConfig,
             forceCloseSummary = ForceCloseSummary()
         )
     }

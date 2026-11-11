@@ -59,6 +59,7 @@ import com.android.savingssquad.R
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.AppFont
+import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.SquadStrings
 import com.android.savingssquad.singleton.UPIApp
 import com.android.savingssquad.singleton.UPIAppDetector
@@ -258,11 +259,23 @@ private fun WaitingHero(payment: PaymentsDetails, pulseScale: Float, pulseAlpha:
                 color = AppColors.secondaryText.copy(alpha = 0.7f)
             )
 
-            Text(
-                text = "\u20B9${payment.amount}",
-                style = AppFont.ibmPlexSans(36, FontWeight.Bold),
-                color = AppColors.headerText
-            )
+            if (payment.paymentSubType == PaymentSubType.EMI_AMOUNT) {
+
+                Text(
+                    text = "\u20B9${payment.amount + payment.intrestAmount}",
+                    style = AppFont.ibmPlexSans(36, FontWeight.Bold),
+                    color = AppColors.headerText
+                )
+            }
+            else {
+
+                Text(
+                    text = "\u20B9${payment.amount}",
+                    style = AppFont.ibmPlexSans(36, FontWeight.Bold),
+                    color = AppColors.headerText
+                )
+            }
+
         }
 
         Text(
