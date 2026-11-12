@@ -60,6 +60,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
@@ -2535,56 +2536,57 @@ class FirestoreManager private constructor() {
                                     currentPayment.memberId.isEmpty() ||
                                     currentPayment.contributionId.isNullOrEmpty()
                                 ) {
-
                                     throw IllegalStateException(
                                         "Member ID or Contribution ID is missing."
                                     )
                                 }
 
-                                val contributionRef =
-                                    squadRef
-                                        .collection("members")
-                                        .document(
-                                            currentPayment.memberId
-                                        )
-                                        .collection("contributions")
-                                        .document(
-                                            currentPayment
-                                                .contributionId!!
-                                        )
+                                val memberRef = squadRef
+                                    .collection("members")
+                                    .document(currentPayment.memberId)
 
-                                if (
-                                    status ==
-                                    PaymentApproveStatus.ACCEPTED
-                                ) {
+                                val contributionRef = memberRef
+                                    .collection("contributions")
+                                    .document(currentPayment.contributionId!!)
+
+                                if (status == PaymentApproveStatus.ACCEPTED) {
 
                                     transaction.update(
                                         contributionRef,
                                         mapOf(
-                                            "amount" to
-                                                    currentPayment.amount,
-
-                                            "paidStatus" to
-                                                    PaidStatus.PAID.name,
-
-                                            "paidOn" to
-                                                    FieldValue.serverTimestamp()
+                                            "amount" to currentPayment.amount,
+                                            "paidStatus" to PaidStatus.PAID.name,
+                                            "paidOn" to FieldValue.serverTimestamp()
                                         )
                                     )
+
+                                    // Update member's pending contribution status
+                                    val dateFormatter = SimpleDateFormat(
+                                        "MMM yyyy",
+                                        Locale.US
+                                    ).apply {
+                                        timeZone = TimeZone.getTimeZone("Asia/Kolkata")
+                                    }
+
+                                    val currentMonthYear = dateFormatter.format(Date())
+
+                                    if (currentPayment.contributionId == currentMonthYear) {
+                                        transaction.update(
+                                            memberRef,
+                                            mapOf(
+                                                "hasPendingContribution" to false
+                                            )
+                                        )
+                                    }
 
                                 } else {
 
                                     transaction.update(
                                         contributionRef,
                                         mapOf(
-                                            "amount" to
-                                                    currentPayment.amount,
-
-                                            "paidStatus" to
-                                                    PaidStatus.NOT_PAID.name,
-
-                                            "paidOn" to
-                                                    null
+                                            "amount" to currentPayment.amount,
+                                            "paidStatus" to PaidStatus.NOT_PAID.name,
+                                            "paidOn" to null
                                         )
                                     )
                                 }
@@ -5224,7 +5226,6 @@ class FirestoreManager private constructor() {
 
             val contributionID =
                 IDGenerator.generateContributionID(
-                    memberId = memberID,
                     monthYear = monthYear
                 )
 
@@ -5379,7 +5380,7 @@ class FirestoreManager private constructor() {
 
         while (!currentDate.after(squadEnd)) {
             val monthYear = dateFormatter.format(currentDate)
-            val contributionID = IDGenerator.generateContributionID(memberID, monthYear)
+            val contributionID = IDGenerator.generateContributionID(monthYear)
 
             val detail = ContributionDetail(
                 id = contributionID,
@@ -5485,7 +5486,7 @@ class FirestoreManager private constructor() {
 
                             for (month in missingMonths) {
                                 val newContribution = ContributionDetail(
-                                    id = IDGenerator.generateContributionID(memberID, month),
+                                    id = IDGenerator.generateContributionID(month),
                                     orderId = "",
                                     memberID = memberID,
                                     memberName = member.memberName,
@@ -5925,7 +5926,6 @@ class FirestoreManager private constructor() {
         // 8. Create missing contribution records.
         for (month in missingMonths) {
             val contributionID = IDGenerator.generateContributionID(
-                memberId = memberID,
                 monthYear = month
             )
 

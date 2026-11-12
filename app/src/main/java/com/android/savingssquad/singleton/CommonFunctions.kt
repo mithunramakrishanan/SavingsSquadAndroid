@@ -361,7 +361,7 @@ object IDGenerator {
         return "PG-$squadId-$id"
     }
 
-    fun generateContributionID(memberId: String, monthYear: String): String {
-        return "$memberId-$monthYear"
+    fun generateContributionID(monthYear: String): String {
+        return monthYear
     }
 }

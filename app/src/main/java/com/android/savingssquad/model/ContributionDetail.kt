@@ -109,7 +109,7 @@ data class ContributionDetail(
     // 🔹 Custom initializer logic
     init {
         if (id == null && memberID.isNotEmpty() && monthYear.isNotEmpty()) {
-            id = IDGenerator.generateContributionID(memberID, monthYear)
+            id = IDGenerator.generateContributionID( monthYear)
         }
     }
 }
