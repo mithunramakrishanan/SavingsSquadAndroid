@@ -713,13 +713,18 @@ fun MemberHomeView(
                             primaryButtonTitle = SquadStrings.requestCash,
                             primaryAction =
                                 {
+                                    val currentMember = squadViewModel.currentMember.value
+
                                     val cashRequest = CashRequest(
                                         id = IDGenerator.generateCashRequestID(),
-                                        requestedByName = squadViewModel.currentMember.value?.memberName ?: "",
-                                        requestedByID = squadViewModel.currentMember.value?.id ?: "",
-                                        requestedByUPI = squadViewModel.currentMember.value?.upiID ?: "",
-                                        requestedByPhone = squadViewModel.currentMember.value?.phoneNumber ?: "",
-                                        requestedByEmail = squadViewModel.currentMember.value?.mailID ?: "",
+                                        requestedByName = currentMember?.memberName ?: "",
+                                        memberNameHindi = currentMember?.memberNameHindi ?: "",
+                                        memberNameTamil = currentMember?.memberNameTamil ?: "",
+                                        memberNameEnglish = currentMember?.memberNameEnglish ?: "",
+                                        requestedByID = currentMember?.id ?: "",
+                                        requestedByUPI = currentMember?.upiID ?: "",
+                                        requestedByPhone = currentMember?.phoneNumber ?: "",
+                                        requestedByEmail = currentMember?.mailID ?: "",
                                         requestedEMIConfig = emi
                                     )
 

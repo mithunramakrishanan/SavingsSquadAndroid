@@ -169,7 +169,11 @@ data class Member(
 
     @get:PropertyName("memberCreatedIntrestAmount")
     @set:PropertyName("memberCreatedIntrestAmount")
-    var memberCreatedIntrestAmount: Int = 0
+    var memberCreatedIntrestAmount: Int = 0,
+
+    @get:PropertyName("hasPendingContribution")
+    @set:PropertyName("hasPendingContribution")
+    var hasPendingContribution: Boolean? = null
 
 ) {
 

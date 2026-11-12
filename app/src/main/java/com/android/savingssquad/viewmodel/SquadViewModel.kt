@@ -1841,7 +1841,7 @@ class SquadViewModel : ViewModel() {
             cashRequested = false,
             memberCreatedContribuionAmount = contributionReceived,
             memberCreatedIntrestAmount = interestReceived,
-            totalDuration = currentSquad.totalDuration
+            totalDuration = currentSquad.totalDuration, hasPendingContribution = !markCurrentMonthPaid
         )
 
         // MARK: Save Member + Login + Financial Records

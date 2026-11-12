@@ -323,7 +323,7 @@ fun CashRequestHistoryScreen(
                                         upiID = cashRequest.requestedByUPI,
                                         fcmToken = "",
                                         currentLoanApproveStatus = EMIStatus.INVERIFICATION,
-                                        cashRequested = true
+                                        cashRequested = true, hasPendingContribution = false
                                     )
 
                                     cashRequest.requestedEMIConfig?.let { emi ->
@@ -515,7 +515,7 @@ fun CashRequestRow(
             ) {
 
                 Text(
-                    text = cashRequest.requestedByName,
+                    text = cashRequest.localizedMemberName,
                     style = AppFont.ibmPlexSans(
                         15,
                         FontWeight.SemiBold
