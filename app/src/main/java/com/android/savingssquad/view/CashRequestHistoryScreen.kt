@@ -323,7 +323,7 @@ fun CashRequestHistoryScreen(
                                         upiID = cashRequest.requestedByUPI,
                                         fcmToken = "",
                                         currentLoanApproveStatus = EMIStatus.INVERIFICATION,
-                                        cashRequested = true, hasPendingContribution = false
+                                        cashRequested = true, nextContributionDueDate = Timestamp.now()
                                     )
 
                                     cashRequest.requestedEMIConfig?.let { emi ->

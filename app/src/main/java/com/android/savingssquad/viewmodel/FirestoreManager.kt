@@ -2560,25 +2560,39 @@ class FirestoreManager private constructor() {
                                         )
                                     )
 
-                                    // Update member's pending contribution status
+                                    // Contribution ID format: Apr 2026
                                     val dateFormatter = SimpleDateFormat(
                                         "MMM yyyy",
                                         Locale.US
                                     ).apply {
                                         timeZone = TimeZone.getTimeZone("Asia/Kolkata")
+                                        isLenient = false
                                     }
 
-                                    val currentMonthYear = dateFormatter.format(Date())
+                                    val contributionDate = dateFormatter.parse(
+                                        currentPayment.contributionId!!
+                                    ) ?: throw IllegalStateException(
+                                        "Invalid contribution ID format. Expected MMM yyyy."
+                                    )
 
-                                    if (currentPayment.contributionId == currentMonthYear) {
-                                        transaction.update(
-                                            memberRef,
-                                            mapOf(
-                                                "hasPendingContribution" to false
-                                            )
+                                    val calendar = Calendar.getInstance(
+                                        TimeZone.getTimeZone("Asia/Kolkata"),
+                                        Locale.US
+                                    ).apply {
+                                        time = contributionDate
+                                        set(Calendar.DAY_OF_MONTH, 1)
+                                        add(Calendar.MONTH, 1)
+                                    }
+
+                                    val nextContributionDueDate = Timestamp(calendar.time)
+
+                                    // Update member's next contribution due date
+                                    transaction.update(
+                                        memberRef,
+                                        mapOf(
+                                            "nextContributionDueDate" to nextContributionDueDate
                                         )
-                                    }
-
+                                    )
                                 } else {
 
                                     transaction.update(
@@ -4251,6 +4265,244 @@ class FirestoreManager private constructor() {
                     null,
                     error.message
                         ?: "Failed to fetch payments"
+                )
+            }
+    }
+
+    fun fetchUnpaidContributionMembers(
+        squadID: String,
+        lastDocument: DocumentSnapshot? = null,
+        limit: Int,
+        completion: (
+            List<Member>?,
+            DocumentSnapshot?,
+            String?
+        ) -> Unit
+    ) {
+
+        val currentTimestamp = Timestamp.now()
+
+        var query: Query = db
+            .collection("squads")
+            .document(squadID)
+            .collection("members")
+            .whereEqualTo(
+                "recordStatus",
+                RecordStatus.ACTIVE
+            )
+            .whereLessThanOrEqualTo(
+                "nextContributionDueDate",
+                currentTimestamp
+            )
+            .orderBy(
+                "nextContributionDueDate",
+                Query.Direction.ASCENDING
+            )
+            .limit(limit.toLong())
+
+        // Pagination
+        if (lastDocument != null) {
+            query = query.startAfter(lastDocument)
+        }
+
+        query.get()
+            .addOnSuccessListener { snapshot ->
+
+                val members = mutableListOf<Member>()
+
+                var deserializationError: String? = null
+
+                snapshot.documents.forEach { document ->
+
+                    try {
+
+                        val member = document.toObject(
+                            Member::class.java
+                        )
+
+                        if (member != null) {
+                            members.add(
+                                member.copy(id = document.id)
+                            )
+                        }
+
+                    } catch (e: Exception) {
+
+                        val errorMessage = buildString {
+
+                            append(
+                                "Failed to deserialize unpaid contribution member."
+                            )
+
+                            append("\nDocument ID: ${document.id}")
+
+                            append("\nPath: ${document.reference.path}")
+
+                            append("\nData: ${document.data}")
+
+                            append("\nError: ${e.message}")
+                        }
+
+                        Log.e(
+                            "FirestoreManager",
+                            errorMessage,
+                            e
+                        )
+
+                        deserializationError = errorMessage
+                    }
+                }
+
+                if (deserializationError != null) {
+
+                    completion(
+                        members,
+                        snapshot.documents.lastOrNull(),
+                        deserializationError
+                    )
+
+                    return@addOnSuccessListener
+                }
+
+                completion(
+                    members,
+                    snapshot.documents.lastOrNull(),
+                    null
+                )
+            }
+            .addOnFailureListener { error ->
+
+                Log.e(
+                    "FirestoreManager",
+                    "Failed to fetch unpaid contribution members",
+                    error
+                )
+
+                completion(
+                    null,
+                    null,
+                    error.message
+                        ?: "Failed to fetch unpaid contribution members"
+                )
+            }
+    }
+
+    fun fetchUnpaidLoanMembers(
+        squadID: String,
+        lastDocument: DocumentSnapshot? = null,
+        limit: Int,
+        completion: (
+            List<Member>?,
+            DocumentSnapshot?,
+            String?
+        ) -> Unit
+    ) {
+
+        var query: Query = db
+            .collection("squads")
+            .document(squadID)
+            .collection("members")
+            .whereEqualTo(
+                "recordStatus",
+                RecordStatus.ACTIVE
+            )
+            .whereNotEqualTo(
+                "currentLoanApproveStatus",
+                EMIStatus.CREATED
+            )
+            .orderBy(
+                "currentLoanApproveStatus",
+                Query.Direction.ASCENDING
+            )
+            .orderBy(
+                "memberCreatedDate",
+                Query.Direction.DESCENDING
+            )
+            .limit(limit.toLong())
+
+        // Pagination
+        if (lastDocument != null) {
+            query = query.startAfter(lastDocument)
+        }
+
+        query.get()
+            .addOnSuccessListener { snapshot ->
+
+                val members = mutableListOf<Member>()
+
+                var deserializationError: String? = null
+
+                snapshot.documents.forEach { document ->
+
+                    try {
+
+                        val member = document.toObject(
+                            Member::class.java
+                        )
+
+                        if (member != null) {
+                            members.add(
+                                member.copy(id = document.id)
+                            )
+                        }
+
+                    } catch (e: Exception) {
+
+                        val errorMessage = buildString {
+
+                            append(
+                                "Failed to deserialize unpaid loan member."
+                            )
+
+                            append("\nDocument ID: ${document.id}")
+
+                            append("\nPath: ${document.reference.path}")
+
+                            append("\nData: ${document.data}")
+
+                            append("\nError: ${e.message}")
+                        }
+
+                        Log.e(
+                            "FirestoreManager",
+                            errorMessage,
+                            e
+                        )
+
+                        deserializationError = errorMessage
+                    }
+                }
+
+                if (deserializationError != null) {
+
+                    completion(
+                        members,
+                        snapshot.documents.lastOrNull(),
+                        deserializationError
+                    )
+
+                    return@addOnSuccessListener
+                }
+
+                completion(
+                    members,
+                    snapshot.documents.lastOrNull(),
+                    null
+                )
+            }
+            .addOnFailureListener { error ->
+
+                Log.e(
+                    "FirestoreManager",
+                    "Failed to fetch unpaid loan members",
+                    error
+                )
+
+                completion(
+                    null,
+                    null,
+                    error.message
+                        ?: "Failed to fetch unpaid loan members"
                 )
             }
     }

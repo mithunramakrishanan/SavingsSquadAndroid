@@ -2,485 +2,180 @@ package com.android.savingssquad.view
 
 import android.annotation.SuppressLint
 import android.os.Build
-import android.util.Log
-import androidx.compose.runtime.Composable
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CurrencyRupee
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import com.android.savingssquad.model.ContributionDetail
-import com.android.savingssquad.viewmodel.SquadViewModel
-import com.android.savingssquad.singleton.AppColors
-import com.android.savingssquad.singleton.AppFont
-import kotlinx.coroutines.launch
-import com.android.savingssquad.model.Installment
-import com.android.savingssquad.model.NotificationRecipientType
+import com.android.savingssquad.model.Member
 import com.android.savingssquad.model.PaymentsDetails
 import com.android.savingssquad.model.PushNotificationRequest
-import com.android.savingssquad.singleton.EMIStatus
+import com.android.savingssquad.model.NotificationRecipientType
+import com.android.savingssquad.singleton.AppColors
+import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.singleton.LoaderManager
 import com.android.savingssquad.singleton.NotificationService
-import com.android.savingssquad.singleton.SquadUserType
-import com.android.savingssquad.singleton.PaidStatus
 import com.android.savingssquad.singleton.PaymentApproveStatus
 import com.android.savingssquad.singleton.PaymentStatus
 import com.android.savingssquad.singleton.PaymentSubType
 import com.android.savingssquad.singleton.PaymentType
 import com.android.savingssquad.singleton.SquadStrings
+import com.android.savingssquad.singleton.SquadUserType
 import com.android.savingssquad.singleton.UserDefaultsManager
-import com.android.savingssquad.viewmodel.SSToast
+import com.android.savingssquad.viewmodel.SquadViewModel
 import com.android.savingssquad.viewmodel.ToastManager
 import com.android.savingssquad.viewmodel.ToastType
 import com.yourapp.utils.CommonFunctions
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import java.time.LocalDate
 import java.time.ZoneId
 
-
-/*
-NotificationService.shared.sendMemberReminder(
-    request = ReminderRequest(
-        squadId = "SQD123",
-        memberIds = listOf("MEM001", "MEM002"),
-        title = "Payment Reminder",
-        message = "Please complete your payment",
-        data = mapOf(
-            "screen" to "REMINDER"
-        )
-    ),
-    onSuccess = { response ->
-        Log.d("FCM", "Sent to: ${response.sentTo}")
-    },
-    onError = { error ->
-        Log.e("FCM", "Error sending reminder", error)
-    }
-)
- */
-
-@SuppressLint("UnrememberedMutableState")
+@SuppressLint("StateFlowValueCalledInComposition")
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun DuesScreenView(
-    navController: NavController,
-    squadViewModel: SquadViewModel) {
-    // replace these collects with actual flows/state from your ViewModel
-    val squadPayments by remember { derivedStateOf { squadViewModel.squadPayments } } // placeholder
-    var payments by remember { mutableStateOf(listOf<PaymentsDetails>()) }
+fun DuesScreenView(navController: NavController, squadViewModel: SquadViewModel) {
+    val screenType = if (UserDefaultsManager.getSquadManagerLogged()) {
+        SquadUserType.SQUAD_MANAGER
+    } else {
+        SquadUserType.SQUAD_MEMBER
+    }
 
-    var currentOverDueContribution by remember { mutableStateOf(listOf<ContributionDetail>()) }
-    var currentOverDueInstallments by remember { mutableStateOf(listOf<Installment>()) }
+    val contributionMembers by squadViewModel.unpaidContributionMembers.collectAsStateWithLifecycle()
+    val loanMembers by squadViewModel.unpaidLoanMembers.collectAsStateWithLifecycle()
+    val paymentsState by squadViewModel.squadPayments.collectAsStateWithLifecycle()
+    val currentMember by squadViewModel.currentMember.collectAsStateWithLifecycle()
 
+    var payments by remember { mutableStateOf(emptyList<PaymentsDetails>()) }
     var selectedSegment by remember { mutableStateOf(SquadStrings.contribution) }
-    var isLoading by remember { mutableStateOf(true) }
+    var isLoadingDues by remember { mutableStateOf(true) }
+    val members = if (selectedSegment == SquadStrings.contribution) contributionMembers else loanMembers
 
-    var contributionRemaindIds by remember { mutableStateOf(listOf<String>())}
-    var installmentRemaindIds by remember { mutableStateOf(listOf<String>()) }
-
-    val screenType =
-        if (UserDefaultsManager.getSquadManagerLogged())
-            SquadUserType.SQUAD_MANAGER
-        else
-            SquadUserType.SQUAD_MEMBER
-
-    // On first composition load data (mimics SwiftUI onAppear)
     LaunchedEffect(Unit) {
-        // Payments
-        squadViewModel.fetchPayments(showLoader = true) { success, _ ->
-            payments = getCurrentMonthPayments(squadViewModel.squadPayments.value)
-                .filter { it.paymentStatus == PaymentStatus.SUCCESS && it.paymentApproveStatus == PaymentApproveStatus.ACCEPTED }
-
-            if (screenType == SquadUserType.SQUAD_MEMBER) {
-                val id = squadViewModel.currentMember.value?.id
-                payments = payments.filter { it.memberId == id && it.paymentApproveStatus == PaymentApproveStatus.ACCEPTED }
-            }
+        squadViewModel.fetchPayments(showLoader = true) { _, _ ->
+            val currentMonth = getCurrentMonthPayments(squadViewModel.squadPayments.value)
+                .filter { it.paymentStatus == PaymentStatus.SUCCESS }
+                .filter { it.paymentApproveStatus == PaymentApproveStatus.ACCEPTED }
+            payments = if (screenType == SquadUserType.SQUAD_MEMBER) {
+                currentMonth.filter { it.memberId == currentMember?.id }
+            } else currentMonth
         }
 
-        // Dues
-        fetchDueContributionsAndInstallments(squadViewModel) { contributions, installments ->
-
-            CoroutineScope(Dispatchers.Main).launch {
-                Log.d("DuesScreen", "🟡 Contributions Due = ${contributions.size}")
-                Log.d("DuesScreen", "🟡 Installments Due = ${installments.size}")
-
-                currentOverDueContribution = contributions
-                currentOverDueInstallments = installments
-                isLoading = false
-
-
-                contributionRemaindIds = currentOverDueContribution
-                    .map { it.memberID }
-                    .filter { it.isNotBlank() }
-                    .distinct()
-                    .sorted()
-
-
-
-                installmentRemaindIds = currentOverDueInstallments
-                    .map { it.memberID }
-                    .filter { it.isNotBlank() }
-                    .distinct()
-                    .sorted()
-
-            }
+        if (screenType != SquadUserType.SQUAD_MANAGER) {
+            isLoadingDues = false
         }
     }
 
+    LaunchedEffect(selectedSegment) {
+        if (screenType == SquadUserType.SQUAD_MANAGER) {
+            isLoadingDues = true
+            loadDuesPage(squadViewModel, selectedSegment) { isLoadingDues = false }
+        }
+    }
 
-
-    Box(
+    Column(
         modifier = Modifier
-
             .fillMaxSize()
-
+            .background(Color.Transparent)
             .windowInsetsPadding(WindowInsets.safeDrawing)
-    )
-    {
-        AppBackgroundGradient()
+            .padding(vertical = 16.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AppBackgroundGradient()
+            Column(modifier = Modifier.fillMaxSize()) {
+                SSNavigationBar(
+                    title = SquadStrings.currentOverDues,
+                    navController = navController,
+                    showBackButton = true
+                )
+                Spacer(Modifier.height(12.dp))
 
-        Column(modifier = Modifier
-            .fillMaxSize()
-            .padding(vertical = 16.dp)) {
-            // Top nav
-            SSNavigationBar(title = SquadStrings.currentOverDues, navController = navController, showBackButton = true)
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (screenType == SquadUserType.SQUAD_MANAGER) {
-
-                // manager or default
-                if (currentOverDueContribution.isEmpty() && currentOverDueInstallments.isEmpty()) {
+                if (screenType != SquadUserType.SQUAD_MANAGER) {
                     AllCaughUPView(
                         title = "All Due’s Paid",
-                        subtitle = SquadStrings.squadAllCaughtUp,
+                        subtitle = SquadStrings.youAreAllCaughtUp,
                         icon = Icons.Default.CheckCircle,
                         iconColor = Color(0xFF4CAF50),
                         showChevron = false
                     )
-
-                    if (payments.size != 0) {
-
-                        SectionView(title = SquadStrings.recentPayments) {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                                contentPadding = PaddingValues(bottom = 10.dp)
-                            ) {
-                                items(
-                                    items = payments,
-                                    key = { it.id ?: "" }
-                                )
-                                { payment ->
-                                    PaymentRow(
-                                        payment = payment
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-
-
-                }
-                else {
-                    // Segmented control
+                    RecentPayments(payments)
+                } else {
                     ModernSegmentedPickerView(
                         segments = listOf(SquadStrings.contribution, SquadStrings.emi),
                         selectedSegment = selectedSegment,
                         onSegmentSelected = { selectedSegment = it }
                     )
+                    Spacer(Modifier.height(8.dp))
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Content
-                    if (selectedSegment == SquadStrings.contribution) {
-                        if (currentOverDueContribution.isEmpty()) {
-                            AllCaughUPView(
-                                title = SquadStrings.allContributionsPaid,
-                                subtitle = SquadStrings.squadAllCaughtUp,
-                                icon = Icons.Default.CheckCircle,
-                                iconColor = Color(0xFF4CAF50),
-                                showChevron = false
-                            )
-                        } else {
-                            SectionView(title = "$selectedSegment ${SquadStrings.dues}") {
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-
-                                    RemindAllButton(contributionRemaindIds.size) {
-
-                                        LoaderManager.shared.showLoader()
-
-                                        NotificationService.shared.sendMemberReminder(
-                                            request = PushNotificationRequest(
-                                                squadId = squadViewModel.squad.value?.squadID ?: "",
-                                                memberIds = contributionRemaindIds,
-                                                title = "Contribution Reminder",
-                                                message = "Please complete the Contribution Due(s)",
-                                                data = mapOf(
-                                                    "navigate" to "PAYMENT",
-                                                    "notificationType" to "CONTRIBUTION_REMINDER"
-                                                ),
-                                                recipientType = NotificationRecipientType.SELECTED
-                                            ),
-                                            onSuccess = { response ->
-                                                LoaderManager.shared.hideLoader()
-
-                                                ToastManager.show(
-                                                    title = SquadStrings.reminderSent,
-                                                    message = SquadStrings.notificationSentToMembers(
-                                                        response.sentTo.toString()
-                                                    ),
-                                                    type = ToastType.SUCCESS
-                                                )
-                                            },
-                                            onError = { error ->
-                                                LoaderManager.shared.hideLoader()
-
-                                                ToastManager.show(
-                                                    title = "Failed",
-                                                    message = error.localizedMessage
-                                                        ?: "Unable to send reminder.",
-                                                    type = ToastType.ERROR
-                                                )
-                                            }
-                                        )
-
-                                    }
-                                }
-
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxWidth(),
-
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-
-                                    contentPadding = PaddingValues(
-
-                                        start = 16.dp,
-
-                                        end = 16.dp,
-
-                                        top = 8.dp,
-
-                                        bottom = 8.dp
-
-                                    )
-                                ) {
-                                    items(currentOverDueContribution) { contribution ->
-                                        contribution.dueDate?.let {
-                                            CommonFunctions.dateToString(
-                                                it.toDate(), format = "MMM dd yyyy")
-                                        }?.let {
-                                            PaymentDetailRow(
-                                                title = "Contribution ${contribution.monthYear}",
-                                                amount = "₹${contribution.amount}",
-                                                date = it,
-                                                status = if (contribution.paidStatus == PaidStatus.PAID) SquadStrings.paid else SquadStrings.pending,
-                                                memberName = contribution.memberName,
-                                                onRemind = {
-                                                    LoaderManager.shared.showLoader()
-                                                    NotificationService.shared.sendMemberReminder(
-                                                        request = PushNotificationRequest(
-                                                            squadId = squadViewModel.squad.value?.squadID ?: "",
-                                                            memberIds = listOf(contribution.memberID),
-                                                            title = "Contribution Reminder",
-                                                            message = "Please complete the contribution for ${contribution.monthYear}",
-                                                            data = mapOf(
-                                                                "navigate" to "PAYMENT",
-                                                                "notificationType" to "CONTRIBUTION_REMINDER"
-                                                            ),
-                                                            recipientType = NotificationRecipientType.SELECTED
-                                                        ),
-                                                        onSuccess = { response ->
-                                                            LoaderManager.shared.hideLoader()
-
-                                                            ToastManager.show(
-                                                                title = SquadStrings.reminderSent,
-                                                                message = SquadStrings.notificationSentToMember(
-                                                                    contribution.memberName
-                                                                ),
-                                                                type = ToastType.SUCCESS
-                                                            )
-                                                        },
-                                                        onError = { error ->
-                                                            LoaderManager.shared.hideLoader()
-
-                                                            ToastManager.show(
-                                                                title = "Failed",
-                                                                message = error.localizedMessage
-                                                                    ?: "Unable to send reminder.",
-                                                                type = ToastType.ERROR
-                                                            )
-                                                        }
-                                                    )
-
-                                                }
-
-                                            )
-                                        }
-                                    }
-                                }
+                    when {
+                        isLoadingDues && members.isEmpty() -> {
+                            Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                                ShimmerLoader()
                             }
                         }
-                    }
-                    else {
-                        if (currentOverDueInstallments.isEmpty()) {
-
+                        members.isEmpty() -> {
                             AllCaughUPView(
-                                title = "All EMI's Paid",
+                                title = if (selectedSegment == SquadStrings.contribution) "All Contributions Paid" else "All EMI’s Paid",
                                 subtitle = SquadStrings.squadAllCaughtUp,
                                 icon = Icons.Default.CheckCircle,
                                 iconColor = Color(0xFF4CAF50),
                                 showChevron = false
                             )
+                            RecentPayments(payments)
                         }
-                        else {
+                        else -> {
                             SectionView(title = "$selectedSegment ${SquadStrings.dues}") {
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    RemindAllButton(installmentRemaindIds.size) {
-
-                                        LoaderManager.shared.showLoader()
-
-                                        NotificationService.shared.sendMemberReminder(
-                                            request = PushNotificationRequest(
-                                                squadId = squadViewModel.squad.value?.squadID ?: "",
-                                                memberIds = installmentRemaindIds,
-                                                title = "EMI Reminder",
-                                                message = "Please complete the EMI Due(s)",
-                                                data = mapOf(
-                                                    "navigate" to "PAYMENT",
-                                                    "notificationType" to "EMI_REMINDER"
-                                                ),
-                                                recipientType = NotificationRecipientType.SELECTED
-                                            ),
-                                            onSuccess = { response ->
-                                                LoaderManager.shared.hideLoader()
-
-                                                ToastManager.show(
-                                                    title = SquadStrings.reminderSent,
-                                                    message = SquadStrings.notificationSentToMembers(
-                                                        response.sentTo.toString()
-                                                    ),
-                                                    type = ToastType.SUCCESS
-                                                )
-                                            },
-                                            onError = { error ->
-                                                LoaderManager.shared.hideLoader()
-
-                                                ToastManager.show(
-                                                    title = "Failed",
-                                                    message = error.localizedMessage
-                                                        ?: "Unable to send reminder.",
-                                                    type = ToastType.ERROR
-                                                )
-                                            }
+                                Column {
+                                    // Bulk reminder behavior is intentionally deferred.
+                                    RemindAllButton(members.size) {
+                                        // Bulk reminders are not enabled yet.
+                                        sendMemberReminder(
+                                            squadViewModel,
+                                            members = members,
+                                            contribution = selectedSegment == SquadStrings.contribution
                                         )
                                     }
-                                }
-
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxWidth(),
-
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-
-                                    contentPadding = PaddingValues(
-
-                                        start = 16.dp,
-
-                                        end = 16.dp,
-
-                                        top = 8.dp,
-
-                                        bottom = 8.dp
-
-                                    )
-                                ) {
-                                    items(currentOverDueInstallments) { installment ->
-                                        installment. dueDate?.let {
-                                            CommonFunctions.dateToString(
-                                                it.toDate(), format = "MMM dd yyyy")
-                                        }?.let {
-                                            PaymentDetailRow(
-                                                title = "${installment.installmentNumber} (${installment.loanNumber})",
-                                                amount = "₹${installment.installmentAmount + installment.interestAmount}",
-                                                date = it,
-                                                status = if (installment.status == EMIStatus.PAID) SquadStrings.paid else SquadStrings.pending,
-                                                memberName = installment.memberName,
-                                                onRemind = {
-
-                                                    LoaderManager.shared.showLoader()
-                                                    NotificationService.shared.sendMemberReminder(
-                                                        request = PushNotificationRequest(
-                                                            squadId = squadViewModel.squad.value?.squadID ?: "",
-                                                            memberIds = listOf(installment.memberID),
-                                                            title = "EMI Reminder",
-                                                            message = "Please complete the ${installment.installmentNumber} of ${installment.loanNumber}",
-                                                            data = mapOf(
-                                                                "navigate" to "PAYMENT",
-                                                                "notificationType" to "EMI_REMINDER"
-                                                            ),
-                                                            recipientType = NotificationRecipientType.SELECTED
-                                                        ),
-                                                        onSuccess = { response ->
-                                                            LoaderManager.shared.hideLoader()
-
-                                                            ToastManager.show(
-                                                                title = SquadStrings.reminderSent,
-                                                                message = SquadStrings.notificationSentToMember(
-                                                                    installment.memberName
-                                                                ),
-                                                                type = ToastType.SUCCESS
-                                                            )
-                                                        },
-                                                        onError = { error ->
-                                                            LoaderManager.shared.hideLoader()
-
-                                                            ToastManager.show(
-                                                                title = "Failed",
-                                                                message = error.localizedMessage
-                                                                    ?: "Unable to send reminder.",
-                                                                type = ToastType.ERROR
-                                                            )
-                                                        }
-                                                    )
-
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                        contentPadding = PaddingValues(16.dp)
+                                    ) {
+                                        items(members, key = { it.id ?: it.hashCode().toString() }) { member ->
+                                            MemberDueRow(member = member) {
+                                                sendMemberReminder(
+                                                    squadViewModel,
+                                                    members = listOf(member),
+                                                    contribution = selectedSegment == SquadStrings.contribution
+                                                )
+                                            }
+                                            LaunchedEffect(member.id, selectedSegment) {
+                                                if (selectedSegment == SquadStrings.contribution) {
+                                                    squadViewModel.loadMoreUnpaidContributionMembersIfNeeded(member)
+                                                } else {
+                                                    squadViewModel.loadMoreUnpaidLoanMembersIfNeeded(member)
                                                 }
-                                            )
+                                            }
                                         }
+                                        val loadingMore = if (selectedSegment == SquadStrings.contribution) {
+                                            squadViewModel.unpaidContributionMembersIsLoadingMore
+                                        } else squadViewModel.unpaidLoanMembersIsLoadingMore
+                                        if (loadingMore) item { ShimmerLoader() }
                                     }
                                 }
                             }
@@ -488,325 +183,156 @@ fun DuesScreenView(
                     }
                 }
             }
-            else {
-
-                AllCaughUPView(
-                    title = "All Due’s Paid",
-                    subtitle = SquadStrings.squadAllCaughtUp,
-                    icon = Icons.Default.CheckCircle,
-                    iconColor = Color(0xFF4CAF50),
-                    showChevron = false
-                )
-
-                if (payments.size != 0) {
-
-                    SectionView(title = SquadStrings.recentPayments) {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            items(payments) { payment ->
-                                PaymentRow(
-                                    payment = payment
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.weight(1f))
-
-                }
-
-
-            }
-
-
         }
     }
-}
-
-private fun uniqueMemberIDs(list: List<String>): Set<String> {
-    return list.filter { it.isNotBlank() }.toSet()
 }
 
 @Composable
-fun PaymentDetailRow(
-    title: String,
-    amount: String,
-    date: String,
-    status: String,
-    memberName: String,
-    onRemind: (() -> Unit)? = null
-) {
+private fun RecentPayments(payments: List<PaymentsDetails>) {
+    if (payments.isNotEmpty()) {
+        SectionView(title = SquadStrings.recentPayments) {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(bottom = 10.dp)
+            ) {
+                items(payments, key = { it.id ?: it.hashCode().toString() }) { payment ->
+                    PaymentRow(payment = payment)
+                }
+            }
+        }
+    }
+}
 
-    val isPending = status == SquadStrings.pending
-    val statusColor = if (isPending) Color.Red else Color(0xFF2FB55F)
-
+@Composable
+private fun MemberDueRow(member: Member, onRemind: () -> Unit) {
     Row(
         modifier = Modifier
-
             .fillMaxWidth()
-
-            .padding(vertical = 6.dp)
-
-            .shadow(
-
-                elevation = 6.dp,
-
-                shape = RoundedCornerShape(16.dp)
-
-            )
-
-            .background(
-
-                color = AppColors.surface,
-
-                shape = RoundedCornerShape(16.dp)
-
-            )
-
+            .shadow(6.dp, RoundedCornerShape(16.dp))
+            .background(AppColors.surface, RoundedCornerShape(16.dp))
             .padding(14.dp),
-
-        verticalAlignment = Alignment.Top
+        verticalAlignment = Alignment.CenterVertically
     ) {
-
-        // 🔹 Status Dot
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .background(statusColor, CircleShape)
+        Icon(
+            imageVector = Icons.Default.Notifications,
+            contentDescription = null,
+            tint = AppColors.primaryButton,
+            modifier = Modifier.size(30.dp)
         )
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(
-            modifier = Modifier.weight(1f)
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(member.localizedMemberName, style = AppFont.ibmPlexSans(16, FontWeight.SemiBold), color = AppColors.headerText)
+            Text(SquadStrings.pending, style = AppFont.ibmPlexSans(12, FontWeight.Normal), color = Color.Red)
+        }
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(AppColors.primaryButton)
+                .clickable(onClick = onRemind)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-
-            // MARK: Top Section
-            Row(
-                verticalAlignment = Alignment.Top
-            ) {
-
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-
-                    Text(
-                        text = memberName,
-                        style = AppFont.ibmPlexSans(
-                            16,
-                            FontWeight.SemiBold
-                        ).copy(
-                            color = AppColors.headerText
-                        ),
-                        maxLines = 1
-                    )
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Text(
-                        text = title,
-                        style = AppFont.ibmPlexSans(
-                            13,
-                            FontWeight.Normal
-                        ).copy(
-                            color = AppColors.secondaryText
-                        ),
-                        maxLines = 1
-                    )
-                }
-
-                Column(
-                    horizontalAlignment = Alignment.End
-                ) {
-
-                    // 🔹 Status Badge
-                    Text(
-                        text = status,
-                        style = AppFont.ibmPlexSans(
-                            9,
-                            FontWeight.SemiBold
-                        ),
-                        color = statusColor.copy(alpha = 0.9f),
-                        modifier = Modifier
-                            .background(
-                                statusColor.copy(alpha = 0.10f),
-                                RoundedCornerShape(50)
-                            )
-                            .padding(
-                                horizontal = 8.dp,
-                                vertical = 3.dp
-                            )
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // 🔔 Remind Button
-                    if (isPending && onRemind != null) {
-
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(AppColors.primaryButton)
-                                .clickable {
-                                    onRemind()
-                                }
-                                .padding(
-                                    horizontal = 12.dp,
-                                    vertical = 6.dp
-                                ),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-
-                            Icon(
-                                imageVector = Icons.Default.Notifications,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(10.dp)
-                            )
-
-                            Spacer(modifier = Modifier.width(4.dp))
-
-                            Text(
-                                text = SquadStrings.remind,
-                                style = AppFont.ibmPlexSans(
-                                    11,
-                                    FontWeight.SemiBold
-                                ),
-                                color = Color.White
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // MARK: Bottom Section
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    Icon(
-                        imageVector = Icons.Default.CurrencyRupee,
-                        contentDescription = null,
-                        tint = AppColors.headerText,
-                        modifier = Modifier.size(14.dp)
-                    )
-
-                    Text(
-                        text = amount,
-                        style = AppFont.ibmPlexSans(
-                            13,
-                            FontWeight.Medium
-                        ).copy(
-                            color = AppColors.headerText
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    Icon(
-                        imageVector = Icons.Default.DateRange,
-                        contentDescription = null,
-                        tint = AppColors.secondaryText,
-                        modifier = Modifier.size(13.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    Text(
-                        text = date,
-                        style = AppFont.ibmPlexSans(
-                            12,
-                            FontWeight.Normal
-                        ).copy(
-                            color = AppColors.secondaryText
-                        )
-                    )
-                }
-            }
+            Icon(Icons.Default.Notifications, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+            Spacer(Modifier.width(4.dp))
+            Text(SquadStrings.remind, style = AppFont.ibmPlexSans(11, FontWeight.SemiBold), color = Color.White)
         }
     }
 }
 
-// ----------------------
-// Helper functions (mirrors SwiftUI versions)
-// ----------------------
+private fun loadDuesPage(viewModel: SquadViewModel, segment: String, onFinished: () -> Unit) {
+    if (segment == SquadStrings.contribution) {
+        viewModel.resetUnpaidContributionMembersPagination()
+        viewModel.fetchUnpaidContributionMembers(showLoader = true) { _, _ -> onFinished() }
+    } else {
+        viewModel.resetUnpaidLoanMembersPagination()
+        viewModel.fetchUnpaidLoanMembers(showLoader = true) { _, _ -> onFinished() }
+    }
+}
 
-/**
- * Filter payments for the current month and only allowed subtypes
- */
+private fun sendMemberReminder(
+    squadViewModel: SquadViewModel,
+    members: List<Member>,
+    contribution: Boolean
+) {
+
+    val memberIds = members
+        .mapNotNull { member ->
+            member.id?.takeIf { it.isNotBlank() }
+        }
+        .distinct()
+
+    if (memberIds.isEmpty()) return
+
+    val title = if (contribution) {
+        "Contribution Reminder"
+    } else {
+        "EMI Reminder"
+    }
+
+    val notificationType = if (contribution) {
+        "CONTRIBUTION_REMINDER"
+    } else {
+        "EMI_REMINDER"
+    }
+
+    val message = if (contribution) {
+        "Please complete your pending contribution."
+    } else {
+        "Please complete your pending EMI."
+    }
+
+    LoaderManager.shared.showLoader()
+
+    NotificationService.shared.sendMemberReminder(
+        request = PushNotificationRequest(
+            squadId = squadViewModel.squad.value?.squadID ?: "",
+            memberIds = memberIds,
+            title = title,
+            message = message,
+            data = mapOf(
+                "navigate" to "PAYMENT",
+                "notificationType" to notificationType
+            ),
+            recipientType = NotificationRecipientType.SELECTED
+        ),
+        onSuccess = {
+            LoaderManager.shared.hideLoader()
+
+            ToastManager.show(
+                title = SquadStrings.reminderSent,
+                message = if (memberIds.size == 1) {
+                    SquadStrings.notificationSentToMember(
+                        members.first { it.id == memberIds.first() }.localizedMemberName
+                    )
+                } else {
+                    "Reminder sent to ${memberIds.size} members."
+                },
+                type = ToastType.SUCCESS
+            )
+        },
+        onError = { error ->
+            LoaderManager.shared.hideLoader()
+
+            ToastManager.show(
+                title = "Failed",
+                message = error.localizedMessage
+                    ?: "Unable to send reminder.",
+                type = ToastType.ERROR
+            )
+        }
+    )
+}
+
 @RequiresApi(Build.VERSION_CODES.O)
 fun getCurrentMonthPayments(allPayments: List<PaymentsDetails>): List<PaymentsDetails> {
-    // Current date
     val now = LocalDate.now()
-
-    // Start of current month in epoch millis
-    val startOfMonth = now
-        .withDayOfMonth(1)
-        .atStartOfDay(ZoneId.systemDefault())
-        .toInstant()
-        .toEpochMilli()
-
-    // Start of next month in epoch millis
-    val startOfNextMonth = now
-        .plusMonths(1)
-        .withDayOfMonth(1)
-        .atStartOfDay(ZoneId.systemDefault())
-        .toInstant()
-        .toEpochMilli()
-
-    // Allowed payment subtypes for current month filtering
-    val allowedSubTypes = setOf(
-        PaymentSubType.INTEREST_AMOUNT,
-        PaymentSubType.EMI_AMOUNT,
-        PaymentSubType.CONTRIBUTION_AMOUNT
-    )
-
+    val startOfMonth = now.withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    val startOfNextMonth = now.plusMonths(1).withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    val allowedSubTypes = setOf(PaymentSubType.INTEREST_AMOUNT, PaymentSubType.EMI_AMOUNT, PaymentSubType.CONTRIBUTION_AMOUNT)
     return allPayments.filter { payment ->
         val recordMs = payment.recordDate.toDate().time
-        payment.paymentType == PaymentType.PAYMENT_CREDIT &&
-                payment.paymentSubType in allowedSubTypes &&
-                recordMs in startOfMonth until startOfNextMonth
+        payment.paymentType == PaymentType.PAYMENT_CREDIT && payment.paymentSubType in allowedSubTypes && recordMs in startOfMonth until startOfNextMonth
     }
 }
 
-/**
- * Fetch due contributions and installments.
- * This calls your ViewModel's fetchDueContributionsAndInstallments method.
- * Replace with your real implementation as required.
- */
-
-fun fetchDueContributionsAndInstallments(
-    squadViewModel: SquadViewModel,
-    onComplete: (List<ContributionDetail>, List<Installment>) -> Unit
-) {
-    val squadID = squadViewModel.squad.value?.squadID ?: run {
-        Log.e("DuesScreen", "❌ squadID is NULL — Cannot fetch dues")
-        return
-    }
-
-    Log.d("DuesScreen", "🔍 Fetching dues for SquadID: $squadID")
-
-    squadViewModel.fetchDueContributionsAndInstallments(
-        squadID)
-        { contributions, installments ->
-            Log.d("DuesScreen", "🟡 Contributions Due = ${contributions.size}")
-            Log.d("DuesScreen", "🟡 Installments Due = ${installments.size}")
-
-            onComplete(contributions, installments)
-        }
-
-}

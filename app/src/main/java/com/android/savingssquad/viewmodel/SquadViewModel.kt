@@ -79,6 +79,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.TimeZone
 
 class SquadViewModel : ViewModel() {
 
@@ -127,6 +128,38 @@ class SquadViewModel : ViewModel() {
     var paymentsIsLoadingMore: Boolean = false
     private var paymentsHasMoreData: Boolean = true
     private val paymentsPageSize: Int = 20
+
+
+    private val _unpaidContributionMembers =
+        MutableStateFlow<List<Member>>(emptyList())
+
+    val unpaidContributionMembers: StateFlow<List<Member>> =
+        _unpaidContributionMembers
+
+    fun setUnpaidContributionMembers(list: List<Member>) {
+        _unpaidContributionMembers.value = list
+    }
+
+    private var unpaidContributionMembersLastDocument: DocumentSnapshot? = null
+    var unpaidContributionMembersIsLoadingMore: Boolean = false
+    private var unpaidContributionMembersHasMoreData: Boolean = true
+    private val unpaidContributionMembersPageSize: Int = 20
+
+
+    private val _unpaidLoanMembers =
+        MutableStateFlow<List<Member>>(emptyList())
+
+    val unpaidLoanMembers: StateFlow<List<Member>> =
+        _unpaidLoanMembers
+
+    fun setUnpaidLoanMembers(list: List<Member>) {
+        _unpaidLoanMembers.value = list
+    }
+
+    private var unpaidLoanMembersLastDocument: DocumentSnapshot? = null
+    var unpaidLoanMembersIsLoadingMore: Boolean = false
+    private var unpaidLoanMembersHasMoreData: Boolean = true
+    private val unpaidLoanMembersPageSize: Int = 20
 
 
     private val _squadLoans = MutableStateFlow<List<MemberLoan>>(emptyList())
@@ -1815,6 +1848,22 @@ class SquadViewModel : ViewModel() {
             LoaderManager.shared.showLoader()
         }
 
+        val calendar = Calendar.getInstance(
+            TimeZone.getTimeZone("Asia/Kolkata")
+        ).apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        if (markCurrentMonthPaid) {
+            calendar.add(Calendar.MONTH, 1)
+        }
+
+        val nextContributionDueDate = Timestamp(calendar.time)
+
         // MARK: Create Member
 
         val newMember = Member(
@@ -1841,7 +1890,7 @@ class SquadViewModel : ViewModel() {
             cashRequested = false,
             memberCreatedContribuionAmount = contributionReceived,
             memberCreatedIntrestAmount = interestReceived,
-            totalDuration = currentSquad.totalDuration, hasPendingContribution = !markCurrentMonthPaid
+            totalDuration = currentSquad.totalDuration, nextContributionDueDate = nextContributionDueDate
         )
 
         // MARK: Save Member + Login + Financial Records
@@ -4813,6 +4862,216 @@ class SquadViewModel : ViewModel() {
         if (currentPayment.id != last.id) return
 
         loadMorePayments(memberId,filterType)
+    }
+
+    fun fetchUnpaidContributionMembers(
+        showLoader: Boolean,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            completion(false, "No Internet")
+            return
+        }
+
+        if (showLoader) LoaderManager.shared.showLoader()
+
+        unpaidContributionMembersIsLoadingMore = true
+
+        manager.fetchUnpaidContributionMembers(
+            squadID = squadID,
+            lastDocument = null,
+            limit = unpaidContributionMembersPageSize
+        ) { members, lastDoc, error ->
+
+            unpaidContributionMembersIsLoadingMore = false
+
+            if (showLoader) LoaderManager.shared.hideLoader()
+
+            if (members != null && error == null) {
+
+                setUnpaidContributionMembers(members)
+
+                unpaidContributionMembersLastDocument = lastDoc
+
+                unpaidContributionMembersHasMoreData =
+                    members.size == unpaidContributionMembersPageSize
+
+                completion(true, null)
+
+            } else {
+
+                completion(
+                    false,
+                    error ?: "Failed to fetch unpaid contribution members"
+                )
+            }
+        }
+    }
+
+
+    fun resetUnpaidContributionMembersPagination() {
+
+        setUnpaidContributionMembers(emptyList())
+
+        unpaidContributionMembersLastDocument = null
+
+        unpaidContributionMembersHasMoreData = true
+
+        unpaidContributionMembersIsLoadingMore = false
+    }
+
+
+    fun loadMoreUnpaidContributionMembers() {
+
+        if (unpaidContributionMembersIsLoadingMore) return
+        if (!unpaidContributionMembersHasMoreData) return
+
+        val last = unpaidContributionMembersLastDocument ?: return
+
+        unpaidContributionMembersIsLoadingMore = true
+
+        manager.fetchUnpaidContributionMembers(
+            squadID = squadID,
+            lastDocument = last,
+            limit = unpaidContributionMembersPageSize
+        ) { members, newLastDoc, error ->
+
+            unpaidContributionMembersIsLoadingMore = false
+
+            if (members != null && error == null) {
+
+                val current =
+                    unpaidContributionMembers.value.toMutableList()
+
+                current.addAll(members)
+
+                setUnpaidContributionMembers(current)
+
+                unpaidContributionMembersLastDocument = newLastDoc
+
+                unpaidContributionMembersHasMoreData =
+                    members.size == unpaidContributionMembersPageSize
+            }
+        }
+    }
+
+
+    fun loadMoreUnpaidContributionMembersIfNeeded(
+        currentMember: Member
+    ) {
+
+        val last =
+            unpaidContributionMembers.value.lastOrNull() ?: return
+
+        if (currentMember.id != last.id) return
+
+        loadMoreUnpaidContributionMembers()
+    }
+
+    fun fetchUnpaidLoanMembers(
+        showLoader: Boolean,
+        completion: (Boolean, String?) -> Unit
+    ) {
+
+        if (!CommonFunctions.isInternetAvailable()) {
+            completion(false, "No Internet")
+            return
+        }
+
+        if (showLoader) LoaderManager.shared.showLoader()
+
+        unpaidLoanMembersIsLoadingMore = true
+
+        manager.fetchUnpaidLoanMembers(
+            squadID = squadID,
+            lastDocument = null,
+            limit = unpaidLoanMembersPageSize
+        ) { members, lastDoc, error ->
+
+            unpaidLoanMembersIsLoadingMore = false
+
+            if (showLoader) LoaderManager.shared.hideLoader()
+
+            if (members != null && error == null) {
+
+                setUnpaidLoanMembers(members)
+
+                unpaidLoanMembersLastDocument = lastDoc
+
+                unpaidLoanMembersHasMoreData =
+                    members.size == unpaidLoanMembersPageSize
+
+                completion(true, null)
+
+            } else {
+
+                completion(
+                    false,
+                    error ?: "Failed to fetch unpaid loan members"
+                )
+            }
+        }
+    }
+
+
+    fun resetUnpaidLoanMembersPagination() {
+
+        setUnpaidLoanMembers(emptyList())
+
+        unpaidLoanMembersLastDocument = null
+
+        unpaidLoanMembersHasMoreData = true
+
+        unpaidLoanMembersIsLoadingMore = false
+    }
+
+
+    fun loadMoreUnpaidLoanMembers() {
+
+        if (unpaidLoanMembersIsLoadingMore) return
+        if (!unpaidLoanMembersHasMoreData) return
+
+        val last = unpaidLoanMembersLastDocument ?: return
+
+        unpaidLoanMembersIsLoadingMore = true
+
+        manager.fetchUnpaidLoanMembers(
+            squadID = squadID,
+            lastDocument = last,
+            limit = unpaidLoanMembersPageSize
+        ) { members, newLastDoc, error ->
+
+            unpaidLoanMembersIsLoadingMore = false
+
+            if (members != null && error == null) {
+
+                val current =
+                    unpaidLoanMembers.value.toMutableList()
+
+                current.addAll(members)
+
+                setUnpaidLoanMembers(current)
+
+                unpaidLoanMembersLastDocument = newLastDoc
+
+                unpaidLoanMembersHasMoreData =
+                    members.size == unpaidLoanMembersPageSize
+            }
+        }
+    }
+
+
+    fun loadMoreUnpaidLoanMembersIfNeeded(
+        currentMember: Member
+    ) {
+
+        val last =
+            unpaidLoanMembers.value.lastOrNull() ?: return
+
+        if (currentMember.id != last.id) return
+
+        loadMoreUnpaidLoanMembers()
     }
 
     //Loans
