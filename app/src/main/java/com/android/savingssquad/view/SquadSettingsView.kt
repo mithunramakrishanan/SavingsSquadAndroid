@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Card
@@ -58,6 +59,7 @@ import com.android.savingssquad.singleton.appShadow
 import com.android.savingssquad.viewmodel.AlertManager
 import com.android.savingssquad.viewmodel.AppDestination
 import androidx.compose.runtime.collectAsState
+import com.android.savingssquad.SquadSubscription.TrialBadgeView
 
 sealed class SquadSettingsEvent {
     data object ManageSquad : SquadSettingsEvent()
@@ -281,6 +283,17 @@ fun SquadSettingsView(
                 }
 
                 item {
+                    SettingsDashboardCard(
+                        title = SquadStrings.contactUs,
+                        subtitle = SquadStrings.wereHereToHelpYou,
+                        icon = Icons.Default.PhoneIphone,
+                        gradient = listOf(Color(0xFF64748B), Color(0xFF94A3B8))
+                    ) {
+                        navigationEvent = SquadSettingsEvent.ContactUs
+                    }
+                }
+
+                item {
                     LanguageDropDownView(
 
                         squadViewModel = squadViewModel
@@ -288,6 +301,7 @@ fun SquadSettingsView(
                     )
 
                 }
+                // ---------- LOGOUT ----------
                 item(span = { GridItemSpan(2) }) {
                     LogoutCard {
                         AlertManager.shared.showAlert(
@@ -302,12 +316,22 @@ fun SquadSettingsView(
                         )
                     }
                 }
-            }
 
-            ContactUsButton(
-                onClick = { navigationEvent = SquadSettingsEvent.ContactUs },
-                modifier = Modifier.padding(bottom = 20.dp)
-            )
+// ---------- CONTACT US + SUBSCRIPTION ----------
+                item(span = { GridItemSpan(2) }) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+
+                        TrialBadgeView(
+                            onClick = {
+                                squadViewModel.setShowUpgradePlan(true)
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }

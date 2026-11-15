@@ -247,12 +247,6 @@ fun ManagerHomeView(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                TrialBadgeView(
-                    onClick = {
-                        squadViewModel.setShowUpgradePlan(true)
-                    }
-                )
-
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()

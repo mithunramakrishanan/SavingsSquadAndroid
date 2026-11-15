@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.android.savingssquad.SquadSubscription.SubscriptionModel.Plan
 
 import com.android.savingssquad.singleton.AppColors
 import com.android.savingssquad.singleton.SquadStrings
@@ -64,6 +65,8 @@ import com.google.firebase.Timestamp
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 import kotlin.coroutines.resume
 
@@ -116,6 +119,49 @@ fun UpgradePlanScreen(
 
     val forceUpgrade =
         viewModel.shouldForceUpgrade(memberCount)
+
+    val formattedPackEndDate = remember(sub?.subscriptionEndDate) {
+        sub?.subscriptionEndDate?.toDate()?.let { date ->
+            SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(date)
+        }
+    }
+
+// Subtitle
+    val subtitle = if (sub?.isTrialActive == true) {
+
+        SquadStrings.trialDaysRemaining(viewModel.trialDaysRemaining().toString())
+
+    } else {
+
+        when (sub?.plan) {
+
+            Plan.FREE -> ""
+
+            Plan.BASIC, Plan.BUSINESS -> {
+
+                val billingPeriod = when (sub!!.billingPeriod) {
+                    SubscriptionModel.BillingPeriod.MONTHLY ->
+                        SquadStrings.monthly
+
+                    SubscriptionModel.BillingPeriod.SIX_MONTH ->
+                        SquadStrings.sixMonths
+
+                    SubscriptionModel.BillingPeriod.YEARLY ->
+                        SquadStrings.yearly
+                }
+
+                if (formattedPackEndDate != null) {
+                    "$billingPeriod · ${SquadStrings.expires} ${
+                        SquadStrings.localizedMonthInText(formattedPackEndDate)
+                    }"
+                } else {
+                    billingPeriod
+                }
+            }
+
+            null -> ""
+        }
+    }
 
     // MARK: - Force Upgrade
 
@@ -275,6 +321,12 @@ fun UpgradePlanScreen(
 
             Text(
                 text = SquadStrings.contributionsLoansScaling,
+                fontSize = 13.sp,
+                color = AppColors.secondaryText
+            )
+
+            Text(
+                text = subtitle,
                 fontSize = 13.sp,
                 color = AppColors.secondaryText
             )
