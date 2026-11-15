@@ -1,6 +1,7 @@
 package com.android.savingssquad.view
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
@@ -40,6 +41,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
@@ -125,7 +127,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import com.android.savingssquad.singleton.SecondaryFirebaseAuthManager
 
 
@@ -327,6 +331,7 @@ fun SSCancelButton(
 }
 
 // ---------- SSTextField ----------
+
 @Composable
 fun SSTextField(
     icon: ImageVector,
@@ -346,7 +351,13 @@ fun SSTextField(
 ) {
 
     val focusRequester = remember { FocusRequester() }
-    var isFocused by remember { mutableStateOf(false) }
+
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    var isFocused by remember {
+        mutableStateOf(false)
+    }
 
     val borderColor by animateColorAsState(
         targetValue = when {
@@ -379,10 +390,12 @@ fun SSTextField(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
+            .clickable(
+                enabled = !disabled
+            ) {
                 if (showDropdown) {
                     onDropdownTap?.invoke()
-                } else if (!disabled) {
+                } else {
                     focusRequester.requestFocus()
                 }
             },
@@ -476,7 +489,17 @@ fun SSTextField(
                         enabled = !disabled && !showDropdown,
 
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = keyboardType
+                            keyboardType = keyboardType,
+                            imeAction = ImeAction.Done
+                        ),
+
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+
+                                focusManager.clearFocus(force = true)
+
+                                keyboardController?.hide()
+                            }
                         ),
 
                         cursorBrush = SolidColor(
@@ -517,10 +540,10 @@ fun SSTextField(
 
                     } else {
 
-                        dropdownIcon?.let { icon ->
+                        dropdownIcon?.let { dropdown ->
 
                             Icon(
-                                imageVector = icon,
+                                imageVector = dropdown,
                                 contentDescription = null,
                                 tint = dropdownColor,
                                 modifier = Modifier
@@ -1943,6 +1966,7 @@ fun SectionView(
     }
 }
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun ModernSegmentedPickerView(
     segments: List<String>,
@@ -2187,6 +2211,7 @@ private val NON_PHONE_NUMBERS = listOf(
     "3333333333"
 )
 
+
 @Composable
 fun AddMemberPopup(
     squadViewModel: SquadViewModel,
@@ -2196,14 +2221,9 @@ fun AddMemberPopup(
     val context = LocalContext.current
     val activity = context as? Activity
 
-    val coroutineScope = rememberCoroutineScope()
-
-    // ---------------------------------------------------------
-    // OTP FIELD FOCUS
-    // ---------------------------------------------------------
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     val otpFocusRequester = remember { FocusRequester() }
-    val keyboardController = LocalSoftwareKeyboardController.current
 
     // ---------------------------------------------------------
     // MEMBER DETAILS
@@ -2281,6 +2301,20 @@ fun AddMemberPopup(
     val totalReceived =
         contributionAmount + interestAmount
 
+    val monthlyContribution =
+        squad?.monthlyContribution ?: 0
+
+    val hasEnteredContribution =
+        contributionReceived.isNotBlank()
+
+    val canMarkCurrentMonthPaid =
+        contributionReceived.toIntOrNull()?.let {
+            it >= monthlyContribution
+        } ?: false
+
+    val showMarkCurrentMonthPaidSection =
+        squadHasStarted && hasEnteredContribution
+
     val contributionValid =
         contributionReceived.isEmpty() ||
                 contributionReceived.toIntOrNull() != null
@@ -2291,6 +2325,20 @@ fun AddMemberPopup(
 
     val areFinancialAmountsValid =
         contributionValid && interestValid
+
+    // ---------------------------------------------------------
+    // CURRENT MONTH PAYMENT VALIDATION
+    // ---------------------------------------------------------
+
+    LaunchedEffect(
+        contributionReceived,
+        monthlyContribution
+    ) {
+
+        if (!canMarkCurrentMonthPaid) {
+            markCurrentMonthPaid = false
+        }
+    }
 
     // ---------------------------------------------------------
     // NAME VALIDATION
@@ -2594,10 +2642,6 @@ fun AddMemberPopup(
 
     fun sendMemberOTP() {
 
-        if (!validateMemberDetails()) {
-            return
-        }
-
         if (activity == null) {
 
             sendOTPError =
@@ -2609,96 +2653,127 @@ fun AddMemberPopup(
         val formattedPhone =
             "+91" + CommonFunctions.cleanUpPhoneNumber(phoneNumber)
 
-        OTPProcessStarted = true
+        val cleanedPhone =
+            CommonFunctions.cleanUpPhoneNumber(phoneNumber)
 
-        isOTPSent = false
-        OTPVerified = false
+        val cleanedMemberName =
+            CommonFunctions.cleanUpName(memberName)
 
-        memberFirebaseUID = ""
+        squadViewModel.validateMemberNameAndPhone(
+            showLoader = true,
+            memberName = cleanedMemberName,
+            phoneNumber = cleanedPhone
+        ) { memberNameExist, phoneExists, error ->
 
-        verificationID = ""
-        otpCode = ""
+            activity.runOnUiThread {
 
-        lastAttemptedOTP = ""
-
-        sendOTPError = ""
-        verifyOTPError = ""
-
-        squadViewModel.setIsSendingOTP(true)
-
-        SecondaryFirebaseAuthManager.getInstance(context)
-            .sendOTP(
-                activity = activity,
-                phoneNumber = formattedPhone,
-                callback = object :
-                    SecondaryFirebaseAuthManager.SendOTPCallback {
-
-                    override fun onCodeSent(
-                        verificationId: String
-                    ) {
-
-                        verificationID = verificationId
-
-                        isOTPSent = true
-
-                        OTPProcessStarted = false
-
-                        squadViewModel.setIsSendingOTP(false)
-
-                        sendOTPError = ""
-
-                        Log.d(
-                            "AddMember",
-                            "OTP sent successfully"
-                        )
-                    }
-
-                    override fun onAutoVerified(
-                        firebaseUID: String
-                    ) {
-
-                        memberFirebaseUID = firebaseUID
-
-                        OTPVerified = true
-                        isOTPSent = true
-
-                        OTPProcessStarted = false
-
-                        squadViewModel.setIsSendingOTP(false)
-
-                        verifyOTPError = ""
-
-                        SecondaryFirebaseAuthManager
-                            .getInstance(context)
-                            .signOut()
-                    }
-
-                    override fun onFailure(
-                        error: String
-                    ) {
-
-                        sendOTPError = error
-
-                        isOTPSent = false
-                        OTPVerified = false
-
-                        memberFirebaseUID = ""
-
-                        OTPProcessStarted = false
-
-                        squadViewModel.setIsSendingOTP(false)
-
-                        SecondaryFirebaseAuthManager
-                            .getInstance(context)
-                            .signOut()
-
-                        Log.e(
-                            "AddMember",
-                            "OTP failed: $error"
-                        )
-                    }
+                if (error != null) {
+                    sendOTPError = error
+                    return@runOnUiThread
                 }
-            )
+
+                if (memberNameExist) {
+                    memberNameError = SquadStrings.nameAlreadyExists
+                    return@runOnUiThread
+                }
+
+                if (phoneExists) {
+                    phoneError = SquadStrings.mobileNumberAlreadyExists
+                    return@runOnUiThread
+                }
+
+                OTPProcessStarted = true
+
+                isOTPSent = false
+                OTPVerified = false
+
+                memberFirebaseUID = ""
+
+                verificationID = ""
+                otpCode = ""
+
+                lastAttemptedOTP = ""
+
+                sendOTPError = ""
+                verifyOTPError = ""
+
+                squadViewModel.setIsSendingOTP(true)
+
+                SecondaryFirebaseAuthManager.getInstance(context)
+                    .sendOTP(
+                        activity = activity,
+                        phoneNumber = formattedPhone,
+                        callback = object :
+                            SecondaryFirebaseAuthManager.SendOTPCallback {
+
+                            override fun onCodeSent(
+                                verificationId: String
+                            ) {
+
+                                verificationID = verificationId
+
+                                isOTPSent = true
+
+                                OTPProcessStarted = false
+
+                                squadViewModel.setIsSendingOTP(false)
+
+                                sendOTPError = ""
+
+                                Log.d(
+                                    "AddMember",
+                                    "OTP sent successfully"
+                                )
+                            }
+
+                            override fun onAutoVerified(
+                                firebaseUID: String
+                            ) {
+
+                                memberFirebaseUID = firebaseUID
+
+                                OTPVerified = true
+                                isOTPSent = true
+
+                                OTPProcessStarted = false
+
+                                squadViewModel.setIsSendingOTP(false)
+
+                                verifyOTPError = ""
+
+                                SecondaryFirebaseAuthManager
+                                    .getInstance(context)
+                                    .signOut()
+                            }
+
+                            override fun onFailure(
+                                error: String
+                            ) {
+
+                                sendOTPError = error
+
+                                isOTPSent = false
+                                OTPVerified = false
+
+                                memberFirebaseUID = ""
+
+                                OTPProcessStarted = false
+
+                                squadViewModel.setIsSendingOTP(false)
+
+                                SecondaryFirebaseAuthManager
+                                    .getInstance(context)
+                                    .signOut()
+
+                                Log.e(
+                                    "AddMember",
+                                    "OTP failed: $error"
+                                )
+                            }
+                        }
+                    )
+            }
+        }
     }
 
     // ---------------------------------------------------------
@@ -2776,8 +2851,12 @@ fun AddMemberPopup(
         val initialInterest =
             if (squadHasStarted) interestAmount else 0
 
+        // FINAL CURRENT MONTH PAYMENT VALIDATION
+
         val currentMonthPaid =
-            squadHasStarted && markCurrentMonthPaid
+            squadHasStarted &&
+                    canMarkCurrentMonthPaid &&
+                    markCurrentMonthPaid
 
         isSavingMember = true
 
@@ -3031,7 +3110,9 @@ fun AddMemberPopup(
                     )
                 }
 
+                // -------------------------------------------------
                 // FINANCIAL DETAILS
+                // -------------------------------------------------
 
                 if (squadHasStarted) {
 
@@ -3084,7 +3165,15 @@ fun AddMemberPopup(
                             }.also { state ->
 
                                 LaunchedEffect(state.value) {
-                                    contributionReceived = state.value
+
+                                    val filtered = state.value
+                                        .filter { it in '0'..'9' }
+
+                                    if (state.value != filtered) {
+                                        state.value = filtered
+                                    }
+
+                                    contributionReceived = filtered
                                 }
                             },
                             keyboardType = KeyboardType.Number,
@@ -3101,62 +3190,144 @@ fun AddMemberPopup(
                             }.also { state ->
 
                                 LaunchedEffect(state.value) {
-                                    interestReceived = state.value
+
+                                    val filtered = state.value
+                                        .filter { it in '0'..'9' }
+
+                                    if (state.value != filtered) {
+                                        state.value = filtered
+                                    }
+
+                                    interestReceived = filtered
                                 }
                             },
                             keyboardType = KeyboardType.Number,
                             error = ""
                         )
 
+                        // -------------------------------------------------
                         // CURRENT MONTH PAID
+                        // -------------------------------------------------
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(
-                                    AppColors.primaryButton.copy(alpha = 0.06f)
-                                )
-                                .clickable {
-                                    markCurrentMonthPaid =
-                                        !markCurrentMonthPaid
-                                }
-                                .padding(13.dp),
-                            verticalAlignment = Alignment.Top
+                        AnimatedVisibility(
+                            visible = showMarkCurrentMonthPaidSection,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
                         ) {
 
-                            Checkbox(
-                                checked = markCurrentMonthPaid,
-                                onCheckedChange = {
-                                    markCurrentMonthPaid = it
-                                }
-                            )
-
                             Column(
-                                modifier = Modifier.weight(1f)
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
 
-                                Text(
-                                    text = SquadStrings.markCurrentMonthAsPaid,
-                                    style = AppFont.ibmPlexSans(
-                                        13,
-                                        FontWeight.SemiBold
-                                    ),
-                                    color = AppColors.headerText
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            AppColors.primaryButton.copy(
+                                                alpha = 0.06f
+                                            )
+                                        )
+                                        .clickable(
+                                            enabled = canMarkCurrentMonthPaid
+                                        ) {
 
-                                Text(
-                                    text = SquadStrings.previousMonthsAutomaticallyPaid,
-                                    style = AppFont.ibmPlexSans(
-                                        11,
-                                        FontWeight.Normal
-                                    ),
-                                    color = AppColors.secondaryText
-                                )
+                                            if (canMarkCurrentMonthPaid) {
+                                                markCurrentMonthPaid =
+                                                    !markCurrentMonthPaid
+                                            }
+                                        }
+                                        .padding(13.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+
+                                    Checkbox(
+                                        checked = markCurrentMonthPaid,
+                                        enabled = canMarkCurrentMonthPaid,
+                                        onCheckedChange = { checked ->
+
+                                            if (canMarkCurrentMonthPaid) {
+                                                markCurrentMonthPaid = checked
+                                            }
+                                        },
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor =
+                                                AppColors.primaryButton,
+                                            uncheckedColor =
+                                                AppColors.secondaryText
+                                        )
+                                    )
+
+                                    Spacer(
+                                        modifier = Modifier.width(8.dp)
+                                    )
+
+                                    Column(
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+
+                                        Text(
+                                            text = SquadStrings.markCurrentMonthAsPaid,
+                                            style = AppFont.ibmPlexSans(
+                                                13,
+                                                FontWeight.SemiBold
+                                            ),
+                                            color = if (
+                                                canMarkCurrentMonthPaid
+                                            ) {
+                                                AppColors.headerText
+                                            } else {
+                                                AppColors.secondaryText
+                                            }
+                                        )
+
+                                        Text(
+                                            text = SquadStrings.previousMonthsAutomaticallyPaid,
+                                            style = AppFont.ibmPlexSans(
+                                                11,
+                                                FontWeight.Normal
+                                            ),
+                                            color = AppColors.secondaryText
+                                        )
+                                    }
+                                }
+
+                                // VALIDATION MESSAGE
+
+                                AnimatedVisibility(
+                                    visible = !canMarkCurrentMonthPaid
+                                ) {
+
+                                    Row(
+                                        horizontalArrangement =
+                                            Arrangement.spacedBy(6.dp),
+                                        verticalAlignment =
+                                            Alignment.Top
+                                    ) {
+
+                                        Icon(
+                                            imageVector = Icons.Default.Info,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = AppColors.errorAccent
+                                        )
+
+                                        Text(
+                                            text = SquadStrings.unableToMarkAsPaid(monthlyContribution.toString()),
+                                            style = AppFont.ibmPlexSans(
+                                                11,
+                                                FontWeight.Normal
+                                            ),
+                                            color = AppColors.errorAccent
+                                        )
+                                    }
+                                }
                             }
                         }
 
+                        // -------------------------------------------------
                         // FINANCIAL SUMMARY
+                        // -------------------------------------------------
 
                         Column(
                             modifier = Modifier

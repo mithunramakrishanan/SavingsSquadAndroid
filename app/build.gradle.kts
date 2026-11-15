@@ -60,8 +60,6 @@ android {
 dependencies {
     // Compose
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.animation.core)
-    implementation(libs.androidx.camera.camera2.pipe)
     implementation(libs.androidx.compose.animation)
     implementation(libs.androidx.compose.animation.core)
     implementation(libs.androidx.compose.foundation)
@@ -70,19 +68,16 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.text)
-    implementation(libs.androidx.datastore.core)
-    implementation(libs.androidx.foundation)
-    implementation(libs.androidx.room.ktx)
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.material.icons.extended)
 
-    // Core
+    // AndroidX & Other Libraries
+    implementation(libs.androidx.camera.camera2.pipe)
+    implementation(libs.androidx.datastore.core)
+    implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.material.icons.extended)
 
     // Firebase
     implementation(platform(libs.firebase.bom))
@@ -91,10 +86,9 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.functions)
-
-// AppCheck
-    implementation("com.google.firebase:firebase-appcheck-playintegrity")
-    implementation("com.google.firebase:firebase-appcheck-debug")
+    implementation(libs.firebase.appcheck.playintegrity)
+    implementation(libs.firebase.appcheck.debug)
+    implementation(libs.firebase.messaging)
 
     // Utils
     implementation(libs.gson)
@@ -107,12 +101,11 @@ dependencies {
     // Navigation
     implementation(libs.androidx.navigation.compose)
     implementation(libs.accompanist.navigation.animation)
-    implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
-    implementation("com.google.firebase:firebase-messaging")
 
+    // Image loading
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-gif:2.7.0")
 
     // Debug / Test
-    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.tooling)
 }

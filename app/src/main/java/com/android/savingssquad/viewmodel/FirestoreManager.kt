@@ -5048,7 +5048,8 @@ class FirestoreManager private constructor() {
             // Initial contribution and interest amounts
             "memberCreatedContribuionAmount" to member.memberCreatedContribuionAmount,
             "memberCreatedIntrestAmount" to member.memberCreatedIntrestAmount,
-            "totalDuration" to member.totalDuration
+            "totalDuration" to member.totalDuration,
+            "nextContributionDueDate" to member.nextContributionDueDate
         )
 
         batch.set(memberRef, memberData)
