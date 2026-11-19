@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.People
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.savingssquad.R
 import com.android.savingssquad.viewmodel.AppDestination
@@ -422,7 +423,7 @@ fun MemberHomeView(
 
                                     RemainderCardView(
                                         title = reminder.remainderTitle,
-                                        subtitle = reminder.remainderSubTitle,
+                                        subtitle =  SquadStrings.localizedMonth(reminder.remainderSubTitle),
                                         amount =
                                             reminder.remainderAmount.toString(),
                                         dueDate =
@@ -987,7 +988,7 @@ fun RemainderCardView(
 
         // MARK: Due Status
         Text(
-            text = "${if (isOverdue) "Overdue" else "Due"} • $formattedDate",
+            text = "${if (isOverdue) "Overdue" else "Due"} • ${SquadStrings.localizedMonth(formattedDate)}",
             style = AppFont.ibmPlexSans(
                 11,
                 FontWeight.Medium
@@ -1146,102 +1147,92 @@ fun MemberHeaderView(
     currentMember: Member?,
     amountClicked: () -> Unit
 ) {
-
-    Card(
+    val shape = RoundedCornerShape(26.dp)
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                amountClicked()
-            }
-            .appShadow(
-                style = AppShadows.card,
-                shape = RoundedCornerShape(20.dp)
-            ),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = AppColors.surface
-        )
+            .shadow(20.dp, shape, clip = false)
+            .clip(shape)
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(Color(0xFF103D35), Color(0xFF176B58), Color(0xFF15856C))
+                )
+            )
+            .border(1.dp, Color.White.copy(alpha = 0.18f), shape)
+            .clickable { amountClicked() }
     ) {
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 40.dp, y = (-85).dp)
+                .background(Color.White.copy(alpha = 0.055f), CircleShape)
+        )
 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
-
-            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .background(Color.White.copy(alpha = 0.14f), CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-
                     Icon(
                         imageVector = Icons.Default.ArrowDownward,
                         contentDescription = null,
-                        tint = AppColors.primaryButton,
-                        modifier = Modifier.size(16.dp)
-                    )
-
-                    Text(
-                        text = SquadStrings.yourCorrentContribution,
-                        style = AppFont.ibmPlexSans(
-                            14,
-                            FontWeight.Medium
-                        ),
-                        color = AppColors.secondaryText
+                        tint = Color(0xFFB9F4D3),
+                        modifier = Modifier.size(15.dp)
                     )
                 }
-
-                Spacer(modifier = Modifier.weight(1f))
-
+                Text(
+                    text = SquadStrings.yourCorrentContribution,
+                    style = AppFont.ibmPlexSans(13, FontWeight.Medium),
+                    color = Color.White.copy(alpha = 0.78f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
-                    tint = AppColors.secondaryText.copy(alpha = 0.6f),
-                    modifier = Modifier.size(18.dp)
+                    tint = Color.White.copy(alpha = 0.78f),
+                    modifier = Modifier.size(16.dp)
                 )
             }
 
-            // Amount + Details
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Bottom
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-
                 Text(
-                    text = currentMember
-                        ?.totalContributionPaid
-                        ?.currencyFormattedWithCommas()
-                        ?: "₹ 0",
-                    style = AppFont.ibmPlexSans(
-                        30,
-                        FontWeight.Bold
-                    ),
-                    color = AppColors.headerText,
+                    text = currentMember?.totalContributionPaid?.currencyFormattedWithCommas() ?: "₹ 0",
+                    style = AppFont.ibmPlexSans(32, FontWeight.Bold),
+                    color = Color.White,
                     maxLines = 1,
                     softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
-
                 Text(
                     text = SquadStrings.viewDetails,
-                    style = AppFont.ibmPlexSans(
-                        11,
-                        FontWeight.Medium
-                    ),
-                    color = AppColors.primaryButton
+                    style = AppFont.ibmPlexSans(11, FontWeight.SemiBold),
+                    color = Color.White.copy(alpha = 0.82f),
+                    maxLines = 1
                 )
             }
         }
     }
 }
-
 
 @Composable
 fun MemberDashBoardCard(

@@ -1325,6 +1325,7 @@ class FirestoreManager private constructor() {
                 var loanSnapshot: DocumentSnapshot? = null
 
                 var cashRequestSnapshot: DocumentSnapshot? = null
+                var shouldMarkCashRequestAccepted = false
 
                 // -----------------------------------------------------
                 // EMI -> READ LOAN
@@ -1398,6 +1399,31 @@ class FirestoreManager private constructor() {
                     if (!cashRequestSnapshot.exists()) {
                         throw IllegalStateException(
                             "Cash request not found."
+                        )
+                    }
+
+                    val storedCashRequestStatus =
+                        cashRequestSnapshot.getString("cashRequestStatus")
+                            ?: CashRequestStatus.CREATED.name
+
+                    val isRetryOfThisPayment =
+                        existingPayment != null &&
+                            existingPayment.cashRequestId == payment.cashRequestId &&
+                            existingPayment.paymentSubType == PaymentSubType.LOAN_AMOUNT &&
+                            existingPayment.paymentEntryType == PaymentEntryType.AUTOMATIC_ENTRY
+
+                    if (
+                        storedCashRequestStatus ==
+                        CashRequestStatus.CREATED.name
+                    ) {
+                        shouldMarkCashRequestAccepted = true
+                    } else if (
+                        storedCashRequestStatus !=
+                        CashRequestStatus.ACCEPTED.name ||
+                        !isRetryOfThisPayment
+                    ) {
+                        throw IllegalStateException(
+                            "This cash request has already been processed. Refresh and try again."
                         )
                     }
                 }
@@ -2088,7 +2114,8 @@ class FirestoreManager private constructor() {
                     PaymentSubType.LOAN_AMOUNT &&
                     payment.paymentEntryType ==
                     PaymentEntryType.AUTOMATIC_ENTRY &&
-                    !payment.cashRequestId.isNullOrEmpty()
+                    !payment.cashRequestId.isNullOrEmpty() &&
+                    shouldMarkCashRequestAccepted
                 ) {
 
                     val cashRequestRef =
@@ -2164,7 +2191,8 @@ class FirestoreManager private constructor() {
                 .document(paymentID)
 
         // =========================================================
-        // READ PAYMENT BEFORE TRANSACTION
+        // Verify existence; the transaction below re-reads the payment and
+        // uses that current snapshot for approval and loan data.
         // =========================================================
 
         paymentRef.get()
@@ -2181,89 +2209,8 @@ class FirestoreManager private constructor() {
                     return@addOnSuccessListener
                 }
 
-                val payment: PaymentsDetails
-
-                try {
-
-                    payment =
-                        snapshot.toObject(
-                            PaymentsDetails::class.java
-                        ) ?: run {
-
-                            completion(
-                                false,
-                                null,
-                                "Payment decode failed."
-                            )
-
-                            return@addOnSuccessListener
-                        }
-
-                } catch (e: Exception) {
-
-                    completion(
-                        false,
-                        null,
-                        "Failed to decode payment: ${
-                            e.localizedMessage
-                        }"
-                    )
-
-                    return@addOnSuccessListener
-                }
-
-                // =====================================================
-                // PREPARE LOAN OUTSIDE TRANSACTION
-                //
-                // If loanId is empty and payment is accepted,
-                // generate a new loan ID and MemberLoan.
-                // =====================================================
-
-                var preparedLoan: MemberLoan? = null
-                var preparedLoanID: String? = null
-
-                if (
-                    status ==
-                    PaymentApproveStatus.ACCEPTED &&
-                    payment.paymentSubType ==
-                    PaymentSubType.LOAN_AMOUNT &&
-                    payment.selectedEMIConfig != null
-                ) {
-
-                    val loanID =
-                        if (payment.loanId.isNotEmpty()) {
-                            payment.loanId
-                        } else {
-                            UUID.randomUUID().toString()
-                        }
-
-                    val loan =
-                        CommonFunctions.generateMemberLoan(
-                            emiConfig =
-                                payment.selectedEMIConfig!!,
-
-                            memberID =
-                                payment.memberId,
-
-                            memberName =
-                                payment.memberName,
-
-                            memberNameEnglish =
-                                payment.memberNameEnglish,
-
-                            memberNameTamil =
-                                payment.memberNameTamil,
-
-                            memberNameHindi =
-                                payment.memberNameHindi
-                        ).apply {
-
-                            id = loanID
-                        }
-
-                    preparedLoan = loan
-                    preparedLoanID = loanID
-                }
+                // Keep a candidate stable across automatic transaction retries.
+                val generatedLoanID = UUID.randomUUID().toString()
 
                 // =====================================================
                 // TRANSACTION
@@ -2309,20 +2256,20 @@ class FirestoreManager private constructor() {
                         val oldStatus =
                             currentPayment.paymentApproveStatus
 
-                        // =================================================
-                        // IMPORTANT:
-                        // Existing ACCEPTED payment must not be moved
-                        // back to REQUESTED/REJECTED by stale request.
-                        // =================================================
-
-                        if (
-                            oldStatus ==
-                            PaymentApproveStatus.ACCEPTED &&
-                            status !=
-                            PaymentApproveStatus.ACCEPTED
-                        ) {
-
+                        // A repeated identical action is a safe no-op.
+                        if (oldStatus == status) {
                             return@runTransaction currentPayment
+                        }
+
+                        // Only payments still awaiting approval can transition.
+                        if (
+                            oldStatus != PaymentApproveStatus.REQUESTED ||
+                            (status != PaymentApproveStatus.ACCEPTED &&
+                                status != PaymentApproveStatus.REJECTED)
+                        ) {
+                            throw IllegalStateException(
+                                "This payment is no longer awaiting approval. Refresh and try again."
+                            )
                         }
 
                         // =================================================
@@ -2389,6 +2336,43 @@ class FirestoreManager private constructor() {
 
                             loanSnapshot =
                                 transaction.get(loanRef)
+                        }
+
+                        // Prepare the loan from the payment read by this transaction.
+                        var preparedLoan: MemberLoan? = null
+                        var preparedLoanID: String? = null
+
+                        if (
+                            status == PaymentApproveStatus.ACCEPTED &&
+                            currentPayment.paymentSubType == PaymentSubType.LOAN_AMOUNT
+                        ) {
+                            val emiConfig =
+                                currentPayment.selectedEMIConfig
+                                    ?: throw IllegalStateException(
+                                        "Loan configuration is missing."
+                                    )
+
+                            val loanID =
+                                if (currentPayment.loanId.isNotEmpty()) {
+                                    currentPayment.loanId
+                                } else {
+                                    generatedLoanID
+                                }
+
+                            val loan =
+                                CommonFunctions.generateMemberLoan(
+                                    emiConfig = emiConfig,
+                                    memberID = currentPayment.memberId,
+                                    memberName = currentPayment.memberName,
+                                    memberNameEnglish = currentPayment.memberNameEnglish,
+                                    memberNameTamil = currentPayment.memberNameTamil,
+                                    memberNameHindi = currentPayment.memberNameHindi
+                                ).apply {
+                                    id = loanID
+                                }
+
+                            preparedLoan = loan
+                            preparedLoanID = loanID
                         }
 
                         // =================================================

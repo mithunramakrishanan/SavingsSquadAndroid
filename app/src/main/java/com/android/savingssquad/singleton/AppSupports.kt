@@ -16,20 +16,20 @@ import com.android.savingssquad.R
 
 object AppColors {
     // Backgrounds
-    val background = Color(0xFFE6EFEB)
-    val surface = Color(0xFFFFFFFF)
+    val background = Color(0xFFEEF3EF)
+    val surface = Color(0xFFFCFDFC)
 
     // Text
-    val headerText = Color(0xFF1A202C)
-    val secondaryText = Color(0xFF6B7280)
+    val headerText = Color(0xFF112821)
+    val secondaryText = Color(0xFF5D7068)
     val placeholderText = Color(0xFFA0A0A0)
 
     // Primary Brand Colors
-    val primaryBrand = Color(0xFF1A9988)
+    val primaryBrand = Color(0xFF126B58)
     val primaryBackground = primaryBrand.copy(alpha = 0.1f)
 
     // Secondary Accent
-    val secondaryAccent = Color(0xFFFF7F50)
+    val secondaryAccent = Color(0xFFD78448)
     val secondaryBackground = secondaryAccent.copy(alpha = 0.1f)
 
     // Buttons / Actions
@@ -38,13 +38,13 @@ object AppColors {
     val disabledButton = Color(0xFFC0C0C0)
 
     // Accents / Status
-    val successAccent = Color(0xFF2ECC71)
+    val successAccent = Color(0xFF1BA56C)
     val warningAccent = Color(0xFFF39C12)
     val errorAccent = Color(0xFFE74C3C)
     val infoAccent = Color(0xFF3498DB)
 
     // Borders / Dividers
-    val border = Color(0xFFE0E0E0)
+    val border = Color(0xFFDCE8E1)
 
     // Input / Loader
     val textFieldBackground = Color(0xFFFFFFFF)
@@ -97,18 +97,18 @@ data class ShadowStyle(
 object AppShadows {
     // 🔹 Light card shadow
     val card = ShadowStyle(
-        color = Color.Black.copy(alpha = 0.05f),
-        radius = 5.dp,
+        color = Color(0xFF183B35).copy(alpha = 0.07f),
+        radius = 12.dp,
         x = 0.dp,
-        y = 5.dp
+        y = 6.dp
     )
 
     // 🔹 Elevated / modal shadow
     val elevated = ShadowStyle(
-        color = Color.Black.copy(alpha = 0.1f),
-        radius = 8.dp,
+        color = Color(0xFF183B35).copy(alpha = 0.12f),
+        radius = 20.dp,
         x = 0.dp,
-        y = 4.dp
+        y = 10.dp
     )
 }
 

@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -342,71 +343,67 @@ fun SquadSettingsView(
 
 @Composable
 fun HeroGreetingCard(isManager: Boolean) {
+    val shape = RoundedCornerShape(26.dp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(26.dp))
+            .shadow(18.dp, shape, clip = false)
+            .clip(shape)
             .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        AppColors.primaryBrand,
-                        AppColors.primaryBrand.copy(alpha = 0.75f)
-                    )
+                Brush.linearGradient(
+                    colors = listOf(Color(0xFF103D35), Color(0xFF176B58))
                 )
             )
+            .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
             .padding(20.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.18f)),
-                contentAlignment = Alignment.Center
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 40.dp, y = (-85).dp)
+                .background(Color.White.copy(alpha = 0.055f), CircleShape)
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .background(Color.White.copy(alpha = 0.14f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isManager) Icons.Default.Groups else Icons.Default.Person,
+                        contentDescription = null,
+                        tint = Color(0xFFB9F4D3),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
                 Text(
                     text = if (isManager) SquadStrings.squadManager else SquadStrings.squadMember,
                     style = AppFont.ibmPlexSans(13, FontWeight.Medium),
-                    color = Color.White.copy(alpha = 0.85f)
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = SquadStrings.yourAccountOnYourTerms,
-                    style = AppFont.ibmPlexSans(17, FontWeight.SemiBold),
-                    color = Color.White,
+                    color = Color.White.copy(alpha = 0.78f),
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    modifier = Modifier.weight(1f)
                 )
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.14f)),
-                contentAlignment = Alignment.Center
-            ) {
                 Icon(
                     imageVector = Icons.Default.Verified,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = Color(0xFFB9F4D3),
                     modifier = Modifier.size(18.dp)
                 )
             }
+            Text(
+                text = SquadStrings.yourAccountOnYourTerms,
+                style = AppFont.ibmPlexSans(16, FontWeight.SemiBold),
+                color = Color.White,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -448,20 +445,21 @@ fun SettingsDashboardCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 116.dp)
+            .heightIn(min = 138.dp)
             .scale(scale)
-            .clip(RoundedCornerShape(24.dp))
+            .appShadow(AppShadows.card, RoundedCornerShape(22.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(AppColors.surface)
             .border(
                 width = 1.dp,
-                color = AppColors.border.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(24.dp)
+                color = AppColors.border.copy(alpha = 0.85f),
+                shape = RoundedCornerShape(22.dp)
             )
             .clickable(
                 indication = null,
                 interactionSource = interactionSource
             ) { action() }
-            .padding(16.dp)
+            .padding(15.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),

@@ -155,7 +155,10 @@ fun SSNavigationBar(
         if (showBackButton) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(AppColors.surface)
+                    .border(1.dp, AppColors.border, CircleShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = LocalIndication.current
@@ -168,7 +171,7 @@ fun SSNavigationBar(
                     painter = painterResource(id = R.drawable.back_icon),
                     contentDescription = "Back",
                     tint = AppColors.headerText,
-                    modifier = Modifier.size(25.dp)
+                    modifier = Modifier.size(21.dp)
                 )
             }
         }
@@ -176,7 +179,7 @@ fun SSNavigationBar(
         // 🔹 Title
         Text(
             text = title,
-            style = AppFont.ibmPlexSans(21, FontWeight.Bold),
+            style = AppFont.ibmPlexSans(23, FontWeight.Bold),
             color = AppColors.headerText,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -199,7 +202,10 @@ fun SSNavigationBar(
         if (rightButtonAction != null && (rightButtonIcon != null || rightButtonDrawable != null)) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(AppColors.surface)
+                    .border(1.dp, AppColors.border, CircleShape)
                     .clickable { rightButtonAction() },
                 contentAlignment = Alignment.Center
             ) {
@@ -209,7 +215,7 @@ fun SSNavigationBar(
                         Image(
                             painter = painterResource(id = rightButtonDrawable),
                             contentDescription = "Action",
-                            modifier = Modifier.size(25.dp),
+                            modifier = Modifier.size(21.dp),
                             colorFilter = ColorFilter.tint(AppColors.headerText)
                         )
                     }
@@ -220,7 +226,7 @@ fun SSNavigationBar(
                             imageVector = rightButtonIcon,
                             contentDescription = "Action",
                             tint = AppColors.headerText,
-                            modifier = Modifier.size(25.dp)
+                            modifier = Modifier.size(21.dp)
                         )
                     }
                 }
@@ -242,8 +248,8 @@ fun SSButton(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
-        color = if (isDisabled) AppColors.disabledButton else AppColors.primaryButton,
-        shape = RoundedCornerShape(18.dp),
+        color = Color.Transparent,
+        shape = RoundedCornerShape(17.dp),
         shadowElevation = 0.dp,
         onClick = {
             if (!isDisabled && !isButtonLoading) {
@@ -254,11 +260,20 @@ fun SSButton(
     ) {
         Box(
             modifier = Modifier
-                .height(44.dp)
+                .height(48.dp)
+                .background(
+                    brush = if (isDisabled) {
+                        Brush.linearGradient(listOf(AppColors.disabledButton, AppColors.disabledButton))
+                    } else {
+                        Brush.linearGradient(listOf(AppColors.primaryButton, AppColors.primaryButton.copy(alpha = 0.84f)))
+                    },
+                    shape = RoundedCornerShape(17.dp)
+                )
+                .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(17.dp))
                 .appShadow(
                     if (isDisabled) ShadowStyle(Color.Transparent, 0.dp, 0.dp, 0.dp)
-                    else AppShadows.elevated,
-                    RoundedCornerShape(18.dp)
+                    else ShadowStyle(AppColors.primaryBrand.copy(alpha = 0.2f), 12.dp, 0.dp, 5.dp),
+                    RoundedCornerShape(17.dp)
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -423,7 +438,7 @@ fun SSTextField(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(58.dp)
+                    .height(54.dp)
             ) {
 
                 Spacer(modifier = Modifier.width(14.dp))
@@ -837,11 +852,19 @@ fun SSTextView(
 // ---------- AppBackgroundGradient ----------
 @Composable
 fun AppBackgroundGradient() {
-    Box(modifier = Modifier.fillMaxSize().background(
-        Brush.verticalGradient(
-            colors = listOf(AppColors.background, AppColors.background)
-        )
-    ))
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFFF8FAF8),
+                        AppColors.background,
+                        Color(0xFFE6EEE8)
+                    )
+                )
+            )
+    )
 }
 
 // ---------- OverlayBackgroundView ----------
@@ -2019,14 +2042,14 @@ fun ModernSegmentedPickerView(
                     .width(segmentWidth - 8.dp)
                     .fillMaxHeight()
                     .shadow(
-                        elevation = 8.dp,
+                        elevation = 6.dp,
                         shape = RoundedCornerShape(12.dp)
                     )
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
                                 AppColors.primaryButton,
-                                AppColors.successAccent.copy(alpha = 0.85f)
+                                AppColors.primaryBrand.copy(alpha = 0.84f)
                             )
                         ),
                         shape = RoundedCornerShape(12.dp)
@@ -4789,12 +4812,12 @@ fun SSBadge(
         modifier = Modifier
             .background(
                 color = colors.background,
-                shape = RoundedCornerShape(8.dp)
+                shape = CircleShape
             )
             .border(
                 width = 1.dp,
-                color = colors.border,
-                shape = RoundedCornerShape(8.dp)
+                color = colors.border.copy(alpha = 0.8f),
+                shape = CircleShape
             )
             .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
@@ -5090,19 +5113,19 @@ fun SSSearchField(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp)
             .shadow(
-                elevation = 6.dp,
-                shape = RoundedCornerShape(18.dp),
-                ambientColor = Color.Black.copy(alpha = 0.08f),
-                spotColor = Color.Black.copy(alpha = 0.08f)
+                elevation = AppShadows.card.radius,
+                shape = RoundedCornerShape(16.dp),
+                ambientColor = AppShadows.card.color,
+                spotColor = AppShadows.card.color
             )
             .background(
-                color = Color.White,
-                shape = RoundedCornerShape(18.dp)
+                color = AppColors.surface,
+                shape = RoundedCornerShape(16.dp)
             )
             .border(
                 width = 1.dp,
-                color = Color(0xFFE8ECEF),
-                shape = RoundedCornerShape(18.dp)
+                color = AppColors.border,
+                shape = RoundedCornerShape(16.dp)
             )
             .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically

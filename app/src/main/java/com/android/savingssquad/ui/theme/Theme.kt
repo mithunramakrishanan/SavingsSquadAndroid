@@ -9,35 +9,38 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = Color(0xFF8AD7B6),
+    onPrimary = Color(0xFF103D35),
+    secondary = Color(0xFFE3A874),
+    onSecondary = Color(0xFF2D1B0B),
+    tertiary = Color(0xFF6CC6A0),
+    background = Color(0xFF10211B),
+    surface = Color(0xFF182D25),
+    onBackground = Color(0xFFE6F0E9),
+    onSurface = Color(0xFFE6F0E9)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+    primary = Color(0xFF126B58),
     onPrimary = Color.White,
+    secondary = Color(0xFFD78448),
     onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    tertiary = Color(0xFF1BA56C),
+    background = Color(0xFFEEF3EF),
+    surface = Color(0xFFFCFDFC),
+    onBackground = Color(0xFF112821),
+    onSurface = Color(0xFF112821)
 )
 
 @Composable
 fun SavingsSquadTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -116,23 +117,26 @@ fun ManagerTabView(
             // MARK: Premium Bottom Tab Bar
             Box(
                 modifier = Modifier
-                    .padding(horizontal = 0.dp)
-                    .padding(bottom = 0.dp)
+                    .padding(horizontal = 10.dp)
+                    .padding(bottom = 4.dp)
             ) {
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(
-                            elevation = 10.dp,
-                            shape = RoundedCornerShape(24.dp),
+                            elevation = 18.dp,
+                            shape = RoundedCornerShape(28.dp),
                             clip = false
                         )
                         .background(
-                            color = Color.White,
-                            shape = RoundedCornerShape(24.dp)
+                            brush = Brush.verticalGradient(
+                                colors = listOf(AppColors.surface.copy(alpha = 0.98f), AppColors.surface)
+                            ),
+                            shape = RoundedCornerShape(28.dp)
                         )
-                        .padding(vertical = 12.dp),
+                        .border(1.dp, Color.White.copy(alpha = 0.9f), RoundedCornerShape(28.dp))
+                        .padding(vertical = 10.dp),
                 ) {
 
                     TabBarItem(

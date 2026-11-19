@@ -46,6 +46,7 @@ import com.android.savingssquad.viewmodel.AppDestination
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.tooling.preview.Preview
 import com.android.savingssquad.singleton.AppFont
 import com.android.savingssquad.singleton.SquadLanguages
@@ -468,126 +469,87 @@ fun ManagerHeaderView(
     squadViewModel: SquadViewModel,
     onAccountSummaryClick: () -> Unit = {}
 ) {
-
-    Row(
+    val shape = RoundedCornerShape(26.dp)
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(6.dp)
-            .appShadow(AppShadows.card, RoundedCornerShape(24.dp))
+            .shadow(20.dp, shape, clip = false)
+            .clip(shape)
             .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        AppColors.surface,
-                        AppColors.surface.copy(alpha = 0.96f)
-                    )
-                ),
-                shape = RoundedCornerShape(24.dp)
-            )
-            .border(
-                width = 0.8.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        AppColors.border.copy(alpha = 0.5f),
-                        AppColors.border.copy(alpha = 0.15f)
-                    )
-                ),
-                shape = RoundedCornerShape(24.dp)
-            )
-            .clickable { onAccountSummaryClick() }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-
-        // ================= LEFT SECTION =================
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                AppColors.primaryButton.copy(alpha = 0.18f),
-                                AppColors.primaryButton.copy(alpha = 0.06f)
-                            )
-                        ),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AccountBalanceWallet,
-                    contentDescription = null,
-                    tint = AppColors.primaryButton,
-                    modifier = Modifier.size(17.dp)
+                Brush.linearGradient(
+                    colors = listOf(Color(0xFF103D35), Color(0xFF176B58), Color(0xFF15856C))
                 )
-            }
+            )
+            .border(1.dp, Color.White.copy(alpha = 0.18f), shape)
+            .clickable { onAccountSummaryClick() }
+    ) {
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 40.dp, y = (-85).dp)
+                .background(Color.White.copy(alpha = 0.055f), CircleShape)
+        )
 
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(22.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .background(Color.White.copy(alpha = 0.14f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccountBalanceWallet,
+                        contentDescription = null,
+                        tint = Color(0xFFB9F4D3),
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
                 Text(
                     text = SquadStrings.yourAvailableBalance,
                     style = AppFont.ibmPlexSans(13, FontWeight.Medium),
-                    color = AppColors.secondaryText
+                    color = Color.White.copy(alpha = 0.78f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .background(Color(0xFF34C759), CircleShape)
-                    )
-
-                    Spacer(modifier = Modifier.width(5.dp))
-
-                    Text(
-                        text = "Live",
-                        style = AppFont.ibmPlexSans(11, FontWeight.Normal),
-                        color = AppColors.secondaryText.copy(alpha = 0.7f)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.NorthEast,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.78f),
+                    modifier = Modifier.size(16.dp)
+                )
             }
-        }
 
-        Spacer(modifier = Modifier.weight(1f))
-
-        // ================= RIGHT BALANCE =================
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-
-            // main value with gradient text
-            Text(
-                text = squad.currentAvailableAmount.currencyFormattedWithCommas(),
-                style = AppFont.ibmPlexSans(26, FontWeight.Bold).copy(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            AppColors.primaryButton,
-                            AppColors.primaryButton.copy(alpha = 0.7f)
-                        )
-                    )
-                ),
-                maxLines = 1
-            )
-
-            // small label chip
-            Box(
-                modifier = Modifier
-                    .background(
-                        AppColors.secondaryText.copy(alpha = 0.08f),
-                        RoundedCornerShape(10.dp)
-                    )
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = SquadStrings.balance,
+                    text = squad.currentAvailableAmount.currencyFormattedWithCommas(),
+                    style = AppFont.ibmPlexSans(32, FontWeight.Bold),
+                    color = Color.White,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = SquadStrings.viewDetails,
                     style = AppFont.ibmPlexSans(11, FontWeight.SemiBold),
-                    color = AppColors.secondaryText
+                    color = Color.White.copy(alpha = 0.82f),
+                    maxLines = 1
                 )
             }
         }
